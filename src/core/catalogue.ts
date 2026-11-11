@@ -65,6 +65,8 @@ export interface Source {
 }
 
 export interface Catalogue {
+  /** The fewest live entries a lab runs with (scripts/lib/catalogue.mjs LAB_MIN). */
+  labMin: number;
   nodes: TaxNode[];
   roots: string[];
   entries: Entry[];
