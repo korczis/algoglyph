@@ -4,6 +4,11 @@ import { Raster } from '../../core/raster';
 import {
   energy, lattice, magnetisation, sweep, T_CRITICAL, type Lattice, type Start,
 } from './ising';
+import { bounded, cellWithin, stepsWithin } from '../../core/budget';
+
+/** Spins in the lattice at most, and spin updates (spins × sweeps) per frame (src/core/budget.ts). */
+export const MAX_SITES = 90_000;
+export const SPIN_UPDATES_PER_FRAME = 900_000;
 
 // How fast the drawn spin follows the real one, and how fast a flip's glow fades, per frame.
 const FOLLOW = 0.35;
@@ -66,7 +71,7 @@ export const isingModel: PlateCode = {
 
     return {
       setup() {
-        cell = num(params, 'cell');
+        cell = cellWithin(ctx.width, ctx.height, num(params, 'cell'), MAX_SITES);
         const w = Math.max(8, Math.floor(ctx.width / cell));
         const h = Math.max(8, Math.floor(ctx.height / cell));
         const start: Start = str(params, 'start') === 'ordered' ? 'ordered' : 'random';
@@ -88,7 +93,7 @@ export const isingModel: PlateCode = {
       draw() {
         const t = num(params, 'temperature');
         const hField = num(params, 'field');
-        const n = ctx.thumbnail ? 2 : num(params, 'speed');
+        const n = ctx.thumbnail ? 2 : stepsWithin(num(params, 'speed'), lat.s.length, SPIN_UPDATES_PER_FRAME);
         flipped.fill(0);
         for (let k = 0; k < n; k++) {
           acceptance = sweep(lat, t, hField, ctx.rnd, flipped) / lat.s.length;
@@ -120,7 +125,8 @@ export const isingModel: PlateCode = {
           { label: 'energy per spin', value: (energy(lat, hField) / s.length).toFixed(4) },
           { label: 'acceptance (last sweep)', value: `${(acceptance * 100).toFixed(1)} %` },
           { label: 'sweeps', value: sweeps.toLocaleString('en') },
-          { label: 'lattice', value: `${lat.w}×${lat.h} (torus)` },
+          { label: 'sweeps this frame', value: bounded(n, ctx.thumbnail ? n : num(params, 'speed')) },
+          { label: 'lattice', value: `${lat.w}×${lat.h} (torus), cells ${bounded(cell, num(params, 'cell'), ' px')}` },
         ]);
       },
     };
