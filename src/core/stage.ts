@@ -1,7 +1,7 @@
 // The stage: the one place that turns a Plate into a running p5 instance. It owns canvas size,
 // pixel density, the ground colours, pausing (by hand, off screen, reduced motion), stepping,
 // export and the gallery thumbnails.
-import p5 from 'p5';
+import p5 from './p5';
 import { GROUNDS, palette as lookupPalette } from './palette';
 import type { Params, Plate, PlateContext, Sim, Stat, Theme } from './plate';
 import { mulberry32 } from './random';
