@@ -1,5 +1,5 @@
 import type { StringKernel } from '../../engines/string/trace';
-import { align, board, compare, found, SEARCH_CHART, SEARCH_COUNTERS } from './_search';
+import { align, board, compare, everywhere, found, SEARCH_CHART, SEARCH_COUNTERS } from './_search';
 
 // Try every alignment; compare left to right until a mismatch or the whole pattern matches.
 export const kernel: StringKernel<'search', number[]> = {
@@ -10,6 +10,7 @@ export const kernel: StringKernel<'search', number[]> = {
     const n = text.length; const m = pattern.length;
     const out: number[] = [];
     board(ops, text, pattern);
+    if (!m) return everywhere(ops, n);
     let tried = 0;
     for (let s = 0; s + m <= n; s++) {
       align(ops, s);

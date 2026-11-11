@@ -19,6 +19,11 @@ interface Part {
   align: number;
   w: number;
   lines: number;
+  /**
+   * Cells given a state since the last clear, so a clear walks only those; null after an edit
+   * that moves cells (splice, swap), when the next clear walks the whole part.
+   */
+  dirty: number[] | null;
 }
 
 /** Events that cost a step of the plate's speed budget; marks, links and readouts are free. */
@@ -82,27 +87,39 @@ export class Board {
           rows: meta.kind === 'table' ? e.i : 1, cols: meta.kind === 'table' ? e.j : cells.length,
           rowHead: meta.rowHead, colHead: meta.colHead, offset: 0,
           align: meta.kind === 'row' || meta.kind === 'heat' ? e.i : -1,
-          w: meta.kind === 'row' ? e.j : 1, lines: meta.kind === 'list' ? e.i : 1,
+          w: meta.kind === 'row' ? e.j : 1, lines: meta.kind === 'list' ? e.i : 1, dirty: [],
         };
         this.links = this.links.filter((l) => l.a !== e.p && l.b !== e.p);
         break;
       }
       case OP.set: if (q) { q.cells[e.i] = e.s ?? ''; this.touch(e.p, e.i); } break;
-      case OP.mark: if (q && e.i < q.states.length) { q.states[e.i] = e.j; if (e.j) this.touch(e.p, e.i); } break;
-      case OP.clear: if (q) for (let k = 0; k < q.states.length; k++) if (e.i || q.states[k] !== S.done) q.states[k] = 0; break;
+      case OP.mark: if (q && e.i < q.states.length) {
+        q.states[e.i] = e.j;
+        if (e.j) { q.dirty?.push(e.i); this.touch(e.p, e.i); }
+      } break;
+      case OP.clear: if (q) {
+        if (e.i || !q.dirty) for (let k = 0; k < q.states.length; k++) { if (e.i || q.states[k] !== S.done) q.states[k] = 0; }
+        else for (const k of q.dirty) if (k < q.states.length && q.states[k] !== S.done) q.states[k] = 0;
+        q.dirty = [];
+      } break;
       case OP.offset: if (q) { q.offset = e.i; this.focus.set(this.anchor(e.p), e.i + q.cells.length - 1); } break;
       case OP.heat: if (q) { q.heat[e.i] = e.v; this.touch(e.p, e.i); } break;
-      case OP.push: if (q) { q.cells.push(e.s ?? ''); q.states.push(e.i); q.heat.push(NaN); } break;
+      case OP.push: if (q) {
+        q.cells.push(e.s ?? ''); q.states.push(e.i); q.heat.push(NaN);
+        if (e.i) q.dirty?.push(q.states.length - 1);
+      } break;
       case OP.pop: if (q) { q.cells.pop(); q.states.pop(); q.heat.pop(); } break;
       case OP.splice: if (q) {
         const items = e.ss ?? [];
         q.cells.splice(e.i, e.j, ...items);
         q.states.splice(e.i, e.j, ...items.map(() => 0));
         q.heat.splice(e.i, e.j, ...items.map(() => NaN));
+        q.dirty = null;
         this.touch(e.p, e.i);
       } break;
       case OP.swap: if (q) {
         for (const arr of [q.cells, q.states, q.heat] as unknown[][]) { const t = arr[e.i]; arr[e.i] = arr[e.j]; arr[e.j] = t; }
+        q.dirty = null;
       } break;
       case OP.swapRows: if (q) {
         for (let c = 0; c < q.cols; c++) {
@@ -110,6 +127,7 @@ export class Board {
           for (const arr of [q.cells, q.states, q.heat] as unknown[][]) { const t = arr[a]; arr[a] = arr[b]; arr[b] = t; }
         }
         if (q.rowHead) { const h = q.rowHead.slice(); [h[e.i], h[e.j]] = [h[e.j], h[e.i]]; q.rowHead = h; }
+        q.dirty = null;
       } break;
       case OP.link: this.links.push({ a: e.p, i: e.i, b: e.v, j: e.j, s: Number(e.s) }); break;
       case OP.unlink: this.links = []; break;

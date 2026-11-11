@@ -382,7 +382,7 @@ Compare only records that share a key or sort near each other, instead of every 
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/source-family">087 · Collapsing one story's copies</a></b><br>
-Five republications of one wire story are one source, not five; credits reveal the family.<br>
+Several republications of one wire story are one source, not several; credits reveal the family.<br>
 <sub>Similarity and matching · O(N² s) for N documents of s shingles each · provenance, deduplication, sources</sub>
 </td>
 </tr>

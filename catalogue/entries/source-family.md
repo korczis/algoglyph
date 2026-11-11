@@ -18,7 +18,7 @@ related:
   - union-find-entity-merge
 ---
 
-Five republications of one wire story are one source, not five; credits reveal the family.
+Several republications of one wire story are one source, not several; credits reveal the family.
 
 Every pair of documents is compared by the Jaccard similarity of their word 3-shingles. Republications of one story keep most shingles through light edits, a trimmed ending or an added line, while different stories share almost none, so a pair is linked at 0.3 or more; a pair carrying the same agency credit and the same headline is linked as well. Linked documents are merged by union-find into one source, coloured alike, and the earliest publication of each is marked as its origin.
 

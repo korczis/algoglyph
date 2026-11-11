@@ -17,17 +17,20 @@ export const kernel: StringKernel<'records', FsResult> = {
   counters: { compare: 'Field comparisons', em: 'EM pair updates' },
   speed: 40,
   chart: { title: 'Match weights of all pairs', x: 'total weight (bits)', y: 'pairs' },
-  run(ops, { records }) {
+  // a generator: a few hundred pairs, then each EM iteration, per step (recorded across frames)
+  *run(ops, { records }) {
     const n = records.length;
-    const val = (r: (typeof records)[number], f: (typeof FIELDS)[number]) => foldMarks(String(r[f])).toLowerCase();
+    // every field folded once per record, not once per comparison
+    const vals = records.map((r) => FIELDS.map((f) => foldMarks(String(r[f])).toLowerCase()));
     const pairs: [number, number][] = [];
     const gamma: number[][] = [];
     ops.table('w', FIELDS.length, 4, { label: 'Fields', rowHead: [...FIELDS], colHead: ['m', 'u', 'agree', 'disagree'] });
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         pairs.push([i, j]);
-        gamma.push(FIELDS.map((f) => (ops.eq('compare', val(records[i], f), val(records[j], f)) ? 1 : 0)));
+        gamma.push(FIELDS.map((_, k) => (ops.eq('compare', vals[i][k], vals[j][k]) ? 1 : 0)));
       }
+      if (i % 8 === 7) yield null;
     }
     ops.note(`${pairs.length} pairs compared on ${FIELDS.length} fields`);
     let m = FIELDS.map(() => 0.9); let u = FIELDS.map(() => 0.1); let p = 0.1;
@@ -56,6 +59,7 @@ export const kernel: StringKernel<'records', FsResult> = {
       p = clamp(sg / N);
       show();
       ops.note(`EM iteration ${it + 1}: log-likelihood ${ll.toFixed(2)}, match share ${p.toFixed(4)}`);
+      yield null;
       if (it > 0 && Math.abs(loglik[it] - loglik[it - 1]) < 1e-7) break;
     }
     const wa = m.map((x, k) => Math.log2(x / u[k]));

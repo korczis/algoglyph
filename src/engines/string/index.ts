@@ -8,9 +8,11 @@ import { bool, num, str, type Chart, type ParamDef, type PlateCode, type PlateCo
 import type { Engine, KernelInfo } from '../types';
 import { Board, drawBoard } from './board';
 import { input, KINDS, type InputKind } from './inputs';
-import { trace, work, type StringKernel, type Trace } from './trace';
+import { Recording, trace, traceSteps, work, type StringKernel } from './trace';
 
 const HOLD_FRAMES = 120;
+/** Milliseconds of recording a plate resumes per frame (a kernel that yields; others run whole). */
+export const SLICE_MS = 6;
 const fmt = (x: number) => x.toLocaleString('en-US');
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
@@ -42,9 +44,9 @@ const tail = (k: StringKernel): ParamDef[] => [
   paletteParam('spectral'),
 ];
 
-function run(kernel: StringKernel, ctx: PlateContext, generation: number, n?: number): Trace {
-  const x = input(kernel.input, n ?? num(ctx.params, 'n'), str(ctx.params, 'shape'), ctx.seed + generation * 7919);
-  return trace(kernel, x as never, ctx.params);
+function record(kernel: StringKernel, ctx: PlateContext, generation: number): Recording {
+  const x = input(kernel.input, num(ctx.params, 'n'), str(ctx.params, 'shape'), ctx.seed + generation * 7919);
+  return new Recording(traceSteps(kernel, x as never, { ...ctx.params }));
 }
 
 function counterStats(b: Board): Stat[] {
@@ -76,21 +78,29 @@ function plate(info: KernelInfo, kernel: StringKernel): PlateCode {
     thumbnailFrames: 2,
     params: [...inputParams(kernel.input, kernel), ...(kernel.params ?? []), ...tail(kernel)],
     create(p: p5, ctx) {
+      // the run is recorded across frames (SLICE_MS each), the first one before anything is
+      // shown and each new input while the finished board is held on screen
       let generation = 0;
-      let b = new Board(run(kernel, ctx, generation));
+      let b: Board | null = null;
+      let next: Recording | null = record(kernel, ctx, generation);
       let hold = 0;
+      const take = () => { b = new Board(next!.trace!); next = null; hold = 0; };
       return {
-        setup() { if (ctx.thumbnail) b.seek(0.45); },
+        setup() {
+          if (ctx.thumbnail) { next!.pump(Infinity); take(); b!.seek(0.45); }
+        },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            if (!b.done) b.advance(num(ctx.params, 'speed'));
-            else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
-              generation++;
-              hold = 0;
-              b = new Board(run(kernel, ctx, generation));
+            next?.pump(SLICE_MS);
+            if (!b) { if (next?.done) take(); }
+            else if (!b.done) b.advance(num(ctx.params, 'speed'));
+            else if (bool(ctx.params, 'loop')) {
+              if (!next && hold === 0) next = record(kernel, ctx, ++generation);
+              if (++hold > HOLD_FRAMES && next?.done) take();
             }
           }
+          if (!b) { ctx.stats([{ label: 'Progress', value: 'recording the run' }]); return; }
           const pad = Math.round(Math.min(ctx.width, ctx.height) * 0.04);
           drawBoard(p, ctx, b, pad, pad, ctx.width - 2 * pad, ctx.height - 2 * pad, true);
           const rows: Stat[] = [...counterStats(b), ...[...b.stats].map(([label, value]) => ({ label, value }))];

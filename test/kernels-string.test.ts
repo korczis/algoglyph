@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
 import { Board } from '../src/engines/string/board';
 import { input, KINDS, type InputKind } from '../src/engines/string/inputs';
-import { trace, type StringKernel } from '../src/engines/string/trace';
+import { OP, S, trace, type Ev, type StringKernel, type Trace } from '../src/engines/string/trace';
 
 type K = StringKernel<InputKind, unknown>;
 const modules = import.meta.glob<K>('../src/kernels/string/[!_]*.ts', { import: 'kernel', eager: true });
@@ -27,7 +27,8 @@ const ref = {
   /** Every start of pattern in text, by String.prototype.indexOf. */
   findAll(text: string, pattern: string): number[] {
     const out: number[] = [];
-    if (!pattern.length) return out;
+    // indexOf finds the empty pattern at every k from 0 to the length (and clamps beyond it)
+    if (!pattern.length) { for (let k = 0; k <= text.length; k++) out.push(text.indexOf('', k)); return out; }
     for (let i = text.indexOf(pattern); i >= 0; i = text.indexOf(pattern, i + 1)) out.push(i);
     return out;
   },
@@ -114,7 +115,17 @@ const ref = {
 /** Independent checks, one per kernel id: the reference never calls the code under test. */
 const CHECKS: Record<string, () => void> = {
   'brute-force-search': () => searchCheck('brute-force-search'),
-  'knuth-morris-pratt': () => searchCheck('knuth-morris-pratt'),
+  'knuth-morris-pratt': () => {
+    searchCheck('knuth-morris-pratt');
+    // on Repetitive input the pattern grows with the text: brute force's comparisons grow as
+    // n², the prefix function keeps KNUTH-MORRIS-PRATT's linear (two-point slopes, n = 256 … 2048)
+    const growth = (id: string) => {
+      const [a, b] = [256, 2048].map((n) => trace(kernelOf(id), input('search', n, 'repetitive', 9) as never, {}).counts[0]);
+      return Math.log(b / a) / Math.log(8);
+    };
+    expect(growth('brute-force-search')).toBeGreaterThan(1.8);
+    expect(growth('knuth-morris-pratt')).toBeLessThan(1.1);
+  },
   'boyer-moore': () => searchCheck('boyer-moore'),
   'rabin-karp': () => {
     searchCheck('rabin-karp');
@@ -174,6 +185,13 @@ const CHECKS: Record<string, () => void> = {
     expect(ref.lzwDecode(run<number[]>('lzw-compression', { text: 'abababababab' }))).toBe('abababababab');
     expect(run('lzw-compression', { text: 'TOBEORNOTTOBEORTOBEORNOT' })).toEqual(
       [84, 79, 66, 69, 79, 82, 78, 79, 84, 256, 258, 260, 265, 259, 261, 263]);
+    // text beyond one byte per character is read as UTF-8 bytes: every code defined, round trip exact
+    for (const text of ['kůň', 'Příliš žluťoučký kůň úpěl ďábelské ódy, kůň kůň', 'Łódź → 東京 🙂🙂']) {
+      const codes = run<number[]>('lzw-compression', { text });
+      expect(codes.every((c) => Number.isInteger(c)), text).toBe(true);
+      const bytes = Uint8Array.from(ref.lzwDecode(codes), (c) => c.charCodeAt(0));
+      expect(new TextDecoder().decode(bytes)).toBe(text);
+    }
   },
   'bpe-tokenisation': () => {
     for (const x of inputs('text', 160, 'prose')) {
@@ -341,6 +359,8 @@ const CHECKS: Record<string, () => void> = {
     expect(keys(['Alfa Stavby s.r.o.', 'ALFA STAVBY, spol. s r. o.', 'Alfa Stavby sro', 'Alfa Stavby a.s.']))
       .toEqual(['alfa stavby sro', 'alfa stavby sro', 'alfa stavby sro', 'alfa stavby as']);
     expect(keys(['Šárka Říhová'])).toEqual(['rihova sarka']);
+    // letters with no canonical decomposition fold to their usual spelling, not left whole
+    expect(keys(['Łukasz Wałęsa', 'Weiß Straße', 'Søren Ørsted', 'Đorđe Æbelø'])).toEqual(['lukasz walesa', 'strasse weiss', 'orsted soren', 'aebelo dorde']);
     for (const shape of ['people', 'companies', 'mixed']) for (const x of inputs('names', 30, shape)) {
       const k = run<string[]>('name-normalisation', x);
       const byEntity = new Map<number, Set<string>>();
@@ -358,7 +378,9 @@ const CHECKS: Record<string, () => void> = {
       ['Caesar', 'SSR', 'SSR'], ['Chianti', 'KNT', 'KNT'], ['Michael', 'MKL', 'MXL'], ['Chemistry', 'KMST', 'KMST'],
       ['Edge', 'AJ', 'AJ'], ['Edgar', 'ATKR', 'ATKR'], ['Gough', 'KF', 'KF'], ['Thomas', 'TMS', 'TMS'], ['Knight', 'NT', 'NT'],
       ['Arnow', 'ARN', 'ARNF'], ['Arnoff', 'ARNF', 'ARNF'], ['Tichner', 'TXNR', 'TKNR'], ['Wright', 'RT', 'RT'],
-      ['Jankelowicz', 'JNKL', 'ANKL'], ['Laugh', 'LF', 'LF']];
+      ['Jankelowicz', 'JNKL', 'ANKL'], ['Laugh', 'LF', 'LF'],
+      // rules that read the end of the word, which the original pads with spaces
+      ['Koch', 'KK', 'KK'], ['Jose', 'HS', 'HS'], ['Rogier', 'RJ', 'RJR']];
     expect(keys(dm.map((d) => d[0])).map((k) => [k.primary, k.alternate])).toEqual(dm.map((d) => [d[1], d[2]]));
     expect(keys(['Šimek'])[0].primary).toBe(keys(['Simek'])[0].primary);
   },
@@ -432,6 +454,42 @@ const CHECKS: Record<string, () => void> = {
   },
 };
 
+/**
+ * Cell states replayed the slow, obvious way: a clear walks every cell of its part. The board
+ * clears only the cells marked since its last clear; both must agree after every event.
+ */
+function naiveStates(events: Ev[], upto: number): number[][] {
+  const st: number[][] = [];
+  for (const e of events.slice(0, upto)) {
+    const q = st[e.p];
+    switch (e.o) {
+      case OP.part: st[e.p] = new Array<number>(JSON.parse(e.s ?? '{}').kind === 'table' ? e.i * e.j : (e.ss ?? []).length).fill(0); break;
+      case OP.mark: if (q && e.i < q.length) q[e.i] = e.j; break;
+      case OP.clear: if (q) for (let k = 0; k < q.length; k++) if (e.i || q[k] !== S.done) q[k] = 0; break;
+      case OP.push: q?.push(e.i); break;
+      case OP.pop: q?.pop(); break;
+      case OP.splice: q?.splice(e.i, e.j, ...(e.ss ?? []).map(() => 0)); break;
+      case OP.swap: if (q) [q[e.i], q[e.j]] = [q[e.j], q[e.i]]; break;
+    }
+  }
+  return st;
+}
+
+function sameStates(t: Trace, label: string): void {
+  const b = new Board(t);
+  const stops = [0.25, 0.5, 0.75, 1].map((f) => Math.floor(f * t.events.length));
+  for (const at of stops) {
+    while (b.at < at) b.advance(1);
+    const want = naiveStates(t.events, b.at);
+    // swapRows is not replayed by the naive version; tables that use it are compared by size only
+    const rowSwaps = t.events.slice(0, b.at).some((e) => e.o === OP.swapRows);
+    b.parts.forEach((q, i) => {
+      if (rowSwaps && q.kind === 'table') expect(q.states.length, label).toBe(want[i]?.length);
+      else expect(q.states, `${label} part ${i} at event ${b.at}`).toEqual(want[i]);
+    });
+  }
+}
+
 function searchCheck(id: string): void {
   for (const shape of KINDS.search.shapes.map((s) => s.value)) {
     for (const n of [16, 48, 200]) {
@@ -441,7 +499,7 @@ function searchCheck(id: string): void {
     }
   }
   const fixed: [string, string][] = [['abracadabra', 'abra'], ['aaaaaa', 'aa'], ['abcabcabd', 'abcabd'],
-    ['xyz', 'xyz'], ['ab', 'abc'], ['GCATCGCAGAGAGTATACAGTACG', 'GCAGAGAG']];
+    ['xyz', 'xyz'], ['ab', 'abc'], ['GCATCGCAGAGAGTATACAGTACG', 'GCAGAGAG'], ['abc', ''], ['', ''], ['', 'a']];
   for (const [text, pattern] of fixed) expect(run(id, { text, pattern })).toEqual(ref.findAll(text, pattern));
 }
 
@@ -467,6 +525,7 @@ describe('string kernels', () => {
             expect(b.done).toBe(true);
             expect(b.counts).toEqual(t.counts);
             expect(t.counts[0], `${shape} n=${n}: the primary counter counts work`).toBeGreaterThan(0);
+            sameStates(t, `${shape} n=${n}`);
           }
         }
       });

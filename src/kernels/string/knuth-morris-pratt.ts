@@ -1,5 +1,5 @@
 import { S, type StringKernel } from '../../engines/string/trace';
-import { align, board, compare, found, SEARCH_CHART, SEARCH_COUNTERS } from './_search';
+import { align, board, compare, everywhere, found, SEARCH_CHART, SEARCH_COUNTERS } from './_search';
 
 // The prefix function pi[q] is the length of the longest proper border of pattern[0..q]. After
 // a mismatch with q characters matched, the pattern slides so that pi[q-1] of them still match;
@@ -12,6 +12,7 @@ export const kernel: StringKernel<'search', number[]> = {
     const n = text.length; const m = pattern.length;
     const out: number[] = [];
     board(ops, text, pattern);
+    if (!m) return everywhere(ops, n);
     ops.row('pi', pattern.split('').map(() => ''), { label: 'Prefix function' });
     const pi = new Array<number>(m).fill(0);
     ops.note('prefix function: the pattern matched against itself');

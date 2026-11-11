@@ -87,7 +87,11 @@ export interface StringKernel<K extends InputKind = InputKind, R = unknown> {
   speed?: number;
   aspect?: number;
   chart?: { title: string; x: string; y: string; xlog?: boolean; ylog?: boolean };
-  run(ops: StringOps, x: Inputs[K], params: Params): R;
+  /**
+   * The algorithm. A kernel whose run takes more than a few milliseconds is a generator that
+   * yields `null` now and then: the plate records it across frames instead of in one.
+   */
+  run(ops: StringOps, x: Inputs[K], params: Params): R | Generator<null, R>;
 }
 
 export interface Trace<R = unknown> {
@@ -102,9 +106,20 @@ export interface Trace<R = unknown> {
 export const EVENT_CAP = 1_500_000;
 class Stop extends Error {}
 
+const isSteps = <R>(r: R | Generator<null, R>): r is Generator<null, R> =>
+  typeof r === 'object' && r !== null && typeof (r as Generator<null, R>).next === 'function'
+  && typeof (r as Generator<null, R>)[Symbol.iterator] === 'function';
+
 /** Run a kernel on an input, recording every event. */
 export function trace<K extends InputKind, R>(kernel: StringKernel<K, R>, x: Inputs[K],
   params: Params = {}, cap = EVENT_CAP): Trace<R | undefined> {
+  const steps = traceSteps(kernel, x, params, cap);
+  for (;;) { const r = steps.next(); if (r.done) return r.value; }
+}
+
+/** `trace` as steps: pauses (`null`) wherever the kernel does, so it can be spread over frames. */
+export function* traceSteps<K extends InputKind, R>(kernel: StringKernel<K, R>, x: Inputs[K],
+  params: Params = {}, cap = EVENT_CAP): Generator<null, Trace<R | undefined>> {
   const names = Object.keys(kernel.counters);
   const counts = names.map(() => 0);
   const events: Ev[] = [];
@@ -177,7 +192,8 @@ export function trace<K extends InputKind, R>(kernel: StringKernel<K, R>, x: Inp
   let result: R | undefined;
   let truncated = false;
   try {
-    result = kernel.run(ops, x, params);
+    const r = kernel.run(ops, x, params);
+    result = isSteps(r) ? yield* r : r;
   } catch (e) {
     if (!(e instanceof Stop)) throw e;
     truncated = true;
@@ -188,3 +204,20 @@ export function trace<K extends InputKind, R>(kernel: StringKernel<K, R>, x: Inp
 
 /** Total counted operations of a trace: the lab's measure of work. */
 export const work = (t: Trace) => t.counts.reduce((s, c) => s + c, 0);
+
+/** A trace being recorded across frames: `pump` resumes it for about the given time. */
+export class Recording<R = unknown> {
+  trace: Trace<R | undefined> | null = null;
+  constructor(private readonly steps: Generator<null, Trace<R | undefined>>) {}
+  get done(): boolean { return this.trace !== null; }
+  /** Resume for about `ms` milliseconds (at least one step); true once the trace is complete. */
+  pump(ms: number): boolean {
+    const end = performance.now() + ms;
+    while (!this.trace) {
+      const r = this.steps.next();
+      if (r.done) this.trace = r.value;
+      else if (performance.now() >= end) break;
+    }
+    return this.done;
+  }
+}

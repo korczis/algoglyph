@@ -33,3 +33,15 @@ export function found(ops: StringOps, s: number, m: number, out: number[]): void
   ops.stat('Matches', String(out.length));
   ops.note(`match at ${s}`);
 }
+
+/**
+ * The empty pattern occurs at every position 0..n, as String.prototype.indexOf finds it, and
+ * costs no comparison. Every search kernel answers it here before it searches.
+ */
+export function everywhere(ops: StringOps, n: number): number[] {
+  const out = Array.from({ length: n + 1 }, (_, s) => s);
+  ops.list('found', out.map(String), { label: 'Matches at', lines: 1 });
+  ops.stat('Matches', String(out.length));
+  ops.note(`the empty pattern occurs at every position, 0 to ${n}`);
+  return out;
+}

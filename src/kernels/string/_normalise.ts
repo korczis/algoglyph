@@ -1,5 +1,16 @@
-/** Fold diacritics: canonical decomposition, then drop the combining marks. */
-export const foldMarks = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+/**
+ * Letters that carry their mark in the letter itself, so canonical decomposition leaves them
+ * whole: folded to the spelling they are usually transliterated to.
+ */
+const WHOLE: Record<string, string> = {
+  Ł: 'L', ł: 'l', ß: 'ss', ẞ: 'SS', Ø: 'O', ø: 'o', Đ: 'D', đ: 'd', Ħ: 'H', ħ: 'h', ı: 'i',
+  Æ: 'AE', æ: 'ae', Œ: 'OE', œ: 'oe', Þ: 'TH', þ: 'th',
+};
+const WHOLE_RE = new RegExp(`[${Object.keys(WHOLE).join('')}]`, 'g');
+
+/** Fold diacritics: canonical decomposition, drop the combining marks, then the whole letters. */
+export const foldMarks = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(WHOLE_RE, (c) => WHOLE[c]);
 
 /** Academic titles written before or after Czech names, with their dots removed. */
 export const TITLE_TOKENS = new Set(['ing', 'mgr', 'bc', 'mudr', 'judr', 'phdr', 'rndr', 'doc',

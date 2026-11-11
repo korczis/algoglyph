@@ -1,7 +1,8 @@
 import { S, type StringKernel } from '../../engines/string/trace';
 import { FORMS, foldMarks, TITLE_TOKENS } from './_normalise';
 
-// Decompose each character and drop its combining marks (Novák → Novak), lower the case, split
+// Decompose each character and drop its combining marks (Novák → Novak), fold the letters that
+// carry their mark whole (Łukasz → Lukasz, Weiß → Weiss), lower the case, split
 // on spaces and commas and strip punctuation from the tokens, drop academic titles, recognise a
 // legal form from the joined letters of the last tokens (s. r. o., spol. s r.o. and sro are all
 // sro), then sort the remaining tokens so that word order no longer matters.

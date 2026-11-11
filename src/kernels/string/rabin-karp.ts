@@ -1,5 +1,5 @@
 import { S, type StringKernel } from '../../engines/string/trace';
-import { align, board, compare, found, SEARCH_CHART } from './_search';
+import { align, board, compare, everywhere, found, SEARCH_CHART } from './_search';
 
 const R = 256;
 
@@ -20,6 +20,7 @@ export const kernel: StringKernel<'search', number[]> = {
     const n = text.length; const m = p.length;
     const out: number[] = [];
     board(ops, text, p);
+    if (!m) return everywhere(ops, n);
     ops.list('hash', [], { label: 'Hashes', lines: 1 });
     if (m > n) return out;
     let rm = 1;
@@ -32,6 +33,7 @@ export const kernel: StringKernel<'search', number[]> = {
     }
     ops.list('hash', [`pattern ${hp}`, `window ${ht}`], { label: 'Hashes', lines: 1 });
     let spurious = 0;
+    let wasted = 0;
     for (let s = 0; ; s++) {
       align(ops, s);
       ops.plot('Hash updates', s, ops.count('hash'));
@@ -41,7 +43,13 @@ export const kernel: StringKernel<'search', number[]> = {
         let j = 0;
         while (j < m && compare(ops, text, p, s + j, j)) j++;
         if (j === m) found(ops, s, m, out);
-        else { spurious++; ops.stat('Spurious hash hits', String(spurious)); ops.note(`hash ${ht} matched but the characters differ`); }
+        else {
+          spurious++;
+          wasted += j + 1;
+          ops.stat('Spurious hash hits', String(spurious));
+          ops.stat('Comparisons spent on spurious hits', String(wasted));
+          ops.note(`hash ${ht} matched but the characters differ`);
+        }
       }
       if (s + m >= n) break;
       ht = (ht + q - (rm * text.charCodeAt(s)) % q) % q;
@@ -49,6 +57,7 @@ export const kernel: StringKernel<'search', number[]> = {
       ops.tick('hash');
     }
     ops.stat('Spurious hash hits', String(spurious));
+    ops.stat('Comparisons spent on spurious hits', String(wasted));
     ops.stat('Matches', String(out.length));
     return out;
   },

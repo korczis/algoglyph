@@ -15,8 +15,10 @@ export interface SimhashResult { prints: number[][]; distance: number[][] }
 // Each word of a document hashes to 64 bits and votes on every bit position: its count is added
 // where its bit is 1 and subtracted where it is 0. The fingerprint keeps the sign of each total.
 // Documents that share most of their weighted words share most votes, so the Hamming distance
-// between fingerprints falls as their cosine similarity rises (Charikar's random-hyperplane
-// argument: each bit differs with probability θ/π for the angle θ between the documents).
+// between fingerprints falls as their cosine similarity rises. Charikar's random-hyperplane
+// argument makes that exact for Gaussian hyperplanes, each bit differing with probability θ/π for
+// the angle θ between the documents; the hashed ±1 bits used here only approximate them, so the
+// relation holds on average and only roughly.
 export const kernel: StringKernel<'documents', SimhashResult> = {
   input: 'documents',
   counters: { vote: 'Bit votes', xor: 'Fingerprint bits compared' },

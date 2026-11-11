@@ -1,5 +1,5 @@
 import { S, type StringKernel } from '../../engines/string/trace';
-import { align, board, compare, found, SEARCH_CHART, SEARCH_COUNTERS } from './_search';
+import { align, board, compare, everywhere, found, SEARCH_CHART, SEARCH_COUNTERS } from './_search';
 
 // Compare right to left. On a mismatch at pattern[j] against text character c, slide by the
 // larger of two rules: the bad-character rule (bring the last c of the pattern under it) and the
@@ -13,6 +13,7 @@ export const kernel: StringKernel<'search', number[]> = {
     const n = text.length; const m = p.length;
     const out: number[] = [];
     board(ops, text, p);
+    if (!m) return everywhere(ops, n);
     const last = new Map<string, number>();
     for (let j = 0; j < m; j++) last.set(p[j], j);
     ops.list('bad', [...last].map(([c, j]) => `${c === ' ' ? '␣' : c}:${j}`), { label: 'Last occurrence', lines: 1 });

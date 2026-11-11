@@ -33,14 +33,17 @@ export function soundex(word: string, tick: () => void = () => {}): string {
  * told where each rule started and how far it consumed.
  */
 export function doubleMetaphone(word: string, step: (at: number, next: number, p: string, a: string) => void = () => {}): [string, string] {
-  const s = word.toUpperCase();
-  const length = s.length;
+  // padded with spaces past its end, as in the original: rules that test for the end of the
+  // word (KOCH, JOSE, ROGIER) look for a space there
+  const word0 = word.toUpperCase();
+  const length = word0.length;
+  const s = `${word0}     `;
   const last = length - 1;
   let p = ''; let a = '';
   let cur = 0;
   const slavo = /W|K|CZ|WITZ/.test(s);
   const at = (i: number, ...subs: string[]) => i >= 0 && subs.some((t) => s.substr(i, t.length) === t);
-  const ch = (i: number) => (i >= 0 && i < length ? s[i] : '');
+  const ch = (i: number) => (i >= 0 && i < s.length ? s[i] : '');
   const vowel = (i: number) => 'AEIOUY'.includes(ch(i)) && ch(i) !== '';
   const add = (x: string, y: string = x) => { p += x; a += y; };
   if (at(0, 'GN', 'KN', 'PN', 'WR', 'PS')) cur = 1;
