@@ -244,7 +244,7 @@ Alpine.data('app', () => ({
       try {
         const p = view === 'lab' ? await loadLab(id) : await loadPlate(id);
         if (this.currentId !== id || this.view !== view) return;
-        if (!p) throw new Error(view === 'lab' ? 'this lab needs at least two live plates' : 'not runnable');
+        if (!p) throw new Error(view === 'lab' ? `this lab needs at least ${CATALOGUE.labMin} live plates` : 'not runnable');
         plateCode = p;
         this.defs = p.params;
         this.params = defaults(p);

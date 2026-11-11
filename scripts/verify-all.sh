@@ -11,6 +11,9 @@ step() { printf '\n== %s\n' "$*"; }
 step "catalogue (schema, references, live and code agree, derived plan current)"
 node scripts/catalogue.mjs --check
 
+step "derived facts (no hand-typed counts, plate numbers or dangling links)"
+node scripts/check-facts.mjs
+
 step "Rust kernels (native tests, wasm32 build)"
 scripts/wasm.sh
 
