@@ -181,8 +181,11 @@ function drawLanes(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w:
     p.textAlign(p.RIGHT, p.CENTER);
     for (let i = 0; i < lanes.length; i++) p.text(lanes[i], x0 - 6, Y(i));
   }
+  // p.push() saves the canvas context with p5's own style cache, so the clip and every fill or
+  // stroke set inside it are undone together by p.pop(); a bare save()/restore() would leave
+  // p5 believing a colour is set that the canvas has already dropped
+  p.push();
   const g = p.drawingContext as CanvasRenderingContext2D;
-  g.save();
   g.beginPath();
   g.rect(x0 - 5, y, x1 - x0 + 10, h);
   g.clip();
@@ -267,7 +270,7 @@ function drawLanes(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w:
   p.stroke(...alpha(fg, 120));
   p.strokeWeight(1);
   p.line(X(now), top, X(now), bottom);
-  g.restore();
+  p.pop();
   if (!compact) {
     p.noStroke();
     p.fill(...alpha(fg, 150));

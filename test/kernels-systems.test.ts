@@ -161,6 +161,48 @@ const CHECKS: Record<string, () => void> = {
       const xx = C.clone(xy); C.merge(xx, xy);
       expect(C.encode(xx)).toBe(C.encode(xy));
     }
+    // "converged" is claimed only once the writes have stopped and every replica agrees; the
+    // states are replayed from the trace's own divergence samples, not from the kernel's flag
+    for (const seed of [...SEEDS, 55, 89]) for (const net of NETS.slice(0, 3)) {
+      const { net: trace } = run<CrdtResult>('crdt-convergence', net, seed);
+      let lastWrite = -Infinity; let distinct = NaN;
+      const claims: { t: number; distinct: number; lastWrite: number }[] = [];
+      for (const e of trace.events) {
+        if (e.k === 'count' && e.key === 'writes') lastWrite = e.t;
+        if (e.k === 'sample' && e.series === 'distinct replica states') distinct = e.value;
+        if (e.k === 'gauge' && e.key === 'converged') claims.push({ t: e.t, distinct, lastWrite });
+      }
+      expect(claims.length, `seed ${seed}: converged once`).toBe(1);
+      for (const c of claims) {
+        expect(c.distinct, `seed ${seed}: replicas differ at ${c.t} ms`).toBe(1);
+        expect(c.t, `seed ${seed}: converged at ${c.t} ms before the last write`).toBeGreaterThan(c.lastWrite);
+      }
+      // and no write follows the claim
+      const after = trace.events.filter((e) => e.k === 'count' && e.key === 'writes' && e.t >= claims[0].t);
+      expect(after.length, `seed ${seed}`).toBe(0);
+    }
+    // a conflict is an add concurrent with a remove; an add after the remove was seen is not one
+    {
+      const a = C.empty(2); const b = C.empty(2);
+      C.add(a, 'x', 'a1');
+      C.merge(b, C.clone(a));
+      C.remove(b, 'x');
+      expect(C.merge(a, C.clone(b)), 'the remove arrives: no conflict').toEqual([]);
+      expect(C.elements(a)).toEqual([]);
+      C.add(a, 'x', 'a2'); // sequential: a has seen the remove
+      expect(C.merge(b, C.clone(a)), 'a re-add after the remove is not concurrent').toEqual([]);
+      expect(C.elements(b)).toEqual(['x']);
+    }
+    {
+      const a = C.empty(2); const b = C.empty(2);
+      C.add(a, 'x', 'a1');
+      C.merge(b, C.clone(a));
+      C.remove(b, 'x');
+      C.add(a, 'x', 'a2'); // concurrent: a has not seen b's remove
+      expect(C.merge(b, C.clone(a)), 'a concurrent add wins over the remove').toEqual(['x']);
+      expect(C.merge(a, C.clone(b)), 'nothing came back at a: it never lost x').toEqual([]);
+      expect(C.elements(a)).toEqual(['x']);
+    }
   },
 
   'anti-entropy': () => {
@@ -200,6 +242,60 @@ const CHECKS: Record<string, () => void> = {
       elected += r.leaders.length;
     }
     expect(elected).toBeGreaterThan(0);
+    // the split-vote and leaderless readouts, recounted by replaying the trace: roles from the
+    // state events, candidacies and winners from the marks, reachability from the partition
+    let splits = 0; let stale = 0;
+    for (const seed of [...SEEDS, 55, 89]) for (const net of NETS) for (const nodes of [3, 5]) {
+      const { net: tr } = run<RaftResult>('raft-election', { ...net, nodes }, seed);
+      const majority = Math.floor(nodes / 2) + 1;
+      const part = tr.cfg.partition;
+      const cut = (a: number, b: number, t: number) => Boolean(part && t >= part.from && t < part.to
+        && part.side[a] >= 0 && part.side[b] >= 0 && part.side[a] !== part.side[b]);
+      const role = new Array<string>(nodes).fill('follower');
+      const since = new Array<number>(nodes).fill(-1);
+      const reach = (i: number, t: number) => role.filter((r, j) => j === i || (r !== 'down' && !cut(i, j, t))).length;
+      const stood = new Map<number, Set<number>>(); const won = new Set<number>(); const lost = new Set<number>();
+      for (const e of tr.events) {
+        if (e.k === 'state') { role[e.lane] = e.state; since[e.lane] = e.t; }
+        if (e.k !== 'mark') continue;
+        const leader = /^leader T(\d+)$/.exec(e.label);
+        if (leader) won.add(Number(leader[1]));
+        const start = /^T(\d+)\?$/.exec(e.label);
+        if (!start) continue;
+        const k = Number(start[1]);
+        // a candidate since before this instant timed out in term k - 1
+        if (role[e.lane] === 'candidate' && since[e.lane] < e.t && !won.has(k - 1)
+          && (stood.get(k - 1)?.size ?? 0) > 1 && reach(e.lane, e.t) >= majority) lost.add(k - 1);
+        if (!stood.has(k)) stood.set(k, new Set());
+        stood.get(k)!.add(e.lane);
+      }
+      const counted = tr.events.filter((e) => e.k === 'count' && e.key === 'split').length;
+      expect(counted, `seed ${seed} nodes ${nodes} ${JSON.stringify(net)}: split votes`).toBe(lost.size);
+      splits += counted;
+      // leaderless ticks: counted exactly when no leader reaches a majority (ticks where a role
+      // or the partition changes at that very instant are ambiguous and skipped)
+      const ticks = new Set<number>(); const changes = new Set<number>();
+      for (const e of tr.events) {
+        if (e.k === 'count' && e.key === 'leaderless') ticks.add(e.t);
+        if (e.k === 'state') changes.add(e.t);
+      }
+      if (part) { changes.add(part.from); changes.add(part.to); }
+      role.fill('follower');
+      let at = 0;
+      const states = tr.events.filter((e) => e.k === 'state');
+      for (let t = 0; t < tr.horizon; t += 10) {
+        while (at < states.length && states[at].t < t) {
+          const e = states[at++];
+          if (e.k === 'state') role[e.lane] = e.state;
+        }
+        if (changes.has(t)) continue;
+        const led = role.some((r, i) => r === 'leader' && reach(i, t) >= majority);
+        if (!led && role.includes('leader')) stale++;
+        expect(ticks.has(t), `seed ${seed} nodes ${nodes}: leaderless at ${t} ms`).toBe(!led);
+      }
+    }
+    expect(splits, 'some split votes happen').toBeGreaterThan(0);
+    expect(stale, 'a stale leader in a minority is seen').toBeGreaterThan(0);
   },
 
   'lease-fencing': () => {
@@ -288,7 +384,14 @@ const CHECKS: Record<string, () => void> = {
         return s;
       };
       for (const e of r.net.events) if (e.k === 'msg' && e.from === 1 && e.to === 2) expect(at(e.t0)).not.toBe('open');
+      expect(kernelOf('circuit-breaker').verdict?.(r.result, r.net)).toMatch(/no call forwarded while open$/);
     }
+    // the verdict reads the trace, so it can fail: a call slipped through an open breaker shows
+    const r = run<BreakerResult>('circuit-breaker', {}, 1);
+    const open = r.net.events.findIndex((e) => e.k === 'state' && e.lane === 1 && e.state === 'open');
+    const leak = { ...r.net.events.find((e) => e.k === 'msg' && e.from === 1 && e.to === 2)! };
+    r.net.events.splice(open + 1, 0, leak);
+    expect(kernelOf('circuit-breaker').verdict?.(r.result, r.net)).toBe('1 call forwarded while open');
   },
 
   'ticket-lock-semaphore': () => {

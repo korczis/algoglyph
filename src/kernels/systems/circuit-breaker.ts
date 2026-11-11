@@ -101,9 +101,16 @@ export const kernel: SystemsKernel<BreakerResult> = {
     series: ['calls reaching the dependency', 'failed calls', 'refused by the breaker'],
     bin: 200,
   },
-  verdict(r) {
-    let bad = 0;
-    for (const x of r.transitions) if (step(x.from, x.input, x.failures, r.threshold)[0] !== x.to) bad++;
-    return bad ? `${bad} transitions off the table` : `${r.transitions.filter((x) => x.from !== x.to).length} state changes, all by the table`;
+  // checked against the trace, not the state machine that wrote it: replay the breaker's state
+  // events in order and look for a call forwarded to the dependency while they say open
+  verdict(r, net) {
+    let state = 'closed'; let leaked = 0;
+    for (const e of net.events) {
+      if (e.k === 'state' && e.lane === 1) state = e.state;
+      else if (e.k === 'msg' && e.from === 1 && e.to === 2 && state === 'open') leaked++;
+    }
+    const changes = r.transitions.filter((x) => x.from !== x.to).length;
+    return leaked ? `${leaked} call${leaked === 1 ? '' : 's'} forwarded while open`
+      : `${changes} state changes; no call forwarded while open`;
   },
 };

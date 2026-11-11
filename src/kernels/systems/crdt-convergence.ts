@@ -16,7 +16,7 @@ export type Op =
 export interface CrdtResult {
   replicas: C.Replica[];
   ops: Op[];
-  /** Time all replicas were last seen equal and stayed so (NaN when they never did). */
+  /** Time the replicas first agreed after the writes stopped (NaN when they never did). */
   convergedAt: number;
   lastWrite: number;
 }
@@ -83,10 +83,12 @@ export const kernel: SystemsKernel<CrdtResult> = {
       net.sample('distinct replica states', codes.size);
       const values = reps.map(C.value);
       net.sample('counter spread', Math.max(...values) - Math.min(...values));
-      if (codes.size === 1 && !converged) {
+      // equal states while writes still arrive are a coincidence (every replica starts empty);
+      // convergence is the first moment they agree once the writes have stopped
+      if (codes.size === 1 && !converged && net.now > writeUntil) {
         converged = true;
         res.convergedAt = net.now;
-        if (net.now >= res.lastWrite) net.gauge('converged', net.now);
+        net.gauge('converged', net.now);
       } else if (codes.size > 1) {
         converged = false;
         res.convergedAt = NaN;

@@ -42,6 +42,15 @@ export const kernel: SystemsKernel<RaftResult> = {
     const beat: (ReturnType<typeof net.at> | null)[] = new Array(n).fill(null);
     const last = (i: number): [number, number] => [log[i].length ? log[i][log[i].length - 1] : 0, log[i].length];
     const upToDate = (c: [number, number], v: [number, number]) => c[0] > v[0] || (c[0] === v[0] && c[1] >= v[1]);
+    /** Nodes i can reach now, itself included: up, and on its side of any partition. */
+    const reach = (i: number) => {
+      let k = 0;
+      for (let j = 0; j < n; j++) if (j === i || (role[j] !== 'down' && !net.cut(i, j, net.now))) k++;
+      return k;
+    };
+    const stood = new Map<number, Set<number>>(); // term -> its candidates
+    const won = new Set<number>(); // terms that elected a leader
+    const split = new Set<number>(); // terms counted as split votes
 
     const setRole = (i: number, r: Role) => {
       if (role[i] !== r) { role[i] = r; net.state(i, r); }
@@ -60,8 +69,18 @@ export const kernel: SystemsKernel<RaftResult> = {
     };
     const timeout = (i: number) => {
       if (role[i] === 'down' || role[i] === 'leader') return;
-      if (role[i] === 'candidate') net.count('split');
+      // a split vote: the term had rival candidates, none won, and this one could have reached a
+      // majority; a candidate cut off in a minority times out for want of voters, not a split
+      if (role[i] === 'candidate') {
+        const t = term[i];
+        if (!won.has(t) && !split.has(t) && (stood.get(t)?.size ?? 0) > 1 && reach(i) >= majority) {
+          split.add(t);
+          net.count('split');
+        }
+      }
       term[i]++;
+      if (!stood.has(term[i])) stood.set(term[i], new Set());
+      stood.get(term[i])!.add(i);
       net.sample(`node ${i + 1}`, term[i]);
       net.gauge('term', Math.max(...term));
       votedFor[i] = i;
@@ -97,6 +116,7 @@ export const kernel: SystemsKernel<RaftResult> = {
     };
     const becomeLeader = (i: number) => {
       setRole(i, 'leader');
+      won.add(term[i]);
       net.cancel(timer[i]);
       res.leaders.push({ term: term[i], node: i, t: net.now, votes: [...votes[i]] });
       net.count('leaders');
@@ -150,8 +170,9 @@ export const kernel: SystemsKernel<RaftResult> = {
       }
       net.after(net.uniform(1100, 1700), chaos);
     };
+    // a leader cut off in a minority still believes it leads, but it cannot commit anything
     const leaderless = () => {
-      if (!role.includes('leader')) net.count('leaderless', 10);
+      if (!role.some((r, i) => r === 'leader' && reach(i) >= majority)) net.count('leaderless', 10);
       net.after(10, leaderless);
     };
     for (let i = 0; i < n; i++) { net.state(i, 'follower'); net.sample(`node ${i + 1}`, 0); resetTimer(i); }
@@ -162,10 +183,10 @@ export const kernel: SystemsKernel<RaftResult> = {
   readouts: [
     { key: 'elections', label: 'Elections started' },
     { key: 'leaders', label: 'Leaders elected' },
-    { key: 'split', label: 'Elections that timed out (split votes)' },
+    { key: 'split', label: 'Terms lost to a split vote' },
     { key: 'crashes', label: 'Leader crashes' },
     { key: 'term', kind: 'gauge', label: 'Highest term' },
-    { key: 'leaderless', label: 'Time without a leader', unit: ' ms' },
+    { key: 'leaderless', label: 'Time without a leader that reaches a majority', unit: ' ms' },
   ],
   chart: { title: 'Current term of each node', y: 'term' },
   verdict(r) {
