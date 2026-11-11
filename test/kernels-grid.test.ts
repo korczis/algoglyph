@@ -6,7 +6,7 @@ import { ENTRIES } from '../src/core/catalogue';
 import type p5 from 'p5';
 import { GROUNDS, palette } from '../src/core/palette';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
-import { BUILD_EVENTS_PER_FRAME, engine, FLASH_FRAMES, Replay } from '../src/engines/grid';
+import { Build, BUILD_EVENTS_PER_FRAME, engine, FLASH_FRAMES, gridEngine, Replay, THUMBNAIL_EVENTS } from '../src/engines/grid';
 import { OP, OP_COUNT, seeded, trace, Tracer, type GridKernel, type GridOps, type Trace } from '../src/engines/grid/trace';
 import type { KnapsackData, KnapsackResult } from '../src/kernels/grid/knapsack-dp';
 import type { LcsData, LcsResult } from '../src/kernels/grid/longest-common-subsequence';
@@ -20,6 +20,8 @@ const modules = import.meta.glob<GridKernel>('../src/kernels/grid/[!_]*.ts', { i
 const live = ENTRIES.filter((e) => e.engine === 'grid' && e.status === 'live');
 const kernelOf = (id: string) => modules[`../src/kernels/grid/${id}.ts`];
 const SEEDS = [1, 7, 42, 1009];
+/** Brute-force references take seconds on a loaded shared machine; a timeout is not the check. */
+const HEAVY_MS = 60_000;
 
 /** A size grid over the kernel's control: its ends, its default and a few between. */
 function sizes(k: GridKernel, cap = Infinity): number[] {
@@ -310,8 +312,10 @@ describe('grid kernels', () => {
       it('has an independent reference', () => expect(ref, `${e.id} needs a reference check`).toBeDefined());
 
       it('matches its reference on every size and seed', () => {
-        for (const n of sizes(kernel, ref?.sizes)) for (const seed of SEEDS) ref?.check(n, seed);
-      });
+        // a kernel whose input ignores the seed is checked once per size
+        const seeds = seeded(kernel) ? SEEDS : SEEDS.slice(0, 1);
+        for (const n of sizes(kernel, ref?.sizes)) for (const seed of seeds) ref?.check(n, seed);
+      }, HEAVY_MS);
 
       it('replays deterministically, and its tally is the count of its events', () => {
         for (const n of sizes(kernel)) {
@@ -441,14 +445,45 @@ describe('grid kernels against known growth', () => {
     }
   });
 
-  it('the lab never traces more than one frame budget in one call', () => {
+  it('the lab never traces more than one frame budget in one call, and every pane finishes', () => {
     const dp = live.filter((e) => e.labs.includes('dynamic-programming'));
     if (dp.length < 2) return;
-    const lab = engine.lab('dynamic-programming', dp.map((e) => ({ info: { id: e.id, title: e.title, group: 'g' }, kernel: counting(kernelOf(e.id)) })));
-    const params = { ...defaultsOf(lab), n: (lab.params[0] as { max: number }).max, speed: 2000, loop: true };
-    const run = drive(lab, params, 400);
-    expect(run.maxPerCall).toBeLessThanOrEqual(BUILD_EVENTS_PER_FRAME + SLACK);
-    expect(run.stats[run.stats.length - 1].every((x) => /finished #/.test(x.value) || /operations/.test(x.value))).toBe(true);
+    // a budget well below any one pane's or measurement's trace, so a whole trace in one call fails
+    const budget = 500;
+    const kernels = dp.map((e) => ({ info: { id: e.id, title: e.title, group: 'g' }, kernel: counting(kernelOf(e.id)) }));
+    const lab = gridEngine(budget).lab('dynamic-programming', kernels);
+    const n = (lab.params[0] as { max: number }).max;
+    expect(Math.min(...dp.map((e) => trace(kernelOf(e.id).instance(n, 3)).length))).toBeGreaterThan(budget + SLACK);
+    const run = drive(lab, { ...defaultsOf(lab), n, speed: 2000, loop: false }, 1500);
+    expect(run.maxPerCall).toBeLessThanOrEqual(budget + SLACK);
+    const last = run.stats[run.stats.length - 1];
+    const ranks = last.map((x) => Number(/finished #(\d+)/.exec(x.value)?.[1]));
+    expect(ranks.slice().sort((a, b) => a - b)).toEqual(dp.map((_, i) => i + 1));
+    // the measured curves are complete: every pane reports a fitted exponent
+    expect(last.every((x) => /growth n\^\d/.test(x.value))).toBe(true);
+  });
+
+  it('while a new input is traced, the readouts are of nothing yet, not of the last run', () => {
+    for (const e of live) {
+      const k = kernelOf(e.id);
+      if (!seeded(k)) continue;
+      const plate = gridEngine(200).plate({ id: e.id, title: e.title, group: 'g' }, k);
+      const run = drive(plate, { ...defaultsOf(plate), speed: 2000, loop: true }, 900);
+      const names = new Set(k.readouts.map((m) => m.name));
+      let restarts = 0;
+      run.stats.forEach((rows, i) => {
+        if (!rows.some((x) => x.label === 'Tracing')) return;
+        if (i > 0 && !run.stats[i - 1].some((x) => x.label === 'Tracing')) restarts++;
+        for (const x of rows) if (names.has(x.label)) expect(x.value, `${e.id} ${x.label} while tracing`).toBe('0');
+      });
+      expect(restarts, `${e.id} restarted with new input`).toBeGreaterThan(1);
+    }
+  });
+
+  it.runIf(has('n-queens'))('a thumbnail does not freeze the solution frame', () => {
+    const rp = new Build(kernelOf('n-queens').instance(8, 0)).thumbnail(THUMBNAIL_EVENTS, 0.55);
+    expect(rp.tally.count(OP.solution), 'the thumbnail is past a solution').toBeGreaterThan(0);
+    expect(rp.solutionFlash).toBe(0);
   });
 
   it.runIf(has('n-queens'))('eight queens: 92 solutions', () => {

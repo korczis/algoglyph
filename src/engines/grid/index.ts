@@ -322,20 +322,26 @@ class Measurer {
 }
 
 /** A trace being built for display: an empty grid until it is complete. */
-class Build {
+export class Build {
   readonly tracer: Tracer;
   constructor(readonly inst: Instance) { this.tracer = new Tracer(inst); }
   work(budget: number): number { return budget - this.tracer.step(budget); }
   get done(): boolean { return this.tracer.done; }
   replay(): Replay { return new Replay(this.inst, this.tracer.result()); }
-  /** For a thumbnail: whatever has been traced so far. */
-  partial(budget: number): Replay {
+  /**
+   * For a thumbnail: whatever `budget` events trace, replayed to `fraction` of its length. A
+   * thumbnail never ticks, so transient marks such as the solution frame are cleared.
+   */
+  thumbnail(budget: number, fraction: number): Replay {
     this.tracer.step(budget);
-    return new Replay(this.inst, this.tracer.done ? this.tracer.result() : this.tracer.snapshot());
+    const rp = new Replay(this.inst, this.tracer.done ? this.tracer.result() : this.tracer.snapshot());
+    rp.advance(Math.floor(rp.t.length * fraction));
+    rp.solutionFlash = 0;
+    return rp;
   }
 }
 
-function plate(info: KernelInfo, kernel: GridKernel): PlateCode {
+function plate(info: KernelInfo, kernel: GridKernel, frameBudget: number): PlateCode {
   const varies = seeded(kernel);
   return {
     id: info.id,
@@ -355,7 +361,7 @@ function plate(info: KernelInfo, kernel: GridKernel): PlateCode {
         (_, n) => kernel.instance(n, ctx.seed + n),
         (_, n, t) => { if (spec.kind === 'scaling') spec.series.forEach((m, i) => curves[i].push([n, m.of(t.tally)])); });
       const work = () => {
-        let budget = BUILD_EVENTS_PER_FRAME;
+        let budget = frameBudget;
         if (build) {
           budget = build.work(budget);
           if (build.done) { rp = build.replay(); build = null; hold = 0; }
@@ -384,9 +390,8 @@ function plate(info: KernelInfo, kernel: GridKernel): PlateCode {
       return {
         setup() {
           if (ctx.thumbnail && build) {
-            rp = build.partial(THUMBNAIL_EVENTS);
+            rp = build.thumbnail(THUMBNAIL_EVENTS, 0.55);
             build = null;
-            rp.advance(Math.floor(rp.t.length * 0.55));
           }
         },
         draw() {
@@ -401,6 +406,7 @@ function plate(info: KernelInfo, kernel: GridKernel): PlateCode {
                 if (varies) {
                   generation++;
                   build = new Build(instance());
+                  rp = Replay.empty(build.inst);
                 } else rp = new Replay(rp.inst, rp.t);
               }
             }
@@ -420,7 +426,7 @@ function plate(info: KernelInfo, kernel: GridKernel): PlateCode {
   };
 }
 
-function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): PlateCode {
+function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[], frameBudget: number): PlateCode {
   const lo = Math.max(...kernels.map((k) => k.kernel.size.min));
   const hi = Math.max(lo, Math.min(...kernels.map((k) => k.kernel.size.max)));
   const value = Math.min(hi, Math.max(lo, 8));
@@ -452,7 +458,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): P
         (ki, n, t) => { curves[ki].pts.push([n, t.tally.work]); curves[ki].slope = exponent(curves[ki].pts); });
       const ready = () => panes.every((x) => !x.build);
       const work = () => {
-        let budget = BUILD_EVENTS_PER_FRAME;
+        let budget = frameBudget;
         for (const pane of panes) {
           if (!pane.build || budget <= 0) continue;
           budget = pane.build.work(budget);
@@ -465,9 +471,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): P
           if (!ctx.thumbnail) return;
           for (const pane of panes) {
             if (!pane.build) continue;
-            pane.rp = pane.build.partial(THUMBNAIL_EVENTS / panes.length);
+            pane.rp = pane.build.thumbnail(THUMBNAIL_EVENTS / panes.length, 0.5);
             pane.build = null;
-            pane.rp.advance(Math.floor(pane.rp.t.length * 0.5));
           }
         },
         draw() {
@@ -491,7 +496,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): P
                 generation++;
                 panes.forEach((pane, ki) => {
                   pane.finished = 0;
-                  if (varies[ki]) pane.build = new Build(instance(ki));
+                  if (varies[ki]) {
+                    pane.build = new Build(instance(ki));
+                    pane.rp = Replay.empty(pane.build.inst);
+                  }
                   else pane.rp = new Replay(pane.rp.inst, pane.rp.t);
                 });
               }
@@ -537,4 +545,13 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): P
   };
 }
 
-export const engine: Engine<GridKernel> = { id: 'grid', plate, lab };
+/** The grid engine with a given trace budget per frame (tests use a small one). */
+export function gridEngine(frameBudget = BUILD_EVENTS_PER_FRAME): Engine<GridKernel> {
+  return {
+    id: 'grid',
+    plate: (info, kernel) => plate(info, kernel, frameBudget),
+    lab: (id, kernels) => lab(id, kernels, frameBudget),
+  };
+}
+
+export const engine: Engine<GridKernel> = gridEngine();
