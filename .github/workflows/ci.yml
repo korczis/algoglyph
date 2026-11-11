@@ -86,6 +86,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Unit tests (algorithms against reference values, integrator invariants)
         run: npx vitest run
+      - name: README derived sections are current (scripts/build-readme.mjs --check)
+        run: node scripts/build-readme.mjs --check
       - name: Build (stamps dist/revision.txt with the commit)
         run: npx vite build
       # Hosted runners install Playwright's Chromium with its system dependencies; the
