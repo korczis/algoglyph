@@ -8,3 +8,11 @@ labs:
     title: Sorting lab
     summary: Every sort on the same keys with the same operation budget per frame, ranked by when it finishes, with each one's work measured from n = 16 to 512.
     engine: array
+  - id: search-trees
+    title: Search tree lab
+    summary: Plain, root-inserting, randomized, splay, red-black, AVL, 2-3-4 and B-trees on the same keys with the same step budget per frame, ranked by when each finishes, with the measured cost of a search from n = 16 to 1024 against lg n.
+    engine: tree
+  - id: union-find
+    title: Union-find lab
+    summary: Quick-find, quick-union, weighted quick-union and path compression on the same connections, with the measured array accesses per union as the number of sites grows.
+    engine: tree
