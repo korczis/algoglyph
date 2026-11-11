@@ -147,8 +147,8 @@ describe('review round: values, seeds, routes and timing', () => {
   it('leaving a plate cancels a pending URL write', () => {
     const jobs: (() => void)[] = [];
     const w = new HashWriter(250, {
-      set: ((fn: () => void) => { jobs.push(fn); return jobs.length as unknown as ReturnType<typeof setTimeout>; }) as typeof setTimeout,
-      clear: ((id: number) => { jobs[id - 1] = () => {}; }) as unknown as typeof clearTimeout,
+      set: (fn: () => void) => { jobs.push(fn); return jobs.length as unknown as ReturnType<typeof setTimeout>; },
+      clear: (id) => { jobs[(id as unknown as number) - 1] = () => {}; },
     });
     let writes = 0;
     w.schedule(() => { writes++; });
@@ -159,6 +159,24 @@ describe('review round: values, seeds, routes and timing', () => {
     w.schedule(() => { writes++; });
     jobs[jobs.length - 1]();
     expect(writes).toBe(1);
+  });
+
+  it('the default timers call the globals with a valid receiver (browsers refuse others)', () => {
+    const real = { set: globalThis.setTimeout, clear: globalThis.clearTimeout };
+    const strict = (fn: (...a: unknown[]) => unknown) => function (this: unknown, ...a: unknown[]) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+      return fn.apply(globalThis, a);
+    };
+    globalThis.setTimeout = strict(real.set as never) as unknown as typeof setTimeout;
+    globalThis.clearTimeout = strict(real.clear as never) as unknown as typeof clearTimeout;
+    try {
+      const w = new HashWriter(0);
+      expect(() => w.schedule(() => {})).not.toThrow();
+      expect(() => w.cancel()).not.toThrow();
+    } finally {
+      globalThis.setTimeout = real.set;
+      globalThis.clearTimeout = real.clear;
+    }
   });
 
   it('a reset burst runs a paused plate and ends with the pause', () => {

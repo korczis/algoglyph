@@ -79,9 +79,13 @@ export function parse(defs: ParamDef[], query: string): { seed?: number; params:
 export class HashWriter {
   private timer: ReturnType<typeof setTimeout> | undefined;
 
+  // The defaults wrap the globals: called as `this.timers.set(…)`, a bare setTimeout would get
+  // the timers object as its receiver, which a browser refuses ("Illegal invocation").
   constructor(private readonly delay = 250,
-    private readonly timers: { set: typeof setTimeout; clear: typeof clearTimeout } =
-    { set: setTimeout, clear: clearTimeout }) {}
+    private readonly timers: {
+      set: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>;
+      clear: (id: ReturnType<typeof setTimeout>) => void;
+    } = { set: (fn, ms) => setTimeout(fn, ms), clear: (id) => clearTimeout(id) }) {}
 
   schedule(write: () => void): void {
     this.cancel();
