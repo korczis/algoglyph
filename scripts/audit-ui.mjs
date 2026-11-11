@@ -110,13 +110,14 @@ try {
       await p.goto(base, { waitUntil: 'load' });
       // every thumbnail is a real render, sequential, and the same code in both themes: they are
       // proven once per run (dark, desktop). Lundra run 43087611444 showed the second full
-      // render pass on a shared SwiftShader host can exceed 300 s, so the light pass audits the
+      // render pass on a shared SwiftShader host can exceed 300 s (and the one proving pass did at
+      // load 24.9, run 43092909731, so it waits up to 600 s), so the light pass audits the
       // page without making the thumbnail wait a condition.
       const proveThumbs = theme === 'dark' && w >= 1024;
       if (proveThumbs || (PREVIEWS && w >= 1024)) await p.waitForFunction(() => {
         const imgs = [...document.querySelectorAll('main img')];
         return imgs.length > 0 && imgs.every((i) => i.getAttribute('src')?.startsWith('data:image'));
-      }, null, { timeout: 300000, polling: 500 })
+      }, null, { timeout: 600000, polling: 500 })
         .catch(() => {
           if (proveThumbs) fail(`${label} gallery`, 'thumbnails did not all render');
           else log(`${label}: not every thumbnail rendered in time (not a condition here)`);
