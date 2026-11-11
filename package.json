@@ -26,7 +26,8 @@
     "wasm": "scripts/wasm.sh",
     "predev": "scripts/wasm.sh --build",
     "prebuild": "scripts/wasm.sh --build",
-    "pretest": "scripts/wasm.sh --build"
+    "pretest": "scripts/wasm.sh --build",
+    "facts": "node scripts/check-facts.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",
