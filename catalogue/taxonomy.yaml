@@ -21,12 +21,19 @@ nodes:
     children:
       - { id: overview, title: Overviews, summary: Many sorts on one canvas. }
       - { id: elementary, title: Elementary sorts, summary: Selection, insertion, bubble and Shell's diminishing increments. }
+      - { id: trees, title: Tree and pile sorts, summary: Inserting into a search tree or onto piles, then reading the order back out. }
       - { id: quicksort, title: Quicksort, summary: Partitioning, and the variants that tame its worst case and its duplicates. }
       - { id: mergesort, title: Mergesort, summary: Merging sorted runs, top-down, bottom-up and natural. }
       - { id: priority-queues, title: Priority queues and heapsort, summary: Heaps, their invariants and the sort they give for free. }
       - { id: radix, title: Radix sorts, summary: Sorting by digits instead of by comparisons. }
-      - { id: networks, title: Sorting networks and external sorts, summary: Fixed comparator schedules, and sorting what does not fit in memory. }
+      - { id: distribution, title: Bucket and distribution sorts, summary: Scattering keys by their value into buckets, then tidying each bucket. }
+      - { id: hybrid, title: Hybrid sorts, summary: Several methods in one, each taking over where it is strongest. }
+      - { id: networks, title: Sorting networks, summary: Fixed comparator schedules that sort any input in the same steps. }
+      - { id: parallel, title: Parallel and distributed sorts, summary: Many workers sorting one input, from shared-memory threads to GPUs and clusters. }
+      - { id: external, title: External-memory sorts, summary: Sorting data larger than memory with as few block transfers as possible. }
       - { id: selection, title: Selection, summary: The k-th smallest without sorting everything. }
+      - { id: special, title: Special-purpose sorts, summary: Sorting under unusual rules, from prefix reversals to analogue machines. }
+      - { id: esoteric, title: Esoteric and joke sorts, summary: Deliberately slow or absurd sorts that make the cost of good ones visible. }
 
   - id: searching
     title: Searching and symbol tables

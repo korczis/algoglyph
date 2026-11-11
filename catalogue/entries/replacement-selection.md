@@ -1,7 +1,7 @@
 ---
 id: replacement-selection
 title: Replacement selection
-taxonomy: sorting/networks
+taxonomy: sorting/external
 status: planned
 engine: tree
 sources:

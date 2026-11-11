@@ -58,3 +58,1054 @@ sources:
   - id: practice-logistics
     title: Warehouse logistics
     kind: practice
+
+  # Sorting: works cited by the entries folded in from the sorting atlas; each with a DOI,
+  # arXiv, publisher or official locator.
+  - id: dobosiewicz-1980
+    title: "An efficient variation of bubble sort"
+    author: "W. Dobosiewicz"
+    publisher: "Information Processing Letters, 11(1), 5–6"
+    year: 1980
+    kind: "paper"
+    url: "https://doi.org/10.1016/0020-0190(80)90022-8"
+  - id: sedgewick-1996
+    title: "Analysis of Shellsort and related algorithms"
+    author: "R. Sedgewick"
+    publisher: "Algorithms – ESA '96, LNCS 1136 (pp. 1–11). Springer"
+    year: 1996
+    kind: "paper"
+    url: "https://doi.org/10.1007/3-540-61680-2_42"
+  - id: grune-gnomesort
+    title: "Gnome Sort – The Simplest Sort Algorithm"
+    author: "Dick Grune"
+    publisher: "the author's web page (undated; online by 2003)"
+    kind: "web"
+    url: "https://dickgrune.com/Programs/gnomesort.html"
+  - id: cormen-2022
+    title: "Introduction to Algorithms (fourth edition)"
+    author: "T. H. Cormen, C. E. Leiserson, R. L. Rivest and C. Stein"
+    publisher: "MIT Press"
+    year: 2022
+    kind: "book"
+    url: "https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/"
+  - id: habermann-1972
+    title: "Parallel neighbor-sort (or the glory of the induction principle)"
+    author: "A. N. Habermann"
+    publisher: "Technical report, Computer Science Department, Carnegie-Mellon University"
+    year: 1972
+    kind: "report"
+    url: "https://doi.org/10.1184/R1/6608258.v1"
+  - id: astrachan-2003
+    title: "Bubble sort: an archaeological algorithmic analysis"
+    author: "O. Astrachan"
+    publisher: "Proceedings of the 34th SIGCSE Technical Symposium on Computer Science Education (pp. 1–5). ACM"
+    year: 2003
+    kind: "paper"
+    url: "https://doi.org/10.1145/611892.611918"
+  - id: bezemer-circlesort
+    title: "Circle sort"
+    author: "H. Bezemer"
+    publisher: "4tH (forth-4th) project wiki, SourceForge (undated)"
+    kind: "web"
+    url: "https://sourceforge.net/p/forth-4th/wiki/Circle%20sort/"
+  - id: chen-2001
+    title: "Proportion Extend Sort"
+    author: "J.-C. Chen"
+    publisher: "SIAM Journal on Computing, 31(1), 323–330"
+    year: 2001
+    kind: "paper"
+    url: "https://doi.org/10.1137/S0097539798342903"
+  - id: chen-2006
+    title: "Efficient sample sort and the average case analysis of PEsort"
+    author: "J.-C. Chen"
+    publisher: "Theoretical Computer Science, 369(1–3), 44–66"
+    year: 2006
+    kind: "paper"
+    url: "https://doi.org/10.1016/j.tcs.2006.07.017"
+  - id: motwani-1995
+    title: "Randomized Algorithms"
+    author: "R. Motwani and P. Raghavan"
+    publisher: "Cambridge University Press"
+    year: 1995
+    kind: "book"
+    url: "https://doi.org/10.1017/CBO9780511814075"
+  - id: hoare-1962
+    title: "Quicksort"
+    author: "C. A. R. Hoare"
+    publisher: "The Computer Journal, 5(1), 10–16"
+    year: 1962
+    kind: "paper"
+    url: "https://doi.org/10.1093/comjnl/5.1.10"
+  - id: musser-1997
+    title: "Introspective Sorting and Selection Algorithms"
+    author: "D. R. Musser"
+    publisher: "Software: Practice and Experience, 27(8), 983–993"
+    year: 1997
+    kind: "paper"
+    url: "https://doi.org/10.1002/(SICI)1097-024X(199708)27:8<983::AID-SPE117>3.0.CO;2-%23"
+  - id: oracle-2011
+    title: "Java Platform, Standard Edition 7 API Specification: java.util.Arrays"
+    author: "Oracle"
+    publisher: "Oracle"
+    year: 2011
+    kind: "web"
+    url: "https://docs.oracle.com/javase/7/docs/api/java/util/Arrays.html"
+  - id: wild-2012
+    title: "Average Case Analysis of Java 7's Dual Pivot Quicksort"
+    author: "S. Wild and M. E. Nebel"
+    publisher: "Algorithms – ESA 2012, LNCS 7501 (pp. 825–836). Springer"
+    year: 2012
+    kind: "paper"
+    url: "https://doi.org/10.1007/978-3-642-33090-2_71"
+  - id: wild-2015
+    title: "Average Case and Distributional Analysis of Dual-Pivot Quicksort"
+    author: "S. Wild, M. E. Nebel and R. Neininger"
+    publisher: "ACM Transactions on Algorithms, 11(3), 1–42"
+    year: 2015
+    kind: "paper"
+    url: "https://doi.org/10.1145/2629340"
+  - id: aumuller-2015
+    title: "Optimal Partitioning for Dual-Pivot Quicksort"
+    author: "M. Aumüller and M. Dietzfelbinger"
+    publisher: "ACM Transactions on Algorithms, 12(2), 1–36"
+    year: 2015
+    kind: "paper"
+    url: "https://doi.org/10.1145/2743020"
+  - id: yaroslavskiy-2011
+    title: "DualPivotQuicksort.java (version 2011.02.11)"
+    author: "V. Yaroslavskiy, J. Bentley and J. Bloch"
+    publisher: "OpenJDK 8u source code"
+    year: 2011
+    kind: "software"
+    url: "https://github.com/openjdk/jdk8u/blob/master/jdk/src/share/classes/java/util/DualPivotQuicksort.java"
+  - id: kushagra-2014
+    title: "Multi-Pivot Quicksort: Theory and Experiments"
+    author: "S. Kushagra et al."
+    publisher: "Proceedings of the Sixteenth Workshop on Algorithm Engineering and Experiments (ALENEX) (pp. 47–60). SIAM"
+    year: 2014
+    kind: "paper"
+    url: "https://doi.org/10.1137/1.9781611973198.6"
+  - id: aumuller-2016
+    title: "How Good Is Multi-Pivot Quicksort?"
+    author: "M. Aumüller, M. Dietzfelbinger and P. Klaue"
+    publisher: "ACM Transactions on Algorithms, 13(1), 1–47"
+    year: 2016
+    kind: "paper"
+    url: "https://doi.org/10.1145/2963102"
+  - id: edelkamp-2016
+    title: "BlockQuicksort: How Branch Mispredictions don't affect Quicksort"
+    author: "S. Edelkamp and A. Weiß"
+    publisher: "arXiv:1604.06697"
+    year: 2016
+    kind: "paper"
+    url: "https://arxiv.org/abs/1604.06697"
+  - id: edelkamp-2019
+    title: "BlockQuicksort: Avoiding Branch Mispredictions in Quicksort"
+    author: "S. Edelkamp and A. Weiß"
+    publisher: "ACM Journal of Experimental Algorithmics, 24, 1–22"
+    year: 2019
+    kind: "paper"
+    url: "https://doi.org/10.1145/3274660"
+  - id: peters-2015
+    title: "pdqsort: Pattern-defeating quicksort"
+    author: "O. R. L. Peters"
+    publisher: "source repository with description, GitHub"
+    year: 2015
+    kind: "software"
+    url: "https://github.com/orlp/pdqsort"
+  - id: peters-2021
+    title: "Pattern-defeating Quicksort"
+    author: "O. R. L. Peters"
+    publisher: "arXiv:2106.05123"
+    year: 2021
+    kind: "paper"
+    url: "https://arxiv.org/abs/2106.05123"
+  - id: bergdoll-2024
+    title: "ipnsort: an efficient, generic and robust unstable sort implementation"
+    author: "L. Bergdoll and O. R. L. Peters"
+    publisher: "technical write-up in the sort-research-rs repository, 16 April 2024"
+    year: 2024
+    kind: "software"
+    url: "https://github.com/Voultapher/sort-research-rs/blob/main/writeup/ipnsort_introduction/text.md"
+  - id: go-2022
+    title: "Go 1.19 Release Notes (package sort)"
+    author: "The Go Authors"
+    publisher: "go.dev"
+    year: 2022
+    kind: "web"
+    url: "https://go.dev/doc/go1.19"
+  - id: rust-2024
+    title: "The Rust Standard Library, version 1.81.0: primitive type slice (sort_unstable)"
+    author: "The Rust Project"
+    publisher: "doc.rust-lang.org"
+    year: 2024
+    kind: "web"
+    url: "https://doc.rust-lang.org/1.81.0/std/primitive.slice.html"
+  - id: sedgewick-2011
+    title: "Algorithms (fourth edition)"
+    author: "R. Sedgewick and K. Wayne"
+    publisher: "Addison-Wesley"
+    year: 2011
+    kind: "book"
+    url: "https://algs4.cs.princeton.edu/home/"
+  - id: wegener-1993
+    title: "BOTTOM-UP-HEAPSORT, a new variant of HEAPSORT beating, on an average, QUICKSORT (if n is not very small)"
+    author: "I. Wegener"
+    publisher: "Theoretical Computer Science, 118(1), 81–98"
+    year: 1993
+    kind: "paper"
+    url: "https://doi.org/10.1016/0304-3975(93)90364-Y"
+  - id: williams-1964
+    title: "Algorithm 232: Heapsort"
+    author: "J. W. J. Williams"
+    publisher: "Communications of the ACM, 7(6), 347–348"
+    year: 1964
+    kind: "paper"
+    url: "https://doi.org/10.1145/512274.3734138"
+  - id: edelkamp-2000
+    title: "On the Performance of WEAK-HEAPSORT"
+    author: "S. Edelkamp and I. Wegener"
+    publisher: "STACS 2000, LNCS 1770, 254–266. Springer"
+    year: 2000
+    kind: "paper"
+    url: "https://doi.org/10.1007/3-540-46541-3_21"
+  - id: dutton-1993
+    title: "Weak-heap sort"
+    author: "R. D. Dutton"
+    publisher: "BIT Numerical Mathematics, 33(3), 372–381"
+    year: 1993
+    kind: "paper"
+    url: "https://doi.org/10.1007/BF01990520"
+  - id: dijkstra-1981
+    title: "Smoothsort, an alternative for sorting in situ (EWD 796a, manuscript of 16 August 1981)"
+    author: "E. W. Dijkstra"
+    publisher: "E. W. Dijkstra Archive, The University of Texas at Austin"
+    year: 1981
+    kind: "web"
+    url: "https://www.cs.utexas.edu/~EWD/transcriptions/EWD07xx/EWD796a.html"
+  - id: dijkstra-1982
+    title: "Smoothsort, an alternative for sorting in situ"
+    author: "E. W. Dijkstra"
+    publisher: "Science of Computer Programming, 1(3), 223–233"
+    year: 1982
+    kind: "paper"
+    url: "https://doi.org/10.1016/0167-6423(82)90016-8"
+  - id: bron-1991
+    title: "Smoothsort revisited"
+    author: "C. Bron and W. H. Hesselink"
+    publisher: "Information Processing Letters, 39(5), 269–276"
+    year: 1991
+    kind: "paper"
+    url: "https://doi.org/10.1016/0020-0190(91)90027-F"
+  - id: levcopoulos-1989
+    title: "Heapsort—Adapted for presorted files"
+    author: "C. Levcopoulos and O. Petersson"
+    publisher: "Algorithms and Data Structures (WADS 1989), LNCS 382, 499–509. Springer"
+    year: 1989
+    kind: "paper"
+    url: "https://doi.org/10.1007/3-540-51542-9_41"
+  - id: morwenn-2017
+    title: "poplar-heap: make_heap and sort_heap for a poplar heap with O(1) extra memory (README quotes the definitions of Bron & Hesselink 1991)"
+    author: "Morwenn"
+    publisher: "Official repository Morwenn/poplar-heap"
+    year: 2017
+    kind: "software"
+    url: "https://github.com/Morwenn/poplar-heap"
+  - id: haddon-1990
+    title: "Cycle-Sort: A Linear Sorting Method"
+    author: "B. K. Haddon"
+    publisher: "The Computer Journal, 33(4), 365–367"
+    year: 1990
+    kind: "paper"
+    url: "https://doi.org/10.1093/comjnl/33.4.365"
+  - id: vuillemin-1980
+    title: "A unifying look at data structures"
+    author: "J. Vuillemin"
+    publisher: "Communications of the ACM, 23(4), 229–239"
+    year: 1980
+    kind: "paper"
+    url: "https://doi.org/10.1145/358841.358852"
+  - id: johnson-1975
+    title: "Priority queues with update and finding minimum spanning trees"
+    author: "D. B. Johnson"
+    publisher: "Information Processing Letters, 4(3), 53–57"
+    year: 1975
+    kind: "paper"
+    url: "https://doi.org/10.1016/0020-0190(75)90001-0"
+  - id: bender-2006
+    title: "Insertion Sort is O(n log n)"
+    author: "M. A. Bender, M. Farach-Colton and M. A. Mosteiro"
+    publisher: "Theory of Computing Systems, 39(3), 391–397"
+    year: 2006
+    kind: "paper"
+    url: "https://doi.org/10.1007/s00224-005-1237-z"
+  - id: bender-2004
+    title: "Insertion Sort is O(n log n)"
+    author: "M. A. Bender, M. Farach-Colton and M. A. Mosteiro"
+    publisher: "arXiv:cs/0407003"
+    year: 2004
+    kind: "paper"
+    url: "https://arxiv.org/abs/cs/0407003"
+  - id: moffat-1996
+    title: "Splaysort: Fast, Versatile, Practical"
+    author: "A. Moffat, G. Eddy and O. Petersson"
+    publisher: "Software: Practice and Experience, 26(7), 781–797"
+    year: 1996
+    kind: "paper"
+    url: "https://doi.org/10.1002/(SICI)1097-024X(199607)26:7<781::AID-SPE35>3.0.CO;2-B"
+  - id: sleator-1985
+    title: "Self-adjusting binary search trees"
+    author: "D. D. Sleator and R. E. Tarjan"
+    publisher: "Journal of the ACM, 32(3), 652–686"
+    year: 1985
+    kind: "paper"
+    url: "https://doi.org/10.1145/3828.3835"
+  - id: estivill-castro-1992
+    title: "A survey of adaptive sorting algorithms"
+    author: "V. Estivill-Castro and D. Wood"
+    publisher: "ACM Computing Surveys, 24(4), 441–476"
+    year: 1992
+    kind: "paper"
+    url: "https://doi.org/10.1145/146370.146381"
+  - id: mallows-1962
+    title: "Patience Sorting"
+    author: "C. L. Mallows"
+    publisher: "SIAM Review, 4(2), 148–149"
+    year: 1962
+    kind: "paper"
+    url: "https://doi.org/10.1137/1004036"
+  - id: mallows-1963
+    title: "Patience Sorting"
+    author: "C. L. Mallows"
+    publisher: "SIAM Review, 5(4), 375–376"
+    year: 1963
+    kind: "paper"
+    url: "https://doi.org/10.1137/1005107"
+  - id: aldous-1999
+    title: "Longest increasing subsequences: from patience sorting to the Baik-Deift-Johansson theorem"
+    author: "D. Aldous and P. Diaconis"
+    publisher: "Bulletin of the American Mathematical Society, 36(4), 413–432"
+    year: 1999
+    kind: "paper"
+    url: "https://doi.org/10.1090/S0273-0979-99-00796-X"
+  - id: chandramouli-2014
+    title: "Patience is a virtue: revisiting merge and sort on modern processors"
+    author: "B. Chandramouli and J. Goldstein"
+    publisher: "Proceedings of the 2014 ACM SIGMOD International Conference on Management of Data (pp. 731–742). ACM"
+    year: 2014
+    kind: "paper"
+    url: "https://doi.org/10.1145/2588555.2593662"
+  - id: huang-1988
+    title: "Practical in-place merging"
+    author: "B.-C. Huang and M. A. Langston"
+    publisher: "Communications of the ACM, 31(3), 348–352"
+    year: 1988
+    kind: "paper"
+    url: "https://doi.org/10.1145/42392.42403"
+  - id: huang-1992
+    title: "Fast Stable Merging and Sorting in Constant Extra Space"
+    author: "B.-C. Huang and M. A. Langston"
+    publisher: "The Computer Journal, 35(6), 643–650"
+    year: 1992
+    kind: "paper"
+    url: "https://doi.org/10.1093/comjnl/35.6.643"
+  - id: kim-2004
+    title: "Stable Minimum Storage Merging by Symmetric Comparisons"
+    author: "P.-S. Kim and A. Kutzner"
+    publisher: "Algorithms – ESA 2004, LNCS 3221, 714–723. Springer"
+    year: 2004
+    kind: "paper"
+    url: "https://doi.org/10.1007/978-3-540-30140-0_63"
+  - id: kim-2008
+    title: "Ratio Based Stable In-Place Merging"
+    author: "P.-S. Kim and A. Kutzner"
+    publisher: "Theory and Applications of Models of Computation (TAMC 2008), LNCS 4978, 246–257. Springer"
+    year: 2008
+    kind: "paper"
+    url: "https://doi.org/10.1007/978-3-540-79228-4_22"
+  - id: mcfadden-2014
+    title: "WikiSort: fast and stable sort algorithm that uses O(1) memory"
+    author: "M. McFadden"
+    publisher: "Official repository BonzaiThePenguin/WikiSort"
+    year: 2014
+    kind: "software"
+    url: "https://github.com/BonzaiThePenguin/WikiSort"
+  - id: astrelin-2013
+    title: "GrailSort: stable in-place sorting in O(n log n) worst time"
+    author: "A. Astrelin"
+    publisher: "Official repository Mrrl/GrailSort"
+    year: 2013
+    kind: "software"
+    url: "https://github.com/Mrrl/GrailSort"
+  - id: go-2024
+    title: "Package sort, Go 1.22.0: Stable and symMerge"
+    author: "The Go Authors"
+    publisher: "golang/go source repository"
+    year: 2024
+    kind: "software"
+    url: "https://github.com/golang/go/blob/go1.22.0/src/sort/zsortinterface.go"
+  - id: black-2020
+    title: "strand sort"
+    author: "P. E. Black"
+    publisher: "P. E. Black (ed.), Dictionary of Algorithms and Data Structures (entry modified 14 December 2020). NIST"
+    year: 2020
+    kind: "web"
+    url: "https://xlinux.nist.gov/dads/HTML/strandSort.html"
+  - id: juge-2020
+    title: "Adaptive Shivers Sort: An Alternative Sorting Algorithm"
+    author: "V. Jugé"
+    publisher: "Proceedings of the 2020 ACM-SIAM Symposium on Discrete Algorithms (SODA), 1639–1654. SIAM"
+    year: 2020
+    kind: "paper"
+    url: "https://doi.org/10.1137/1.9781611975994.101"
+  - id: buss-2019
+    title: "Strategies for Stable Merge Sorting"
+    author: "S. Buss and A. Knop"
+    publisher: "Proceedings of the Thirtieth Annual ACM-SIAM Symposium on Discrete Algorithms (SODA), 1272–1290. SIAM"
+    year: 2019
+    kind: "paper"
+    url: "https://doi.org/10.1137/1.9781611975482.78"
+  - id: munro-wild-2018
+    title: "Nearly-Optimal Mergesorts: Fast, Practical Sorting Methods That Optimally Adapt to Existing Runs"
+    author: "J. I. Munro and S. Wild"
+    publisher: "26th Annual European Symposium on Algorithms (ESA 2018), LIPIcs 112, 63:1–63:16"
+    year: 2018
+    kind: "paper"
+    url: "https://doi.org/10.4230/LIPIcs.ESA.2018.63"
+  - id: peters-2002
+    title: "listsort.txt: description of the list.sort() algorithm (Timsort)"
+    author: "T. Peters"
+    publisher: "CPython source repository"
+    year: 2002
+    kind: "software"
+    url: "https://github.com/python/cpython/blob/main/Objects/listsort.txt"
+  - id: bergdoll-2024b
+    title: "driftsort: an efficient, generic and robust stable sort implementation (design write-up, 16 April 2024)"
+    author: "L. Bergdoll and O. Peters"
+    publisher: "Repository Voultapher/sort-research-rs"
+    year: 2024
+    kind: "software"
+    url: "https://github.com/Voultapher/sort-research-rs/blob/main/writeup/driftsort_introduction/text.md"
+  - id: auger-2018
+    title: "On the Worst-Case Complexity of TimSort"
+    author: "N. Auger et al."
+    publisher: "26th Annual European Symposium on Algorithms (ESA 2018), LIPIcs 112, 4:1–4:13"
+    year: 2018
+    kind: "paper"
+    url: "https://doi.org/10.4230/LIPIcs.ESA.2018.4"
+  - id: vandenhoven-2020
+    title: "quadsort: a branchless stable adaptive mergesort"
+    author: "I. van den Hoven"
+    publisher: "Official repository scandum/quadsort"
+    year: 2020
+    kind: "software"
+    url: "https://github.com/scandum/quadsort"
+  - id: peters-2023
+    title: "glidesort: a stable adaptive quicksort/mergesort hybrid sorting algorithm"
+    author: "O. Peters"
+    publisher: "Official repository orlp/glidesort"
+    year: 2023
+    kind: "software"
+    url: "https://github.com/orlp/glidesort"
+  - id: rust-2024b
+    title: "Rust 1.81.0 release notes (5 September 2024): Replace sort implementations with stable driftsort and unstable ipnsort"
+    author: "The Rust Project"
+    publisher: "rust-lang/rust, RELEASES.md"
+    year: 2024
+    kind: "software"
+    url: "https://github.com/rust-lang/rust/blob/master/RELEASES.md"
+  - id: isaac-1956
+    title: "Sorting by Address Calculation"
+    author: "E. J. Isaac and R. C. Singleton"
+    publisher: "Journal of the ACM, 3(3), 169–174"
+    year: 1956
+    kind: "paper"
+    url: "https://doi.org/10.1145/320831.320834"
+  - id: black-2022-pigeonhole
+    title: "pigeonhole sort"
+    author: "P. E. Black"
+    publisher: "P. E. Black (ed.), Dictionary of Algorithms and Data Structures (entry modified 21 April 2022). NIST"
+    year: 2022
+    kind: "web"
+    url: "https://www.nist.gov/dads/HTML/pigeonholeSort.html"
+  - id: mcilroy-1993
+    title: "Engineering Radix Sort"
+    author: "P. M. McIlroy, K. Bostic and M. D. McIlroy"
+    publisher: "Computing Systems, 6(1), 5–27. USENIX Association"
+    year: 1993
+    kind: "paper"
+    url: "https://www.usenix.org/legacy/publications/compsystems/1993/win_mcilroy.pdf"
+  - id: ross-2002
+    title: "The Spreadsort High-performance General-case Sorting Algorithm"
+    author: "S. J. Ross"
+    publisher: "Proceedings of the International Conference on Parallel and Distributed Processing Techniques and Applications (PDPTA 2002), Vol. 3, 1100–1106. Copy hosted by the Boost.Sort library"
+    year: 2002
+    kind: "paper"
+    url: "https://www.boost.org/doc/libs/release/libs/sort/doc/papers/original_spreadsort06_2002.pdf"
+  - id: ross-2017
+    title: "Spreadsort"
+    author: "S. J. Ross, F. Tapia and O. Peters"
+    publisher: "Boost.Sort, Boost C++ Libraries documentation"
+    year: 2017
+    kind: "web"
+    url: "https://www.boost.org/doc/libs/release/libs/sort/doc/html/sort/single_thread/spreadsort.html"
+  - id: neubert-1998
+    title: "The Flashsort1 Algorithm"
+    author: "K.-D. Neubert"
+    publisher: "Dr. Dobb's Journal, February 1998. Text on the author's site"
+    year: 1998
+    kind: "paper"
+    url: "https://www.neubert.net/Flapaper/9802n.htm"
+  - id: sinha-2004
+    title: "Cache-conscious sorting of large sets of strings with dynamic tries"
+    author: "R. Sinha and J. Zobel"
+    publisher: "ACM Journal of Experimental Algorithmics, 9"
+    year: 2004
+    kind: "paper"
+    url: "https://doi.org/10.1145/1005813.1041517"
+  - id: standish-2005
+    title: "Using O(n) ProxmapSort and O(1) ProxmapSearch to motivate CS2 students (Part I)"
+    author: "T. A. Standish and N. Jacobson"
+    publisher: "ACM SIGCSE Bulletin, 37(4), 41–44"
+    year: 2005
+    kind: "paper"
+    url: "https://doi.org/10.1145/1113847.1113874"
+  - id: black-2019-histogram
+    title: "histogram sort (also known as interpolation sort)"
+    author: "P. E. Black"
+    publisher: "P. E. Black (ed.), Dictionary of Algorithms and Data Structures (entry modified 12 February 2019). NIST"
+    year: 2019
+    kind: "web"
+    url: "https://www.nist.gov/dads/HTML/histogramSort.html"
+  - id: flores-1960
+    title: "Computer Time for Address Calculation Sorting"
+    author: "I. Flores"
+    publisher: "Journal of the ACM, 7(4), 389–409"
+    year: 1960
+    kind: "paper"
+    url: "https://doi.org/10.1145/321043.321051"
+  - id: black-2011-postman
+    title: "postman's sort"
+    author: "P. E. Black"
+    publisher: "P. E. Black (ed.), Dictionary of Algorithms and Data Structures (entry modified 20 June 2011). NIST"
+    year: 2011
+    kind: "web"
+    url: "https://www.nist.gov/dads/HTML/postmansort.html"
+  - id: arulanandham-2002
+    title: "Bead-Sort: A Natural Sorting Algorithm"
+    author: "J. J. Arulanandham, C. S. Calude and M. J. Dinneen"
+    publisher: "CDMTCS Research Report CDMTCS-171, University of Auckland; also Bulletin of the EATCS, 76"
+    year: 2002
+    kind: "report"
+    url: "https://hdl.handle.net/2292/3679"
+  - id: skarupke-2016
+    title: "I Wrote a Faster Sorting Algorithm"
+    author: "M. Skarupke"
+    publisher: "Author's blog Probably Dance, 27 December 2016; code in the official repository skarupke/ska_sort"
+    year: 2016
+    kind: "web"
+    url: "https://probablydance.com/2016/12/27/i-wrote-a-faster-sorting-algorithm/"
+  - id: kristo-2021
+    title: "Defeating duplicates: A re-design of the LearnedSort algorithm"
+    author: "A. Kristo, K. Vaidya and T. Kraska"
+    publisher: "arXiv:2107.03290"
+    year: 2021
+    kind: "paper"
+    url: "https://arxiv.org/abs/2107.03290"
+  - id: kristo-2020
+    title: "The Case for a Learned Sorting Algorithm"
+    author: "A. Kristo et al."
+    publisher: "Proceedings of the 2020 ACM SIGMOD International Conference on Management of Data, 1001–1016"
+    year: 2020
+    kind: "paper"
+    url: "https://doi.org/10.1145/3318464.3389752"
+  - id: kirkpatrick-1981
+    title: "Upper Bounds for Sorting Integers on Random Access Machines"
+    author: "D. Kirkpatrick and S. Reisch"
+    publisher: "Technical Report 81-12, Department of Computer Science, University of British Columbia"
+    year: 1981
+    kind: "report"
+    url: "https://www.cs.ubc.ca/tr/1981/tr-81-12"
+  - id: kirkpatrick-1984
+    title: "Upper bounds for sorting integers on random access machines"
+    author: "D. Kirkpatrick and S. Reisch"
+    publisher: "Theoretical Computer Science, 28(3), 263–276"
+    year: 1984
+    kind: "paper"
+    url: "https://doi.org/10.1016/0304-3975(83)90023-3"
+  - id: edelkamp-2014
+    title: "QuickXsort: Efficient Sorting with n log n − 1.399n + o(n) Comparisons on Average"
+    author: "S. Edelkamp and A. Weiß"
+    publisher: "Computer Science – Theory and Applications (CSR 2014), LNCS 8476, 139–152. Springer. Preprint arXiv:1307.3033 (2013)"
+    year: 2014
+    kind: "paper"
+    url: "https://doi.org/10.1007/978-3-319-06686-8_11"
+  - id: edelkamp-2020
+    title: "QuickXsort: A Fast Sorting Scheme in Theory and Practice"
+    author: "S. Edelkamp, A. Weiß and S. Wild"
+    publisher: "Algorithmica, 82(3), 509–588"
+    year: 2020
+    kind: "paper"
+    url: "https://doi.org/10.1007/s00453-019-00634-0"
+  - id: ford-1959
+    title: "A Tournament Problem"
+    author: "L. R. Ford, Jr. and S. M. Johnson"
+    publisher: "The American Mathematical Monthly, 66(5), 387–389"
+    year: 1959
+    kind: "paper"
+    url: "https://doi.org/10.1080/00029890.1959.11989306"
+  - id: manacher-1979
+    title: "The Ford-Johnson Sorting Algorithm Is Not Optimal"
+    author: "G. K. Manacher"
+    publisher: "Journal of the ACM, 26(3), 441–456"
+    year: 1979
+    kind: "paper"
+    url: "https://doi.org/10.1145/322139.322145"
+  - id: vandenhoven-2021-fluxsort
+    title: "fluxsort: a fast branchless stable quicksort / mergesort hybrid"
+    author: "I. van den Hoven"
+    publisher: "Official repository scandum/fluxsort (README)"
+    year: 2021
+    kind: "software"
+    url: "https://github.com/scandum/fluxsort"
+  - id: vandenhoven-2022-crumsort
+    title: "crumsort: a branchless unstable quicksort / mergesort that is highly adaptive"
+    author: "I. van den Hoven"
+    publisher: "Official repository scandum/crumsort (README)"
+    year: 2022
+    kind: "software"
+    url: "https://github.com/scandum/crumsort"
+  - id: vandenhoven-2020-wolfsort
+    title: "wolfsort: a stable adaptive hybrid radix / merge sort"
+    author: "I. van den Hoven"
+    publisher: "Official repository scandum/wolfsort (README)"
+    year: 2020
+    kind: "software"
+    url: "https://github.com/scandum/wolfsort"
+  - id: w0rthy-2019
+    title: "WeaveMergeSort.java (\"Weave Merge Sort\", category Hybrid Sorts)"
+    author: "w0rthy"
+    publisher: "ArrayV, official repository Gaming32/ArrayV, MIT License"
+    year: 2019
+    kind: "software"
+    url: "https://github.com/Gaming32/ArrayV/blob/main/src/main/java/io/github/arrayv/sorts/hybrid/WeaveMergeSort.java"
+  - id: vandenhoven-2021-blitsort
+    title: "blitsort: an in-place stable adaptive rotate mergesort / quicksort"
+    author: "I. van den Hoven"
+    publisher: "Official repository scandum/blitsort (README)"
+    year: 2021
+    kind: "software"
+    url: "https://github.com/scandum/blitsort"
+  - id: vandenhoven-2021-octosort
+    title: "octosort: an in-place stable adaptive block merge sort"
+    author: "I. van den Hoven"
+    publisher: "Official repository scandum/octosort (README)"
+    year: 2021
+    kind: "software"
+    url: "https://github.com/scandum/octosort"
+  - id: batcher-1968
+    title: "Sorting networks and their applications"
+    author: "K. E. Batcher"
+    publisher: "Proceedings of the AFIPS Spring Joint Computer Conference (Vol. 32), 307–314. ACM"
+    year: 1968
+    kind: "paper"
+    url: "https://doi.org/10.1145/1468075.1468121"
+  - id: sanders-2019
+    title: "Sequential and Parallel Algorithms and Data Structures: The Basic Toolbox"
+    author: "P. Sanders, K. Mehlhorn, M. Dietzfelbinger and R. Dementiev"
+    publisher: "Springer"
+    year: 2019
+    kind: "book"
+    url: "https://doi.org/10.1007/978-3-030-25209-0"
+  - id: parberry-1992
+    title: "The pairwise sorting network"
+    author: "I. Parberry"
+    publisher: "Parallel Processing Letters, 2(2–3), 205–211"
+    year: 1992
+    kind: "paper"
+    url: "https://doi.org/10.1142/S0129626492000337"
+  - id: ajtai-1983
+    title: "An O(n log n) sorting network"
+    author: "M. Ajtai, J. Komlós and E. Szemerédi"
+    publisher: "Proceedings of the 15th Annual ACM Symposium on Theory of Computing (STOC), 1–9. ACM"
+    year: 1983
+    kind: "paper"
+    url: "https://doi.org/10.1145/800061.808726"
+  - id: paterson-1990
+    title: "Improved sorting networks with O(log N) depth"
+    author: "M. S. Paterson"
+    publisher: "Algorithmica, 5(1–4), 75–92"
+    year: 1990
+    kind: "paper"
+    url: "https://doi.org/10.1007/BF01840378"
+  - id: goodrich-2014
+    title: "Zig-zag sort: a simple deterministic data-oblivious sorting algorithm running in O(n log n) time"
+    author: "M. T. Goodrich"
+    publisher: "Proceedings of the 46th Annual ACM Symposium on Theory of Computing (STOC), 684–693. ACM"
+    year: 2014
+    kind: "paper"
+    url: "https://doi.org/10.1145/2591796.2591830"
+  - id: scherson-1989
+    title: "Parallel sorting in two-dimensional VLSI models of computation"
+    author: "I. D. Scherson and S. Sen"
+    publisher: "IEEE Transactions on Computers, 38(2), 238–249"
+    year: 1989
+    kind: "paper"
+    url: "https://doi.org/10.1109/12.16500"
+  - id: leighton-1985
+    title: "Tight bounds on the complexity of parallel sorting"
+    author: "T. Leighton"
+    publisher: "IEEE Transactions on Computers, C-34(4), 344–354"
+    year: 1985
+    kind: "paper"
+    url: "https://doi.org/10.1109/TC.1985.5009385"
+  - id: muller-1975
+    title: "Bounds to complexities of networks for sorting and for switching"
+    author: "D. E. Muller and F. P. Preparata"
+    publisher: "Journal of the ACM, 22(2), 195–201"
+    year: 1975
+    kind: "paper"
+    url: "https://doi.org/10.1145/321879.321882"
+  - id: frazer-1970
+    title: "Samplesort: A Sampling Approach to Minimal Storage Tree Sorting"
+    author: "W. D. Frazer and A. C. McKellar"
+    publisher: "Journal of the ACM, 17(3), 496–507"
+    year: 1970
+    kind: "paper"
+    url: "https://doi.org/10.1145/321592.321600"
+  - id: sanders-2004
+    title: "Super Scalar Sample Sort"
+    author: "P. Sanders and S. Winkel"
+    publisher: "Algorithms – ESA 2004, LNCS 3221, 784–796. Springer"
+    year: 2004
+    kind: "paper"
+    url: "https://doi.org/10.1007/978-3-540-30140-0_69"
+  - id: axtmann-2022
+    title: "Engineering In-place (Shared-memory) Sorting Algorithms"
+    author: "M. Axtmann et al."
+    publisher: "ACM Transactions on Parallel Computing, 9(1), 2:1–2:62"
+    year: 2022
+    kind: "paper"
+    url: "https://doi.org/10.1145/3505286"
+  - id: blelloch-1991
+    title: "A comparison of sorting algorithms for the Connection Machine CM-2"
+    author: "G. E. Blelloch et al."
+    publisher: "Proceedings of the 3rd Annual ACM Symposium on Parallel Algorithms and Architectures (SPAA), 3–16. ACM"
+    year: 1991
+    kind: "paper"
+    url: "https://doi.org/10.1145/113379.113380"
+  - id: reif-1987
+    title: "A logarithmic time sort for linear size networks"
+    author: "J. H. Reif and L. G. Valiant"
+    publisher: "Journal of the ACM, 34(1), 60–76"
+    year: 1987
+    kind: "paper"
+    url: "https://doi.org/10.1145/7531.7532"
+  - id: shi-1992
+    title: "Parallel sorting by regular sampling"
+    author: "H. Shi and J. Schaeffer"
+    publisher: "Journal of Parallel and Distributed Computing, 14(4), 361–372"
+    year: 1992
+    kind: "paper"
+    url: "https://doi.org/10.1016/0743-7315(92)90075-X"
+  - id: omalley-2008
+    title: "TeraByte Sort on Apache Hadoop"
+    author: "O. O'Malley"
+    publisher: "Yahoo!, May 2008. Report submitted to the Sort Benchmark"
+    year: 2008
+    kind: "report"
+    url: "https://sortbenchmark.org/YahooHadoop.pdf"
+  - id: axtmann-2017
+    title: "In-Place Parallel Super Scalar Samplesort (IPSSSSo)"
+    author: "M. Axtmann et al."
+    publisher: "25th Annual European Symposium on Algorithms (ESA 2017), LIPIcs 87, 9:1–9:14. Schloss Dagstuhl – Leibniz-Zentrum für Informatik"
+    year: 2017
+    kind: "paper"
+    url: "https://doi.org/10.4230/LIPIcs.ESA.2017.9"
+  - id: axtmann-2020
+    title: "(Parallel) Super Scalar Sample Sort (PS⁴o), official implementation"
+    author: "M. Axtmann"
+    publisher: "GitHub"
+    year: 2020
+    kind: "software"
+    url: "https://github.com/ips4o/ps4o"
+  - id: cole-1988
+    title: "Parallel Merge Sort"
+    author: "R. Cole"
+    publisher: "SIAM Journal on Computing, 17(4), 770–785"
+    year: 1988
+    kind: "paper"
+    url: "https://doi.org/10.1137/0217049"
+  - id: green-2012
+    title: "GPU merge path: a GPU merging algorithm"
+    author: "O. Green, R. McColl and D. A. Bader"
+    publisher: "Proceedings of the 26th ACM International Conference on Supercomputing (ICS), 331–340. ACM"
+    year: 2012
+    kind: "paper"
+    url: "https://doi.org/10.1145/2304576.2304621"
+  - id: zagha-1991
+    title: "Radix sort for vector multiprocessors"
+    author: "M. Zagha and G. E. Blelloch"
+    publisher: "Proceedings of the 1991 ACM/IEEE Conference on Supercomputing, 712–721. ACM"
+    year: 1991
+    kind: "paper"
+    url: "https://doi.org/10.1145/125826.126164"
+  - id: satish-2009
+    title: "Designing efficient sorting algorithms for manycore GPUs"
+    author: "N. Satish, M. Harris and M. Garland"
+    publisher: "2009 IEEE International Symposium on Parallel & Distributed Processing (IPDPS), 1–10. IEEE"
+    year: 2009
+    kind: "paper"
+    url: "https://doi.org/10.1109/IPDPS.2009.5161005"
+  - id: inoue-2007
+    title: "AA-Sort: A New Parallel Sorting Algorithm for Multi-Core SIMD Processors"
+    author: "H. Inoue et al."
+    publisher: "16th International Conference on Parallel Architecture and Compilation Techniques (PACT 2007), 189–198. IEEE"
+    year: 2007
+    kind: "paper"
+    url: "https://doi.org/10.1109/PACT.2007.4336211"
+  - id: chhugani-2008
+    title: "Efficient implementation of sorting on multi-core SIMD CPU architecture"
+    author: "J. Chhugani et al."
+    publisher: "Proceedings of the VLDB Endowment, 1(2), 1313–1324"
+    year: 2008
+    kind: "paper"
+    url: "https://doi.org/10.14778/1454159.1454171"
+  - id: kipfer-2005
+    title: "Improved GPU Sorting"
+    author: "P. Kipfer and R. Westermann"
+    publisher: "M. Pharr (Ed.), GPU Gems 2, chapter 46. Addison-Wesley; published online by NVIDIA"
+    year: 2005
+    kind: "book"
+    url: "https://developer.nvidia.com/gpugems/gpugems2/part-vi-simulation-and-numerical-algorithms/chapter-46-improved-gpu-sorting"
+  - id: govindaraju-2006
+    title: "GPUTeraSort: high performance graphics co-processor sorting for large database management"
+    author: "N. K. Govindaraju et al."
+    publisher: "Proceedings of the 2006 ACM SIGMOD International Conference on Management of Data, 325–336. ACM"
+    year: 2006
+    kind: "paper"
+    url: "https://doi.org/10.1145/1142473.1142511"
+  - id: merrill-2011
+    title: "High performance and scalable radix sorting: a case study of implementing dynamic parallelism for GPU computing"
+    author: "D. Merrill and A. Grimshaw"
+    publisher: "Parallel Processing Letters, 21(2), 245–272"
+    year: 2011
+    kind: "paper"
+    url: "https://doi.org/10.1142/S0129626411000187"
+  - id: apache-2024
+    title: "Package org.apache.hadoop.examples.terasort"
+    author: "Apache Software Foundation"
+    publisher: "Apache Hadoop 3.4.1 API documentation (release of 18 October 2024)"
+    year: 2024
+    kind: "web"
+    url: "https://hadoop.apache.org/docs/r3.4.1/api/org/apache/hadoop/examples/terasort/package-summary.html"
+  - id: dean-2004
+    title: "MapReduce: Simplified Data Processing on Large Clusters"
+    author: "J. Dean and S. Ghemawat"
+    publisher: "6th Symposium on Operating Systems Design and Implementation (OSDI 2004), 137–150. USENIX Association"
+    year: 2004
+    kind: "paper"
+    url: "https://www.usenix.org/conference/osdi-04/mapreduce-simplified-data-processing-large-clusters"
+  - id: aggarwal-1988
+    title: "The input/output complexity of sorting and related problems"
+    author: "A. Aggarwal and J. S. Vitter"
+    publisher: "Communications of the ACM, 31(9), 1116–1127"
+    year: 1988
+    kind: "paper"
+    url: "https://doi.org/10.1145/48529.48535"
+  - id: vitter-2008
+    title: "Algorithms and Data Structures for External Memory"
+    author: "J. S. Vitter"
+    publisher: "Foundations and Trends in Theoretical Computer Science, 2(4), 305–474"
+    year: 2008
+    kind: "paper"
+    url: "https://doi.org/10.1561/0400000014"
+  - id: friend-1956
+    title: "Sorting on Electronic Computer Systems"
+    author: "E. H. Friend"
+    publisher: "Journal of the ACM, 3(3), 134–168"
+    year: 1956
+    kind: "paper"
+    url: "https://doi.org/10.1145/320831.320833"
+  - id: graefe-2006
+    title: "Implementing sorting in database systems"
+    author: "G. Graefe"
+    publisher: "ACM Computing Surveys, 38(3), article 10"
+    year: 2006
+    kind: "paper"
+    url: "https://doi.org/10.1145/1132960.1132964"
+  - id: larson-2003
+    title: "External sorting: Run formation revisited"
+    author: "P.-Å. Larson"
+    publisher: "IEEE Transactions on Knowledge and Data Engineering, 15(4), 961–972"
+    year: 2003
+    kind: "paper"
+    url: "https://doi.org/10.1109/TKDE.2003.1209012"
+  - id: frigo-1999
+    title: "Cache-oblivious algorithms"
+    author: "M. Frigo et al."
+    publisher: "40th Annual Symposium on Foundations of Computer Science (FOCS), 285–297. IEEE"
+    year: 1999
+    kind: "paper"
+    url: "https://doi.org/10.1109/SFFCS.1999.814600"
+  - id: gilstad-1960
+    title: "Polyphase merge sorting: an advanced technique"
+    author: "R. L. Gilstad"
+    publisher: "Papers presented at the Eastern Joint IRE-AIEE-ACM Computer Conference, 143–148. ACM"
+    year: 1960
+    kind: "paper"
+    url: "https://doi.org/10.1145/1460512.1460524"
+  - id: betz-1959
+    title: "New merge sorting techniques"
+    author: "B. K. Betz and W. C. Carter"
+    publisher: "Preprints of papers presented at the 14th National Meeting of the ACM. ACM"
+    year: 1959
+    kind: "paper"
+    url: "https://doi.org/10.1145/612201.612219"
+  - id: sobel-1962
+    title: "Oscillating Sort—A New Sort Merging Technique"
+    author: "S. Sobel"
+    publisher: "Journal of the ACM, 9(3), 372–374"
+    year: 1962
+    kind: "paper"
+    url: "https://doi.org/10.1145/321127.321133"
+  - id: vitter-1994
+    title: "Algorithms for parallel memory, I: Two-level memories"
+    author: "J. S. Vitter and E. A. M. Shriver"
+    publisher: "Algorithmica, 12(2–3), 110–147"
+    year: 1994
+    kind: "paper"
+    url: "https://doi.org/10.1007/BF01185207"
+  - id: frigo-2012
+    title: "Cache-Oblivious Algorithms"
+    author: "M. Frigo et al."
+    publisher: "ACM Transactions on Algorithms, 8(1), 4:1–4:22"
+    year: 2012
+    kind: "paper"
+    url: "https://doi.org/10.1145/2071379.2071383"
+  - id: brodal-2002
+    title: "Cache Oblivious Distribution Sweeping"
+    author: "G. S. Brodal and R. Fagerberg"
+    publisher: "Automata, Languages and Programming (ICALP 2002), LNCS 2380, 426–438. Springer"
+    year: 2002
+    kind: "paper"
+    url: "https://doi.org/10.1007/3-540-45465-9_37"
+  - id: arge-1995
+    title: "The buffer tree: A new technique for optimal I/O-algorithms"
+    author: "L. Arge"
+    publisher: "Algorithms and Data Structures (WADS 1995), LNCS 955, 334–345. Springer"
+    year: 1995
+    kind: "paper"
+    url: "https://doi.org/10.1007/3-540-60220-8_74"
+  - id: arge-2003
+    title: "The Buffer Tree: A Technique for Designing Batched External Data Structures"
+    author: "L. Arge"
+    publisher: "Algorithmica, 37(1), 1–24"
+    year: 2003
+    kind: "paper"
+    url: "https://doi.org/10.1007/s00453-003-1021-x"
+  - id: gates-1979
+    title: "Bounds for sorting by prefix reversal"
+    author: "W. H. Gates and C. H. Papadimitriou"
+    publisher: "Discrete Mathematics, 27(1), 47–57"
+    year: 1979
+    kind: "paper"
+    url: "https://doi.org/10.1016/0012-365X(79)90068-2"
+  - id: chitturi-2009
+    title: "An (18/11)n upper bound for sorting by prefix reversals"
+    author: "B. Chitturi et al."
+    publisher: "Theoretical Computer Science, 410(36), 3372–3390"
+    year: 2009
+    kind: "paper"
+    url: "https://doi.org/10.1016/j.tcs.2008.04.045"
+  - id: bulteau-2015
+    title: "Pancake Flipping is hard"
+    author: "L. Bulteau, G. Fertin and I. Rusu"
+    publisher: "Journal of Computer and System Sciences, 81(8), 1556–1574"
+    year: 2015
+    kind: "paper"
+    url: "https://doi.org/10.1016/j.jcss.2015.02.003"
+  - id: cohen-1995
+    title: "On the problem of sorting burnt pancakes"
+    author: "D. S. Cohen and M. Blum"
+    publisher: "Discrete Applied Mathematics, 61(2), 105–120"
+    year: 1995
+    kind: "paper"
+    url: "https://doi.org/10.1016/0166-218X(94)00009-3"
+  - id: dewdney-1984
+    title: "Computer Recreations: On the spaghetti computer and other analog gadgets for problem solving"
+    author: "A. K. Dewdney"
+    publisher: "Scientific American, 250(6), 19–26"
+    year: 1984
+    kind: "paper"
+    url: "https://doi.org/10.1038/scientificamerican0684-19"
+  - id: gruber-2007
+    title: "Sorting the Slow Way: An Analysis of Perversely Awful Randomized Sorting Algorithms"
+    author: "H. Gruber, M. Holzer and O. Ruepp"
+    publisher: "Fun with Algorithms (FUN 2007), LNCS 4475, 183–197. Springer"
+    year: 2007
+    kind: "paper"
+    url: "https://doi.org/10.1007/978-3-540-72914-3_17"
+  - id: lerma-2014
+    title: "How inefficient can a sort algorithm be?"
+    author: "M. A. Lerma"
+    publisher: "arXiv:1406.1077"
+    year: 2014
+    kind: "paper"
+    url: "https://arxiv.org/abs/1406.1077"
+  - id: morgan-mar-2013
+    title: "Bogobogosort"
+    author: "David Morgan-Mar"
+    publisher: "DM's Esoteric Programming Languages, the author's page (last updated 28 December 2013)"
+    year: 2013
+    kind: "web"
+    url: "https://www.dangermouse.net/esoteric/bogobogosort.html"
+  - id: flatto-1985
+    title: "Random Shuffles and Group Representations"
+    author: "L. Flatto, A. M. Odlyzko and D. B. Wales"
+    publisher: "The Annals of Probability, 13(1), 154–178"
+    year: 1985
+    kind: "paper"
+    url: "https://doi.org/10.1214/aop/1176993073"
+  - id: cormen-2009
+    title: "Introduction to Algorithms (third edition)"
+    author: "T. H. Cormen, C. E. Leiserson, R. L. Rivest and C. Stein"
+    publisher: "MIT Press"
+    year: 2009
+    kind: "book"
+    url: "https://mitpress.mit.edu/9780262033848/introduction-to-algorithms/"
+  - id: broder-1984
+    title: "Pessimal algorithms and simplexity analysis"
+    author: "A. Broder and J. Stolfi"
+    publisher: "ACM SIGACT News, 16(3), 49–53"
+    year: 1984
+    kind: "paper"
+    url: "https://doi.org/10.1145/990534.990536"
+  - id: opengroup-2018
+    title: "The Open Group Base Specifications Issue 7, 2018 edition (IEEE Std 1003.1-2017): nanosleep"
+    author: "IEEE & The Open Group"
+    publisher: "The Open Group"
+    year: 2018
+    kind: "web"
+    url: "https://pubs.opengroup.org/onlinepubs/9699919799/functions/nanosleep.html"
+  - id: knuth-1997
+    title: "The Art of Computer Programming, Volume 1, Fundamental Algorithms (third edition)"
+    author: "D. E. Knuth"
+    publisher: "Addison-Wesley"
+    year: 1997
+    kind: "book"
+    url: "https://www.informit.com/store/art-of-computer-programming-volume-1-fundamental-algorithms-9780201896831"
+  - id: ziegler-1979
+    title: "Effect of Cosmic Rays on Computer Memories"
+    author: "J. F. Ziegler and W. A. Lanford"
+    publisher: "Science, 206(4420), 776–788"
+    year: 1979
+    kind: "paper"
+    url: "https://doi.org/10.1126/science.206.4420.776"
+  - id: depaula-2018
+    title: "stalin-sort (community repository of Stalin sort implementations, created 30 October 2018)"
+    author: "G. de Paula"
+    publisher: "GitHub"
+    year: 2018
+    kind: "software"
+    url: "https://github.com/gustavo-depaula/stalin-sort"

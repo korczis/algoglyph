@@ -6,11 +6,29 @@ title: "Sorting and selection: the bespoke plates"
 slug: sorting-and-selection-custom-plates
 priority: p2
 profile: implementation
-objective: "Make live: balanced-multiway-merge."
+objective: "Make live: balanced-multiway-merge, burnt-pancake-sort, bogobogosort, bogosort, bozosort, miracle-sort, slowsort, stalin-sort, stooge-sort, worstsort."
 why: "Derived from the catalogue (ADR 0004): these entries are planned in this wing for this engine."
 scope:
   - src/plates/balanced-multiway-merge
+  - src/plates/burnt-pancake-sort
+  - src/plates/bogobogosort
+  - src/plates/bogosort
+  - src/plates/bozosort
+  - src/plates/miracle-sort
+  - src/plates/slowsort
+  - src/plates/stalin-sort
+  - src/plates/stooge-sort
+  - src/plates/worstsort
   - catalogue/entries/balanced-multiway-merge.md
+  - catalogue/entries/burnt-pancake-sort.md
+  - catalogue/entries/bogobogosort.md
+  - catalogue/entries/bogosort.md
+  - catalogue/entries/bozosort.md
+  - catalogue/entries/miracle-sort.md
+  - catalogue/entries/slowsort.md
+  - catalogue/entries/stalin-sort.md
+  - catalogue/entries/stooge-sort.md
+  - catalogue/entries/worstsort.md
 depends_on: []
 acceptance_criteria:
   - Every entry named in the objective has status live, and its kernel or plate exists.
