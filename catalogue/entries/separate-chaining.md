@@ -20,7 +20,7 @@ related:
 
 Each table slot holds a list of the keys that hash there.
 
-A key is hashed by multiplicative (Fibonacci) hashing, h1(k) = k · ⌊2^32 / φ⌋ mod 2^32, and the leading bits of h1 pick its chain. A search walks the chain comparing keys; those comparisons are what the readouts count and what the chart plots against the load factor α, keys per chain.
+A key is hashed by multiplicative (Fibonacci) hashing, h1(k) = 2654435761 · k mod 2^32, where 2654435761 is a prime close to 2^32 / φ, and the leading bits of h1 pick its chain. A search walks the chain comparing keys; those comparisons are what the readouts count and what the chart plots against the load factor α, keys per chain.
 
 For uniform keys a successful search compares about 1 + α/2 keys and an unsuccessful one about α. The chart draws these formulas as a labelled reference beside the measured means, which come from batches of searches for present and absent keys replayed at checkpoints as the table fills and empties.
 

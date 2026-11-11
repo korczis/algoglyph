@@ -44,7 +44,7 @@ export const STRIDE = 5;
 /** Events a trace may hold. */
 export const EVENT_CAP = 3_000_000;
 /** The deepest directory the engine allocates (2^MAX_DEPTH entries). */
-export const MAX_DEPTH = 22;
+export const MAX_DEPTH = 18;
 
 /** The table's state: plain data, mutated identically by a kernel's run and by the replay. */
 export class Table {
@@ -123,7 +123,7 @@ export function apply(t: Table, ev: Int32Array, e: number): void {
 
 // ---- hash functions -------------------------------------------------------------------------
 
-/** Knuth's multiplicative constant: 2^32 divided by the golden ratio, rounded to odd. */
+/** Knuth's multiplier for Fibonacci hashing: the prime 2654435761, close to 2^32 / φ. */
 export const GOLDEN = 0x9e3779b1;
 
 /** The inverse of an odd a modulo 2^32 (Newton's iteration doubles the correct bits). */
@@ -264,8 +264,19 @@ class Stop extends Error {}
 /** The directory would outgrow MAX_DEPTH: the run stops there, marked truncated. */
 class Limit extends Stop {}
 
-/** Run a kernel over a workload, recording every operation. */
-export function trace(kernel: HashKernel, steps: Step[], size: Size, cap = EVENT_CAP): Trace {
+/** A run in progress: steps can be fed in slices, so a long run can be spread over frames. */
+export interface Tracer {
+  /** Run steps[from..] until they end, the run stops, or `budget` more events are recorded;
+   * returns the index of the first step not run. */
+  run(steps: Step[], from?: number, budget?: number): number;
+  /** Events recorded so far. */
+  readonly length: number;
+  readonly truncated: boolean;
+  result(): Trace;
+}
+
+/** Start a run of a kernel: allocate its table, ready for steps. */
+export function tracer(kernel: HashKernel, size: Size, cap = EVENT_CAP): Tracer {
   const t = new Table();
   let buf = new Int32Array(STRIDE * 8192);
   let len = 0;
@@ -287,92 +298,114 @@ export function trace(kernel: HashKernel, steps: Step[], size: Size, cap = EVENT
   const bucket = (b: number) => {
     if (!Number.isInteger(b) || b < 0 || b >= t.m) throw new RangeError(`bucket ${b} outside 0..${t.m - 1}`);
   };
+  // every operation records its event first and changes state only once the event is in the
+  // trace, so a truncated run's table and counts are exactly what its events replay to
   const ops: HashOps = {
     get m() { return t.m; },
     get count() { return t.count; },
     get globalDepth() { return t.globalDepth; },
     pageSize: size.pageSize,
     hash(key, fn = 0) {
-      counts.hashes++;
       const h = fn === 0 ? h1(key) : h2(key);
       push(OP.hash, fn, key, h | 0);
+      counts.hashes++;
       return h;
     },
     len(b) { bucket(b); return t.buckets[b].length; },
     read(b, i = 0) {
       bucket(b);
-      counts.probes++;
-      opProbes++;
       const v = t.value(b, i);
       push(OP.probe, b, i, v);
+      counts.probes++;
+      opProbes++;
       return v;
     },
     write(b, i, v, d = 0) {
       bucket(b);
       if (i < 0 || i > t.buckets[b].length) throw new RangeError(`position ${i} outside bucket ${b}`);
+      push(OP.write, b, i, v, d);
       counts.writes++;
       t.write(b, i, v, d);
-      push(OP.write, b, i, v, d);
     },
     remove(b, i) {
       bucket(b);
       if (i < 0 || i >= t.buckets[b].length) throw new RangeError(`position ${i} outside bucket ${b}`);
+      push(OP.remove, b, i);
       counts.removes++;
       t.remove(b, i);
-      push(OP.remove, b, i);
     },
     resize(m) {
       if (!Number.isInteger(m) || m < 1) throw new RangeError(`table size ${m}`);
       const had = t.m > 0;
+      push(OP.resize, m, t.count);
       const keys = t.resize(m);
       if (had) { counts.rehashes++; counts.rehashed += keys.length; }
-      push(OP.resize, m, keys.length);
       return keys;
     },
-    load(b) { bucket(b); counts.loads++; opLoads++; push(OP.load, b); },
+    load(b) { bucket(b); push(OP.load, b); counts.loads++; opLoads++; },
     dir(i) {
       if (i < 0 || i >= t.dir.length) throw new RangeError(`directory index ${i}`);
-      counts.dirReads++;
       push(OP.dirRead, i, t.dir[i]);
+      counts.dirReads++;
       return t.dir[i];
     },
     setDir(i, b) {
       if (i < 0 || i >= Math.max(1, t.dir.length)) throw new RangeError(`directory index ${i}`);
-      t.dir[i] = b;
       push(OP.setDir, i, b);
+      t.dir[i] = b;
     },
     doubleDir() {
       if (t.globalDepth >= MAX_DEPTH) throw new Limit();
+      push(OP.double, t.globalDepth + 1);
       counts.doublings++;
       t.double();
-      push(OP.double, t.globalDepth);
     },
     newPage(depth) {
+      push(OP.newPage, t.m, depth);
       if (t.m > 0) counts.splits++;
-      const b = t.newPage(depth);
-      push(OP.newPage, b, depth);
-      return b;
+      return t.newPage(depth);
     },
     depth(b) { bucket(b); return t.depths[b]; },
-    setDepth(b, d) { bucket(b); t.depths[b] = d; push(OP.depth, b, d); },
+    setDepth(b, d) { bucket(b); push(OP.depth, b, d); t.depths[b] = d; },
   };
   let truncated = false;
-  try {
-    kernel.init(ops, size);
-    for (const s of steps) {
-      if (s.kind === 'check') { push(OP.check, s.open ? 1 : 0, s.deleting ? 1 : 0); continue; }
-      push(OP.begin, s.kind, s.key);
-      opProbes = 0;
-      opLoads = 0;
-      const ok = s.kind === KIND.insert ? kernel.insert(ops, s.key)
-        : s.kind === KIND.search ? kernel.search(ops, s.key) : kernel.remove(ops, s.key);
-      push(OP.end, s.kind, ok ? 1 : 0, opProbes, opLoads);
+  const guard = (f: () => void) => {
+    if (truncated) return;
+    try { f(); } catch (e) {
+      if (!(e instanceof Stop)) throw e;
+      truncated = true;
     }
-  } catch (e) {
-    if (!(e instanceof Stop)) throw e;
-    truncated = true;
-  }
-  return { events: buf, length: len, counts, table: t, pageSize: size.pageSize, truncated };
+  };
+  guard(() => kernel.init(ops, size));
+  return {
+    get length() { return len; },
+    get truncated() { return truncated; },
+    run(steps, from = 0, budget = Infinity) {
+      const until = len + budget;
+      let i = from;
+      guard(() => {
+        for (; i < steps.length && len < until; i++) {
+          const s = steps[i];
+          if (s.kind === 'check') { push(OP.check, s.open ? 1 : 0, s.deleting ? 1 : 0); continue; }
+          push(OP.begin, s.kind, s.key);
+          opProbes = 0;
+          opLoads = 0;
+          const ok = s.kind === KIND.insert ? kernel.insert(ops, s.key)
+            : s.kind === KIND.search ? kernel.search(ops, s.key) : kernel.remove(ops, s.key);
+          push(OP.end, s.kind, ok ? 1 : 0, opProbes, opLoads);
+        }
+      });
+      return truncated ? steps.length : i;
+    },
+    result: () => ({ events: buf, length: len, counts: { ...counts }, table: t, pageSize: size.pageSize, truncated }),
+  };
+}
+
+/** Run a kernel over a whole workload, recording every operation. */
+export function trace(kernel: HashKernel, steps: Step[], size: Size, cap = EVENT_CAP): Trace {
+  const r = tracer(kernel, size, cap);
+  r.run(steps);
+  return r.result();
 }
 
 /** The keys a table holds, whatever its layout. */

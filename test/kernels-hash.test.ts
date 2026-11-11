@@ -5,7 +5,9 @@
 import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
 import { mulberry32 } from '../src/core/random';
-import { apply, EMPTY, KIND, keysOf, OP, STRIDE, Table, trace, type HashKernel, type Size,
+import { PALETTES } from '../src/core/palette';
+import { drawTable, engine, exponent, FRAME_EVENTS, pageRuns, Replay, Scaling, SCALING_N } from '../src/engines/hash/index';
+import { apply, EMPTY, KIND, keysOf, MAX_DEPTH, OP, STRIDE, Table, trace, type HashKernel, type Size,
   type Step, type Trace } from '../src/engines/hash/table';
 import { keys, STREAMS, workload, type Stream } from '../src/engines/hash/workload';
 
@@ -319,5 +321,98 @@ describe('hash kernels against the classical averages', () => {
     const bands = new Set(inserted.map((k) => lead(H1(k), 6)));
     expect(bands.size).toBe(1);
     expect(new Set(inserted.map((k) => lead(H2(k), 6))).size).toBeGreaterThan(40);
+  });
+});
+
+describe('hash engine bounds', () => {
+  const modulesById = live.map((e) => ({ id: e.id, kernel: kernelOf(e.id) }));
+
+  it('a truncated run keeps its table and counts exactly what its events replay to', () => {
+    for (const { id, kernel } of modulesById) {
+      const steps = workload('adversarial', 200, 50, 61);
+      for (const cap of [1, 2, 3, 50, 333, 1001, 4099]) {
+        const t = trace(kernel, steps, sizeFor(200, 0.9), cap);
+        expect(t.truncated, `${id} cap ${cap}`).toBe(true);
+        expect(t.length).toBe(cap);
+        const again = replay(t, () => {});
+        expect(again.buckets, `${id} cap ${cap}`).toEqual(t.table.buckets);
+        expect(again.dir).toEqual(t.table.dir);
+        expect(again.depths).toEqual(t.table.depths);
+        expect(again.count).toBe(t.table.count);
+        const tally = (op: number) => {
+          let c = 0;
+          for (let e = 0; e < t.length; e++) if (t.events[STRIDE * e] === op) c++;
+          return c;
+        };
+        expect(t.counts.probes, `${id} cap ${cap}`).toBe(tally(OP.probe));
+        expect(t.counts.hashes).toBe(tally(OP.hash));
+        expect(t.counts.writes).toBe(tally(OP.write));
+        expect(t.counts.removes).toBe(tally(OP.remove));
+        expect(t.counts.loads).toBe(tally(OP.load));
+        expect(t.counts.dirReads).toBe(tally(OP.dirRead));
+        expect(t.counts.doublings).toBe(tally(OP.double));
+      }
+    }
+  });
+
+  it('draws an extendible table at the largest settings by its pages, not its directory', () => {
+    for (const { id, kernel } of modulesById) {
+      if (kernel.layout !== 'pages') continue;
+      const code = engine.plate({ id, title: id, group: 'g' }, kernel);
+      const range = (key: string) => code.params.find((d) => d.key === key) as { min: number; max: number };
+      const n = range('n').max;
+      const B = range('page').min;
+      const t = trace(kernel, workload('adversarial', n, 0, 3), { n, m: 1, pageSize: B });
+      expect(t.table.dir.length).toBeLessThanOrEqual(2 ** MAX_DEPTH);
+      const r = new Replay(t, 'pages', n);
+      r.advance(t.length);
+      let reads = 0;
+      const dir = r.table.dir;
+      r.table.dir = new Proxy(dir, {
+        get(target, key, recv) {
+          if (typeof key === 'string' && /^\d+$/.test(key)) reads++;
+          return Reflect.get(target, key, recv);
+        },
+      });
+      let calls = 0;
+      const p = new Proxy({}, { get: (_t, k) => (typeof k === 'string' && k === k.toUpperCase() ? k : () => { calls++; }) });
+      const ctx = { width: 1440, height: 810, fg: [0, 0, 0], bg: [255, 255, 255], palette: () => PALETTES[0] };
+      drawTable(p as never, ctx as never, r, [0, 0, 1440, 810]);
+      const pages = r.table.m;
+      expect(pageRuns(r.table).length).toBeLessThanOrEqual(pages);
+      // a few directory reads and a few drawing calls per page, whatever the directory's size
+      expect(reads, `${id}: ${dir.length} directory entries, ${pages} pages`).toBeLessThanOrEqual(4 * pages + 4);
+      expect(calls).toBeLessThanOrEqual(pages * (B + 8) + 16);
+    }
+  });
+
+  it("spreads the lab's scaling runs over frames of bounded work and keeps every finished point", () => {
+    const kernels = modulesById.map((k) => k.kernel);
+    // the adversarial runs at the highest load the lab offers, the uniform ones at its default
+    for (const [stream, load] of [['uniform', 0.75], ['adversarial', 0.95]] as const) {
+      const s = new Scaling(kernels, stream, (n) => ({ n, m: Math.ceil(n / load), pageSize: 4 }), 5);
+      let frames = 0;
+      while (!s.done) {
+        s.step();
+        frames++;
+        // a frame stops at the budget, overshooting by at most the operation in progress
+        expect(s.lastEvents).toBeLessThanOrEqual(FRAME_EVENTS + 8 * SCALING_N[SCALING_N.length - 1]);
+      }
+      expect(frames).toBeGreaterThan(1);
+      s.curves.forEach((pts, ci) => {
+        expect(pts.map((q) => q[0]), `${modulesById[ci].id} ${stream}`).toEqual(SCALING_N);
+        for (const [, w] of pts) expect(Number.isFinite(w) && w > 0).toBe(true);
+        const slope = exponent(pts);
+        if (stream === 'uniform') expect(slope, modulesById[ci].id).toBeLessThan(1.3);
+        if (stream === 'adversarial' && modulesById[ci].id === 'linear-probing') expect(slope).toBeGreaterThan(1.6);
+      });
+    }
+  });
+
+  it('labels its controls as what they drive', () => {
+    for (const { id, kernel } of modulesById) {
+      const code = engine.plate({ id, title: id, group: 'g' }, kernel);
+      expect(code.params.find((d) => d.key === 'speed')?.label).toBe('Trace events per frame');
+    }
   });
 });

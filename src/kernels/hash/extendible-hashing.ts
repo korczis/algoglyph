@@ -63,10 +63,10 @@ export const kernel: HashKernel = {
     t.remove(page, i);
     return true;
   },
-  // the classical averages for uniform keys: pages fill to about ln 2, so about n / (b ln 2)
-  // pages, and the directory grows like (e / (b ln 2)) n^(1 + 1/b), faster than linearly
+  // Sedgewick's estimates for uniform keys (Algorithms in C, Part 4): about n / (b ln 2) pages,
+  // and a directory of about (e / (b ln 2)) n^(1 + 1/b) entries, faster than linear
   growth: {
-    label: 'expected',
+    label: "Sedgewick's estimate for uniform keys",
     pages: (n, b) => n / (b * Math.LN2),
     directory: (n, b) => (Math.E / (b * Math.LN2)) * n ** (1 + 1 / b),
   },

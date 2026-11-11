@@ -27,4 +27,4 @@ Keys that hash anywhere into a run of occupied slots extend it, so long runs gro
 
 Deletion uses Knuth's backward shift (Algorithm R) instead of tombstones: it empties the slot, then walks the rest of the cluster and moves back every key whose home no longer lies between the hole and its slot. The Tombstones readout stays at zero.
 
-Adversarial for h1 sends every key into one narrow band of slots: the whole table becomes a single cluster and the cost of each insert grows with the number of keys already stored.
+Adversarial for h1 sends every key into one narrow band of slots: all the keys end up in a single cluster and the cost of each insert grows with the number of keys already stored.

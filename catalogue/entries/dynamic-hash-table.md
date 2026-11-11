@@ -18,7 +18,7 @@ related:
   - linear-probing
 ---
 
-Double the table when it fills and rehash, keeping every operation constant on average.
+Double the table once it is more than half full and rehash, keeping every operation constant on average.
 
 A linear-probing table that starts small and doubles as soon as it is more than half full, and halves when it falls below one eighth full. A resize allocates a new table and inserts every key again, which the Rehashes readout and the hash and write counts record.
 

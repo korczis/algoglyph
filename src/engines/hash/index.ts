@@ -6,12 +6,15 @@ import { paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type Chart, type ParamDef, type PlateCode, type PlateContext,
   type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
-import { apply, DELETED, EMPTY, KIND, OP, STRIDE, Table, trace, type HashKernel, type Size,
+import { apply, DELETED, EMPTY, KIND, OP, STRIDE, Table, trace, tracer, type HashKernel, type Size,
+  type Step, type Tracer,
   type Trace } from './table';
 import { scalingWorkload, STREAM_LABELS, STREAMS, workload, type Stream } from './workload';
 
 const HOLD_FRAMES = 90;
-const SCALING_N = [16, 32, 64, 128, 256, 512];
+export const SCALING_N = [16, 32, 64, 128, 256, 512];
+/** Trace events a lab's scaling measurement may record in one frame. */
+export const FRAME_EVENTS = 40_000;
 
 const fmt = (x: number) => x.toLocaleString('en-US');
 const dec = (x: number, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '–');
@@ -63,7 +66,7 @@ export function longestChain(t: Table): number {
 interface Point { alpha: number; hit: number; miss: number; loads: number; deleting: boolean }
 
 /** One replayed run: a table rebuilt from the trace's events, and measurements counted from them. */
-class Replay {
+export class Replay {
   table = new Table();
   at = 0;
   c = { hashes: 0, probes: 0, writes: 0, rehashes: 0, splits: 0, doublings: 0, loads: 0 };
@@ -231,6 +234,23 @@ function drawChains(p: p5, ctx: PlateContext, r: Replay, [x, y, w, h]: Box): voi
   }
 }
 
+/**
+ * The first directory index of each page's run of entries. A page of local depth d owns
+ * 2^(g - d) consecutive entries, so the walk jumps a whole run at a time: its cost is the
+ * number of pages, not the size of the directory.
+ */
+export function pageRuns(t: Table): number[] {
+  const runs: number[] = [];
+  const D = t.dir.length;
+  const g = t.globalDepth;
+  for (let i = 0; i < D;) {
+    runs.push(i);
+    const d = t.depths[t.dir[i]] ?? g;
+    i += 2 ** Math.max(0, g - d);
+  }
+  return runs;
+}
+
 function drawPages(p: p5, ctx: PlateContext, r: Replay, [x, y, w, h]: Box): void {
   const t = r.table;
   const B = r.t.pageSize;
@@ -241,10 +261,9 @@ function drawPages(p: p5, ctx: PlateContext, r: Replay, [x, y, w, h]: Box): void
   // pages in directory order, so the strip and the grid read in the same order
   const rank = new Int32Array(t.m).fill(-1);
   const order: number[] = [];
-  const runs: number[] = [];
-  for (let i = 0; i < D; i++) {
+  const runs = pageRuns(t);
+  for (const i of runs) {
     const pg = t.dir[i];
-    if (i === 0 || pg !== t.dir[i - 1]) runs.push(i);
     if (rank[pg] < 0) { rank[pg] = order.length; order.push(pg); }
   }
   const colour = (pg: number): RGB => ramp(pal, (rank[pg] * 0.6180339887) % 1, true);
@@ -316,7 +335,7 @@ function drawPages(p: p5, ctx: PlateContext, r: Replay, [x, y, w, h]: Box): void
   }
 }
 
-function drawTable(p: p5, ctx: PlateContext, r: Replay, box: Box): void {
+export function drawTable(p: p5, ctx: PlateContext, r: Replay, box: Box): void {
   if (r.layout === 'slots') drawSlots(p, ctx, r, box);
   else if (r.layout === 'chains') drawChains(p, ctx, r, box);
   else drawPages(p, ctx, r, box);
@@ -337,14 +356,14 @@ function params(kernels: HashKernel[], n: number, nMax: number): ParamDef[] {
     const max = Math.min(...loads);
     out.push({ kind: 'range', key: 'load', label: 'Fill to load factor (percent)', min: 25, max,
       step: 5, value: Math.min(75, max), rebuild: true,
-      hint: 'Fixed-size tables get n divided by this many slots' });
+      hint: 'A fixed-size table gets n divided by this load factor, rounded up, as its slots or chains' });
   }
   if (kernels.some((k) => k.layout === 'pages')) {
-    out.push({ kind: 'range', key: 'page', label: 'Keys per page', min: 2, max: 16, step: 1, value: 4, rebuild: true });
+    out.push({ kind: 'range', key: 'page', label: 'Keys per page', min: 4, max: 16, step: 1, value: 4, rebuild: true });
   }
   out.push(
     { kind: 'range', key: 'deletes', label: 'Keys deleted at the end (percent)', min: 0, max: 90, step: 5, value: 50, rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Operations per frame', min: 1, max: 2000, step: 1, value: 12 },
+    { kind: 'range', key: 'speed', label: 'Trace events per frame', min: 1, max: 2000, step: 1, value: 12 },
     { kind: 'toggle', key: 'loop', label: 'New keys when done', value: true },
     paletteParam('ember'),
   );
@@ -410,8 +429,8 @@ function growthChart(r: Replay, kernel: HashKernel): Chart {
   const ex = kernel.growth;
   if (ex && g.length) {
     series.push(
-      { name: `Pages, ${ex.label} n / (b ln 2)`, points: g.map((q) => [q[0], ex.pages(q[0], B)]) },
-      { name: `Directory, ${ex.label} (e / (b ln 2)) n^(1+1/b)`, points: g.map((q) => [q[0], ex.directory(q[0], B)]) },
+      { name: `Pages, ${ex.label}: n / (b ln 2)`, points: g.map((q) => [q[0], ex.pages(q[0], B)]) },
+      { name: `Directory, ${ex.label}: (e / (b ln 2)) n^(1+1/b)`, points: g.map((q) => [q[0], ex.directory(q[0], B)]) },
     );
   }
   return {
@@ -434,7 +453,6 @@ function stats(r: Replay, kernel: HashKernel): Stat[] {
       { label: 'Global depth', value: `${t.globalDepth} bits, ${fmt(t.dir.length)} directory entries` },
       { label: 'Page splits', value: fmt(r.c.splits) },
       { label: 'Directory doublings', value: fmt(r.c.doublings) },
-      { label: 'Page reads per search', value: last ? dec(last.loads) : '–' },
       { label: 'Keys compared per search', value: last ? `${dec(last.hit)} hit · ${dec(last.miss)} miss` : '–' },
     );
   } else {
@@ -506,6 +524,47 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
 
 // ---- the lab ---------------------------------------------------------------------------------
 
+/**
+ * The lab's scaling measurement: every kernel at every n of SCALING_N, on the scaling workload,
+ * run a slice of at most FRAME_EVENTS trace events per step. A run that hits the event cap is
+ * left out of its curve rather than plotted.
+ */
+export class Scaling {
+  /** Per kernel, the measured [n, work] points so far. */
+  curves: [number, number][][];
+  /** Events recorded by the last step. */
+  lastEvents = 0;
+  private jobs: [number, number][];
+  private job: { ci: number; n: number; run: Tracer; steps: Step[]; at: number } | null = null;
+  constructor(private kernels: HashKernel[], private stream: Stream, private size: (n: number) => Size,
+    private seed: number) {
+    this.curves = kernels.map(() => []);
+    this.jobs = kernels.flatMap((_, ci) => SCALING_N.map((n) => [ci, n] as [number, number]));
+  }
+  get done(): boolean { return !this.job && !this.jobs.length; }
+  step(): void {
+    this.lastEvents = 0;
+    while (this.lastEvents < FRAME_EVENTS) {
+      if (!this.job) {
+        const next = this.jobs.shift();
+        if (!next) return;
+        const [ci, n] = next;
+        const run = tracer(this.kernels[ci], this.size(n));
+        this.job = { ci, n, run, steps: scalingWorkload(this.stream, n, this.seed + n), at: 0 };
+      }
+      const j = this.job;
+      const before = j.run.length;
+      j.at = j.run.run(j.steps, j.at, FRAME_EVENTS - this.lastEvents);
+      this.lastEvents += j.run.length - before;
+      if (j.at >= j.steps.length) {
+        const tr = j.run.result();
+        if (!tr.truncated) this.curves[j.ci].push([j.n, work(tr)]);
+        this.job = null;
+      }
+    }
+  }
+}
+
 function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): PlateCode {
   return {
     id: `lab-${id}`,
@@ -519,7 +578,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
       let finishedCount = 0;
       let panes: { info: KernelInfo; kernel: HashKernel; r: Replay; finished: number }[] = [];
       const curves = kernels.map((k) => ({ info: k.info, pts: [] as [number, number][], slope: NaN }));
-      const pending: [number, number][] = curves.flatMap((_, ci) => SCALING_N.map((n) => [ci, n] as [number, number]));
+      const scaling = new Scaling(kernels.map((k) => k.kernel), str(ctx.params, 'stream') as Stream,
+        (n) => sizeOf(ctx, n), ctx.seed);
       const build = () => {
         const n = num(ctx.params, 'n');
         const s = steps(ctx, n, ctx.seed + generation * 7919);
@@ -527,15 +587,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
         finishedCount = 0;
         panes = kernels.map((k) => ({ ...k, r: new Replay(trace(k.kernel, s, size), k.kernel.layout, n), finished: 0 }));
       };
-      // one scaling run per frame, so building the lab never blocks a phone's main thread
+      // a bounded slice of the scaling runs per frame, so the lab never blocks a phone's main thread
       const measure = () => {
-        const next = pending.shift();
-        if (!next) return;
-        const [ci, n] = next;
-        const tr = trace(kernels[ci].kernel, scalingWorkload(str(ctx.params, 'stream') as Stream, n, ctx.seed + n),
-          sizeOf(ctx, n));
-        curves[ci].pts.push([n, tr.truncated ? NaN : work(tr)]);
-        curves[ci].slope = exponent(curves[ci].pts);
+        scaling.step();
+        scaling.curves.forEach((pts, ci) => { curves[ci].pts = pts; curves[ci].slope = exponent(pts); });
       };
       build();
       const color = (i: number): RGB => ramp(ctx.palette(), panes.length < 2 ? 0.5 : 0.1 + (0.8 * i) / (panes.length - 1));
@@ -583,7 +638,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
           ctx.chart({
             title: 'Measured work as n grows',
             x: { label: 'keys n', log: true },
-            y: { label: 'hashes + probes + writes + reads (insert n, search 2n, delete n/2)', log: true },
+            y: { label: 'hashes + probes + writes + removals + page and directory reads', log: true },
             series: curves.map((cv) => ({ name: cv.info.title, points: cv.pts.slice() })),
           });
           ctx.stats(panes.map((pane, i) => {
