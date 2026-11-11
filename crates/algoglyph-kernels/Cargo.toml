@@ -6,12 +6,19 @@ rust-version = "1.85"
 description = "algoglyph's heavy kernels, written once in Rust: tested natively, shipped to the browser as wasm32 (ADR 0004 §6)."
 license = "MIT"
 publish = false
+# Generates the sorting plugin registry (src/sorting/algorithms/*.rs, auto-discovered).
+build = "src/sorting/build.rs"
 
 [lib]
 name = "algoglyph_kernels"
 # rlib for the native tests; the wasm32 module the site loads is the cdylib that
 # scripts/wasm.sh asks for with `cargo rustc --crate-type cdylib` (the majordomus-core pattern).
 crate-type = ["rlib"]
+
+[features]
+default = ["sorting"]
+# The sorting kernels ported from the Atlas třídicích algoritmů (src/sorting/).
+sorting = []
 
 [dependencies]
 

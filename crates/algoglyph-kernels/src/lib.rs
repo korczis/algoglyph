@@ -3,6 +3,8 @@
 //! behind the C ABI in [`wasm`] (no binding generator, the module's own memory).
 
 pub mod fluids;
+#[cfg(feature = "sorting")]
+pub mod sorting;
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
