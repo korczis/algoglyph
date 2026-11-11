@@ -6,6 +6,7 @@ import { verletCloth } from './cloth/plate';
 import { collatzCoral } from './collatz/plate';
 import { foucaultPendulum } from './foucault/plate';
 import { fourierEpicycles } from './fourier/plate';
+import { isingModel } from './ising/plate';
 import { lorenzAttractor } from './lorenz/plate';
 import { mazeFlood } from './maze/plate';
 import { nBody } from './nbody/plate';
@@ -29,6 +30,7 @@ export const PLATES: Plate[] = [
   foucaultPendulum,
   rippleTank,
   grayScott,
+  isingModel,
   lorenzAttractor,
   nBody,
   verletCloth,
