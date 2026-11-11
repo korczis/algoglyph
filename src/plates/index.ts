@@ -7,6 +7,7 @@ import { collatzCoral } from './collatz/plate';
 import { lorenzAttractor } from './lorenz/plate';
 import { mazeFlood } from './maze/plate';
 import { nBody } from './nbody/plate';
+import { fourierEpicycles } from './fourier/plate';
 import { doublePendulum } from './pendulum/plate';
 import { rippleTank } from './ripple/plate';
 import { sortTapestry } from './sorting/plate';
@@ -19,6 +20,7 @@ export const PLATES: Plate[] = [
   hashAvalanche,
   ruleWeaver,
   collatzCoral,
+  fourierEpicycles,
   doublePendulum,
   rippleTank,
   lorenzAttractor,
