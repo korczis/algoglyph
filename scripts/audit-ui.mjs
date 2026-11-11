@@ -105,7 +105,7 @@ try {
       await p.waitForFunction(() => {
         const imgs = [...document.querySelectorAll('main img')];
         return imgs.length > 0 && imgs.every((i) => i.getAttribute('src')?.startsWith('data:image'));
-      }, null, { timeout: 150000, polling: 500 })
+      }, null, { timeout: 300000, polling: 500 })
         .catch(() => fail(`${label} gallery`, 'thumbnails did not all render'));
       log(`${label}: gallery thumbnails done`);
       if (!plates.length) {

@@ -165,7 +165,7 @@ export class Stage {
  * at a time, so at most one extra WebGL context exists besides the live stage.
  */
 export function thumbnail(plate: Plate, params: Params, seed: number, theme: Theme,
-  width = 480, height = 300): Promise<string> {
+  width = 400, height = 250): Promise<string> {
   return new Promise((resolve, reject) => {
     const host = document.createElement('div');
     host.setAttribute('aria-hidden', 'true');

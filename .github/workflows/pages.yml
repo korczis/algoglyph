@@ -22,6 +22,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       runner: lundra-algoglyph
+    secrets: inherit
     permissions:
       contents: read
 

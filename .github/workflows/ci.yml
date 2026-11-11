@@ -62,6 +62,10 @@ jobs:
           curl -fsSL https://majordomus.dev/install.sh | sh -s -- --version "$MAJORDOMUS_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: majordomus doctor
+        env:
+          # licence evidence for the declared Flowbite Pro kit; a public tree fails closed
+          # without it (owner decision 2026-10-28)
+          MAJORDOMUS_KIT_EVIDENCE_FLOWBITE_PRO: ${{ secrets.MAJORDOMUS_KIT_EVIDENCE_FLOWBITE_PRO }}
         run: |
           git config core.hooksPath .githooks
           majordomus version

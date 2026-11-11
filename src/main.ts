@@ -10,7 +10,7 @@ import { CATEGORIES, PLATES, plate as findPlate } from './plates';
 type View = 'gallery' | 'plate';
 type Meta = Omit<Plate, 'create'>;
 
-const THUMB_CACHE = 'algoglyph:thumb:v1';
+const THUMB_CACHE = 'algoglyph:thumb:v2';
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Not reactive on purpose: p5 instances must never be wrapped in Alpine proxies.

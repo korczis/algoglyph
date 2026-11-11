@@ -161,8 +161,8 @@
           <template x-for="p in shown()" :key="p.id">
             <a :href="'#/p/' + p.id" class="block overflow-hidden transition bg-white rounded-lg shadow group hover:shadow-lg dark:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">
               <div class="relative overflow-hidden aspect-[8/5] bg-gray-100 dark:bg-gray-950">
-                <img x-show="thumbs[p.id]" :src="thumbs[p.id]" alt="" width="480" height="300" class="object-cover w-full h-full transition duration-500 motion-safe:group-hover:scale-[1.03]">
-                <div x-show="!thumbs[p.id]" class="flex items-center justify-center w-full h-full motion-safe:animate-pulse">
+                <img x-show="thumbs[p.id]" :src="thumbs[p.id]" alt="" width="400" height="250" class="object-cover w-full h-full transition duration-500 motion-safe:group-hover:scale-[1.03]">
+                <div x-show="!thumbs[p.id]" class="flex items-center justify-center w-full h-full">
                   <span class="font-mono text-xs text-gray-600 dark:text-gray-400">rendering…</span>
                 </div>
                 <span class="absolute top-3 left-3 px-2 py-0.5 font-mono text-xs font-medium rounded-md plate-no bg-gray-900/70 text-white backdrop-blur" x-text="'PL. ' + p.no"></span>
