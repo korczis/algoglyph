@@ -58,3 +58,7 @@ sources:
   - id: practice-logistics
     title: Warehouse logistics
     kind: practice
+  - id: matyka-pressure-soft-body
+    title: Pressure Model of Soft Body Simulation
+    author: Maciej Matyka and Mark Ollila
+    kind: paper
