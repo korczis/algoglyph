@@ -20,7 +20,7 @@ export const hashAvalanche: PlateCode = {
       kind: 'select', key: 'fn', label: 'Function', value: 'sha256', rebuild: true,
       options: Object.entries(FUNCTIONS).map(([value, f]) => ({ value, label: f.label })),
     },
-    { kind: 'range', key: 'trials', label: 'Trials per frame', min: 16, max: 4096, step: 16,
+    { kind: 'range', key: 'trials', label: 'Trials per frame', min: 16, max: 1024, step: 16,
       value: 512 },
     { kind: 'range', key: 'gain', label: 'Gain around 1/2', min: 1, max: 40, step: 1, value: 8 },
     paletteParam('spectral'),
