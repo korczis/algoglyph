@@ -14,6 +14,9 @@ npx tsc --noEmit
 step "unit tests"
 npx vitest run
 
+step "README derived sections are current"
+node scripts/build-readme.mjs --check
+
 step "build"
 npx vite build
 

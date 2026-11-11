@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "node scripts/audit-ui.mjs",
+    "readme": "node scripts/build-readme.mjs",
     "verify": "scripts/verify-all.sh",
     "deploy": "scripts/deploy.sh deploy",
     "deploy:validate": "scripts/deploy.sh validate",
