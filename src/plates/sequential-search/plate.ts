@@ -1,5 +1,6 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
+import { chartGate } from '../_shared/publish';
 import { shuffle } from '../../core/random';
 import { SequentialList, draw as drawRank, zipf, type Strategy } from './sequential';
 
@@ -41,6 +42,7 @@ export const sequentialSearch: PlateCode = {
     let hits = 0;
     const recent: number[] = [];
     const curve: [number, number][] = [];
+    const gate = chartGate();
 
     const begin = () => {
       const hit = ctx.rnd() < num(params, 'hit');
@@ -60,6 +62,7 @@ export const sequentialSearch: PlateCode = {
       recent.push(current.probes);
       if (recent.length > WINDOW) recent.shift();
       curve.push([searches, recent.reduce((s, v) => s + v, 0) / recent.length]);
+      gate.mark();
       if (curve.length > 1000) curve.shift();
       current = null;
       shownList = list.keys.slice();
@@ -129,7 +132,7 @@ export const sequentialSearch: PlateCode = {
           { label: `Mean probes, last ${recent.length}`, value: recent.length ? mean.toFixed(2) : '–' },
           { label: 'Probes of the search shown', value: current ? `${current.shown} of ${current.probes}` : '–' },
         ]);
-        if (curve.length > 1) {
+        if (curve.length > 1 && gate.open()) {
           ctx.chart({
             title: `Mean probes over the last ${WINDOW} searches`,
             x: { label: 'searches' },

@@ -1,6 +1,6 @@
 // Interpolation search: instead of the middle of [lo, hi], probe where the key would sit if the
 // keys between a[lo] and a[hi] were spread evenly.
-import type { Result } from '../binary-search/search';
+import type { Result } from '../_shared/sorted-search/search';
 
 export function interpolationSearch(a: ArrayLike<number>, key: number): Result {
   const probes: number[] = [];

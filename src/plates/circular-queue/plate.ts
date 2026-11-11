@@ -1,5 +1,6 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
+import { chartGate } from '../_shared/publish';
 import { arrive, tick, traffic, type Traffic } from './ring';
 
 export const circularQueue: PlateCode = {
@@ -23,9 +24,11 @@ export const circularQueue: PlateCode = {
     let t: Traffic;
     let acc = 0;
     const history: [number, number][] = [];
+    const gate = chartGate();
 
     const record = () => {
       history.push([t.ticks, t.queue.size]);
+      gate.mark();
       if (history.length > 600) history.shift();
     };
     const step = () => {
@@ -93,7 +96,7 @@ export const circularQueue: PlateCode = {
           { label: 'Polls on an empty ring', value: t.idle.toLocaleString('en') },
           { label: 'Laps of the tail', value: t.wraps.toLocaleString('en') },
         ]);
-        if (history.length > 1) {
+        if (history.length > 1 && gate.open()) {
           ctx.chart({
             title: 'Occupancy of the ring',
             x: { label: 'tick' },

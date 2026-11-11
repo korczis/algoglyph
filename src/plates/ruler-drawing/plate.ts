@@ -1,6 +1,6 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
-import { ruler, type Mark, type Order } from './ruler';
+import { recursive, ruler, type Mark, type Order } from './ruler';
 
 export const rulerDrawing: PlateCode = {
   id: 'ruler-drawing',
@@ -25,7 +25,10 @@ export const rulerDrawing: PlateCode = {
   create(p, ctx) {
     const params = ctx.params;
     let n = 6;
-    let gen: Generator<Mark>;
+    let gen: Generator<Mark, number>;
+    let order: Order = 'inorder';
+    /** Total calls, known once the generator has finished. */
+    let totalCalls = -1;
     let marks: Mark[] = [];
     let acc = 0;
     let hold = 0;
@@ -33,7 +36,9 @@ export const rulerDrawing: PlateCode = {
 
     const build = () => {
       n = num(params, 'n');
-      gen = ruler(n, str(params, 'order') as Order);
+      order = str(params, 'order') as Order;
+      gen = ruler(n, order);
+      totalCalls = -1;
       marks = [];
       acc = 0;
       hold = 0;
@@ -41,7 +46,11 @@ export const rulerDrawing: PlateCode = {
     };
     const next = (): boolean => {
       const r = gen.next();
-      if (r.done) return false;
+      if (r.done) {
+        // a finished generator answers later calls with undefined: keep the first answer
+        if (totalCalls < 0) totalCalls = r.value ?? 0;
+        return false;
+      }
       marks.push(r.value);
       maxDepth = Math.max(maxDepth, r.value.depth);
       return true;
@@ -111,12 +120,22 @@ export const rulerDrawing: PlateCode = {
         }
         p.strokeCap(p.ROUND);
 
-        ctx.stats([
-          { label: 'Marks drawn', value: `${marks.length} of ${total}` },
-          { label: 'Calls made up to this mark', value: last ? last.calls.toLocaleString('en') : '0' },
-          { label: 'Recursion depth now', value: last ? String(last.depth) : '–' },
-          { label: 'Deepest recursion seen', value: String(maxDepth) },
-        ]);
+        if (recursive(order)) {
+          ctx.stats([
+            { label: 'Marks drawn', value: `${marks.length} of ${total}` },
+            totalCalls >= 0
+              ? { label: 'Calls made in all', value: totalCalls.toLocaleString('en') }
+              : { label: 'Calls made so far', value: last ? last.calls.toLocaleString('en') : '0' },
+            { label: 'Recursion depth now', value: last ? String(last.depth) : '–' },
+            { label: 'Deepest recursion seen', value: String(maxDepth) },
+          ]);
+        } else {
+          // the bottom-up version makes no calls and keeps no stack: one pass per height
+          ctx.stats([
+            { label: 'Marks drawn', value: `${marks.length} of ${total}` },
+            { label: 'Height being drawn', value: last ? `${last.h} of ${n}` : '–' },
+          ]);
+        }
       },
     };
   },

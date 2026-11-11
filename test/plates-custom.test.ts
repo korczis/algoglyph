@@ -3,10 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { PALETTES } from '../src/core/palette';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32, shuffle } from '../src/core/random';
-import { cycle, diagnosticity, inconsistency, rank, synthetic, type Matrix, type Rating }
+import {
+  cycle, diagnosticity, inconsistency, inconsistencyByRow, placeLabel, rank, standing, synthetic,
+  type Matrix, type Rating,
+}
   from '../src/plates/ach-matrix/ach';
-import { sortExternally } from '../src/plates/balanced-multiway-merge/merge';
-import { binarySearch, query, sortedKeys } from '../src/plates/binary-search/search';
+import { machine, sortExternally } from '../src/plates/balanced-multiway-merge/merge';
+import { ProbeMap } from '../src/plates/_shared/sorted-search/probe-map';
+import { binarySearch, query, sortedKeys } from '../src/plates/_shared/sorted-search/search';
 import { RingQueue, tick as queueTick, traffic } from '../src/plates/circular-queue/ring';
 import { Isam } from '../src/plates/indexed-sequential-access/isam';
 import { interpolationSearch } from '../src/plates/interpolation-search/interpolate';
@@ -107,11 +111,28 @@ describe('ruler', () => {
     expect(inorder.map((m) => m.x)).toEqual(Array.from({ length: 2 ** n - 1 }, (_, i) => i + 1));
     const up = [...ruler(n, 'bottom-up')].map((m) => m.h);
     expect(up).toEqual([...up].sort((a, b) => a - b));
-    // every mark is made by a call; the remaining calls are the 2ⁿ leaves at height 0
     const pre = [...ruler(n, 'preorder')];
     expect(pre[0]).toMatchObject({ x: 2 ** (n - 1), h: n, depth: 0 });
     expect(Math.max(...pre.map((m) => m.depth))).toBe(n - 1);
-    expect(Math.max(...inorder.map((m) => m.calls))).toBeLessThan(2 ** (n + 1));
+  });
+
+  /** Drain a generator and return what it returns. */
+  function total(n: number, order: Order): number {
+    const g = ruler(n, order);
+    for (;;) {
+      const r = g.next();
+      if (r.done) return r.value;
+    }
+  }
+
+  it('counts exactly 2ⁿ⁺¹ − 1 calls for the recursive orders, and none bottom-up', () => {
+    for (let n = 1; n <= 10; n++) {
+      // one call per node of the full binary call tree: 2ⁿ − 1 marks plus 2ⁿ leaves at height 0
+      expect(total(n, 'inorder')).toBe(2 ** (n + 1) - 1);
+      expect(total(n, 'preorder')).toBe(2 ** (n + 1) - 1);
+      expect(total(n, 'bottom-up')).toBe(0);
+      expect([...ruler(n, 'bottom-up')].every((m) => m.calls === 0)).toBe(true);
+    }
   });
 });
 
@@ -188,6 +209,12 @@ describe('permutation generation', () => {
 });
 
 describe('balanced multiway merge', () => {
+  it('refuses fewer than two ways, which would never finish', () => {
+    expect(() => machine([3, 1, 2], 1, 1)).toThrow(RangeError);
+    expect(() => machine([3, 1, 2], 0, 2)).toThrow(RangeError);
+    expect(() => machine([3, 1, 2], 1, 2)).not.toThrow();
+  });
+
   it('outputs a sorted permutation of the input in ⌈log_P(runs)⌉ merge passes', () => {
     const rnd = mulberry32(11);
     for (const [n, m, p] of [[1, 4, 2], [37, 5, 2], [240, 10, 3], [500, 7, 4], [64, 8, 8], [33, 40, 3]]) {
@@ -333,6 +360,41 @@ describe('skip list', () => {
   });
 });
 
+describe('probe map', () => {
+  it('stays within its limit on interpolation search over log-spread keys, counting exactly', () => {
+    const rnd = mulberry32(17);
+    const keys = sortedKeys(1024, 'logarithmic', rnd);
+    const limit = 512;
+    const pm = new ProbeMap(keys.length, limit);
+    const ref = new Map<string, number>();
+    for (let k = 0; k < 4000; k++) {
+      const probes = interpolationSearch(keys, query(keys, 0.75, rnd)).probes;
+      pm.record(probes);
+      probes.forEach((idx, d) => ref.set(`${d}:${idx}`, (ref.get(`${d}:${idx}`) ?? 0) + 1));
+    }
+    // unbounded, these searches visit far more distinct points than the limit
+    expect(ref.size).toBeGreaterThan(limit);
+    expect(pm.points).toBe(limit);
+    expect(pm.moves).toBeLessThanOrEqual(limit);
+    expect(pm.dropped).toBeGreaterThan(0);
+    for (let k = 0; k < pm.points; k++) {
+      expect(pm.hits[k]).toBe(ref.get(`${pm.step[k]}:${pm.pos[k]}`));
+      expect(pm.count(pm.step[k], pm.pos[k])).toBe(pm.hits[k]);
+    }
+  });
+
+  it('holds the whole decision tree of binary search, which is small', () => {
+    const rnd = mulberry32(3);
+    const keys = sortedKeys(255, 'uniform', rnd);
+    const pm = new ProbeMap(keys.length, 2048);
+    for (let k = 0; k < 5000; k++) pm.record(binarySearch(keys, query(keys, 1, rnd)).probes);
+    // a perfect tree of 255 positions: every position probed at one fixed step, 254 parent links
+    expect(pm.points).toBe(255);
+    expect(pm.moves).toBe(254);
+    expect(pm.dropped).toBe(0);
+  });
+});
+
 describe('indexed sequential access', () => {
   it('finds exactly the stored keys after inserts into overflow chains', () => {
     const rnd = mulberry32(13);
@@ -388,6 +450,20 @@ describe('analysis of competing hypotheses', () => {
     expect(inconsistency(m, 3)).toEqual(inconsistency(m, 4));
   });
 
+  it('reports shared places as ties instead of ordering them', () => {
+    expect(standing([1, 1, 0], 2)).toEqual({ place: 1, tied: false });
+    expect(standing([1, 1, 0], 0)).toEqual({ place: 2, tied: true });
+    expect(standing([2, 2, 3], 1)).toEqual({ place: 1, tied: true });
+    expect(placeLabel(standing([2, 2, 3], 0))).toBe('tied 1st');
+    expect(placeLabel(standing([2, 2, 3], 2))).toBe('3rd');
+    expect(placeLabel(standing([0.5, 2.5, 2], 0))).toBe('1st');
+  });
+
+  it('prefix scores agree with scoring each prefix afresh', () => {
+    const byRow = inconsistencyByRow(m);
+    for (let r = 0; r <= m.evidence.length; r++) expect(byRow[r]).toEqual(inconsistency(m, r));
+  });
+
   it('cycles ratings through all five values', () => {
     let r: Rating = -2;
     const seen: Rating[] = [];
@@ -417,8 +493,11 @@ describe('custom plates run headless', () => {
     'sequential-search', 'skip-list', 'indexed-sequential-access', 'ach-matrix'];
   const plates = import.meta.glob<PlateCode>('../src/plates/*/plate.ts', { import: 'default' });
 
-  // a p5 stand-in: every drawing call is a no-op, every constant a placeholder
-  const stub = new Proxy({}, { get: () => () => undefined }) as unknown as p5;
+  // a p5 stand-in: every drawing call is a no-op that is counted, every constant a placeholder
+  let calls = 0;
+  const stub = new Proxy({}, { get: () => () => void calls++ }) as unknown as p5;
+  /** Drawing calls a single frame may make at the largest parameters. */
+  const FRAME_BUDGET = 15000;
 
   function context(code: PlateCode, thumbnail: boolean, seed: number) {
     const params: Params = {};
@@ -463,6 +542,20 @@ describe('custom plates run headless', () => {
           for (let f = 0; f < 60; f++) sim.draw();
         }
       }
+      {
+        // every range at its maximum: the heaviest picture the controls allow stays in budget
+        const { ctx, params } = context(code, false, 11);
+        for (const d of code.params) if (d.kind === 'range') params[d.key] = d.max;
+        const sim = code.create(stub, ctx);
+        sim.setup();
+        let worst = 0;
+        for (let f = 0; f < 300; f++) {
+          calls = 0;
+          sim.draw();
+          worst = Math.max(worst, calls);
+        }
+        expect(worst, `${id} drawing calls in one frame`).toBeLessThan(FRAME_BUDGET);
+      }
       for (const d of code.params) {
         if (d.kind !== 'range' || !d.rebuild) continue;
         for (const v of [d.min, d.max]) {
@@ -475,4 +568,39 @@ describe('custom plates run headless', () => {
       }
     });
   }
+});
+
+describe('ruler readouts', () => {
+  const stub = new Proxy({}, { get: () => () => undefined }) as unknown as p5;
+
+  async function run(order: string): Promise<Stat[][]> {
+    const code = (await import('../src/plates/ruler-drawing/plate')).default;
+    const params: Params = {};
+    for (const d of code.params) params[d.key] = d.value;
+    params.order = order;
+    params.n = 5;
+    params.speed = 8;
+    params.loop = false;
+    const stats: Stat[][] = [];
+    const ctx: PlateContext = {
+      width: 390, height: 260, params, seed: 1, rnd: mulberry32(1), theme: 'dark',
+      bg: [0, 0, 0], fg: [255, 255, 255], palette: () => PALETTES[0], thumbnail: false,
+      stats: (rows) => stats.push(rows), chart: () => {},
+    };
+    const sim = code.create(stub, ctx);
+    sim.setup();
+    for (let f = 0; f < 30; f++) sim.draw();
+    return stats;
+  }
+
+  it('the bottom-up order reports no calls, since it makes none', async () => {
+    const stats = await run('bottom-up');
+    expect(stats.length).toBeGreaterThan(0);
+    for (const rows of stats) expect(rows.some((r) => /call/i.test(r.label))).toBe(false);
+  });
+
+  it('a recursive order reports exactly 2ⁿ⁺¹ − 1 calls once drawing ends', async () => {
+    const last = (await run('inorder')).at(-1)!;
+    expect(last.find((r) => r.label === 'Calls made in all')?.value).toBe(String(2 ** 6 - 1));
+  });
 });

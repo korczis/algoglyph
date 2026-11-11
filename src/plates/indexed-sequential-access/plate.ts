@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
-import { sortedKeys } from '../binary-search/search';
+import { chartGate } from '../_shared/publish';
+import { sortedKeys } from '../_shared/sorted-search/search';
 import { Isam, type Lookup } from './isam';
 
 const WINDOW = 50;
@@ -26,6 +27,8 @@ export const indexedSequentialAccess: PlateCode = {
     const params = ctx.params;
     let isam: Isam;
     let loaded = 0;
+    /** Every stored key, in no order: what searches for a present key pick from. */
+    let stored: number[] = [];
     let top = 1;
     let acc = 0;
     let last: { insert: boolean; key: number; look: Lookup; ok: boolean } | null = null;
@@ -34,6 +37,7 @@ export const indexedSequentialAccess: PlateCode = {
     let probes = 0;
     const recent: number[] = [];
     const curve: [number, number][] = [];
+    const gate = chartGate();
 
     const operate = () => {
       const insert = ctx.rnd() < num(params, 'inserts') && isam.size < loaded * 3;
@@ -41,10 +45,10 @@ export const indexedSequentialAccess: PlateCode = {
       if (insert) {
         key = bool(params, 'hot') ? Math.floor(top * (0.4 + 0.05 * ctx.rnd())) : Math.floor(ctx.rnd() * top);
         const ok = isam.insert(key);
+        if (ok) stored.push(key);
         last = { insert, key, look: isam.search(key), ok };
         return;
       }
-      const stored = isam.keys();
       key = ctx.rnd() < 0.8 ? stored[Math.floor(ctx.rnd() * stored.length)] : Math.floor(ctx.rnd() * top);
       const look = isam.search(key);
       searches++;
@@ -53,6 +57,7 @@ export const indexedSequentialAccess: PlateCode = {
       recent.push(look.pageReads);
       if (recent.length > WINDOW) recent.shift();
       curve.push([isam.size - loaded, recent.reduce((s, v) => s + v, 0) / recent.length]);
+      gate.mark();
       if (curve.length > 800) curve.shift();
       last = { insert, key, look, ok: look.found };
     };
@@ -63,6 +68,7 @@ export const indexedSequentialAccess: PlateCode = {
         const keys = sortedKeys(n, 'uniform', ctx.rnd);
         top = keys[n - 1] + 1;
         loaded = n;
+        stored = keys.slice();
         isam = new Isam(keys, num(params, 'page'), num(params, 'fill'));
         if (ctx.thumbnail) for (let k = 0; k < n * 0.8; k++) operate();
       },
@@ -132,7 +138,7 @@ export const indexedSequentialAccess: PlateCode = {
           { label: 'Page reads per search, all', value: searches ? (reads / searches).toFixed(2) : '–' },
           { label: `Page reads per search, last ${recent.length}`, value: recent.length ? mean.toFixed(2) : '–' },
         ]);
-        if (curve.length > 1) {
+        if (curve.length > 1 && gate.open()) {
           ctx.chart({
             title: `Page reads per search (mean of the last ${WINDOW})`,
             x: { label: 'keys inserted since the load' },

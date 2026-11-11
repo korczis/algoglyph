@@ -21,4 +21,4 @@ To mark a ruler of 2ⁿ units, mark the middle at height n, then mark each half 
 
 The dots above the ruler are the recursion tree: each mark is the middle of its interval, and its two children are the middles of the halves. The variants differ only in when the mark is made. In order (left half, mark, right half) the marks appear left to right; mark-first visits the tree from the top down; the bottom-up version draws every mark of height 1, then of height 2, and needs no recursion or stack at all.
 
-The recursive versions make 2ⁿ⁺¹ − 1 calls in all, 2ⁿ of them at height 0 returning at once. The readouts count the calls made up to the latest mark and the depth of the stack when it was made.
+The recursive versions make 2ⁿ⁺¹ − 1 calls in all, 2ⁿ of them at height 0 returning at once. For the recursive versions the readouts count the calls, with the total once drawing ends, and the depth of the stack at each mark; the bottom-up version makes no calls, so it reports the height it is drawing instead.

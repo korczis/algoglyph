@@ -1,5 +1,5 @@
-import { binarySearch } from '../binary-search/search';
-import { searchPlate } from '../binary-search/view';
+import { binarySearch } from '../_shared/sorted-search/search';
+import { searchPlate } from '../_shared/sorted-search/view';
 import { interpolationSearch } from './interpolate';
 
 export default searchPlate({

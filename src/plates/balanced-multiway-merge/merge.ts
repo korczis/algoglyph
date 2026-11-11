@@ -39,6 +39,9 @@ export interface Machine {
 }
 
 export function machine(input: number[], m: number, p: number): Machine {
+  // one-way "merging" never shortens the run count, so the passes would never end
+  if (!Number.isInteger(p) || p < 2) throw new RangeError(`a balanced merge needs P ≥ 2 ways, got ${p}`);
+  if (!Number.isInteger(m) || m < 1) throw new RangeError(`memory must hold M ≥ 1 records, got ${m}`);
   return {
     p, m, input, tapes: Array.from({ length: 2 * p }, () => []), phase: input.length ? 'distribute' : 'done',
     pass: 0, read: 0, memory: [], memoryAt: 0, runIndex: 0, from: 0, out: 0, pos: [], heap: [],

@@ -40,6 +40,41 @@ export function rank(scores: number[]): number[] {
     .map(([, h]) => h);
 }
 
+/** Where hypothesis h stands: 1 + the number of hypotheses strictly less contradicted, and
+ * whether another one has exactly the same score (a shared place). */
+export function standing(scores: number[], h: number): { place: number; tied: boolean } {
+  let below = 0;
+  let same = 0;
+  scores.forEach((s, k) => {
+    if (k === h) return;
+    if (s < scores[h]) below++;
+    else if (s === scores[h]) same++;
+  });
+  return { place: below + 1, tied: same > 0 };
+}
+
+const ORDINAL = ['1st', '2nd', '3rd'];
+
+/** "1st", "tied 2nd", … */
+export function placeLabel(st: { place: number; tied: boolean }): string {
+  const o = ORDINAL[st.place - 1] ?? `${st.place}th`;
+  return st.tied ? `tied ${o}` : o;
+}
+
+/** Weighted inconsistency of every hypothesis after each prefix of the evidence: row r holds
+ * the scores over the first r items (row 0 is all zeros). */
+export function inconsistencyByRow(m: Matrix, rows = m.evidence.length): number[][] {
+  const out = [new Array(m.hypotheses.length).fill(0)];
+  for (let e = 0; e < rows; e++) {
+    const prev = out[out.length - 1];
+    out.push(prev.map((s, h) => {
+      const r = m.cells[e][h];
+      return r < 0 ? s - r * m.evidence[e].weight : s;
+    }));
+  }
+  return out;
+}
+
 /** How differently a row rates the hypotheses: highest minus lowest rating, 0 = not diagnostic. */
 export function diagnosticity(row: Rating[]): number {
   return Math.max(...row) - Math.min(...row);

@@ -1,5 +1,6 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
+import { chartGate } from '../_shared/publish';
 import { mulberry32 } from '../../core/random';
 import { SkipList } from './skiplist';
 
@@ -39,6 +40,7 @@ export const skipList: PlateCode = {
     let insertCmp = 0;
     const window: number[] = [];
     const curve: [number, number][] = [];
+    const gate = chartGate();
 
     const operate = () => {
       let op: Op;
@@ -59,7 +61,10 @@ export const skipList: PlateCode = {
           window.push(r.cmp);
           if (window.length > 16) window.shift();
           // the growth curve covers the build only; afterwards the size just hovers
-          if (!churning) curve.push([sl.size, window.reduce((s, v) => s + v, 0) / window.length]);
+          if (!churning) {
+            curve.push([sl.size, window.reduce((s, v) => s + v, 0) / window.length]);
+            gate.mark();
+          }
         }
         last = { op, key, ok: r.inserted, path: look.path, node: r.node, cmp: r.cmp };
       } else {
@@ -151,7 +156,7 @@ export const skipList: PlateCode = {
           { label: 'Mean comparisons per insert', value: inserts ? (insertCmp / inserts).toFixed(2) : '–' },
           { label: 'Comparisons of the last walk', value: last ? String(last.cmp) : '–' },
         ]);
-        if (curve.length > 1) {
+        if (curve.length > 1 && gate.open()) {
           ctx.chart({
             title: 'Comparisons per insert as the list grows',
             x: { label: 'keys in the list' },

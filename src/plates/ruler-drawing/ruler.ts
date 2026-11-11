@@ -12,20 +12,26 @@ export interface Mark {
   h: number;
   /** Recursion depth when the mark was made (0 for the bottom-up version). */
   depth: number;
-  /** Calls to the recursive routine made so far, this one included. */
+  /** Calls to the recursive routine made so far; always 0 for the bottom-up version, which
+   * makes none. */
   calls: number;
 }
 
-export function* ruler(n: number, order: Order): Generator<Mark> {
-  if (order === 'bottom-up') {
-    let calls = 0;
+export function recursive(order: Order): boolean {
+  return order !== 'bottom-up';
+}
+
+/** Yields every mark; its return value is the number of recursive calls made in all. */
+export function* ruler(n: number, order: Order): Generator<Mark, number> {
+  if (!recursive(order)) {
     for (let h = 1, len = 2; h <= n; h++, len *= 2) {
-      for (let x = len / 2; x < 2 ** n; x += len) yield { x, h, depth: 0, calls: ++calls };
+      for (let x = len / 2; x < 2 ** n; x += len) yield { x, h, depth: 0, calls: 0 };
     }
-    return;
+    return 0;
   }
   const state = { calls: 0 };
   yield* rule(0, 2 ** n, n, 0, order === 'preorder', state);
+  return state.calls;
 }
 
 function* rule(l: number, r: number, h: number, depth: number, pre: boolean,

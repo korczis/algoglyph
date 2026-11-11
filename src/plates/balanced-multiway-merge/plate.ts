@@ -1,5 +1,6 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
+import { chartGate } from '../_shared/publish';
 import { mulberry32 } from '../../core/random';
 import { machine, runs, step, type Machine } from './merge';
 
@@ -27,6 +28,8 @@ export const balancedMultiwayMerge: PlateCode = {
     let hold = 0;
     let generation = 0;
     let range = 1;
+    const gate = chartGate();
+    let charted = -1;
 
     const build = () => {
       const n = num(params, 'records');
@@ -134,7 +137,9 @@ export const balancedMultiwayMerge: PlateCode = {
           { label: 'Records written', value: s.writes.toLocaleString('en') },
           { label: 'Key comparisons', value: s.comparisons.toLocaleString('en') },
         ]);
-        if (s.runsAfter.length) {
+        if (s.runsAfter.length !== charted) gate.mark();
+        if (s.runsAfter.length && gate.open()) {
+          charted = s.runsAfter.length;
           ctx.chart({
             title: 'Runs left after each pass',
             x: { label: 'pass (0 = distribution)' },

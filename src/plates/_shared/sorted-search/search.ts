@@ -1,5 +1,6 @@
 // Binary search over a sorted array, recording every probe, plus the seeded key sets and
-// query streams the search plates share.
+// query streams that the binary-search, interpolation-search and indexed-sequential-access
+// plates share (see ../publish.ts for why shared code lives here).
 
 export interface Result {
   /** An index holding the key, or −1. */

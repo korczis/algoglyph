@@ -2,9 +2,14 @@
 // play and the probe being made; below, every probe ever made, placed at its key's position and
 // its step in the search, joined to the probe after it. For binary search that map is the
 // implicit decision tree; for interpolation search it shows how far each guess lands.
-import { mix, paletteParam, ramp } from '../../core/palette';
-import { num, str, type PlateCode } from '../../core/plate';
+import { mix, paletteParam, ramp } from '../../../core/palette';
+import { num, str, type PlateCode } from '../../../core/plate';
+import { chartGate } from '../publish';
+import { ProbeMap } from './probe-map';
 import { query, sortedKeys, type Result, type Spread } from './search';
+
+/** Most distinct probe points (and moves) the map holds and draws in a frame. */
+export const MAP_LIMIT = 2048;
 
 type Search = (a: ArrayLike<number>, key: number) => Result;
 
@@ -69,8 +74,8 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
       let maxDepth = 4;
       const own = tally();
       const other = tally();
-      const nodes = new Map<string, number>();
-      const edges = new Map<string, [number, number, number]>();
+      let map = new ProbeMap(1, MAP_LIMIT);
+      const gate = chartGate();
       const curve: [number, number][] = [];
       const curveOther: [number, number][] = [];
 
@@ -82,10 +87,8 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
         if (!current) return;
         const { r, key } = current;
         count(own, r);
-        r.probes.forEach((idx, d) => {
-          nodes.set(`${d}:${idx}`, (nodes.get(`${d}:${idx}`) ?? 0) + 1);
-          if (d > 0 && edges.size < 6000) edges.set(`${d}:${r.probes[d - 1]}>${idx}`, [d, r.probes[d - 1], idx]);
-        });
+        map.record(r.probes);
+        gate.mark();
         maxDepth = Math.max(maxDepth, r.probes.length);
         curve.push([own.searches, own.total / own.searches]);
         if (o.compare) {
@@ -103,6 +106,7 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
         setup() {
           keys = sortedKeys(num(params, 'n'), str(params, 'spread') as Spread, ctx.rnd);
           present = new Set(keys);
+          map = new ProbeMap(keys.length, MAP_LIMIT);
           if (ctx.thumbnail) {
             for (let k = 0; k < 80; k++) {
               begin();
@@ -169,13 +173,16 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
           // the probe map
           p.strokeWeight(1);
           p.stroke(...mix(ctx.bg, ctx.fg, 0.22));
-          for (const [d, a, b] of edges.values()) p.line(X(a), Y(d - 1), X(b), Y(d));
+          for (let k = 0; k < map.moves; k++) {
+            const d = map.moveStep[k];
+            p.line(X(map.moveFrom[k]), Y(d - 1), X(map.moveTo[k]), Y(d));
+          }
           p.noStroke();
           const most = Math.max(1, own.searches);
-          for (const [k, v] of nodes) {
-            const [d, idx] = k.split(':').map(Number);
-            p.fill(...ramp(pal, Math.min(1, 0.25 + 0.75 * Math.sqrt(v / most))));
-            p.circle(X(idx), Y(d), Math.max(2.5, Math.min(7, bw * 0.9)));
+          const dot = Math.max(2.5, Math.min(7, bw * 0.9));
+          for (let k = 0; k < map.points; k++) {
+            p.fill(...ramp(pal, Math.min(1, 0.25 + 0.75 * Math.sqrt(map.hits[k] / most))));
+            p.circle(X(map.pos[k]), Y(map.step[k]), dot);
           }
           if (c && c.shown > 0) {
             p.noFill();
@@ -199,10 +206,12 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
             { label: 'Mean probes when absent', value: own.searches > own.hits
               ? (own.missProbes / (own.searches - own.hits)).toFixed(2) : '–' },
             { label: 'Most probes in one search', value: String(own.most) },
+            { label: 'Probe points mapped', value: map.dropped
+              ? `${map.points} (map full, ${map.dropped.toLocaleString('en')} not drawn)` : String(map.points) },
           ];
           if (o.compare) rows.push({ label: `Mean probes, ${o.compare.name} on the same keys`, value: mean(other) });
           ctx.stats(rows);
-          if (curve.length > 1) {
+          if (curve.length > 1 && gate.open()) {
             const series = [{ name: o.name, points: curve.slice() }];
             if (o.compare) series.push({ name: o.compare.name, points: curveOther.slice() });
             ctx.chart({

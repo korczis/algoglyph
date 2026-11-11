@@ -1,5 +1,5 @@
-import { binarySearch } from './search';
-import { searchPlate } from './view';
+import { binarySearch } from '../_shared/sorted-search/search';
+import { searchPlate } from '../_shared/sorted-search/view';
 
 export default searchPlate({
   id: 'binary-search',

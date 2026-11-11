@@ -1,7 +1,11 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
-import { cycle, diagnosticity, inconsistency, rank, RATING_LABEL, synthetic, type Matrix } from './ach';
+import { chartGate } from '../_shared/publish';
+import {
+  cycle, diagnosticity, inconsistency, inconsistencyByRow, placeLabel, rank, RATING_LABEL, standing,
+  synthetic, type Matrix,
+} from './ach';
 
 export const achMatrix: PlateCode = {
   id: 'ach-matrix',
@@ -28,6 +32,8 @@ export const achMatrix: PlateCode = {
     let generation = 0;
     let edits = 0;
     let geo = { x0: 0, y0: 0, cw: 0, rh: 0 };
+    const gate = chartGate();
+    let chartedAt = '';
 
     const build = () => {
       const rnd = mulberry32(ctx.seed + generation * 15485863);
@@ -71,6 +77,8 @@ export const achMatrix: PlateCode = {
         geo = { x0, y0, cw, rh };
         const scores = inconsistency(m, shown);
         const order = rank(scores);
+        // every hypothesis sharing the lowest score leads: a tie is reported, never broken
+        const lead = scores.map((_, h) => shown > 0 && standing(scores, h).place === 1);
         const worst = Math.max(1, ...inconsistency(m));
         p.background(...ctx.bg);
         p.textFont('monospace');
@@ -79,7 +87,7 @@ export const achMatrix: PlateCode = {
         p.textAlign(p.CENTER, p.CENTER);
         p.textSize(Math.max(10, Math.min(13, cw * 0.2)));
         for (let h = 0; h < k; h++) {
-          p.fill(...(h === order[0] && shown ? ctx.fg : mix(ctx.fg, ctx.bg, 0.4)));
+          p.fill(...(lead[h] ? ctx.fg : mix(ctx.fg, ctx.bg, 0.4)));
           p.text(m.hypotheses[h], x0 + (h + 0.5) * cw, pad + headH / 2);
         }
         const cellText = Math.max(8, Math.min(13, rh * 0.5, cw * 0.22));
@@ -110,7 +118,7 @@ export const achMatrix: PlateCode = {
         const by = ctx.height - pad - barsH;
         for (let h = 0; h < k; h++) {
           const bh = (scores[h] / worst) * (barsH - 18);
-          p.fill(...(h === order[0] && shown ? ctx.fg : mix(ctx.bg, ctx.fg, 0.45)));
+          p.fill(...(lead[h] ? ctx.fg : mix(ctx.bg, ctx.fg, 0.45)));
           p.rect(x0 + h * cw + cw * 0.2, by + 4, cw * 0.6, Math.max(1, bh), 2);
           p.textAlign(p.CENTER, p.TOP);
           p.textSize(10);
@@ -121,25 +129,34 @@ export const achMatrix: PlateCode = {
         p.textSize(9);
         p.text('against', pad, by + 4);
 
+        const leaders = () => {
+          const names = m.hypotheses.filter((_, h) => lead[h]);
+          const best = scores[order[0]].toFixed(1);
+          return names.length > 1 ? `${names.join(', ')} (tied 1st, ${best})` : `${names[0]} (${best})`;
+        };
         const flatRows = m.cells.slice(0, shown).filter((row) => diagnosticity(row) === 0).length;
         const margin = k > 1 && shown ? scores[order[1]] - scores[order[0]] : 0;
         ctx.stats([
           { label: 'Evidence weighed', value: `${shown} of ${rows}` },
-          { label: 'Least contradicted', value: shown ? `${m.hypotheses[order[0]]} (${scores[order[0]].toFixed(1)})` : '–' },
+          { label: 'Least contradicted', value: shown ? leaders() : '–' },
           { label: 'Lead over the runner-up', value: shown ? margin.toFixed(1) : '–' },
           { label: 'Items that fit every hypothesis alike', value: String(flatRows) },
           { label: 'Rank of the hypothesis the case was built on',
-            value: shown === rows ? `${order.indexOf(truth) + 1} of ${k}` : '–' },
+            value: shown === rows ? `${placeLabel(standing(scores, truth))} of ${k}` : '–' },
           { label: 'Cells changed by hand', value: String(edits) },
         ]);
-        if (shown > 0) {
+        const state = `${generation}:${shown}:${edits}`;
+        if (state !== chartedAt) gate.mark();
+        if (shown > 0 && gate.open()) {
+          chartedAt = state;
+          const byRow = inconsistencyByRow(m, shown);
           ctx.chart({
             title: 'Weighted inconsistency as evidence is weighed',
             x: { label: 'items of evidence' },
             y: { label: 'inconsistency' },
             series: m.hypotheses.map((name, h) => ({
               name,
-              points: Array.from({ length: shown + 1 }, (_, r) => [r, inconsistency(m, r)[h]] as [number, number]),
+              points: byRow.map((row, r) => [r, row[h]] as [number, number]),
             })),
           });
         }
