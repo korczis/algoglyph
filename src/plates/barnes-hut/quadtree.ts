@@ -287,3 +287,82 @@ export function directAccel(b: Bodies, i: number, G: number, eps: number,
   out[0] = ax;
   out[1] = ay;
 }
+
+/**
+ * A leapfrog step whose force pass is spread over frames. `leapfrog` computes every body's
+ * acceleration at once, which at θ = 0 and thousands of bodies is n² interactions in one frame;
+ * here the pass runs body by body within a budget of interactions per call and resumes where it
+ * stopped. Positions do not move while a pass is open, so the result is identical to `leapfrog`.
+ *
+ *   prime()   open a pass that only computes the accelerations at the current positions
+ *   begin(dt) kick by dt/2, drift by dt and open the pass at the new positions
+ *   force()   spend up to `budget` interactions; true once every body is done
+ *   end()     the closing kick, for a pass opened by begin()
+ */
+export class SlicedStep {
+  open = false;
+  stepping = false;
+  next = 0;
+  total = 0;
+  private dt = 0;
+  private readonly out = new Float64Array(2);
+
+  constructor(private readonly t: QuadTree, private readonly b: Bodies) {}
+
+  prime(): void {
+    this.t.build(this.b);
+    this.start(false);
+  }
+
+  begin(dt: number): void {
+    const { n, x, y, vx, vy, ax, ay } = this.b;
+    for (let i = 0; i < n; i++) {
+      vx[i] += 0.5 * dt * ax[i];
+      vy[i] += 0.5 * dt * ay[i];
+      x[i] += dt * vx[i];
+      y[i] += dt * vy[i];
+    }
+    this.dt = dt;
+    this.t.build(this.b);
+    this.start(true);
+  }
+
+  /** Start the open pass again, for a θ changed while it ran. */
+  restart(): void {
+    this.next = 0;
+    this.total = 0;
+  }
+
+  force(theta: number, G: number, eps: number, budget: number): { done: boolean; spent: number } {
+    const { b, t, out } = this;
+    let spent = 0;
+    // at least one body per call, so a pass always ends
+    do {
+      if (this.next >= b.n) break;
+      const k = treeAccel(t, b, this.next, theta, G, eps, out);
+      b.ax[this.next] = out[0];
+      b.ay[this.next] = out[1];
+      this.next++;
+      spent += k;
+      this.total += k;
+    } while (spent < budget);
+    return { done: this.next >= b.n, spent };
+  }
+
+  end(): void {
+    const { n, vx, vy, ax, ay } = this.b;
+    const dt = this.dt;
+    for (let i = 0; i < n; i++) {
+      vx[i] += 0.5 * dt * ax[i];
+      vy[i] += 0.5 * dt * ay[i];
+    }
+    this.open = false;
+  }
+
+  private start(stepping: boolean): void {
+    this.open = true;
+    this.stepping = stepping;
+    this.next = 0;
+    this.total = 0;
+  }
+}

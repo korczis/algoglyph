@@ -2,6 +2,7 @@ import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { gaussian } from '../../core/random';
 import { accelerate, bodies, energy, leapfrog, momentum, type Bodies } from './gravity';
+import { stepsWithin } from '../../core/budget';
 
 const G = 1;
 const EPS = 0.04;
@@ -36,6 +37,9 @@ function disc(b: Bodies, from: number, n: number, rnd: () => number, centre: num
   }
 }
 
+/** Pair forces a frame may compute: one step of the largest allowed system fits within it. */
+const PAIRS_PER_FRAME = 720_000;
+
 export const nBody: PlateCode = {
   id: 'n-body',
   mode: 'webgl',
@@ -50,7 +54,7 @@ export const nBody: PlateCode = {
         { value: 'collapse', label: 'Cold collapse' },
       ],
     },
-    { kind: 'range', key: 'n', label: 'Bodies', min: 100, max: 1200, step: 50, value: 700,
+    { kind: 'range', key: 'n', label: 'Bodies', min: 100, max: 600, step: 50, value: 400,
       rebuild: true },
     { kind: 'range', key: 'dt', label: 'Time step', min: 0.0005, max: 0.01, step: 0.0005,
       value: 0.003 },
@@ -65,6 +69,7 @@ export const nBody: PlateCode = {
     let t = 0;
     let angle = 0;
     let frames = 0;
+    let lastSteps = 0;
 
     return {
       setup() {
@@ -90,7 +95,10 @@ export const nBody: PlateCode = {
       },
       draw() {
         const dt = num(params, 'dt');
-        const steps = num(params, 'speed');
+        // direct summation costs n² pair forces per step: the steps per frame are bounded by a
+        // pair budget so a frame never outgrows the main thread (test/budget.test.ts)
+        const steps = stepsWithin(num(params, 'speed'), b.n * b.n, PAIRS_PER_FRAME);
+        lastSteps = steps;
         for (let s = 0; s < steps; s++) {
           leapfrog(b, dt, G, EPS);
           t += dt;
@@ -119,6 +127,7 @@ export const nBody: PlateCode = {
           ctx.stats([
             { label: 'bodies', value: String(b.n) },
             { label: 'simulated time', value: t.toFixed(2) },
+            { label: 'steps this frame', value: `${lastSteps} of ${num(params, 'speed')} asked` },
             { label: 'energy error', value: `${((100 * (e - e0)) / Math.abs(e0)).toExponential(2)} %` },
             { label: '|total momentum|', value: momentum(b).toExponential(2) },
           ]);

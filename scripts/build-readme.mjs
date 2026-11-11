@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 // Rewrites the derived regions of README.md from the catalogue (scripts/lib/catalogue.mjs, the
-// same model the site is built from) and the test suite (vitest's own collection). Everything between the markers
+// same model the site is built from). Everything between the markers
 //   <!-- algoglyph:derived:begin <region> --> ... <!-- algoglyph:derived:end <region> -->
 // is generated; everything outside them is authored and left untouched.
 //
 //   node scripts/build-readme.mjs           rewrite README.md
 //   node scripts/build-readme.mjs --check   exit 1 when README.md is not what it would write
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,26 +26,9 @@ function loadModel() {
   return model;
 }
 
-// --no-staticParse makes vitest import the test files to collect them, so `it.each` tables
-// count as the cases they expand to (the static parser counts each table once).
-function countTests() {
-  const res = spawnSync('npx', ['--no', 'vitest', 'list', '--json', '--no-staticParse'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  if (res.status !== 0) {
-    process.stderr.write(res.stderr ?? '');
-    fail(`\`npx vitest list --json --no-staticParse\` exited ${res.status}`);
-  }
-  let tests;
-  try {
-    tests = JSON.parse(res.stdout);
-  } catch {
-    fail('`npx vitest list --json --no-staticParse` did not print JSON');
-  }
-  return { tests: tests.length, files: new Set(tests.map((t) => t.file)).size };
-}
+// No test count here: it moves with every change, so a committed copy is stale on every branch
+// and conflicts between every pair (evolve principle 24; Pages run 43111588061). The test suite
+// reports its own count where it runs.
 
 function fail(message) {
   console.error(`build-readme: ${message}`);
@@ -67,17 +49,16 @@ function preview(e) {
 
 const nodeOf = (model, key) => model.nodes.find((n) => n.key === key);
 
-function countsRegion(model, suite) {
+function countsRegion(model) {
   const live = model.entries.filter((e) => e.status === 'live').length;
   const planned = model.entries.length - live;
   const wings = model.roots.map((k) => nodeOf(model, k))
     .map((w) => `${w.title} ${w.live}/${w.live + w.planned}`).join(' · ');
   return [
-    NOTICE.replace('%s', ' and `vitest list`'),
+    NOTICE.replace('%s', ''),
     `<p align="center"><b>${plural(live, 'live plate')}</b> and ${planned} planned, `
       + `${plural(model.labs.length, 'comparison lab')}, in ${plural(model.roots.length, 'wing')}:<br>`
-      + `<sub>${html(wings)}</sub><br>`
-      + `<b>${plural(suite.tests, 'unit test')}</b> in ${plural(suite.files, 'file')}.</p>`,
+      + `<sub>${html(wings)}</sub></p>`,
   ].join('\n');
 }
 
@@ -141,15 +122,14 @@ function splice(text, region, body) {
 }
 
 const model = loadModel();
-const suite = countTests();
 const current = readFileSync(README, 'utf8');
-let next = splice(current, 'counts', countsRegion(model, suite));
+let next = splice(current, 'counts', countsRegion(model));
 next = splice(next, 'catalogue', catalogueRegion(model));
 
 const where = relative(process.cwd(), README) || 'README.md';
 if (check) {
   if (next !== current) {
-    fail(`${where} derived sections are stale (catalogue, tests or previews changed). `
+    fail(`${where} derived sections are stale (catalogue or previews changed). `
       + 'Run `npm run readme` and commit the result.');
   }
   console.log(`build-readme: ${where} derived sections are current`);

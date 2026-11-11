@@ -81,6 +81,15 @@ describe('derived-facts gate: what it allows', () => {
   });
 });
 
+describe('derived-facts gate: local state is not judged', () => {
+  it('a path the repository ignores passes whether or not this checkout has it', () => {
+    // a fresh CI checkout has no .ai/local/; Majordomus's generated projections still name it
+    const withIgnored = (p: string) => p.startsWith('.ai/local');
+    expect(scan('AGENTS.md', 'never `.ai/local/`', { policy, model, exists: withIgnored })).toEqual([]);
+    expect(checks('AGENTS.md', 'never `.ai/notthere/`')).toEqual(['path']);
+  });
+});
+
 describe('derived-facts gate: root causes stay fixed', () => {
   it('the generated plan states no count (a stored number is a copy that drifts)', () => {
     const { milestones, issues } = derivePlan(model);
