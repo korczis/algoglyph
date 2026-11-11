@@ -7,7 +7,11 @@
 //   - every gallery thumbnail renders
 //   - every plate mounts a canvas of non-zero size and publishes a readout
 //
-//   node scripts/audit-ui.mjs [--dist dist] [--screenshots <dir>]
+//   node scripts/audit-ui.mjs [--dist dist] [--screenshots <dir>] [--previews <dir>]
+//
+// --previews also writes the published preview images in the same browser launch: every
+// plate's canvas at desktop width as <id>.jpg (dark) and <id>-light.jpg, the landing page as
+// gallery.jpg / gallery-light.jpg, and the 1200x630 social card og.jpg (dark landing page).
 //
 // One launch per run on purpose: each headless Chrome launch on macOS leaves a large
 // code-signing clone behind, so the gate opens many pages in one browser.
@@ -23,6 +27,8 @@ const opt = (name, fallback) => {
 };
 const DIST = resolve(opt('--dist', 'dist'));
 const SHOTS = opt('--screenshots', '');
+const PREVIEWS = opt('--previews', '');
+const JPEG = { type: 'jpeg', quality: 82 };
 const AXE = readFileSync(resolve('node_modules/axe-core/axe.min.js'), 'utf8');
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
@@ -49,6 +55,7 @@ const base = `http://127.0.0.1:${server.address().port}/`;
 const failures = [];
 const fail = (where, what) => failures.push(`${where}: ${what}`);
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
+if (PREVIEWS) mkdirSync(PREVIEWS, { recursive: true });
 
 // Locally the installed Chrome; CI sets AUDIT_CHANNEL= (empty) to use the Chromium that
 // `playwright-core install chromium` downloaded.
@@ -117,6 +124,16 @@ try {
       await axe(p, `${label} gallery`);
       log(`${label}: gallery audited`);
       if (SHOTS) await p.screenshot({ path: join(SHOTS, `gallery-${theme}-${w}.png`), fullPage: false });
+      if (PREVIEWS && w >= 1024) {
+        const suffix = theme === 'dark' ? '' : '-light';
+        await p.screenshot({ ...JPEG, path: join(PREVIEWS, `gallery${suffix}.jpg`) });
+        if (theme === 'dark') {
+          await p.setViewportSize({ width: 1200, height: 630 });
+          await p.waitForTimeout(400);
+          await p.screenshot({ ...JPEG, path: join(PREVIEWS, 'og.jpg') });
+          await p.setViewportSize({ width: w, height: h });
+        }
+      }
 
       // the plates: each mounts, draws and reports; axe on the first one
       const only = w === 1440 ? plates : plates.slice(0, 2);
@@ -124,7 +141,8 @@ try {
         const where = `${label} plate ${id}`;
         log(where);
         await p.goto(`${base}#/p/${id}?seed=4242`, { waitUntil: 'load' });
-        await p.waitForTimeout(1800);
+        // previews let a plate develop for longer before its picture is taken
+        await p.waitForTimeout(PREVIEWS && w >= 1024 ? 6000 : 1800);
         const state = await p.evaluate(() => {
           const c = document.querySelector('#stage canvas');
           return {
@@ -138,6 +156,13 @@ try {
         if (i === 0) await axe(p, where);
         if (SHOTS && w === 1440) {
           await p.screenshot({ path: join(SHOTS, `plate-${theme}-${id}.png`), fullPage: false });
+        }
+        if (PREVIEWS && w >= 1024) {
+          const canvas = p.locator('#stage canvas');
+          if (await canvas.count()) {
+            const suffix = theme === 'dark' ? '' : '-light';
+            await canvas.first().screenshot({ ...JPEG, path: join(PREVIEWS, `${id}${suffix}.jpg`) });
+          }
         }
       }
       await context.close();
