@@ -1,8 +1,6 @@
-// Facts the landing page states about the collection, derived from the registry at runtime so
-// no count is ever written by hand (rule project.no-fake-science applies to prose too).
-import type { Category, Plate } from './plate';
-
-type Entry = Pick<Plate, 'id' | 'category' | 'mode' | 'tags' | 'params'>;
+// Facts the landing page states about the collection, derived from the catalogue at build
+// time so no count is ever written by hand (rule project.no-fake-science applies to prose too).
+import type { Catalogue } from './catalogue';
 
 export interface Fact {
   key: string;
@@ -12,42 +10,41 @@ export interface Fact {
 }
 
 export interface Facts {
-  plates: number;
-  webgl: number;
+  live: number;
+  planned: number;
+  wings: number;
+  shelves: number;
+  labs: number;
   tags: number;
-  params: number;
-  byCategory: { id: Category; label: string; count: number }[];
+  sources: number;
 }
 
-export function facts(plates: Entry[], categories: { id: Category; label: string }[]): Facts {
+export function facts(c: Pick<Catalogue, 'entries' | 'nodes' | 'labs' | 'sources'>): Facts {
+  const leaves = c.nodes.filter((n) => n.children.length === 0);
   return {
-    plates: plates.length,
-    webgl: plates.filter((p) => p.mode === 'webgl').length,
-    tags: new Set(plates.flatMap((p) => p.tags.map((t) => t.toLowerCase()))).size,
-    params: plates.reduce((sum, p) => sum + p.params.length, 0),
-    byCategory: categories.map((c) => ({
-      ...c,
-      count: plates.filter((p) => p.category === c.id).length,
-    })),
+    live: c.entries.filter((e) => e.status === 'live').length,
+    planned: c.entries.filter((e) => e.status === 'planned').length,
+    wings: c.nodes.filter((n) => n.depth === 1).length,
+    shelves: leaves.length,
+    labs: c.labs.length,
+    tags: new Set(c.entries.flatMap((e) => e.tags.map((t) => t.toLowerCase()))).size,
+    sources: new Set(c.entries.flatMap((e) => e.sources.map((s) => s.id))).size,
   };
 }
 
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
 /** The KPI cards of the landing page, in display order. */
 export function factCards(f: Facts): Fact[] {
+  const all = f.live + f.planned;
   return [
-    {
-      key: 'plates',
-      value: f.plates,
-      label: f.plates === 1 ? 'Plate' : 'Plates',
-      detail: `${f.params} parameters to turn`,
-    },
-    ...f.byCategory.map((c) => ({
-      key: c.id,
-      value: c.count,
-      label: c.label,
-      detail: `${Math.round((100 * c.count) / Math.max(1, f.plates))}% of the collection`,
-    })),
-    { key: 'webgl', value: f.webgl, label: '3D plates', detail: 'rendered in p5.js WEBGL' },
+    { key: 'live', value: f.live, label: plural(f.live, 'Live plate', 'Live plates'),
+      detail: `${Math.round((100 * f.live) / Math.max(1, all))}% of ${all} catalogued` },
+    { key: 'planned', value: f.planned, label: 'Planned', detail: 'catalogued, not yet running' },
+    { key: 'wings', value: f.wings, label: plural(f.wings, 'Wing', 'Wings'),
+      detail: `${f.shelves} shelves below them` },
+    { key: 'labs', value: f.labs, label: plural(f.labs, 'Lab', 'Labs'),
+      detail: 'algorithms compared side by side' },
     { key: 'tags', value: f.tags, label: 'Tags', detail: 'distinct, all searchable' },
   ];
 }

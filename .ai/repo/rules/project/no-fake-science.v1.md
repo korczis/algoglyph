@@ -7,7 +7,7 @@ description: Every number a plate shows is computed from the running simulation,
 statement: Publish only readouts computed from the simulation's own state (counts, energies, distances, spreads), never constants or estimates dressed as measurements, and write plate notes that a reader can check against the code or a standard reference.
 status: active
 class: blocking
-depends_on: [project.viz-component-layer@1]
+depends_on: [project.viz-component-layer@2]
 tags: [content, science, honesty]
 ---
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { field, PRESETS, seed, step } from '../src/plates/reaction/grayscott';
+import { field, PRESETS, seed, step } from '../src/plates/gray-scott/grayscott';
 
 describe('gray-scott', () => {
   it('the trivial steady state u = 1, v = 0 stays exactly fixed', () => {

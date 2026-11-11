@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import {
   deltaE, energy, lattice, magnetisation, sweep, T_CRITICAL, type Lattice,
-} from '../src/plates/ising/ising';
+} from '../src/plates/ising-model/ising';
 
 // Independent brute force: sum over every site's right and lower bond, written from scratch.
 function bruteEnergy(s: ArrayLike<number>, w: number, h: number, field: number): number {

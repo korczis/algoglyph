@@ -2,9 +2,9 @@
 <html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Algorithms and physics drawn as glyphs: generative visualisations and interactive simulations built on p5.js.">
+  <meta name="description" content="Algorithms, mathematics and physics drawn as glyphs: a catalogue of seeded, interactive simulations with measured readouts and labs that compare algorithms side by side.">
   <title>algoglyph</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="canonical" href="https://korczis.github.io/algoglyph/">
@@ -13,7 +13,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="algoglyph">
   <meta property="og:title" content="algoglyph: algorithms and physics, drawn as glyphs">
-  <meta property="og:description" content="Seeded, interactive p5.js plates of algorithms, mathematics and physics. Every readout is measured from the running simulation, and a link reproduces the picture.">
+  <meta property="og:description" content="A catalogue of seeded, interactive plates of algorithms, mathematics and physics, with labs that compare algorithms side by side. Every readout is measured, and a link reproduces the picture.">
   <meta property="og:url" content="https://korczis.github.io/algoglyph/">
   <meta property="og:image" content="https://korczis.github.io/algoglyph/og.jpg">
   <meta property="og:image:type" content="image/jpeg">
@@ -22,7 +22,7 @@
   <meta property="og:image:alt" content="A mosaic of algoglyph plates: sorting tapestries, mazes, fractals, pendulums and attractors on a dark ground.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="algoglyph: algorithms and physics, drawn as glyphs">
-  <meta name="twitter:description" content="Seeded, interactive p5.js plates of algorithms, mathematics and physics, with measured readouts.">
+  <meta name="twitter:description" content="Seeded, interactive plates of algorithms, mathematics and physics, with measured readouts and comparison labs.">
   <meta name="twitter:image" content="https://korczis.github.io/algoglyph/og.jpg">
   <meta name="twitter:image:alt" content="A mosaic of algoglyph plates: sorting tapestries, mazes, fractals, pendulums and attractors on a dark ground.">
   <script>
@@ -44,9 +44,9 @@
   <nav class="fixed top-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700" aria-label="Top">
     <div class="px-3 py-3 lg:px-5 lg:pl-3">
       <div class="flex items-center justify-between">
-        <div class="flex items-center justify-start">
-          <button type="button" data-drawer-target="sidebar" data-drawer-toggle="sidebar" aria-controls="sidebar" class="inline-flex items-center p-2 mr-2 text-sm text-gray-600 rounded-lg lg:hidden hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-600">
-            <span class="sr-only">Open sidebar</span>
+        <div class="flex items-center justify-start min-w-0">
+          <button type="button" data-drawer-target="sidebar" data-drawer-toggle="sidebar" aria-controls="sidebar" class="inline-flex items-center p-2.5 mr-1 text-sm text-gray-600 rounded-lg lg:hidden hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-600">
+            <span class="sr-only">Open the catalogue</span>
             <svg class="w-6 h-6" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"></path></svg>
           </button>
           <a href="#/" class="flex items-center mr-4 lg:mr-14">
@@ -60,18 +60,18 @@
             </svg>
             <span class="self-center text-xl font-semibold tracking-tight whitespace-nowrap text-gray-900 dark:text-white">algo<span class="text-primary-700 dark:text-primary-500">glyph</span></span>
           </a>
-          <form class="hidden md:block md:pl-2" role="search" @submit.prevent="go('#/')">
-            <label for="topbar-search" class="sr-only">Search plates</label>
+          <form class="hidden md:block md:pl-2" role="search" @submit.prevent="onSearch()">
+            <label for="topbar-search" class="sr-only">Search the catalogue</label>
             <div class="relative md:w-64 lg:w-96">
               <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"></path></svg>
               </div>
-              <input type="search" id="topbar-search" x-model="query" @input="if (view !== 'gallery') go('#/')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Search plates, e.g. chaos, BFS, SHA-256">
+              <input type="search" id="topbar-search" x-model="query" @input="onSearch()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Search, e.g. heap, Dijkstra, chaos">
             </div>
           </form>
         </div>
         <div class="flex items-center gap-1">
-          <button type="button" id="keys-button" data-modal-target="keys-modal" data-modal-toggle="keys-modal" class="p-2.5 text-gray-500 rounded-lg hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
+          <button type="button" id="keys-button" data-modal-target="keys-modal" data-modal-toggle="keys-modal" class="hidden p-2.5 text-gray-500 rounded-lg sm:inline-flex hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
             <span class="sr-only">Keyboard shortcuts</span>
             <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><path stroke-linecap="round" d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"></path></svg>
           </button>
@@ -89,40 +89,36 @@
     </div>
   </nav>
 
-  <aside id="sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen pt-16 transition-transform -translate-x-full bg-white border-r border-gray-200 lg:translate-x-0 dark:bg-gray-800 dark:border-gray-700" aria-label="Sidebar">
+  <!-- Sidebar: the taxonomy tree, derived from catalogue/taxonomy.yaml and the entries -->
+  <aside id="sidebar" class="fixed top-0 left-0 z-40 w-72 h-screen pt-16 transition-transform -translate-x-full bg-white border-r border-gray-200 lg:translate-x-0 dark:bg-gray-800 dark:border-gray-700" aria-label="Catalogue">
     <div class="h-full px-3 pt-5 pb-4 overflow-y-auto bg-white dark:bg-gray-800">
       <div class="space-y-2 divide-y divide-gray-200 dark:divide-gray-700">
-        <ul class="pb-2 space-y-2 font-medium">
-          <li class="md:hidden">
-            <label for="mobile-search" class="sr-only">Search plates</label>
-            <input type="search" id="mobile-search" x-model="query" @input="if (view !== 'gallery') go('#/')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200" placeholder="Search plates">
-          </li>
+        <ul class="pb-2 space-y-1 font-medium">
           <li>
-            <a href="#/" class="flex items-center p-2 text-base text-gray-900 rounded-lg hover:bg-gray-100 group dark:text-gray-200 dark:hover:bg-gray-700" :class="view === 'gallery' && filter === 'all' ? 'bg-gray-100 dark:bg-gray-700' : ''" @click="filter = 'all'">
+            <a href="#/" class="flex items-center p-2 text-base text-gray-900 rounded-lg hover:bg-gray-100 group dark:text-gray-200 dark:hover:bg-gray-700" :class="view === 'browse' && !nodeKey ? 'bg-gray-100 dark:bg-gray-700' : ''" :aria-current="view === 'browse' && !nodeKey ? 'page' : null">
               <svg class="w-6 h-6 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-              <span class="flex-1 ml-3 whitespace-nowrap">All plates</span>
-              <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium rounded-full text-primary-800 bg-primary-100 dark:bg-primary-900 dark:text-primary-200" x-text="plates.length"></span>
+              <span class="flex-1 ml-3 whitespace-nowrap">Collection</span>
+              <span class="inline-flex items-center justify-center px-2 h-6 text-xs font-medium rounded-full text-primary-800 bg-primary-100 dark:bg-primary-900 dark:text-primary-200" x-text="facts.live + ' / ' + (facts.live + facts.planned)"></span>
             </a>
           </li>
-          <template x-for="cat in categories" :key="cat.id">
+          <template x-for="w in wings" :key="w.key">
             <li>
-              <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700" :aria-expanded="open[cat.id]" :aria-controls="'cat-' + cat.id" @click="open[cat.id] = !open[cat.id]">
-                <svg class="w-6 h-6 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
-                  <path x-show="cat.id === 'algorithms'" stroke-linecap="round" d="M4 20V14M9 20V8M14 20V11M19 20V4"></path>
-                  <path x-show="cat.id === 'mathematics'" stroke-linecap="round" stroke-linejoin="round" d="M4 4h4v4H4zM10 10h4v4h-4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z"></path>
-                  <path x-show="cat.id === 'physics'" stroke-linecap="round" d="M12 3v6m0 0a3 3 0 100 6 3 3 0 000-6zm-7 9c2-4 12-4 14 0M5 21c2-4 12-4 14 0"></path>
-                </svg>
-                <span class="flex-1 ml-3 text-left whitespace-nowrap" x-text="cat.label"></span>
-                <span class="mr-2 font-mono text-xs text-gray-500 dark:text-gray-400" x-text="byCategory(cat.id).length"></span>
-                <svg class="w-3 h-3 transition-transform" :class="open[cat.id] ? 'rotate-180' : ''" aria-hidden="true" fill="none" viewBox="0 0 10 6"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"></path></svg>
-              </button>
-              <ul :id="'cat-' + cat.id" class="py-2 space-y-1" x-show="open[cat.id]">
-                <template x-for="p in byCategory(cat.id)" :key="p.id">
+              <div class="flex items-center">
+                <a :href="'#/c/' + w.key" class="flex items-center flex-1 min-w-0 p-2 text-base text-gray-900 rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700" :class="nodeKey === w.key ? 'bg-gray-100 dark:bg-gray-700' : ''" :aria-current="nodeKey === w.key ? 'page' : null">
+                  <span class="flex-1 truncate" x-text="w.title"></span>
+                  <span class="ml-2 font-mono text-xs text-gray-600 dark:text-gray-300" x-text="w.live + '/' + (w.live + w.planned)"></span>
+                </a>
+                <button type="button" class="p-2.5 ml-1 text-gray-500 rounded-lg hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700" :aria-expanded="open[w.key]" :aria-controls="'wing-' + w.id" @click="open[w.key] = !open[w.key]">
+                  <span class="sr-only" x-text="(open[w.key] ? 'Collapse ' : 'Expand ') + w.title"></span>
+                  <svg class="w-3 h-3 transition-transform" :class="open[w.key] ? 'rotate-180' : ''" aria-hidden="true" fill="none" viewBox="0 0 10 6"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"></path></svg>
+                </button>
+              </div>
+              <ul :id="'wing-' + w.id" class="py-1 space-y-0.5" x-show="open[w.key]" x-cloak>
+                <template x-for="s in children(w.key)" :key="s.key">
                   <li>
-                    <a :href="'#/p/' + p.id" class="flex items-center w-full p-2 pl-4 text-sm text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700" :class="view === 'plate' && currentId === p.id ? 'bg-gray-100 dark:bg-gray-700' : ''" :aria-current="view === 'plate' && currentId === p.id ? 'page' : null">
-                      <span class="w-7 font-mono text-xs text-gray-600 plate-no dark:text-gray-300" x-text="p.no"></span>
-                      <span class="flex-1 truncate" x-text="p.title"></span>
-                      <span x-show="p.mode === 'webgl'" class="ml-2 bg-primary-100 text-primary-800 text-[10px] font-semibold px-1.5 py-0.5 rounded dark:bg-primary-900 dark:text-primary-200">3D</span>
+                    <a :href="'#/c/' + s.key" class="flex items-center w-full p-2 pl-5 text-sm text-gray-900 rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700" :class="nodeKey === s.key || (current && current.taxonomy === s.key) ? 'bg-gray-100 dark:bg-gray-700' : ''" :aria-current="nodeKey === s.key ? 'page' : null">
+                      <span class="flex-1 truncate" x-text="s.title"></span>
+                      <span class="ml-2 font-mono text-xs text-gray-600 dark:text-gray-300" x-text="s.live + '/' + (s.live + s.planned)"></span>
                     </a>
                   </li>
                 </template>
@@ -130,265 +126,359 @@
             </li>
           </template>
         </ul>
-        <div class="pt-4 space-y-2">
+        <div class="pt-3">
+          <p class="px-2 mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Labs</p>
+          <ul class="space-y-0.5 font-medium">
+            <template x-for="l in labs" :key="l.id">
+              <li>
+                <a :href="'#/lab/' + l.id" class="flex items-center p-2 text-sm text-gray-900 rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700" :class="view === 'lab' && currentId === l.id ? 'bg-gray-100 dark:bg-gray-700' : ''">
+                  <svg class="w-5 h-5 mr-2 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6M10 3v6l-5 9a2 2 0 001.7 3h10.6a2 2 0 001.7-3l-5-9V3"></path></svg>
+                  <span class="flex-1 truncate" x-text="l.title"></span>
+                  <span class="ml-2 font-mono text-xs text-gray-600 dark:text-gray-300" x-text="l.entries.length"></span>
+                </a>
+              </li>
+            </template>
+          </ul>
+        </div>
+        <div class="pt-4">
           <p class="px-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Every plate is seeded: the URL reproduces the picture. Readouts are measured from the running simulation.</p>
         </div>
       </div>
     </div>
   </aside>
 
-  <div class="pt-16 lg:ml-64">
+  <div class="pt-16 lg:ml-72">
     <main id="main" class="px-4 pt-6 pb-4" tabindex="-1">
 
-      <!-- Gallery -->
-      <section x-show="view === 'gallery'" aria-labelledby="gallery-title">
+      <!-- Browse: the collection, a wing or a shelf -->
+      <section x-show="view === 'browse'" aria-labelledby="browse-title">
+        <nav class="flex mb-5 overflow-x-auto" aria-label="Breadcrumb">
+          <ol class="inline-flex items-center space-x-1 md:space-x-2 whitespace-nowrap">
+            <li class="inline-flex items-center">
+              <a href="#/" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+                <svg class="w-5 h-5 mr-2.5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                algoglyph
+              </a>
+            </li>
+            <template x-for="(t, i) in trail" :key="t.key">
+              <li :aria-current="i === trail.length - 1 ? 'page' : null">
+                <div class="flex items-center">
+                  <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
+                  <a x-show="i < trail.length - 1" :href="'#/c/' + t.key" class="ml-1 text-sm font-medium text-gray-700 hover:text-gray-900 md:ml-2 dark:text-gray-300 dark:hover:text-white" x-text="t.title"></a>
+                  <span x-show="i === trail.length - 1" class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400" x-text="t.title"></span>
+                </div>
+              </li>
+            </template>
+          </ol>
+        </nav>
+
+        <!-- Home -->
+        <template x-if="!nodeKey && !query.trim()">
+          <div>
+            <!-- Hero: adapted from the Pro marketing hero (illustration + default blocks) -->
+            <div class="grid gap-6 p-4 mb-4 bg-white rounded-lg shadow sm:p-6 xl:p-8 lg:grid-cols-12 lg:gap-8 dark:bg-gray-800">
+              <div class="self-center min-w-0 lg:col-span-7">
+                <p class="inline-flex flex-wrap items-center gap-2 p-1 pr-4 mb-5 text-sm text-gray-700 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-200">
+                  <span class="px-3 py-1 text-xs font-semibold text-white rounded-full bg-primary-700" x-text="facts.live + ' live · ' + facts.planned + ' planned'"></span>
+                  <span class="font-medium">Seeded, measured, open source</span>
+                </p>
+                <h1 id="browse-title" class="mb-4 text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl xl:text-5xl dark:text-white">Algorithms and physics, drawn as glyphs</h1>
+                <p class="max-w-2xl mb-6 text-base text-gray-500 md:text-lg lg:mb-8 dark:text-gray-400">
+                  A catalogue of <span x-text="facts.live + facts.planned"></span> algorithms in <span x-text="facts.wings"></span> wings and <span x-text="facts.shelves"></span> shelves, from sorting and search trees to graphs, signals, chaos and distributed systems. Every knob is exposed, every readout is measured, labs race algorithms side by side, and a link redraws the picture.
+                </p>
+                <div class="flex flex-col gap-3 sm:flex-row">
+                  <button type="button" @click="openRandom()" class="inline-flex items-center justify-center px-5 py-3 text-base font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">
+                    <svg class="w-5 h-5 mr-2 -ml-1" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"></circle></svg>
+                    Open a random plate
+                  </button>
+                  <a :href="'#/lab/' + (labs[0] ? labs[0].id : '')" x-show="labs.length" class="inline-flex items-center justify-center px-5 py-3 text-base font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 dark:text-white dark:bg-gray-800 dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-700">
+                    <svg class="w-5 h-5 mr-2 -ml-1" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6M10 3v6l-5 9a2 2 0 001.7 3h10.6a2 2 0 001.7-3l-5-9V3"></path></svg>
+                    <span x-text="labs[0] ? 'Open the ' + labs[0].title.toLowerCase() : ''"></span>
+                  </a>
+                </div>
+              </div>
+              <div class="min-w-0 lg:col-span-5 lg:self-center">
+                <div class="grid grid-cols-3 gap-2" aria-hidden="true">
+                  <template x-for="p in mosaic" :key="'mosaic-' + p.id">
+                    <div class="overflow-hidden rounded-lg aspect-[8/5] bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700" :data-thumb="p.id">
+                      <img x-show="thumbs[p.id]" :src="thumbs[p.id]" alt="" width="400" height="250" class="object-cover w-full h-full">
+                    </div>
+                  </template>
+                </div>
+                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Previews render in your browser from each plate's own code, one fixed seed per plate.</p>
+              </div>
+            </div>
+
+            <!-- The collection in numbers: Pro KPI cards, every value derived from the catalogue -->
+            <section class="mb-4" aria-labelledby="facts-title">
+              <h2 id="facts-title" class="sr-only">The collection in numbers</h2>
+              <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+                <template x-for="f in factCards" :key="f.key">
+                  <div class="flex flex-col min-w-0 p-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
+                    <dt class="order-2 mt-1 text-base font-normal text-gray-500 dark:text-gray-400" x-text="f.label"></dt>
+                    <dd class="order-1 text-2xl font-bold leading-none text-gray-900 sm:text-3xl dark:text-white" x-text="f.value"></dd>
+                    <dd class="order-3 mt-2 text-xs text-gray-500 dark:text-gray-400" x-text="f.detail"></dd>
+                  </div>
+                </template>
+              </dl>
+            </section>
+
+            <!-- Wings: one card per top-level node, with its shelves and how far it is built -->
+            <section class="mb-6" aria-labelledby="wings-title">
+              <h2 id="wings-title" class="mb-4 text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white">Wings</h2>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <template x-for="w in wings" :key="'card-' + w.key">
+                  <div class="flex flex-col p-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
+                    <div class="flex items-start justify-between gap-3 mb-2">
+                      <h3 class="text-lg font-bold leading-tight text-gray-900 dark:text-white"><a :href="'#/c/' + w.key" class="hover:underline" x-text="w.title"></a></h3>
+                      <span class="shrink-0 bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-md font-mono dark:bg-gray-700 dark:text-gray-300" x-text="w.live + ' / ' + (w.live + w.planned)"></span>
+                    </div>
+                    <p class="mb-4 text-sm text-gray-500 dark:text-gray-400" x-text="w.summary"></p>
+                    <div class="w-full h-1.5 mb-4 bg-gray-200 rounded-full dark:bg-gray-700" role="img" :aria-label="pct(w) + '% of this wing is live'">
+                      <div class="h-1.5 rounded-full bg-primary-600" :style="'width:' + pct(w) + '%'"></div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mt-auto">
+                      <template x-for="s in children(w.key)" :key="s.key">
+                        <a :href="'#/c/' + s.key" class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-1 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600" x-text="s.title + ' · ' + (s.live + s.planned)"></a>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </section>
+
+            <!-- How it works: adapted from the Pro marketing feature section (default block) -->
+            <section class="p-4 mb-6 bg-white rounded-lg shadow sm:p-6 xl:p-8 dark:bg-gray-800" aria-labelledby="how-title">
+              <div class="max-w-screen-md mb-6 lg:mb-8">
+                <h2 id="how-title" class="mb-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl dark:text-white">How it works</h2>
+                <p class="text-base text-gray-500 sm:text-lg dark:text-gray-400">Each plate is art and also a claim about what an algorithm or an integrator does. Four habits keep the claim honest.</p>
+              </div>
+              <div class="grid gap-8 md:grid-cols-2 md:gap-10 xl:grid-cols-4">
+                <div>
+                  <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Catalogued</h3>
+                  <p class="text-gray-500 dark:text-gray-400">One Markdown file per algorithm describes it; the navigation, numbering, counts and this page are derived from those files, and a check refuses a catalogue that disagrees with the code.</p>
+                </div>
+                <div>
+                  <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Measured</h3>
+                  <p class="text-gray-500 dark:text-gray-400">An algorithm runs through instrumented operations; every comparison, write and probe is counted from the run itself, and labs fit each one's growth exponent from measured runs.</p>
+                </div>
+                <div>
+                  <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Tested</h3>
+                  <p class="text-gray-500 dark:text-gray-400">Every kernel is checked by one harness against independent references, on many input shapes and sizes, the moment it is catalogued. <a href="https://github.com/korczis/algoglyph/tree/main/test" class="font-medium underline text-primary-700 hover:no-underline dark:text-primary-400">Read the tests</a></p>
+                </div>
+                <div>
+                  <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Gated</h3>
+                  <p class="text-gray-500 dark:text-gray-400">Before Pages deploys, a real browser mounts every plate and lab, runs axe-core for WCAG 2.2 AA and allows no console error or overflow, in light and dark, on phone and desktop. <a href="https://github.com/korczis/algoglyph/blob/main/scripts/audit-ui.mjs" class="font-medium underline text-primary-700 hover:no-underline dark:text-primary-400">Read the gate</a></p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </template>
+
+        <!-- A node (wing or shelf), or search results -->
+        <template x-if="nodeKey || query.trim()">
+          <div>
+            <div class="mb-4">
+              <h1 id="browse-title" class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white" x-text="node ? node.title : 'Search'"></h1>
+              <p class="max-w-3xl mt-2 text-base text-gray-500 dark:text-gray-400" x-text="node ? node.summary : 'Every catalogued algorithm whose title, summary, tags or shelf match.'"></p>
+            </div>
+
+            <!-- Shelves below this node: chips that scroll sideways on a phone -->
+            <div x-show="shelves().length" class="flex gap-2 pb-2 mb-4 -mx-4 overflow-x-auto px-4 snap-x" role="list" aria-label="Shelves">
+              <template x-for="s in shelves()" :key="'chip-' + s.key">
+                <a role="listitem" :href="'#/c/' + s.key" class="snap-start shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-primary-700 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700 dark:hover:text-white">
+                  <span x-text="s.title"></span>
+                  <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="s.live + '/' + (s.live + s.planned)"></span>
+                </a>
+              </template>
+            </div>
+
+            <!-- Labs that compare entries of this node -->
+            <div x-show="labsHere().length" class="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
+              <template x-for="l in labsHere()" :key="'labcard-' + l.id">
+                <a :href="'#/lab/' + l.id" class="flex items-start gap-4 p-4 bg-white rounded-lg shadow hover:shadow-lg sm:p-6 dark:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">
+                  <span class="flex items-center justify-center w-10 h-10 rounded-full shrink-0 bg-primary-100 dark:bg-primary-900">
+                    <svg class="w-5 h-5 text-primary-700 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6M10 3v6l-5 9a2 2 0 001.7 3h10.6a2 2 0 001.7-3l-5-9V3"></path></svg>
+                  </span>
+                  <span>
+                    <span class="block mb-1 text-lg font-bold text-gray-900 dark:text-white" x-text="l.title"></span>
+                    <span class="block text-sm text-gray-500 dark:text-gray-400" x-text="l.summary"></span>
+                    <span class="block mt-2 text-xs font-medium text-primary-700 dark:text-primary-400" x-text="l.entries.length + ' algorithms compared'"></span>
+                  </span>
+                </a>
+              </template>
+            </div>
+
+            <!-- Toolbar: count, search on phones, status filter -->
+            <div class="items-end justify-between gap-4 mb-4 sm:flex">
+              <p class="text-sm text-gray-500 dark:text-gray-400" aria-live="polite">Showing <span x-text="shown().length"></span> of <span x-text="scopeCount('all')"></span><span x-show="query.trim()">, matching “<span x-text="query.trim()"></span>”</span></p>
+              <div class="flex flex-col gap-3 mt-3 sm:mt-0 sm:items-end">
+                <div class="w-full md:hidden sm:w-64">
+                  <label for="browse-search" class="sr-only">Search the catalogue</label>
+                  <input type="search" id="browse-search" x-model="query" @input="onSearch()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="Search, e.g. heap, Dijkstra">
+                </div>
+                <div class="flex w-full rounded-lg shadow-sm sm:w-auto" role="group" aria-label="Filter by status">
+                  <template x-for="(s, i) in ['all', 'live', 'planned']" :key="s">
+                    <button type="button" @click="status = s; $nextTick(() => observeThumbs())" :aria-pressed="status === s" class="grow px-3 py-2 text-sm font-medium border border-gray-200 sm:grow-0 hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:text-white dark:hover:bg-gray-700" :class="[status === s ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300', i === 0 ? 'rounded-s-lg' : '', i === 2 ? 'rounded-e-lg' : '', i ? 'border-l-0' : '']" x-text="(s === 'all' ? 'All' : s === 'live' ? 'Live' : 'Planned') + ' · ' + scopeCount(s)"></button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              <template x-for="e in shown()" :key="e.id">
+                <a :href="'#/p/' + e.id" class="flex flex-col overflow-hidden transition rounded-lg group focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800" :class="e.status === 'live' ? 'bg-white shadow hover:shadow-lg dark:bg-gray-800' : 'bg-gray-50 border-2 border-dashed border-gray-300 hover:border-primary-500 dark:bg-gray-900 dark:border-gray-600'">
+                  <div class="relative overflow-hidden aspect-[8/5]" :class="e.status === 'live' ? 'bg-gray-100 dark:bg-gray-950' : ''" :data-thumb="e.status === 'live' ? e.id : null">
+                    <img x-show="thumbs[e.id]" :src="thumbs[e.id]" alt="" width="400" height="250" loading="lazy" class="object-cover w-full h-full transition duration-500 motion-safe:group-hover:scale-[1.03]">
+                    <div x-show="!thumbs[e.id]" class="flex flex-col items-center justify-center w-full h-full gap-1 p-4 text-center">
+                      <span x-show="e.status === 'live'" class="font-mono text-xs text-gray-600 dark:text-gray-400">rendering…</span>
+                      <template x-if="e.status === 'planned'">
+                        <span class="font-mono text-xs text-gray-600 dark:text-gray-400" x-text="e.engine === 'custom' ? 'bespoke plate' : e.engine + ' engine'"></span>
+                      </template>
+                    </div>
+                    <span class="absolute top-3 left-3 px-2 py-0.5 font-mono text-xs font-medium rounded-md plate-no bg-gray-900/70 text-white backdrop-blur" x-text="'PL. ' + e.no"></span>
+                    <span x-show="e.status === 'planned'" class="absolute top-3 right-3 bg-gray-200 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-200">Planned</span>
+                  </div>
+                  <div class="flex flex-col flex-1 p-4 sm:p-5">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                      <span class="text-xs font-medium tracking-wide uppercase truncate text-primary-700 dark:text-primary-500" x-text="shelfOf(e) ? shelfOf(e).title : ''"></span>
+                    </div>
+                    <h3 class="mb-2 text-lg font-bold leading-tight text-gray-900 dark:text-white" x-text="e.title"></h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" x-text="e.summary"></p>
+                    <p x-show="e.complexity" class="mt-3 font-mono text-xs text-gray-500 dark:text-gray-400" x-text="e.complexity"></p>
+                  </div>
+                </a>
+              </template>
+            </div>
+            <div x-show="shown().length === 0" x-cloak class="p-8 mt-4 text-center bg-white rounded-lg shadow dark:bg-gray-800">
+              <h2 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Nothing here matches</h2>
+              <p class="mb-4 text-gray-500 dark:text-gray-400">Search looks in titles, summaries, tags and shelf names, with accents and case ignored.</p>
+              <button type="button" @click="query = ''; status = 'all'" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">Clear the filters</button>
+            </div>
+          </div>
+        </template>
+      </section>
+
+      <!-- A plate, a planned entry or a lab -->
+      <section x-show="view !== 'browse'" x-cloak aria-labelledby="plate-title">
         <div class="mb-4">
-          <nav class="flex mb-5" aria-label="Breadcrumb">
-            <ol class="inline-flex items-center space-x-1 md:space-x-2">
+          <nav class="flex mb-5 overflow-x-auto" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-2 whitespace-nowrap">
               <li class="inline-flex items-center">
                 <a href="#/" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
                   <svg class="w-5 h-5 mr-2.5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
                   algoglyph
                 </a>
               </li>
+              <template x-for="t in currentTrail" :key="'pt-' + t.key">
+                <li>
+                  <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
+                    <a :href="'#/c/' + t.key" class="ml-1 text-sm font-medium text-gray-700 hover:text-gray-900 md:ml-2 dark:text-gray-300 dark:hover:text-white" x-text="t.title"></a>
+                  </div>
+                </li>
+              </template>
+              <li x-show="view === 'lab'">
+                <div class="flex items-center">
+                  <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
+                  <span class="ml-1 text-sm font-medium text-gray-700 md:ml-2 dark:text-gray-300">Labs</span>
+                </div>
+              </li>
               <li aria-current="page">
                 <div class="flex items-center">
                   <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
-                  <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">Plates</span>
+                  <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400" x-text="current ? current.title : (currentLab ? currentLab.title : '')"></span>
                 </div>
               </li>
             </ol>
           </nav>
-        </div>
-
-        <!-- Hero: adapted from the Pro marketing hero (illustration + default blocks) -->
-        <div class="grid gap-6 p-4 mb-4 bg-white rounded-lg shadow sm:p-6 xl:p-8 lg:grid-cols-12 lg:gap-8 dark:bg-gray-800">
-          <div class="self-center min-w-0 lg:col-span-7">
-            <p class="inline-flex flex-wrap items-center gap-2 p-1 pr-4 mb-5 text-sm text-gray-700 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-200">
-              <span class="px-3 py-1 text-xs font-semibold text-white rounded-full bg-primary-700" x-text="facts.plates + ' plates'"></span>
-              <span class="font-medium">Seeded, measured, open source</span>
-            </p>
-            <h1 id="gallery-title" class="mb-4 text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl xl:text-5xl dark:text-white">Algorithms and physics, drawn as glyphs</h1>
-            <p class="max-w-2xl mb-6 text-base text-gray-500 md:text-lg lg:mb-8 dark:text-gray-400">
-              <span x-text="facts.plates"></span> live simulations across <span x-text="topics"></span>, from sorting and graph search to chaos, waves and gravity in 2D and 3D. Every knob is exposed, every readout is measured, and a link redraws the picture.
-            </p>
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <button type="button" @click="openRandom()" class="inline-flex items-center justify-center px-5 py-3 text-base font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">
-                <svg class="w-5 h-5 mr-2 -ml-1" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"></circle></svg>
-                Open a random plate
+          <div class="items-center justify-between gap-4 xl:flex">
+            <h1 id="plate-title" class="text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white">
+              <span x-show="current" class="mr-2 font-mono text-gray-500 plate-no dark:text-gray-400" x-text="current ? 'PL. ' + current.no : ''"></span><span x-text="current ? current.title : (currentLab ? currentLab.title : '')"></span>
+              <span x-show="current && current.status === 'planned'" class="ml-2 align-middle bg-gray-200 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-200">Planned</span>
+            </h1>
+            <div x-show="!(current && current.status === 'planned')" class="flex flex-wrap items-center gap-2 mt-4 xl:mt-0">
+              <button type="button" @click="togglePause()" class="inline-flex items-center justify-center px-3 py-2.5 text-sm font-medium text-center text-white rounded-lg min-w-24 bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">
+                <svg x-show="!paused" class="w-4 h-4 mr-2" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4h3v12H6zM11 4h3v12h-3z"></path></svg>
+                <svg x-show="paused" class="w-4 h-4 mr-2" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z"></path></svg>
+                <span x-text="paused ? 'Play' : 'Pause'"></span>
               </button>
-              <a href="https://github.com/korczis/algoglyph" class="inline-flex items-center justify-center px-5 py-3 text-base font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 dark:text-white dark:bg-gray-800 dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-700">
-                <svg class="w-5 h-5 mr-2 -ml-1" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.48 2 2 6.58 2 12.23c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.35 1.12 2.92.85.09-.66.35-1.12.64-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.4 9.4 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.64 1.03 2.76 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9l-.01 2.81c0 .27.18.6.69.49A10.1 10.1 0 0 0 22 12.23C22 6.58 17.52 2 12 2Z"></path></svg>
-                Source on GitHub
-              </a>
-            </div>
-            <button type="button" @click="toPlates()" class="inline-flex items-center mt-4 text-sm font-medium rounded-lg text-primary-700 hover:underline dark:text-primary-400">
-              Browse all <span class="mx-1" x-text="facts.plates"></span> plates
-              <svg class="w-4 h-4 ml-1" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m0 0-5-5m5 5 5-5"></path></svg>
-            </button>
-          </div>
-          <div class="min-w-0 lg:col-span-5 lg:self-center">
-            <div class="grid grid-cols-3 gap-2" aria-hidden="true">
-              <template x-for="p in mosaic" :key="'mosaic-' + p.id">
-                <div class="overflow-hidden rounded-lg aspect-[8/5] bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700">
-                  <img x-show="thumbs[p.id]" :src="thumbs[p.id]" alt="" width="400" height="250" class="object-cover w-full h-full">
-                </div>
-              </template>
-            </div>
-            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Previews render in your browser from each plate's own code, one fixed seed per plate.</p>
-          </div>
-        </div>
-
-        <!-- The collection in numbers: Pro KPI cards, every value derived from the registry -->
-        <section class="mb-4" aria-labelledby="facts-title">
-          <h2 id="facts-title" class="sr-only">The collection in numbers</h2>
-          <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
-            <template x-for="f in factCards" :key="f.key">
-              <div class="flex flex-col min-w-0 p-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
-                <dt class="order-2 mt-1 text-base font-normal text-gray-500 dark:text-gray-400" x-text="f.label"></dt>
-                <dd class="order-1 text-2xl font-bold leading-none text-gray-900 sm:text-3xl dark:text-white" x-text="f.value"></dd>
-                <dd class="order-3 mt-2 text-xs text-gray-500 dark:text-gray-400" x-text="f.detail"></dd>
+              <button type="button" @click="step()" class="inline-flex items-center px-3 py-2.5 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">Step</button>
+              <button type="button" @click="reseed()" class="inline-flex items-center px-3 py-2.5 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
+                <svg class="w-4 h-4 mr-2" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5.6 15A7 7 0 0018.4 15M18.4 9A7 7 0 005.6 9"></path></svg>
+                Reseed
+              </button>
+              <button type="button" @click="resetParams()" class="inline-flex items-center px-3 py-2.5 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">Defaults</button>
+              <button type="button" @click="save()" class="inline-flex items-center px-3 py-2.5 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
+                <svg class="w-4 h-4 mr-2" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"></path></svg>
+                PNG
+              </button>
+              <button type="button" @click="fullscreen()" class="inline-flex items-center p-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
+                <span class="sr-only">Full screen</span>
+                <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+              </button>
+              <div x-show="view === 'plate'" class="inline-flex rounded-lg shadow-sm" role="group" aria-label="Previous and next live plate">
+                <a :href="'#/p/' + neighbour(-1).id" class="inline-flex items-center p-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-s-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                  <span class="sr-only" x-text="'Previous: ' + neighbour(-1).title"></span>
+                  <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"></path></svg>
+                </a>
+                <a :href="'#/p/' + neighbour(1).id" class="inline-flex items-center p-2.5 text-sm font-medium text-gray-900 bg-white border-t border-b border-r border-gray-300 rounded-e-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                  <span class="sr-only" x-text="'Next: ' + neighbour(1).title"></span>
+                  <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
+                </a>
               </div>
-            </template>
-          </dl>
-        </section>
-
-        <!-- How it works: adapted from the Pro marketing feature section (default block) -->
-        <section class="p-4 mb-6 bg-white rounded-lg shadow sm:p-6 xl:p-8 dark:bg-gray-800" aria-labelledby="how-title">
-          <div class="max-w-screen-md mb-6 lg:mb-8">
-            <h2 id="how-title" class="mb-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl dark:text-white">How it works</h2>
-            <p class="text-base text-gray-500 sm:text-lg dark:text-gray-400">Each plate is art and also a claim about what an algorithm or an integrator does. Four habits keep the claim honest.</p>
-          </div>
-          <div class="grid gap-8 md:grid-cols-2 md:gap-10 xl:grid-cols-4">
-            <div>
-              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
-                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"></path></svg>
-              </div>
-              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Seeded</h3>
-              <p class="text-gray-500 dark:text-gray-400">A plate draws its randomness only from a generator seeded by the URL. With the same parameters, a shared link redraws the same picture; Reseed draws a new one.</p>
-            </div>
-            <div>
-              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
-                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"></path></svg>
-              </div>
-              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Measured</h3>
-              <p class="text-gray-500 dark:text-gray-400">Every readout is computed from the running simulation's own state: comparisons and writes as performed, frontier sizes, energies and their drift. No constant poses as a measurement.</p>
-            </div>
-            <div>
-              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
-                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z"></path></svg>
-              </div>
-              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Tested</h3>
-              <p class="text-gray-500 dark:text-gray-400">Algorithm cores and integrators are unit-tested against independent references: node:crypto for SHA-256, brute-force sums for Barnes–Hut, Ising and Voronoi, known sequences for automata and Collatz. <a href="https://github.com/korczis/algoglyph/tree/main/test" class="font-medium underline text-primary-700 hover:no-underline dark:text-primary-400">Read the tests</a></p>
-            </div>
-            <div>
-              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
-                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"></path></svg>
-              </div>
-              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Gated</h3>
-              <p class="text-gray-500 dark:text-gray-400">Before Pages deploys, a real-browser gate mounts every plate and checks that it draws and reports, runs axe-core for WCAG 2.2 AA, and allows no console error or overflow, in light and dark, on phone and desktop. <a href="https://github.com/korczis/algoglyph/blob/main/scripts/audit-ui.mjs" class="font-medium underline text-primary-700 hover:no-underline dark:text-primary-400">Read the gate</a></p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Plates: toolbar (search on phones, category filter) above the grid -->
-        <div class="items-end justify-between gap-4 mb-4 sm:flex">
-          <div>
-            <h2 id="plates-title" class="text-xl font-semibold text-gray-900 scroll-mt-20 sm:text-2xl dark:text-white">Plates</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" aria-live="polite">Showing <span x-text="shown().length"></span> of <span x-text="plates.length"></span><span x-show="query.trim()">, matching “<span x-text="query.trim()"></span>”</span></p>
-          </div>
-          <div class="flex flex-col gap-3 mt-4 sm:mt-0 sm:items-end">
-            <div class="w-full md:hidden sm:w-64">
-              <label for="gallery-search" class="sr-only">Search plates</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"></path></svg>
-                </div>
-                <input type="search" id="gallery-search" x-model="query" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Search plates, e.g. chaos, BFS">
-              </div>
-            </div>
-            <div class="flex w-full rounded-lg shadow-sm sm:w-auto" role="group" aria-label="Filter by category">
-              <button type="button" @click="filter = 'all'" :aria-pressed="filter === 'all'" class="grow px-2 py-2 text-xs font-medium border border-gray-200 sm:grow-0 sm:px-4 sm:text-sm rounded-s-lg hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:text-white dark:hover:bg-gray-700" :class="filter === 'all' ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300'">All</button>
-              <template x-for="(cat, i) in categories" :key="cat.id">
-                <button type="button" @click="filter = cat.id" :aria-pressed="filter === cat.id" class="grow px-2 py-2 text-xs font-medium border-t border-b border-r border-gray-200 sm:grow-0 sm:px-4 sm:text-sm hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:text-white dark:hover:bg-gray-700" :class="[filter === cat.id ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300', i === categories.length - 1 ? 'rounded-e-lg' : '']" x-text="cat.label"></button>
-              </template>
             </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-          <template x-for="p in shown()" :key="p.id">
-            <a :href="'#/p/' + p.id" class="block overflow-hidden transition bg-white rounded-lg shadow group hover:shadow-lg dark:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">
-              <div class="relative overflow-hidden aspect-[8/5] bg-gray-100 dark:bg-gray-950">
-                <img x-show="thumbs[p.id]" :src="thumbs[p.id]" alt="" width="400" height="250" class="object-cover w-full h-full transition duration-500 motion-safe:group-hover:scale-[1.03]">
-                <div x-show="!thumbs[p.id]" class="flex items-center justify-center w-full h-full">
-                  <span class="font-mono text-xs text-gray-600 dark:text-gray-400">rendering…</span>
-                </div>
-                <span class="absolute top-3 left-3 px-2 py-0.5 font-mono text-xs font-medium rounded-md plate-no bg-gray-900/70 text-white backdrop-blur" x-text="'PL. ' + p.no"></span>
-                <span x-show="p.mode === 'webgl'" class="absolute top-3 right-3 bg-primary-700 text-white text-xs font-semibold px-2 py-0.5 rounded-md">3D</span>
+        <!-- A planned entry: what it will be, where it is filed, what it cites -->
+        <template x-if="current && current.status === 'planned'">
+          <div class="p-4 bg-white rounded-lg shadow sm:p-6 xl:p-8 dark:bg-gray-800">
+            <div class="flex items-center p-4 mb-6 text-sm text-gray-800 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600" role="status">
+              <span>This algorithm is catalogued and not yet running. It is planned for the <span class="font-semibold" x-text="current.engine === 'custom' ? 'bespoke plates' : current.engine + ' engine'"></span>.</span>
+            </div>
+            <div class="grid gap-6 lg:grid-cols-3">
+              <div class="space-y-3 text-base text-gray-500 lg:col-span-2 dark:text-gray-400">
+                <p class="text-lg text-gray-900 dark:text-white" x-text="current.summary"></p>
+                <template x-for="(n, i) in current.notes" :key="'pn' + i"><p x-text="n"></p></template>
+                <p x-show="current.motivation"><span class="font-semibold text-gray-900 dark:text-white">Why it is here:</span> <span x-text="current.motivation"></span></p>
               </div>
-              <div class="p-4 sm:p-6">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs font-medium tracking-wide uppercase text-primary-700 dark:text-primary-500" x-text="label(p.category)"></span>
-                  <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="p.complexity"></span>
+              <dl class="space-y-4 text-sm">
+                <div x-show="current.complexity">
+                  <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Cost</dt>
+                  <dd class="font-mono text-gray-900 dark:text-white" x-text="current.complexity"></dd>
                 </div>
-                <h3 class="mb-2 text-xl font-bold leading-tight text-gray-900 dark:text-white" x-text="p.title"></h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="p.summary"></p>
-                <div class="flex flex-wrap gap-1.5 mt-4">
-                  <template x-for="tag in p.tags" :key="tag">
-                    <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-300" x-text="tag"></span>
+                <div x-show="current.sources.length">
+                  <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Sources</dt>
+                  <template x-for="s in current.sources" :key="'ps' + s.id">
+                    <dd class="text-gray-900 dark:text-white"><span x-text="sourceAuthor(s.id) ? sourceAuthor(s.id) + ', ' : ''"></span><cite x-text="sourceTitle(s.id)"></cite><span x-show="s.ref" x-text="s.ref ? ' — ' + s.ref : ''"></span></dd>
                   </template>
                 </div>
-              </div>
-            </a>
-          </template>
-        </div>
-        <div x-show="shown().length === 0" x-cloak class="p-8 mt-4 text-center bg-white rounded-lg shadow dark:bg-gray-800">
-          <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">No plate matches “<span x-text="query"></span>”</h3>
-          <p class="mb-4 text-gray-500 dark:text-gray-400">Search looks in titles, summaries and tags.</p>
-          <button type="button" @click="query = ''; filter = 'all'" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">Show all plates</button>
-        </div>
-      </section>
-
-      <!-- Plate -->
-      <section x-show="view === 'plate'" x-cloak aria-labelledby="plate-title">
-        <template x-if="current">
-          <div>
-            <div class="mb-4">
-              <nav class="flex mb-5" aria-label="Breadcrumb">
-                <ol class="inline-flex items-center space-x-1 md:space-x-2">
-                  <li class="inline-flex items-center">
-                    <a href="#/" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
-                      <svg class="w-5 h-5 mr-2.5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
-                      algoglyph
-                    </a>
-                  </li>
-                  <li>
-                    <div class="flex items-center">
-                      <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
-                      <a href="#/" @click="filter = current.category" class="ml-1 text-sm font-medium text-gray-700 hover:text-gray-900 md:ml-2 dark:text-gray-300 dark:hover:text-white" x-text="label(current.category)"></a>
-                    </div>
-                  </li>
-                  <li aria-current="page">
-                    <div class="flex items-center">
-                      <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
-                      <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400" x-text="current.title"></span>
-                    </div>
-                  </li>
-                </ol>
-              </nav>
-              <div class="items-center justify-between gap-4 xl:flex">
-                <h1 id="plate-title" class="text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white">
-                  <span class="mr-2 font-mono text-gray-500 plate-no dark:text-gray-400" x-text="'PL. ' + current.no"></span><span x-text="current.title"></span>
-                </h1>
-                <div class="flex flex-wrap items-center gap-2 mt-4 xl:mt-0">
-                  <button type="button" @click="togglePause()" class="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-center text-white rounded-lg min-w-24 bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">
-                    <svg x-show="!paused" class="w-4 h-4 mr-2" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4h3v12H6zM11 4h3v12h-3z"></path></svg>
-                    <svg x-show="paused" class="w-4 h-4 mr-2" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z"></path></svg>
-                    <span x-text="paused ? 'Play' : 'Pause'"></span>
-                  </button>
-                  <button type="button" @click="step()" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">Step</button>
-                  <button type="button" @click="reseed()" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
-                    <svg class="w-4 h-4 mr-2" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5.6 15A7 7 0 0018.4 15M18.4 9A7 7 0 005.6 9"></path></svg>
-                    Reseed
-                  </button>
-                  <button type="button" @click="resetParams()" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">Defaults</button>
-                  <button type="button" @click="save()" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
-                    <svg class="w-4 h-4 mr-2" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"></path></svg>
-                    PNG
-                  </button>
-                  <button type="button" @click="fullscreen()" class="inline-flex items-center p-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-primary-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700">
-                    <span class="sr-only">Full screen</span>
-                    <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
-                  </button>
-                  <div class="inline-flex rounded-lg shadow-sm" role="group" aria-label="Previous and next plate">
-                    <a :href="'#/p/' + neighbour(-1).id" class="inline-flex items-center p-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-s-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
-                      <span class="sr-only" x-text="'Previous: ' + neighbour(-1).title"></span>
-                      <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"></path></svg>
-                    </a>
-                    <a :href="'#/p/' + neighbour(1).id" class="inline-flex items-center p-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-r border-gray-300 rounded-e-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
-                      <span class="sr-only" x-text="'Next: ' + neighbour(1).title"></span>
-                      <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
-                    </a>
-                  </div>
+                <div>
+                  <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Tags</dt>
+                  <dd class="flex flex-wrap gap-1.5 mt-1">
+                    <template x-for="tag in current.tags" :key="'pt' + tag"><span class="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-primary-900 dark:text-primary-300" x-text="tag"></span></template>
+                  </dd>
                 </div>
-              </div>
+              </dl>
             </div>
           </div>
         </template>
 
-        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <!-- A running plate or lab -->
+        <div x-show="!(current && current.status === 'planned')" class="grid grid-cols-1 gap-4 xl:grid-cols-3">
           <div class="xl:col-span-2">
             <div id="stage-card" class="overflow-hidden bg-white rounded-lg shadow dark:bg-gray-800">
               <div id="stage" class="w-full stage bg-gray-950"></div>
               <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="current ? current.summary : ''"></p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="current ? current.summary : (currentLab ? currentLab.summary : '')"></p>
                 <span class="inline-flex items-center gap-1.5 font-mono text-xs" :class="running ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'">
                   <span class="w-2 h-2 rounded-full" :class="running ? 'bg-green-500' : 'bg-gray-400'"></span>
-                  <span x-text="running ? 'running' : (paused ? 'paused' : 'off screen')"></span>
+                  <span x-text="loading ? 'loading' : (error ? 'error' : (running ? 'running' : (paused ? 'paused' : 'off screen')))"></span>
                 </span>
               </div>
             </div>
+            <div x-show="error" x-cloak class="p-4 mt-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert" x-text="'This could not start: ' + error"></div>
             <div x-show="reducedMotion && paused" x-cloak class="flex items-center p-4 mt-4 text-sm text-gray-800 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600" role="status">
               Your system asks for reduced motion, so plates start paused. Press Play or Step to run it.
             </div>
@@ -417,62 +507,64 @@
 
             <div class="p-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
               <h2 class="mb-4 text-xl font-bold leading-none text-gray-900 dark:text-white">Parameters</h2>
-              <template x-if="current">
-                <div class="space-y-5">
-                  <template x-for="d in current.params" :key="current.id + d.key">
-                    <div>
-                      <template x-if="d.kind === 'range'">
-                        <div>
-                          <div class="flex items-center justify-between mb-2">
-                            <label :for="'param-' + d.key" class="text-sm font-medium text-gray-900 dark:text-white">
-                              <span x-text="d.label"></span>
-                              <span x-show="d.rebuild" class="ml-1 bg-gray-100 text-gray-800 text-[10px] font-medium px-1.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">restarts</span>
-                            </label>
-                            <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="fmt(params[d.key], d)"></span>
-                          </div>
-                          <input type="range" :id="'param-' + d.key" :min="d.min" :max="d.max" :step="d.step" x-model.number="params[d.key]" @change="changed(d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
-                        </div>
-                      </template>
-                      <template x-if="d.kind === 'select'">
-                        <div>
-                          <label :for="'param-' + d.key" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              <div class="space-y-5">
+                <template x-for="d in defs" :key="currentId + d.key">
+                  <div>
+                    <template x-if="d.kind === 'range'">
+                      <div>
+                        <div class="flex items-center justify-between mb-2">
+                          <label :for="'param-' + d.key" class="text-sm font-medium text-gray-900 dark:text-white">
                             <span x-text="d.label"></span>
                             <span x-show="d.rebuild" class="ml-1 bg-gray-100 text-gray-800 text-[10px] font-medium px-1.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">restarts</span>
                           </label>
-                          <select :id="'param-' + d.key" x-model="params[d.key]" @change="changed(d)" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500">
-                            <template x-for="o in d.options" :key="o.value">
-                              <option :value="o.value" x-text="o.label" :selected="o.value === params[d.key]"></option>
-                            </template>
-                          </select>
+                          <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="fmt(params[d.key], d)"></span>
                         </div>
-                      </template>
-                      <template x-if="d.kind === 'toggle'">
-                        <label class="inline-flex items-center cursor-pointer">
-                          <input type="checkbox" class="sr-only peer" x-model="params[d.key]" @change="changed(d)">
-                          <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600 dark:peer-checked:bg-primary-600"></div>
-                          <span class="text-sm font-medium text-gray-900 ms-3 dark:text-white" x-text="d.label"></span>
+                        <input type="range" :id="'param-' + d.key" :min="d.min" :max="d.max" :step="d.step" x-model.number="params[d.key]" @change="changed(d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                      </div>
+                    </template>
+                    <template x-if="d.kind === 'select'">
+                      <div>
+                        <label :for="'param-' + d.key" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                          <span x-text="d.label"></span>
+                          <span x-show="d.rebuild" class="ml-1 bg-gray-100 text-gray-800 text-[10px] font-medium px-1.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">restarts</span>
                         </label>
-                      </template>
-                    </div>
-                  </template>
-                </div>
-              </template>
+                        <select :id="'param-' + d.key" x-model="params[d.key]" @change="changed(d)" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500">
+                          <template x-for="o in d.options" :key="o.value">
+                            <option :value="o.value" x-text="o.label" :selected="o.value === params[d.key]"></option>
+                          </template>
+                        </select>
+                      </div>
+                    </template>
+                    <template x-if="d.kind === 'toggle'">
+                      <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer" x-model="params[d.key]" @change="changed(d)">
+                        <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600 dark:peer-checked:bg-primary-600"></div>
+                        <span class="text-sm font-medium text-gray-900 ms-3 dark:text-white" x-text="d.label"></span>
+                      </label>
+                    </template>
+                  </div>
+                </template>
+              </div>
             </div>
           </div>
 
-          <div class="p-4 bg-white rounded-lg shadow sm:p-6 xl:p-8 dark:bg-gray-800 xl:col-span-3">
-            <template x-if="current">
+          <!-- How to read a plate -->
+          <template x-if="current">
+            <div class="p-4 bg-white rounded-lg shadow sm:p-6 xl:p-8 dark:bg-gray-800 xl:col-span-3">
               <div class="grid gap-6 lg:grid-cols-3">
                 <div class="lg:col-span-2">
                   <h2 class="mb-4 text-xl font-bold leading-none text-gray-900 dark:text-white">How to read it</h2>
                   <div class="space-y-3 text-base text-gray-500 dark:text-gray-400">
-                    <template x-for="(n, i) in current.notes" :key="i">
-                      <p x-text="n"></p>
+                    <template x-for="(n, i) in current.notes" :key="'n' + i"><p x-text="n"></p></template>
+                  </div>
+                  <div x-show="current.labs.length" class="flex flex-wrap gap-2 mt-5">
+                    <template x-for="l in current.labs" :key="'cl' + l">
+                      <a :href="'#/lab/' + l" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-400 dark:hover:bg-gray-600">Compare it in the lab</a>
                     </template>
                   </div>
                 </div>
                 <dl class="space-y-4 text-sm">
-                  <div>
+                  <div x-show="current.complexity">
                     <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Cost</dt>
                     <dd class="font-mono text-gray-900 dark:text-white" x-text="current.complexity"></dd>
                   </div>
@@ -480,22 +572,35 @@
                     <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Interaction</dt>
                     <dd class="text-gray-900 dark:text-white" x-text="current.interaction"></dd>
                   </div>
-                  <div>
-                    <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Renderer</dt>
-                    <dd class="text-gray-900 dark:text-white" x-text="current.mode === 'webgl' ? 'p5.js WEBGL (3D)' : 'p5.js 2D canvas'"></dd>
+                  <div x-show="current.sources.length">
+                    <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Sources</dt>
+                    <template x-for="s in current.sources" :key="'s' + s.id">
+                      <dd class="text-gray-900 dark:text-white"><span x-text="sourceAuthor(s.id) ? sourceAuthor(s.id) + ', ' : ''"></span><cite x-text="sourceTitle(s.id)"></cite><span x-show="s.ref" x-text="s.ref ? ' — ' + s.ref : ''"></span></dd>
+                    </template>
                   </div>
                   <div>
                     <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Tags</dt>
                     <dd class="flex flex-wrap gap-1.5 mt-1">
-                      <template x-for="tag in current.tags" :key="tag">
-                        <span class="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-primary-900 dark:text-primary-300" x-text="tag"></span>
-                      </template>
+                      <template x-for="tag in current.tags" :key="tag"><span class="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-primary-900 dark:text-primary-300" x-text="tag"></span></template>
                     </dd>
                   </div>
                 </dl>
               </div>
-            </template>
-          </div>
+            </div>
+          </template>
+
+          <!-- What a lab compares -->
+          <template x-if="currentLab">
+            <div class="p-4 bg-white rounded-lg shadow sm:p-6 xl:p-8 dark:bg-gray-800 xl:col-span-3">
+              <h2 class="mb-2 text-xl font-bold leading-none text-gray-900 dark:text-white">In this lab</h2>
+              <p class="mb-4 text-base text-gray-500 dark:text-gray-400">Each pane runs one algorithm on the same keys with the same operation budget per frame; the number on a pane is the order it finished in. The chart below the panes is measured, one run per size, and the readout's growth exponent is the least-squares slope of that run on a log–log scale.</p>
+              <ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                <template x-for="e in labEntries(currentLab)" :key="'le' + e.id">
+                  <li><a :href="'#/p/' + e.id" class="flex items-center justify-between p-3 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"><span class="font-medium text-gray-900 dark:text-white" x-text="e.title"></span><span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="e.status === 'live' ? (shelfOf(e) ? shelfOf(e).title : '') : 'planned'"></span></a></li>
+                </template>
+              </ul>
+            </div>
+          </template>
         </div>
       </section>
     </main>
@@ -506,6 +611,7 @@
       </p>
       <ul class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
         <li>p5.js · Alpine.js · Flowbite</li>
+        <li><a href="https://github.com/korczis/algoglyph" class="hover:underline hover:text-gray-900 dark:hover:text-white">Source</a></li>
         <li><a href="https://majordomus.dev" class="hover:underline hover:text-gray-900 dark:hover:text-white">Supervised by Majordomus</a></li>
       </ul>
     </footer>

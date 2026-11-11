@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { rk4Lorenz, lorenz } from '../src/plates/lorenz/plate';
-import { accelerate, bodies, energy as nEnergy, leapfrog, momentum } from '../src/plates/nbody/gravity';
-import { energy, rk4, type Pendulum, type State } from '../src/plates/pendulum/dynamics';
+import { rk4Lorenz, lorenz } from '../src/plates/lorenz-attractor/plate';
+import { accelerate, bodies, energy as nEnergy, leapfrog, momentum } from '../src/plates/n-body/gravity';
+import { energy, rk4, type Pendulum, type State } from '../src/plates/double-pendulum/dynamics';
 
 describe('double pendulum', () => {
   const k: Pendulum = { m1: 1, m2: 1, l1: 1, l2: 1, g: 9.81 };

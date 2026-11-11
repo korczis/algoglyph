@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { dft, evaluate, resample, rmsError } from '../src/plates/fourier/dft';
-import { shape } from '../src/plates/fourier/plate';
+import { dft, evaluate, resample, rmsError } from '../src/plates/fourier-epicycles/dft';
+import { shape } from '../src/plates/fourier-epicycles/plate';
 import { mulberry32 } from '../src/core/random';
 
 describe('fourier', () => {

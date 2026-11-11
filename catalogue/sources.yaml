@@ -1,0 +1,56 @@
+# Works and practice areas entries cite. A citation names the work and, where useful, the part
+# of it; no text or code is copied from any of them (ADR 0004 §8).
+version: 1
+
+sources:
+  - id: sedgewick-aic
+    title: Algorithms in C, Parts 1–5 (third edition)
+    author: Robert Sedgewick
+    publisher: Addison-Wesley
+    year: 1998
+    kind: book
+  - id: sedgewick-aic-1990
+    title: Algorithms in C (first edition, one volume)
+    author: Robert Sedgewick
+    publisher: Addison-Wesley
+    year: 1990
+    kind: book
+  - id: knuth-taocp-3
+    title: The Art of Computer Programming, Volume 3, Sorting and Searching
+    author: Donald E. Knuth
+    publisher: Addison-Wesley
+    year: 1998
+    kind: book
+  - id: pocorgtfo
+    title: PoC||GTFO
+    author: Manul Laphroaig (ed.)
+    publisher: No Starch Press
+    year: 2017
+    kind: book
+  - id: heuer-psychology
+    title: Psychology of Intelligence Analysis
+    author: Richards J. Heuer Jr.
+    publisher: Center for the Study of Intelligence
+    year: 1999
+    kind: book
+  - id: practice-investigation
+    title: Investigation, due diligence and link analysis
+    kind: practice
+  - id: practice-entity-resolution
+    title: Entity resolution across public registries
+    kind: practice
+  - id: practice-decisions
+    title: Decision support under uncertainty
+    kind: practice
+  - id: practice-signals
+    title: Acoustic measurement and synthesis
+    kind: practice
+  - id: practice-systems
+    title: Coordinating many workers and machines
+    kind: practice
+  - id: practice-geo
+    title: Crisis maps and geospatial analysis
+    kind: practice
+  - id: practice-logistics
+    title: Warehouse logistics
+    kind: practice

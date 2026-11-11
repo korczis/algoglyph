@@ -216,6 +216,14 @@ sources:
     pathspec: ':(glob)docs/**/*.md'
     required: false
 
+  # The catalogue (ADR 0004): one entry per algorithm, the single description of the
+  # collection, searchable through the index like every other document.
+  - id: catalogue
+    kind: document
+    discovery: vcs
+    pathspec: ':(glob)catalogue/entries/*.md'
+    required: false
+
   - id: readme
     kind: document
     discovery: vcs

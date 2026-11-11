@@ -1,0 +1,142 @@
+# The classification of the collection: a tree of any depth, in display order. An entry names
+# one leaf by its path (`wing/shelf`, or deeper); every count, page, breadcrumb, navigation
+# level and plate number is derived from this tree and the entries, never written by hand.
+# Each node: id (URL-safe, unique among its siblings), title, summary; children optional.
+version: 1
+
+nodes:
+  - id: foundations
+    title: Foundations
+    summary: The building blocks every other plate stands on — connectivity, recursion, lists, stacks and the arithmetic of cost.
+    children:
+      - { id: connectivity, title: Union-find, summary: Dynamic connectivity, from quick-find to path compression. }
+      - { id: structures, title: Elementary structures, summary: Arrays, linked lists, stacks and queues doing their one job. }
+      - { id: recursion, title: Recursion and divide and conquer, summary: Problems that shrink into copies of themselves. }
+      - { id: dynamic-programming, title: Dynamic programming, summary: Overlapping subproblems solved once and remembered. }
+      - { id: exhaustive, title: Exhaustive search, summary: Enumeration, backtracking and pruning of a search tree. }
+
+  - id: sorting
+    title: Sorting and selection
+    summary: Putting things in order, and what each method costs in comparisons, moves and memory.
+    children:
+      - { id: overview, title: Overviews, summary: Many sorts on one canvas. }
+      - { id: elementary, title: Elementary sorts, summary: Selection, insertion, bubble and Shell's diminishing increments. }
+      - { id: quicksort, title: Quicksort, summary: Partitioning, and the variants that tame its worst case and its duplicates. }
+      - { id: mergesort, title: Mergesort, summary: Merging sorted runs, top-down, bottom-up and natural. }
+      - { id: priority-queues, title: Priority queues and heapsort, summary: Heaps, their invariants and the sort they give for free. }
+      - { id: radix, title: Radix sorts, summary: Sorting by digits instead of by comparisons. }
+      - { id: networks, title: Sorting networks and external sorts, summary: Fixed comparator schedules, and sorting what does not fit in memory. }
+      - { id: selection, title: Selection, summary: The k-th smallest without sorting everything. }
+
+  - id: searching
+    title: Searching and symbol tables
+    summary: Finding a key among many, and the structures that make it fast.
+    children:
+      - { id: elementary, title: Elementary search, summary: Sequential, binary and interpolation search. }
+      - { id: binary-trees, title: Binary search trees, summary: Ordered trees, their traversals, rotations and joins. }
+      - { id: balanced-trees, title: Balanced trees, summary: Trees that stay shallow by randomness, splaying or colour. }
+      - { id: hashing, title: Hashing, summary: Keys turned into addresses, and what happens when two collide. }
+      - { id: radix-search, title: Radix search, summary: Searching by the bits and characters of the key. }
+      - { id: external, title: External search, summary: Structures shaped for pages on a disk. }
+
+  - id: strings
+    title: Strings and text
+    summary: Searching, matching, comparing, compressing and enciphering text.
+    children:
+      - { id: search, title: String search, summary: Finding a pattern in a text. }
+      - { id: patterns, title: Patterns and parsing, summary: Regular expressions, automata and grammars. }
+      - { id: compression, title: Compression, summary: Saying the same thing in fewer bits. }
+      - { id: cryptology, title: Cryptology, summary: Ciphers, keystreams and check digits. }
+      - { id: similarity, title: Similarity and matching, summary: How alike two names or documents are, and which records are one entity. }
+      - { id: diff, title: Diff and merge, summary: The edits between versions, and combining two of them. }
+
+  - id: geometry
+    title: Geometry and space
+    summary: Points, lines and regions on the plane and on the globe.
+    children:
+      - { id: primitives, title: Geometric primitives, summary: Orientation, intersection and inclusion. }
+      - { id: hulls, title: Convex hulls, summary: The tightest convex fence around a point set. }
+      - { id: range, title: Range search and spatial indexes, summary: Every point in a region, without looking at all of them. }
+      - { id: intersection, title: Intersection, summary: Every crossing among many segments by sweeping a line. }
+      - { id: proximity, title: Proximity, summary: Closest pairs, nearest neighbours and the regions they own. }
+      - { id: clustering, title: Clustering, summary: Groups found in where the points fall. }
+      - { id: geodesy, title: Maps and the globe, summary: Distances on a sphere and projections onto a sheet. }
+
+  - id: graphs
+    title: Graphs and networks
+    summary: Vertices and edges — searched, connected, spanned, routed, measured and laid out.
+    children:
+      - { id: search, title: Graph search, summary: Depth-first and breadth-first exploration. }
+      - { id: connectivity, title: Connectivity, summary: Components, bridges, articulation points and tours. }
+      - { id: digraphs, title: Digraphs and DAGs, summary: Direction, reachability, order and strong components. }
+      - { id: spanning-trees, title: Minimum spanning trees, summary: The cheapest way to connect everything. }
+      - { id: shortest-paths, title: Shortest paths, summary: The cheapest way from here to there. }
+      - { id: flows, title: Flows and matching, summary: Capacity, cuts and pairings. }
+      - { id: analysis, title: Network analysis, summary: Who is central, who bridges, which groups exist. }
+      - { id: layout, title: Graph layout, summary: Turning a graph into a picture that can be read. }
+
+  - id: numerics
+    title: Numbers and computation
+    summary: Random numbers, arithmetic, linear algebra, curve fitting, integration and number theory.
+    children:
+      - { id: random, title: Random numbers, summary: Deterministic sequences that pass for chance. }
+      - { id: arithmetic, title: Arithmetic, summary: Polynomials, big products and fast matrix multiplication. }
+      - { id: linear-algebra, title: Linear algebra, summary: Elimination, decomposition and principal axes. }
+      - { id: fitting, title: Curve fitting, summary: Interpolation, splines and least squares. }
+      - { id: integration, title: Integration, summary: Areas under curves, adaptively. }
+      - { id: optimisation, title: Optimisation, summary: Linear programs and heuristics that climb. }
+      - { id: number-theory, title: Number theory, summary: Integers, primes and their sequences. }
+      - { id: fractals, title: Fractals, summary: Sets whose detail never runs out. }
+
+  - id: signals
+    title: Signals and sound
+    summary: Transforms, synthesis and measurement of waves in time and frequency.
+    children:
+      - { id: transforms, title: Transforms, summary: From time to frequency and back, at one scale or many. }
+      - { id: synthesis, title: Synthesis, summary: Building sound from oscillators, operators and noise. }
+      - { id: filters, title: Filters, summary: Shaping a spectrum with poles and zeros. }
+      - { id: measurement, title: Measurement, summary: Responses, alignment and pitch, measured from captures. }
+      - { id: radio, title: Radio, summary: Decoding what travels through the air. }
+
+  - id: dynamics
+    title: Dynamics and complexity
+    summary: Chaos, synchrony, emergence and the analysis of trajectories.
+    children:
+      - { id: chaos, title: Chaos, summary: Deterministic systems that forget where they started. }
+      - { id: time-series, title: Time-series analysis, summary: Reconstructing and measuring a system from one observed signal. }
+      - { id: change, title: Change and drift, summary: Noticing that a process is no longer what it was. }
+      - { id: synchrony, title: Synchrony, summary: Oscillators that pull each other into step. }
+      - { id: collective, title: Collective motion, summary: Simple local rules, flocks and crowds. }
+      - { id: automata, title: Cellular automata, summary: Grids that rewrite themselves by a local rule. }
+      - { id: patterns, title: Pattern formation, summary: Structure out of reaction and diffusion. }
+
+  - id: physics
+    title: Physics
+    summary: Mechanics, gravitation, waves, fluids and statistical physics, integrated honestly.
+    children:
+      - { id: mechanics, title: Mechanics, summary: Pendulums, constraints and cloth. }
+      - { id: gravitation, title: Gravitation, summary: Many bodies and the trees that make them fast. }
+      - { id: waves, title: Waves, summary: The wave equation on a grid. }
+      - { id: fluids, title: Fluids, summary: Advection, diffusion and incompressibility. }
+      - { id: statistical, title: Statistical physics, summary: Spins, temperature and phase transitions. }
+
+  - id: inference
+    title: Evidence and decisions
+    summary: Belief, calibration, attribution, uncertainty and judgement under evidence.
+    children:
+      - { id: belief, title: Belief and evidence, summary: Combining evidence into belief, and competing hypotheses. }
+      - { id: calibration, title: Calibration, summary: Whether a stated confidence is the confidence earned. }
+      - { id: attribution, title: Attribution and sensitivity, summary: Which input drove the output, and how much. }
+      - { id: multi-criteria, title: Multi-criteria decisions, summary: Choosing when no option is best on every axis. }
+      - { id: uncertainty, title: Uncertainty and simulation, summary: Monte Carlo, bootstrap and the tails of distributions. }
+      - { id: opinion, title: Opinion and spread, summary: How beliefs and stories move through a population. }
+
+  - id: systems
+    title: Distributed systems
+    summary: Scheduling, time, replication, flow control and integrity across many workers.
+    children:
+      - { id: scheduling, title: Scheduling, summary: Order, waves, critical paths and packing work into capacity. }
+      - { id: time, title: Logical time, summary: Ordering events without a shared clock. }
+      - { id: replication, title: Replication and consensus, summary: Many copies that agree, eventually or by vote. }
+      - { id: flow-control, title: Flow control, summary: Rates, retries, breakers and locks that keep a system polite. }
+      - { id: integrity, title: Integrity, summary: Hashes, trees and chains that make tampering visible. }

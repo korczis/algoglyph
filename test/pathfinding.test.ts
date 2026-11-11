@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { Search, terrain } from '../src/plates/pathfinding/search';
+import { Search, terrain } from '../src/plates/pathfinding-terrain/search';
 
 function maps(count: number) {
   const out = [];

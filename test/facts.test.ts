@@ -1,35 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { factCards, facts, pick, prose, spread } from '../src/core/facts';
-import { CATEGORIES, PLATES } from '../src/plates';
+import { CATALOGUE } from '../src/core/catalogue';
 
 describe('landing-page facts', () => {
-  const f = facts(PLATES, CATEGORIES);
+  const f = facts(CATALOGUE);
 
-  it('counts the registry: categories partition the plates', () => {
-    expect(f.plates).toBe(PLATES.length);
-    expect(f.byCategory.reduce((s, c) => s + c.count, 0)).toBe(PLATES.length);
-    expect(f.byCategory.map((c) => c.id)).toEqual(CATEGORIES.map((c) => c.id));
-  });
-
-  it('counts 3D plates, distinct tags and parameters by an independent loop', () => {
-    let webgl = 0;
-    let params = 0;
+  it('counts the catalogue by an independent loop', () => {
+    let live = 0;
+    let planned = 0;
     const tags: string[] = [];
-    for (const p of PLATES) {
-      if (p.mode === 'webgl') webgl++;
-      params += p.params.length;
-      for (const t of p.tags) if (!tags.includes(t.toLowerCase())) tags.push(t.toLowerCase());
+    for (const e of CATALOGUE.entries) {
+      if (e.status === 'live') live++;
+      else planned++;
+      for (const t of e.tags) if (!tags.includes(t.toLowerCase())) tags.push(t.toLowerCase());
     }
-    expect(f.webgl).toBe(webgl);
-    expect(f.params).toBe(params);
+    expect(f.live).toBe(live);
+    expect(f.planned).toBe(planned);
     expect(f.tags).toBe(tags.length);
+    expect(f.wings).toBe(CATALOGUE.roots.length);
   });
 
-  it('builds one card per fact with the registry values', () => {
+  it('builds one card per fact with the catalogue values', () => {
     const cards = factCards(f);
-    expect(cards.map((c) => c.key)).toEqual(['plates', ...CATEGORIES.map((c) => c.id), 'webgl',
-      'tags']);
-    expect(cards[0].value).toBe(PLATES.length);
+    expect(cards.map((c) => c.key)).toEqual(['live', 'planned', 'wings', 'labs', 'tags']);
+    expect(cards[0].value).toBe(f.live);
   });
 
   it('joins words as prose', () => {

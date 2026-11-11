@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import {
   accelerate, bodies, QuadTree, treeAccel, type Bodies,
-} from '../src/plates/barneshut/quadtree';
+} from '../src/plates/barnes-hut/quadtree';
 
 const G = 1;
 const EPS = 0.01;

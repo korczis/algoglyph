@@ -82,6 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Catalogue (schema, references, live and code agree, derived plan current)
+        run: node scripts/catalogue.mjs --check
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Unit tests (algorithms against reference values, integrator invariants)

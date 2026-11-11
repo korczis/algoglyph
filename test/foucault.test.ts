@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EARTH_OMEGA, PrecessionMeter, rk4, type State } from '../src/plates/foucault/foucault';
+import { EARTH_OMEGA, PrecessionMeter, rk4, type State } from '../src/plates/foucault-pendulum/foucault';
 
 const W0 = (2 * Math.PI) / 2.4;
 const DT = 1 / 240;

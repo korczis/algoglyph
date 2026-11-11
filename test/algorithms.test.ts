@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { binary, neighbourhoods, next } from '../src/plates/automaton/rule';
-import { fnv1aWords, hex, popcount, sha256Words } from '../src/plates/avalanche/hash';
-import { collatz } from '../src/plates/collatz/plate';
-import { backtracker, flood, floodStep, grid, passages, path, prim } from '../src/plates/maze/maze';
-import { ALGORITHMS, isSorted, type Counter } from '../src/plates/sorting/algorithms';
-import { label } from '../src/plates/voronoi/plate';
+import { binary, neighbourhoods, next } from '../src/plates/rule-weaver/rule';
+import { fnv1aWords, hex, popcount, sha256Words } from '../src/plates/hash-avalanche/hash';
+import { collatz } from '../src/plates/collatz-coral/plate';
+import { backtracker, flood, floodStep, grid, passages, path, prim } from '../src/plates/maze-flood/maze';
+import { ALGORITHMS, isSorted, type Counter } from '../src/plates/sort-tapestry/algorithms';
+import { label } from '../src/plates/voronoi-relax/plate';
 import { mulberry32, shuffle } from '../src/core/random';
 
 describe('sorting generators', () => {

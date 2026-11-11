@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 // Browser gate for the built site (rule project.ui-quality-gate): serves dist/, opens it in one
 // Chrome launch and checks, in light and dark, at phone and desktop widths:
-//   - axe-core finds no WCAG 2.0/2.1/2.2 A or AA violation on the gallery and on a plate
+//   - axe-core finds no WCAG 2.0/2.1/2.2 A or AA violation on the collection, a wing, a planned
+//     entry, a plate and a lab
 //   - no console error or uncaught exception anywhere
 //   - no horizontal overflow
-//   - every gallery thumbnail renders
-//   - every plate mounts a canvas of non-zero size and publishes a readout
+//   - every live entry's thumbnail renders on its wing page (dark, desktop; one wait per card)
+//   - every live plate and every runnable lab mounts a canvas of non-zero size and publishes a
+//     readout
+// What exists is read from the catalogue (scripts/lib/catalogue.mjs), the source the site is
+// built from, never from a list kept here.
 //
 //   node scripts/audit-ui.mjs [--dist dist] [--screenshots <dir>] [--previews <dir>]
 //
@@ -19,6 +23,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
+import { loadCatalogue } from './lib/catalogue.mjs';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -95,43 +100,56 @@ async function overflow(p, label) {
   if (over > 1) fail(label, `horizontal overflow of ${over}px`);
 }
 
+const { errors, model } = loadCatalogue(process.cwd());
+if (errors.length) {
+  console.error(`audit-ui: the catalogue has ${errors.length} error(s); run npm run catalogue`);
+  process.exit(2);
+}
+const live = model.entries.filter((e) => e.status === 'live');
+const planned = model.entries.filter((e) => e.status === 'planned');
+const labs = model.labs.filter((l) => l.entries.filter((id) => live.some((e) => e.id === id)).length >= 2);
+const THUMB_MS = 90000;
+
+async function readout(p, where) {
+  // plates load on demand: wait for the condition, not for a fixed time
+  await p.waitForFunction(() => {
+    const c = document.querySelector('#stage canvas');
+    return c && c.clientWidth > 0 && document.querySelectorAll('#main dl dd.font-mono').length > 0;
+  }, null, { timeout: 30000, polling: 200 }).catch(() => {});
+  const state = await p.evaluate(() => {
+    const c = document.querySelector('#stage canvas');
+    return {
+      canvas: c ? [c.clientWidth, c.clientHeight] : null,
+      readouts: document.querySelectorAll('#main dl dd.font-mono').length,
+    };
+  });
+  if (!state.canvas || !state.canvas[0] || !state.canvas[1]) fail(where, 'no canvas');
+  if (!state.readouts) fail(where, 'no readout published');
+}
+
 try {
-  const plates = [];
   for (const theme of ['dark', 'light']) {
     for (const [w, h] of [[390, 844], [1440, 900]]) {
       const label = `${theme} ${w}px`;
+      const desktop = w >= 1024;
       const context = await browser.newContext({
         viewport: { width: w, height: h },
         colorScheme: theme,
         reducedMotion: 'no-preference',
       });
       await context.addInitScript((t) => localStorage.setItem('color-theme', t), theme);
-      const p = await page(context, `${label} gallery`);
+      const p = await page(context, `${label} collection`);
       await p.goto(base, { waitUntil: 'load' });
-      // every thumbnail is a real render, sequential, and the same code in both themes: they are
-      // proven once per run (dark, desktop). Lundra run 43087611444 showed the second full
-      // render pass on a shared SwiftShader host can exceed 300 s (and the one proving pass did at
-      // load 24.9, run 43092909731, so it waits up to 600 s), so the light pass audits the
-      // page without making the thumbnail wait a condition.
-      const proveThumbs = theme === 'dark' && w >= 1024;
-      if (proveThumbs || (PREVIEWS && w >= 1024)) await p.waitForFunction(() => {
-        const imgs = [...document.querySelectorAll('main img')];
-        return imgs.length > 0 && imgs.every((i) => i.getAttribute('src')?.startsWith('data:image'));
-      }, null, { timeout: 600000, polling: 500 })
-        .catch(() => {
-          if (proveThumbs) fail(`${label} gallery`, 'thumbnails did not all render');
-          else log(`${label}: not every thumbnail rendered in time (not a condition here)`);
-        });
-      log(`${label}: gallery ${w >= 1024 ? 'thumbnails done' : 'loaded'}`);
-      if (!plates.length) {
-        plates.push(...await p.evaluate(() => [...document.querySelectorAll('main a[href^="#/p/"]')]
-          .map((a) => a.getAttribute('href').slice(4))));
+      if (PREVIEWS && desktop) {
+        await p.waitForFunction(() => [...document.querySelectorAll('main [data-thumb] img')]
+          .every((i) => i.getAttribute('src')?.startsWith('data:image')), null, { timeout: 300000, polling: 500 })
+          .catch(() => log(`${label}: the mosaic did not finish before the preview`));
       }
-      await overflow(p, `${label} gallery`);
-      await axe(p, `${label} gallery`);
-      log(`${label}: gallery audited`);
-      if (SHOTS) await p.screenshot({ path: join(SHOTS, `gallery-${theme}-${w}.png`), fullPage: false });
-      if (PREVIEWS && w >= 1024) {
+      await overflow(p, `${label} collection`);
+      await axe(p, `${label} collection`);
+      log(`${label}: collection audited`);
+      if (SHOTS) await p.screenshot({ path: join(SHOTS, `collection-${theme}-${w}.png`), fullPage: false });
+      if (PREVIEWS && desktop) {
         const suffix = theme === 'dark' ? '' : '-light';
         await p.screenshot({ ...JPEG, path: join(PREVIEWS, `gallery${suffix}.jpg`) });
         if (theme === 'dark') {
@@ -142,40 +160,72 @@ try {
         }
       }
 
-      // the plates: each mounts, draws and reports; axe on the first one
-      const only = w === 1440 ? plates : plates.slice(0, 2);
-      for (const [i, id] of only.entries()) {
-        const where = `${label} plate ${id}`;
-        log(where);
-        await p.goto(`${base}#/p/${id}?seed=4242`, { waitUntil: 'load' });
-        // previews let a plate develop for longer before its picture is taken
-        await p.waitForTimeout(PREVIEWS && w >= 1024 ? 6000 : 1800);
-        const state = await p.evaluate(() => {
-          const c = document.querySelector('#stage canvas');
-          return {
-            canvas: c ? [c.clientWidth, c.clientHeight] : null,
-            readouts: document.querySelectorAll('#main dl dd.font-mono').length,
-          };
-        });
-        if (!state.canvas || !state.canvas[0] || !state.canvas[1]) fail(where, 'no canvas');
-        if (!state.readouts) fail(where, 'no readout published');
+      // the wings: each page audited for overflow; axe on the first; thumbnails proven card by
+      // card in the dark desktop pass, so the wait is bounded per card and not per collection
+      const proveThumbs = theme === 'dark' && desktop;
+      for (const [i, wing] of model.roots.entries()) {
+        const where = `${label} wing ${wing}`;
+        await p.goto(`${base}#/c/${wing}`, { waitUntil: 'load' });
+        await p.waitForSelector('#browse-title');
         await overflow(p, where);
         if (i === 0) await axe(p, where);
-        if (SHOTS && w === 1440) {
-          await p.screenshot({ path: join(SHOTS, `plate-${theme}-${id}.png`), fullPage: false });
+        if (!proveThumbs) continue;
+        const ids = live.filter((e) => e.path[0] === wing).map((e) => e.id);
+        for (const id of ids) {
+          const card = p.locator(`main [data-thumb="${id}"]`);
+          if (!(await card.count())) { fail(where, `no card for ${id}`); continue; }
+          await card.scrollIntoViewIfNeeded();
+          await p.waitForFunction((x) => document.querySelector(`main [data-thumb="${x}"] img`)
+            ?.getAttribute('src')?.startsWith('data:image'), id, { timeout: THUMB_MS, polling: 250 })
+            .catch(() => fail(where, `thumbnail ${id} did not render within ${THUMB_MS / 1000} s`));
         }
-        if (PREVIEWS && w >= 1024) {
+        log(`${where}: ${ids.length} thumbnail(s) proven`);
+      }
+
+      // a planned entry: its page states what it will be
+      if (planned.length) {
+        const where = `${label} planned ${planned[0].id}`;
+        await p.goto(`${base}#/p/${planned[0].id}`, { waitUntil: 'load' });
+        await p.waitForSelector('#plate-title');
+        await overflow(p, where);
+        if (theme === 'dark') await axe(p, where);
+      }
+
+      // the plates: each mounts, draws and reports; axe on the first one
+      const only = desktop ? live : live.slice(0, 2);
+      for (const [i, e] of only.entries()) {
+        const where = `${label} plate ${e.id}`;
+        log(where);
+        await p.goto(`${base}#/p/${e.id}?seed=4242`, { waitUntil: 'load' });
+        await readout(p, where);
+        // previews let a plate develop for longer before its picture is taken
+        await p.waitForTimeout(PREVIEWS && desktop ? 6000 : 600);
+        await overflow(p, where);
+        if (i === 0) await axe(p, where);
+        if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `plate-${theme}-${e.id}.png`), fullPage: false });
+        if (PREVIEWS && desktop) {
           const canvas = p.locator('#stage canvas');
           if (await canvas.count()) {
             const suffix = theme === 'dark' ? '' : '-light';
-            await canvas.first().screenshot({ ...JPEG, path: join(PREVIEWS, `${id}${suffix}.jpg`) });
+            await canvas.first().screenshot({ ...JPEG, path: join(PREVIEWS, `${e.id}${suffix}.jpg`) });
           }
         }
+      }
+
+      // the labs: each runs its kernels side by side and reports per kernel
+      for (const [i, l] of labs.entries()) {
+        const where = `${label} lab ${l.id}`;
+        log(where);
+        await p.goto(`${base}#/lab/${l.id}?seed=4242`, { waitUntil: 'load' });
+        await readout(p, where);
+        await overflow(p, where);
+        if (i === 0) await axe(p, where);
+        if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `lab-${theme}-${l.id}.png`), fullPage: false });
       }
       await context.close();
     }
   }
-  console.log(`audit-ui: ${plates.length} plates, 2 themes, 2 widths`);
+  console.log(`audit-ui: ${live.length} plates, ${labs.length} lab(s), ${model.roots.length} wings, 2 themes, 2 widths`);
 } finally {
   await browser.close();
   server.close();

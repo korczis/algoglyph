@@ -21,22 +21,26 @@
     "verify": "scripts/verify-all.sh",
     "deploy": "scripts/deploy.sh deploy",
     "deploy:validate": "scripts/deploy.sh validate",
-    "deploy:verify": "scripts/deploy.sh verify"
+    "deploy:verify": "scripts/deploy.sh verify",
+    "catalogue": "node scripts/catalogue.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",
     "@types/alpinejs": "3.17.0",
     "@types/node": "22.20.5",
+    "@types/three": "0.187.0",
     "axe-core": "4.14.0",
     "playwright-core": "1.65.0",
     "tailwindcss": "4.3.5",
     "typescript": "7.0.2",
     "vite": "8.3.8",
-    "vitest": "5.1.0"
+    "vitest": "5.1.0",
+    "yaml": "2.9.1"
   },
   "dependencies": {
     "alpinejs": "3.17.5",
     "flowbite": "4.0.2",
-    "p5": "2.3.4"
+    "p5": "2.3.4",
+    "three": "0.187.0"
   }
 }

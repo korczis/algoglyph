@@ -3,8 +3,8 @@ import { mulberry32 } from '../src/core/random';
 import {
   BAILOUT, BOUNDED, escape, inCardioidOrBulb, interlace, julia, mandelbrot, toGrid, toPlane,
   zoomAt,
-} from '../src/plates/fractal/escape';
-import { JULIA_PRESETS } from '../src/plates/fractal/plate';
+} from '../src/plates/mandelbrot-julia/escape';
+import { JULIA_PRESETS } from '../src/plates/mandelbrot-julia/plate';
 
 type C = [number, number];
 const sq = ([a, b]: C, [cr, ci]: C): C => [a * a - b * b + cr, 2 * a * b + ci];

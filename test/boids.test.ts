@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import { DEFAULT_RULES, Flock, Grid, meanNearest, polarisation, type Rules, type V3 }
-  from '../src/plates/boids/flock';
+  from '../src/plates/boids-3d/flock';
 
 const HALF: V3 = [1.5, 0.9, 1];
 

@@ -8,6 +8,9 @@ fast=0
 
 step() { printf '\n== %s\n' "$*"; }
 
+step "catalogue (schema, references, live and code agree, derived plan current)"
+node scripts/catalogue.mjs --check
+
 step "typecheck"
 npx tsc --noEmit
 

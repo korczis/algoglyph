@@ -4,7 +4,6 @@
 import type p5 from 'p5';
 import type { Palette, RGB } from './palette';
 
-export type Category = 'algorithms' | 'physics' | 'mathematics';
 export type Mode = '2d' | 'webgl';
 export type Theme = 'dark' | 'light';
 
@@ -73,28 +72,29 @@ export interface Sim {
   dragged?(x: number, y: number): void;
 }
 
-export interface Plate {
+/** What a plate's code provides: behaviour only. Everything a person reads about the plate
+ * (title, summary, notes, tags, classification) is its catalogue entry (ADR 0004). */
+export interface PlateCode {
+  /** Equals the catalogue entry's id, and the directory or kernel file it lives in. */
   id: string;
-  /** Plate number as printed, e.g. "01". Assigned by the registry, not by hand. */
-  no?: string;
-  title: string;
-  category: Category;
   mode: Mode;
-  summary: string;
-  /** Short paragraphs: what is drawn, how to read it, what to try. */
-  notes: string[];
-  /** Asymptotic cost or the integrator used, when it is a fact about the code. */
-  complexity: string;
-  tags: string[];
   /** Width / height of the canvas. */
   aspect: number;
   params: ParamDef[];
   /** Frames rendered for the gallery thumbnail. */
   thumbnailFrames?: number;
-  /** Whether a pointer interacts with the canvas (shown in the plate's notes). */
-  interaction?: string;
   create(p: p5, ctx: PlateContext): Sim;
 }
+
+/** What the stage reads of a plate's catalogue entry. */
+export interface PlateInfo {
+  title: string;
+  summary: string;
+  no: string;
+}
+
+/** A plate as the site runs it: its code joined with its catalogue entry. */
+export type Plate = PlateCode & PlateInfo;
 
 export function defaults(plate: Plate): Params {
   const out: Params = {};
