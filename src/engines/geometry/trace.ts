@@ -120,8 +120,10 @@ export interface Trace {
   outcome: Outcome;
 }
 
-/** Frames a trace keeps; past it every other frame is dropped and the stride doubles. */
+/** Frames and marks a trace keeps; past either, every other frame is dropped and the stride
+ * doubles, so a long run keeps an even sample of itself in bounded memory. */
 export const FRAME_CAP = 1200;
+export const MARK_CAP = 200_000;
 
 /** Run `kernel` on `input`, counting every primitive and keeping (a sample of) its frames. */
 export function record(kernel: GeometryKernel, input: Input, params: Params, seed: number,
@@ -134,6 +136,7 @@ export function record(kernel: GeometryKernel, input: Input, params: Params, see
   let view = input.box;
   let stride = 1;
   let seen = 0;
+  let kept = 0;
   const g: Geo = {
     input,
     params,
@@ -148,9 +151,12 @@ export function record(kernel: GeometryKernel, input: Input, params: Params, see
     view(b) { view = b; },
     frame(make, note = '') {
       if (!recording || seen++ % stride !== 0) return;
-      frames.push({ marks: make(), counts: { ...counts }, note });
-      if (frames.length > FRAME_CAP) {
+      const marks = make();
+      frames.push({ marks, counts: { ...counts }, note });
+      kept += marks.length;
+      while (frames.length > 2 && (frames.length > FRAME_CAP || kept > MARK_CAP)) {
         frames = frames.filter((_, i) => i % 2 === 0);
+        kept = frames.reduce((t, f) => t + f.marks.length, 0);
         stride *= 2;
       }
     },

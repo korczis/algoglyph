@@ -24,7 +24,7 @@ export const kernel: GeometryKernel = {
   task: 'delaunay',
   input: 'points',
   shapes: ['uniform', 'clustered', 'disk', 'lattice'],
-  n: { min: 3, max: 1200, value: 90, step: 1 },
+  n: { min: 3, max: 800, value: 90, step: 1 },
   counters: [['incircle', 'In-circle tests'], ['orient', 'Orientation tests'], ['flip', 'Edge flips'], ['compare', 'Sort comparisons']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
   run(g) {

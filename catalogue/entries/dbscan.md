@@ -21,4 +21,4 @@ Clusters grow from points with enough neighbours; whatever is reached by none is
 
 A point with at least minPts points within distance eps, itself included, is a core point and is drawn larger. A cluster starts at an unlabelled core point and grows through every point within eps of one of its core points; a point reached that is not core is a border point and stops the growth there. Points that no cluster reaches remain noise, drawn faint.
 
-Unlike k-means, the number of clusters is not given: it follows from eps and minPts, and a cluster may have any shape. Each neighbourhood is found here by scanning all n points, so the distance count grows as n²; the circle is the neighbourhood being queried.
+Unlike #/p/k-means-plus-plus, the number of clusters is not given: it follows from eps and minPts, and a cluster may have any shape. Each neighbourhood is found here by scanning all n points, so the distance count grows as n²; the circle is the neighbourhood being queried.

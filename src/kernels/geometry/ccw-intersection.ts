@@ -7,7 +7,7 @@ import { intersects, meet, segMarks } from './_segments';
 export const kernel: GeometryKernel = {
   task: 'intersections',
   input: 'segments',
-  n: { min: 2, max: 400, value: 40, step: 1, label: 'Segments' },
+  n: { min: 2, max: 200, value: 40, step: 1, label: 'Segments' },
   counters: [['orient', 'Orientation tests'], ['pairs', 'Pairs tested'], ['found', 'Intersecting pairs']],
   scaling: [8, 16, 32, 64, 128, 256],
   run(g) {

@@ -10,7 +10,7 @@ export const kernel: GeometryKernel = {
   task: 'intersections',
   input: 'orthogonal',
   shapes: ['mixed'],
-  n: { min: 2, max: 600, value: 60, step: 2, label: 'Segments' },
+  n: { min: 2, max: 400, value: 60, step: 2, label: 'Segments' },
   counters: [['visit', 'Tree node visits'], ['pop', 'Events'], ['compare', 'Comparisons'], ['found', 'Intersections']],
   scaling: [16, 32, 64, 128, 256, 512, 1024],
   run(g) {

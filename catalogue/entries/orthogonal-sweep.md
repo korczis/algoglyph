@@ -15,6 +15,7 @@ complexity: "O(n log n + k) expected for k intersections, with an unbalanced sea
 related:
   - general-sweep
   - ccw-intersection
+  - bst-delete-join
 ---
 
 A vertical line sweeps across, holding the horizontal segments it crosses in a search tree.

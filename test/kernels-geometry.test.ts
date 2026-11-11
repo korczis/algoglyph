@@ -3,9 +3,13 @@
 // A kernel is checked by the reference its `task` names (ADR 0004 §4).
 import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
+import type p5 from 'p5';
+import { PALETTES } from '../src/core/palette';
+import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
+import { engine } from '../src/engines/geometry/index';
 import { fromPoints, makeInput } from '../src/engines/geometry/input';
-import { record, type GeometryKernel, type Input, type Pt, type Seg, type Task } from '../src/engines/geometry/trace';
+import { record, type GeometryKernel, type Input, type Pt, type Seg, type Task, type Warehouse } from '../src/engines/geometry/trace';
 
 const modules = import.meta.glob<GeometryKernel>('../src/kernels/geometry/[!_]*.ts', { import: 'kernel', eager: true });
 const live = ENTRIES.filter((e) => e.engine === 'geometry' && e.status === 'live');
@@ -104,12 +108,12 @@ function checkTree(root: TreeNode, pts: Pt[], M: number, m: number, id: string):
   expect(seen.sort((a, b) => a - b)).toEqual(pts.map((_, i) => i));
 }
 
-/** Exact in-circle sign with integers: positive when d is inside the circle through a, b, c. */
+/** In-circle sign: positive when d is inside the circle through a, b, c. On the integer
+ * coordinates of the inputs every product stays below 2^53, so the sign is exact. */
 function inCircleExact(a: Pt, b: Pt, c: Pt, d: Pt): number {
-  const B = (v: number) => BigInt(v);
-  const [ax, ay, bx, by, cx, cy] = [B(a.x - d.x), B(a.y - d.y), B(b.x - d.x), B(b.y - d.y), B(c.x - d.x), B(c.y - d.y)];
+  const [ax, ay, bx, by, cx, cy] = [a.x - d.x, a.y - d.y, b.x - d.x, b.y - d.y, c.x - d.x, c.y - d.y];
   const det = (ax * ax + ay * ay) * (bx * cy - by * cx) - (bx * bx + by * by) * (ax * cy - ay * cx) + (cx * cx + cy * cy) * (ax * by - ay * bx);
-  return det > 0n ? 1 : det < 0n ? -1 : 0;
+  return Math.sign(det);
 }
 
 /** Area of the convex hull, from its corners sorted by angle about their centroid. */
@@ -148,7 +152,130 @@ function samePartition(a: number[], b: number[]): boolean {
   return true;
 }
 
+/** Great-circle distance from unit vectors (the chord), a formula independent of haversine. */
+function chordKm(lat1: number, lon1: number, lat2: number, lon2: number, R: number): number {
+  const v = (la: number, lo: number) => [Math.cos(la * DEG) * Math.cos(lo * DEG), Math.cos(la * DEG) * Math.sin(lo * DEG), Math.sin(la * DEG)];
+  const a = v(lat1, lon1); const b = v(lat2, lon2);
+  const c = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  return 2 * R * Math.asin(c / 2);
+}
+const DEG = Math.PI / 180;
+
+/** Shortest walks in a single-block warehouse by Dijkstra over an explicit graph of aisle
+ * segments and cross-aisle segments, then the best tour by trying every order of the picks. */
+function bruteTour(w: Warehouse): number {
+  const nodes: Pt[] = [];
+  const id = (p: Pt) => { let i = nodes.findIndex((q) => q.x === p.x && q.y === p.y); if (i < 0) { nodes.push(p); i = nodes.length - 1; } return i; };
+  const stops = [w.depot, ...w.picks.map((p) => ({ x: w.aisles[p.aisle], y: p.y }))].map(id);
+  const edges: [number, number, number][] = [];
+  w.aisles.forEach((x) => {
+    const ys = [...new Set([0, w.length, ...nodes.filter((p) => p.x === x).map((p) => p.y)])].sort((a, b) => a - b);
+    for (let i = 1; i < ys.length; i++) edges.push([id({ x, y: ys[i - 1] }), id({ x, y: ys[i] }), ys[i] - ys[i - 1]]);
+  });
+  for (const y of [0, w.length]) for (let i = 1; i < w.aisles.length; i++) edges.push([id({ x: w.aisles[i - 1], y }), id({ x: w.aisles[i], y }), w.aisles[i] - w.aisles[i - 1]]);
+  const sp = (s: number) => {
+    const d = nodes.map(() => Infinity); d[s] = 0;
+    const done = new Set<number>();
+    while (done.size < nodes.length) {
+      let u = -1;
+      for (let i = 0; i < nodes.length; i++) if (!done.has(i) && (u < 0 || d[i] < d[u])) u = i;
+      done.add(u);
+      for (const [a, b, c] of edges) { if (a === u && d[u] + c < d[b]) d[b] = d[u] + c; if (b === u && d[u] + c < d[a]) d[a] = d[u] + c; }
+    }
+    return d;
+  };
+  const dist = stops.map((s) => { const d = sp(s); return stops.map((t) => d[t]); });
+  let best = Infinity;
+  const perm = (rest: number[], at: number, acc: number) => {
+    if (acc >= best) return;
+    if (!rest.length) { best = Math.min(best, acc + dist[at][0]); return; }
+    rest.forEach((r, i) => perm([...rest.slice(0, i), ...rest.slice(i + 1)], r, acc + dist[at][r]));
+  };
+  perm(stops.map((_, i) => i).slice(1), 0, 0);
+  return best;
+}
+
 const CHECKS: Partial<Record<Task, Check>> = {
+  rings(k, id) {
+    // published great-circle distances, to the kilometre, on the mean Earth radius
+    const cities = { london: [51.5074, -0.1278], paris: [48.8566, 2.3522], newYork: [40.7128, -74.006] };
+    const inp = makeInput('firms', 'firms', 0, 1);
+    inp.centre = { lat: cities.london[0], lon: cities.london[1] };
+    inp.firms = [cities.paris, cities.newYork, [51.5074, 179.8722], [-51.5074, 179.8722]].map(([lat, lon]) => ({ lat, lon, weight: 1 }));
+    const r = run(k, inp).outcome.result as { distances: number[]; radius: number; rings: [number, number, number][] };
+    expect(r.distances[0]).toBeGreaterThan(342); expect(r.distances[0]).toBeLessThan(345);
+    expect(r.distances[1]).toBeGreaterThan(5565); expect(r.distances[1]).toBeLessThan(5575);
+    // over the pole, and to the antipode: π R cos-free closed forms
+    expect(r.distances[2]).toBeCloseTo(r.radius * (180 - 2 * 51.5074) * DEG, 6);
+    expect(r.distances[3]).toBeCloseTo(r.radius * Math.PI, 6);
+    for (const seed of SEEDS) {
+      const input = makeInput('firms', 'firms', 80, seed);
+      const res = run(k, input).outcome.result as { distances: number[]; radius: number; rings: [number, number, number][] };
+      input.firms.forEach((f, i) => expect(res.distances[i], `${id} firm ${i}`).toBeCloseTo(chordKm(input.centre.lat, input.centre.lon, f.lat, f.lon, res.radius), 6));
+      for (const [radius, count, h] of res.rings) {
+        const w = input.firms.filter((_, i) => res.distances[i] <= radius).map((f) => f.weight);
+        const tot = w.reduce((s, v) => s + v, 0);
+        expect(count).toBe(w.length);
+        expect(h, `${id} HHI at ${radius} km`).toBeCloseTo(w.reduce((s, v) => s + (100 * v / tot) ** 2, 0), 6);
+      }
+    }
+    // the index's bounds: N equal firms give 10000 / N, one firm 10000
+    const eq = makeInput('firms', 'firms', 0, 1);
+    eq.firms = Array.from({ length: 8 }, (_, i) => ({ lat: eq.centre.lat + 0.01 * Math.cos(i), lon: eq.centre.lon + 0.01 * Math.sin(i), weight: 3 }));
+    const rings = (run(k, eq).outcome.result as { rings: [number, number, number][] }).rings;
+    expect(rings[rings.length - 1][2]).toBeCloseTo(10000 / 8, 6);
+    eq.firms = eq.firms.slice(0, 1);
+    expect((run(k, eq).outcome.result as { rings: [number, number, number][] }).rings[0][2]).toBeCloseTo(10000, 6);
+  },
+  projections(k, id) {
+    const res = run(k, makeInput('none', 'none', 0, 1)).outcome.result as { nodes: { lat: number; h: number; k: number; angle: number }[][] };
+    // Mercator on its sphere: k = h = sec φ exactly, and the graticule stays orthogonal
+    for (const d of res.nodes[0]) {
+      expect(d.k, `${id} Mercator k at ${d.lat}`).toBeCloseTo(1 / Math.cos(d.lat * DEG), 7);
+      expect(d.h).toBeCloseTo(d.k, 7);
+      expect(d.angle).toBeCloseTo(90, 6);
+    }
+    // Křovák is conformal: h = k and right angles at every node
+    for (const d of res.nodes[1]) {
+      expect(d.h / d.k, `${id} Křovák conformal at ${d.lat}`).toBeCloseTo(1, 7);
+      expect(d.angle).toBeCloseTo(90, 5);
+    }
+    // the smallest scale is close to kP = 0.9999 (the pseudo standard parallel crosses the area)
+    expect(Math.min(...res.nodes[1].map((d) => d.k))).toBeGreaterThan(0.9999 - 2e-6);
+    expect(Math.min(...res.nodes[1].map((d) => d.k))).toBeLessThan(0.9999 + 2e-5);
+  },
+  'pick-path'(k, id) {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      for (const n of [1, 2, 3, 5, 7]) {
+        for (const aisles of [2, 5, 9]) {
+          const input = makeInput('warehouse', 'warehouse', n, seed, { aisles });
+          const w = input.warehouse!;
+          const res = run(k, input, { aisles }).outcome.result as { routes: Pt[][]; lengths: number[] };
+          const where = `${id} seed=${seed} n=${n} aisles=${aisles}`;
+          expect(res.lengths[2], `${where} optimal`).toBeCloseTo(bruteTour(w), 9);
+          res.routes.forEach((r, i) => {
+            expect(r[0]).toEqual(w.depot);
+            expect(r[r.length - 1]).toEqual(w.depot);
+            let len = 0;
+            for (let j = 1; j < r.length; j++) {
+              const [a, b] = [r[j - 1], r[j]];
+              const onAisle = a.x === b.x && w.aisles.includes(a.x);
+              const onCross = a.y === b.y && (a.y === 0 || a.y === w.length);
+              expect(onAisle || onCross, `${where} route ${i} leaves the aisles at step ${j}`).toBe(true);
+              len += Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+            }
+            expect(len).toBeCloseTo(res.lengths[i], 9);
+            for (const p of w.picks) {
+              const x = w.aisles[p.aisle];
+              const hit = r.some((a, j) => j > 0 && a.x === x && r[j - 1].x === x && Math.min(a.y, r[j - 1].y) <= p.y && p.y <= Math.max(a.y, r[j - 1].y));
+              expect(hit, `${where} route ${i} passes pick ${p.aisle}:${p.y}`).toBe(true);
+            }
+            expect(res.lengths[i] + 1e-9).toBeGreaterThanOrEqual(res.lengths[2]);
+          });
+        }
+      }
+    }
+  },
   kmeans(k, id) {
     for (const seed of SEEDS) {
       for (const K of [2, 3, 5, 8]) {
@@ -234,10 +361,8 @@ const CHECKS: Partial<Record<Task, Check>> = {
               edges.set(`${u},${v}`, 1);
             }
             used.add(a); used.add(b); used.add(c);
-            for (let d = 0; d < pts.length; d++) {
-              if (d === a || d === b || d === c) continue;
-              expect(inCircleExact(pts[a], pts[b], pts[c], pts[d]), `${where} point ${d} inside a circumcircle`).toBeLessThanOrEqual(0);
-            }
+            const inside = pts.filter((p, d) => d !== a && d !== b && d !== c && inCircleExact(pts[a], pts[b], pts[c], p) > 0);
+            expect(inside, `${where} points inside the circumcircle of ${a} ${b} ${c}`).toEqual([]);
           }
           expect(area, `${where} the triangles tile the hull`).toBeCloseTo(hullArea(pts), 6);
           expect(used.size, `${where} every point is a vertex`).toBe(pts.length);
@@ -375,7 +500,7 @@ describe('geometry kernels', () => {
       });
       it(`matches the independent reference for ${k.task}`, () => {
         CHECKS[k.task]?.(k, e.id);
-      });
+      }, 60_000);
       it('counts its declared work and replays to its final counts', () => {
         const shape = (k.shapes ?? [])[0];
         const input = makeInput(k.input, shape ?? defaultShape(k), k.input === 'none' ? 0 : (k.n?.value ?? 50), 5);
@@ -392,3 +517,48 @@ describe('geometry kernels', () => {
 function defaultShape(k: GeometryKernel): string {
   return ({ points: 'uniform', segments: 'random', orthogonal: 'mixed', polygon: 'star', warehouse: 'warehouse', firms: 'firms', none: 'none' } as const)[k.input];
 }
+
+/** Drive a plate headlessly: a p5 whose every member is a no-op, and a context that records. */
+function drive(code: PlateCode, frames: number, thumbnail: boolean, over: Params = {}) {
+  const calls = { shapes: 0 };
+  const p = new Proxy({}, { get: () => (..._: unknown[]) => { calls.shapes++; } }) as unknown as p5;
+  const params: Params = Object.fromEntries(code.params.map((d) => [d.key, d.value]));
+  Object.assign(params, over);
+  const rows: Stat[][] = []; const charts: Chart[] = [];
+  const ctx: PlateContext = {
+    width: 800, height: 500, params, seed: 11, rnd: mulberry32(11), theme: 'dark', bg: [0, 0, 0], fg: [255, 255, 255],
+    palette: () => PALETTES[0], stats: (r) => rows.push(r), chart: (c) => charts.push(c), thumbnail,
+  };
+  const sim = code.create(p, ctx);
+  sim.setup();
+  for (let i = 0; i < frames; i++) sim.draw();
+  return { rows, charts, calls };
+}
+
+describe('geometry plates draw', () => {
+  for (const e of live) {
+    it(`${e.id} mounts, replays to the end and publishes measured readouts`, () => {
+      const code = engine.plate({ id: e.id, title: e.title, group: 'g' }, kernelOf(e.id));
+      expect(code.id).toBe(e.id);
+      expect(drive(code, 2, true).calls.shapes).toBeGreaterThan(0);
+      const { rows, charts } = drive(code, 1500, false, { speed: 40, loop: false });
+      const last = rows[rows.length - 1];
+      expect(last.length).toBeGreaterThan(0);
+      expect(last.find((r) => r.label === 'Progress')?.value).toMatch(/^100%/);
+      for (const r of last) expect(r.value, `${e.id} ${r.label}`).not.toMatch(/NaN|undefined|NO\b/);
+      for (const c of charts) for (const s of c.series) for (const [x, y] of s.points) expect(Number.isFinite(x) && Number.isFinite(y), `${e.id} chart ${c.title}`).toBe(true);
+      if (kernelOf(e.id).scaling || charts.length) expect(charts.length).toBeGreaterThan(0);
+    }, 60_000);
+  }
+
+  it('the hull lab ranks every hull kernel on one input', () => {
+    const hulls = live.filter((e) => e.labs.includes('hulls'));
+    const code = engine.lab('hulls', hulls.map((e) => ({ info: { id: e.id, title: e.title, group: 'g' }, kernel: kernelOf(e.id) })));
+    drive(code, 2, true);
+    const { rows, charts } = drive(code, 400, false, { budget: 20, loop: false });
+    const last = rows[rows.length - 1];
+    expect(last.map((r) => r.label).sort()).toEqual(hulls.map((e) => e.title).sort());
+    for (const r of last) expect(r.value).toMatch(/finished #\d/);
+    expect(charts[charts.length - 1].series.every((s) => s.points.length > 0)).toBe(true);
+  }, 60_000);
+});

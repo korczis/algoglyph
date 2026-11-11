@@ -11,7 +11,7 @@ tags:
   - voronoi
   - delaunay
   - duality
-complexity: "O(n log n) expected for random points; Lawson flips are O(n²) in the worst case"
+complexity: "O(n²) flips in the worst case; O(n log n) expected with a randomised insertion order, which this plate does not use"
 related:
   - voronoi-relax
   - euclidean-mst

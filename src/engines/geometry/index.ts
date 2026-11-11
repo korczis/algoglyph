@@ -117,7 +117,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
               title: `Measured ${primary[1].toLowerCase()} as n grows${Number.isFinite(slope) ? ` (slope ${slope.toFixed(2)})` : ''}`,
               x: { label: 'n', log: true },
               y: { label: primary[1].toLowerCase(), log: true },
-              series: [{ name: info.title, points: curve.slice() }],
+              series: [{ name: 'Measured', points: curve.slice() }],
             };
           }
           if (chart) ctx.chart(chart);
@@ -150,7 +150,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
       let finishedCount = 0;
       let hold = 0;
       const curves = kernels.map((k) => ({ info: k.info, pts: [] as [number, number][], slope: NaN }));
-      let pending = kernels.flatMap((_, ci) => sizes.map((s) => [ci, s] as [number, number]));
+      const pending = kernels.flatMap((_, ci) => sizes.map((s) => [ci, s] as [number, number]));
       const build = () => {
         const seed = ctx.seed + generation * 7919;
         const input = makeInput(first.input, shapeOf(ctx.params, shapes), num(ctx.params, 'n'), seed, ctx.params);

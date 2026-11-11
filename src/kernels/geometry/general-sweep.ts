@@ -13,7 +13,7 @@ export const kernel: GeometryKernel = {
   task: 'intersections',
   input: 'segments',
   shapes: ['short', 'random'],
-  n: { min: 2, max: 500, value: 60, step: 1, label: 'Segments' },
+  n: { min: 2, max: 300, value: 60, step: 1, label: 'Segments' },
   counters: [['orient', 'Orientation tests'], ['pop', 'Event pops'], ['compare', 'Status comparisons'], ['found', 'Crossings']],
   scaling: [16, 32, 64, 128, 256, 512, 1024],
   run(g) {
