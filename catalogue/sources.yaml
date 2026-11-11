@@ -74,3 +74,8 @@ sources:
     author: James W. Cooley, John W. Tukey
     year: 1965
     kind: paper
+  - id: manolopoulos-cap
+    title: Derivation and reflection properties of a transmission-free absorbing potential (Journal of Chemical Physics 117)
+    author: David E. Manolopoulos
+    year: 2002
+    kind: paper

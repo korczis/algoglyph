@@ -46,18 +46,31 @@ export class Fft {
         im[j] = t;
       }
     }
+    // the size-2 stage needs no twiddle factor
+    for (let a = 0; a < n; a += 2) {
+      const xr = re[a + 1];
+      const xi = im[a + 1];
+      re[a + 1] = re[a] - xr;
+      im[a + 1] = im[a] - xi;
+      re[a] += xr;
+      im[a] += xi;
+    }
     const sign = inverse ? 1 : -1;
-    for (let size = 2; size <= n; size <<= 1) {
+    const cos = this.cos;
+    const sin = this.sin;
+    for (let size = 4; size <= n; size <<= 1) {
       const half = size >> 1;
       const stride = n / size;
-      for (let start = 0; start < n; start += size) {
-        for (let k = 0; k < half; k++) {
-          const wr = this.cos[k * stride];
-          const wi = sign * this.sin[k * stride];
-          const a = start + k;
+      // one twiddle factor per k, applied to every block of this size
+      for (let k = 0; k < half; k++) {
+        const wr = cos[k * stride];
+        const wi = sign * sin[k * stride];
+        for (let a = k; a < n; a += size) {
           const b = a + half;
-          const xr = re[b] * wr - im[b] * wi;
-          const xi = re[b] * wi + im[b] * wr;
+          const br = re[b];
+          const bi = im[b];
+          const xr = br * wr - bi * wi;
+          const xi = br * wi + bi * wr;
           re[b] = re[a] - xr;
           im[b] = im[a] - xi;
           re[a] += xr;
@@ -173,6 +186,24 @@ export function packetTransmission(k0: number, sigma: number, pot: Potential): n
   return num / den;
 }
 
+const CAP_C = 2.62206;
+const CAP_DELTA = 0.2;
+
+/**
+ * Manolopoulos' transmission-free absorbing potential W at depth s ∈ [0, 1] into an edge of
+ * width L: −iW damps ψ as e^{−W·dt}, per unit time and not per step, and W diverges at the grid
+ * end, so nothing wraps round. It reflects little above k_min = c/(2δL).
+ */
+export function absorbing(s: number, length: number): number {
+  const c = CAP_C;
+  const kMin = c / (2 * CAP_DELTA * length);
+  const y = c * s;
+  if (y >= c) return Infinity;
+  const a = 1 - 16 / c ** 3;
+  const b = (1 - 17 / c ** 3) / (c * c);
+  return ((kMin * kMin) / 2) * (a * y - b * y ** 3 + 4 / (c - y) ** 2 - 4 / (c + y) ** 2);
+}
+
 export interface GridSpec {
   /** Number of grid points, a power of two. */
   n: number;
@@ -196,6 +227,7 @@ export class Wave {
   absorbedRight = 0;
   private readonly fft: Fft;
   private readonly halfV: Float64Array[];
+  private readonly fullV: Float64Array[];
   private readonly kin: Float64Array[];
   private readonly mask: Float64Array;
   private readonly sr: Float64Array;
@@ -225,18 +257,21 @@ export class Wave {
       this.v[i] = values[r];
     }
     this.halfV = [new Float64Array(n), new Float64Array(n)];
+    this.fullV = [new Float64Array(n), new Float64Array(n)];
     this.kin = [new Float64Array(n), new Float64Array(n)];
     for (let i = 0; i < n; i++) {
       const pv = (-this.v[i] * dt) / 2;
       this.halfV[0][i] = Math.cos(pv);
       this.halfV[1][i] = Math.sin(pv);
+      this.fullV[0][i] = Math.cos(2 * pv);
+      this.fullV[1][i] = Math.sin(2 * pv);
       const pk = (-this.k[i] * this.k[i] * dt) / 2;
       this.kin[0][i] = Math.cos(pk);
       this.kin[1][i] = Math.sin(pk);
     }
     this.mask = new Float64Array(n).fill(1);
     for (let j = 0; j < absorb; j++) {
-      const m = Math.cos((Math.PI / 2) * ((absorb - j) / absorb)) ** 0.125;
+      const m = Math.exp(-absorbing((absorb - j) / absorb, absorb * dx) * dt);
       this.mask[j] = m;
       this.mask[n - 1 - j] = m;
     }
@@ -269,17 +304,24 @@ export class Wave {
     }
   }
 
+  /**
+   * Advance `count` steps. The closing half step of potential of one step and the opening half
+   * of the next are applied together as one full step; the absorbing mask is diagonal like the
+   * potential, so where it is applied between them does not matter.
+   */
   step(count = 1): void {
     const { re, im } = this;
     const n = this.spec.n;
     const absorb = this.spec.absorb;
     const dx = this.spec.dx;
+    if (count < 1) return;
+    this.phase(this.halfV[0], this.halfV[1], re, im);
     for (let s = 0; s < count; s++) {
-      this.phase(this.halfV[0], this.halfV[1], re, im);
       this.fft.transform(re, im);
       this.phase(this.kin[0], this.kin[1], re, im);
       this.fft.transform(re, im, true);
-      this.phase(this.halfV[0], this.halfV[1], re, im);
+      const v = s === count - 1 ? this.halfV : this.fullV;
+      this.phase(v[0], v[1], re, im);
       if (absorb > 0) {
         let left = 0;
         let right = 0;

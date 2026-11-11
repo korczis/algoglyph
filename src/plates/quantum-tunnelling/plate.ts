@@ -2,13 +2,12 @@ import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import {
-  packetTransmission, potential, transmission, Wave, type Potential, type Preset,
-} from './schrodinger';
+  ABSORB, DT, N, RANGES, Scattering, X_LEFT, X_RIGHT, type Shares,
+} from './experiment';
+import type { Potential, Preset, Wave } from './schrodinger';
 
-const N = 2048;
-const DX = 0.1;
-const DT = 0.05;
-const ABSORB = 160;
+/** Simulated time per frame in the gallery thumbnail. */
+const THUMB_STEPS = 40;
 
 const rgba = (c: RGB, a: number) =>
   `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
@@ -28,15 +27,16 @@ export const quantumTunnelling: PlateCode = {
         { value: 'step', label: 'Potential step' },
       ],
     },
-    { kind: 'range', key: 'k0', label: 'Momentum k₀ (E ≈ k₀²/2)', min: 0.6, max: 3, step: 0.05,
+    { kind: 'range', key: 'k0', label: 'Momentum k₀ (E ≈ k₀²/2)', ...RANGES.k0, step: 0.05,
       value: 1.5, rebuild: true },
-    { kind: 'range', key: 'v0', label: 'Barrier height V₀', min: 0, max: 4, step: 0.05,
+    { kind: 'range', key: 'v0', label: 'Barrier height V₀', ...RANGES.v0, step: 0.05,
       value: 1.2, rebuild: true },
-    { kind: 'range', key: 'width', label: 'Barrier width a', min: 0.3, max: 8, step: 0.1,
+    { kind: 'range', key: 'width', label: 'Barrier width a', ...RANGES.width, step: 0.1,
       value: 2, rebuild: true, hint: 'Each of the two barriers in the double barrier.' },
-    { kind: 'range', key: 'sigma', label: 'Packet width σ', min: 2, max: 10, step: 0.5, value: 5,
+    { kind: 'range', key: 'sigma', label: 'Packet width σ', ...RANGES.sigma, step: 0.5, value: 5,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 24, step: 1, value: 6 },
+    { kind: 'range', key: 'speed', label: `Steps per frame (Δt = ${DT})`, min: 4, max: 64,
+      step: 4, value: 24 },
     {
       kind: 'select', key: 'colour', label: 'Colour by', value: 'density',
       options: [
@@ -49,42 +49,24 @@ export const quantumTunnelling: PlateCode = {
   ],
   create(p, ctx) {
     const params = ctx.params;
+    let run: Scattering;
     let wave: Wave;
     let pot: Potential;
     let raster: Raster;
     let cols = 0;
     let first: Int32Array;
-    let k0 = 1.5;
-    let sigma = 5;
-    let x0 = 0;
-    let e0 = 0;
-    let peak0 = 1;
-    let tPlane = 0;
-    let tPacket = 0;
-    let tRun = 1;
     let rowSteps = 1;
     let runs = 0;
-    let last: { t: number; r: number } | null = null;
-    /** [t, reflected, transmitted] of the current run, sampled with the ribbon rows. */
-    let history: [number, number, number][] = [];
-    const xL = (ABSORB - N / 2) * DX;
-    const xR = (N / 2 - ABSORB) * DX;
-    const lo = () => pot.edges[0];
-    const hi = () => pot.edges[pot.edges.length - 1];
+    let last: Shares | null = null;
+    /** [t, reflected, inside, transmitted] of the current run, sampled with the ribbon rows. */
+    let history: [number, number, number, number][] = [];
+    const xL = X_LEFT;
+    const xR = X_RIGHT;
     const px = (x: number) => ((x - xL) / (xR - xL)) * ctx.width;
     const top = ctx.height * 0.07;
     const ground = ctx.height * 0.56;
     const ribbonTop = ctx.height * 0.6;
 
-    const launch = () => {
-      wave.gaussian(x0, k0, sigma);
-      history = [];
-      e0 = wave.measure().energy;
-      peak0 = 0;
-      for (let i = 0; i < N; i++) {
-        peak0 = Math.max(peak0, wave.re[i] * wave.re[i] + wave.im[i] * wave.im[i]);
-      }
-    };
 
     /** The largest |ψ|² among the grid cells that column c covers, so no peak is skipped. */
     const binPeak = (c: number) => {
@@ -93,11 +75,6 @@ export const quantumTunnelling: PlateCode = {
       for (let i = first[c]; i < first[c + 1]; i++) m = Math.max(m, re[i] * re[i] + im[i] * im[i]);
       return m;
     };
-
-    const shares = () => ({
-      t: wave.probability(hi()) + wave.absorbedRight,
-      r: wave.probability(-Infinity, lo()) + wave.absorbedLeft,
-    });
 
     const pushRow = (separator: boolean) => {
       const d = raster.data;
@@ -110,7 +87,7 @@ export const quantumTunnelling: PlateCode = {
         let out: RGB;
         if (separator) out = mix(ctx.bg, ctx.fg, 0.28);
         else {
-          const t = Math.min(1, Math.sqrt(binPeak(c) / peak0) * 1.1);
+          const t = Math.min(1, Math.sqrt(binPeak(c) / run.peak0) * 1.1);
           const j = first[c];
           const hue = phase
             ? ramp(pal, (Math.atan2(im[j], re[j]) + Math.PI) / (2 * Math.PI), true)
@@ -126,15 +103,13 @@ export const quantumTunnelling: PlateCode = {
 
     return {
       setup() {
-        const preset = str(params, 'preset') as Preset;
-        pot = potential(preset, num(params, 'v0'), num(params, 'width'), DX);
-        wave = new Wave({ n: N, dx: DX, dt: DT, absorb: ABSORB }, pot);
-        k0 = num(params, 'k0');
-        sigma = num(params, 'sigma');
-        x0 = Math.round((lo() - Math.max(4 * sigma, 12)) / DX) * DX;
-        launch();
-        tPlane = transmission(e0, pot);
-        tPacket = packetTransmission(k0, sigma, pot);
+        run = new Scattering({
+          preset: str(params, 'preset') as Preset, k0: num(params, 'k0'), v0: num(params, 'v0'),
+          width: num(params, 'width'), sigma: num(params, 'sigma'),
+        });
+        wave = run.wave;
+        pot = run.pot;
+        history = [];
         cols = Math.max(64, Math.min(N - 2 * ABSORB, Math.floor(ctx.width)));
         first = new Int32Array(cols + 1);
         for (let c = 0; c <= cols; c++) {
@@ -142,27 +117,31 @@ export const quantumTunnelling: PlateCode = {
         }
         raster = new Raster(cols, Math.max(24, Math.floor((ctx.height - ribbonTop) / 2)));
         raster.fill(ctx.bg);
-        tRun = (xR - x0) / k0;
-        rowSteps = Math.max(1, Math.round(tRun / (raster.h * DT)));
+        rowSteps = Math.max(1, Math.round(run.tRun / (raster.h * DT)));
         runs = 0;
         last = null;
       },
       draw() {
-        const steps = ctx.thumbnail ? 10 : num(params, 'speed');
-        for (let s = 0; s < steps; s++) {
-          wave.step();
-          if (wave.steps % rowSteps === 0) {
-            pushRow(false);
-            const sh = shares();
-            history.push([wave.t, sh.r, sh.t]);
-          }
-          if (wave.t > 2.5 * tRun || (wave.steps % 50 === 0 && wave.norm() < 1e-3)) {
-            last = shares();
+        // step in chunks that end on ribbon rows, so the potential half steps fuse in between
+        let left = ctx.thumbnail ? THUMB_STEPS : num(params, 'speed');
+        while (left > 0) {
+          const chunk = Math.min(left, rowSteps - (wave.steps % rowSteps));
+          wave.step(chunk);
+          left -= chunk;
+          if (wave.steps % rowSteps !== 0) continue;
+          pushRow(false);
+          const sh = run.shares();
+          history.push([wave.t, sh.reflected, sh.inside, sh.transmitted]);
+          if (run.done()) {
+            last = sh;
             runs++;
             pushRow(true);
-            launch();
+            run.launch();
+            history = [];
           }
         }
+        const e0 = run.e0;
+        const peak0 = run.peak0;
 
         const W = ctx.width;
         const H = ctx.height;
@@ -272,7 +251,9 @@ export const quantumTunnelling: PlateCode = {
         }
         g.restore();
 
-        const { t, r } = shares();
+        const sh = run.shares();
+        const r = sh.reflected;
+        const t = sh.transmitted;
         const total = wave.norm() + wave.absorbedLeft + wave.absorbedRight;
         p.noStroke();
         p.fill(fg[0], fg[1], fg[2], 170);
@@ -293,17 +274,20 @@ export const quantumTunnelling: PlateCode = {
           y: { label: 'probability' },
           series: [
             { name: 'Reflected', points: history.map((q) => [q[0], q[1]]) },
-            { name: 'Transmitted', points: history.map((q) => [q[0], q[2]]) },
+            { name: 'Inside the structure', points: history.map((q) => [q[0], q[2]]) },
+            { name: 'Transmitted', points: history.map((q) => [q[0], q[3]]) },
           ],
         });
         ctx.stats([
           { label: 'time (ħ = m = 1)', value: `${wave.t.toFixed(2)} · run ${runs + 1}` },
           { label: 'norm, grid + absorbed', value: total.toFixed(10) },
-          { label: 'reflected / transmitted', value: `${pct(r)} / ${pct(t)}` },
+          { label: 'reflected / inside / transmitted',
+            value: `${pct(r)} / ${pct(sh.inside)} / ${pct(t)}` },
           { label: '⟨H⟩ of the state on the grid', value: wave.measure().energy.toFixed(4) },
-          { label: 'plane-wave T at ⟨H⟩₀', value: pct(tPlane) },
-          { label: 'packet-averaged T', value: pct(tPacket) },
-          { label: 'last run, transmitted', value: last ? pct(last.t) : 'running' },
+          { label: 'plane-wave T at ⟨H⟩₀', value: pct(run.planeT) },
+          { label: 'packet-averaged T', value: pct(run.packetT) },
+          { label: 'last run: transmitted / inside',
+            value: last ? `${pct(last.transmitted)} / ${pct(last.inside)}` : 'running' },
         ]);
       },
     };

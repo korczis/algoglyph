@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
+import { DT, RANGES, Scattering, type RunSpec } from '../src/plates/quantum-tunnelling/experiment';
 import {
   Fft, packetTransmission, potential, transmission, Wave, type Potential,
 } from '../src/plates/quantum-tunnelling/schrodinger';
@@ -172,6 +173,22 @@ describe('split-step Schrödinger integrator', () => {
     expect(Math.abs(t - transmission(e0, pot))).toBeGreaterThan(5e-3);
   });
 
+  it('absorbs a slow packet at its edge per unit time, whatever the time step', () => {
+    // k0 = 0.5 is the slow side of a k0 = 1, σ = 2 packet. The edge must take in (nearly) all
+    // of it rather than reflect it, and the same amount at Δt = 0.05 and 0.0125; a mask applied
+    // once per step absorbs four times harder at the finer step and reflects more.
+    const absorbed = (dt: number) => {
+      const w = new Wave({ n: 2048, dx: 0.1, dt, absorb: 240 }, { edges: [], values: [0] });
+      w.gaussian(0, 0.5, 8);
+      w.step(Math.round(600 / dt));
+      return w.absorbedRight;
+    };
+    const coarse = absorbed(0.05);
+    const fine = absorbed(0.0125);
+    expect(fine).toBeGreaterThan(0.999);
+    expect(Math.abs(fine - coarse)).toBeLessThan(1e-6);
+  }, 20000);
+
   it('is deterministic: the same set-up gives bit-identical states', () => {
     const run = () => {
       const pot = potential('double', 1.2, 1, 0.1);
@@ -182,4 +199,48 @@ describe('split-step Schrödinger integrator', () => {
     };
     expect(run()).toEqual(run());
   });
+});
+
+describe('the plate\'s scattering run', () => {
+  it('splits the probability into reflected, inside and transmitted with nothing left over', () => {
+    // the double barrier's well holds probability for a long time: it must be counted
+    const run = new Scattering({ preset: 'double', k0: 1.5, v0: 1.2, width: 1, sigma: 5 });
+    let insideSeen = 0;
+    for (let i = 0; i < 40; i++) {
+      run.wave.step(200);
+      const s = run.shares();
+      insideSeen = Math.max(insideSeen, s.inside);
+      expect(Math.abs(s.reflected + s.inside + s.transmitted - 1)).toBeLessThan(1e-9);
+    }
+    expect(insideSeen).toBeGreaterThan(1e-3);
+  });
+
+  // The slider extremes (each range at its minimum and maximum, every preset), plus the slow
+  // packets that test the absorbing edges. At Δt = 0.0125 the worst gap measured is 0.76
+  // points (double barrier, k0 3, V0 4, a 0.3, σ 8), from the grid's sampling of the sharp
+  // barrier edges and the time step; at Δt = 0.05 that case is 1.6 points off, and with the
+  // old cos^⅛ mask a slow packet over a low barrier loses a share to edge reflections.
+  const { k0, v0, width, sigma } = RANGES;
+  const cases: RunSpec[] = [];
+  for (const preset of ['single', 'double', 'step'] as const) {
+    for (const a of preset === 'step' ? [width.min] : [width.min, width.max]) {
+      for (const s of [sigma.min, sigma.max]) {
+        cases.push({ preset, k0: k0.max, v0: v0.max, width: a, sigma: s });
+      }
+    }
+    cases.push({ preset, k0: k0.min, v0: 1.2, width: width.min, sigma: sigma.min });
+  }
+  cases.push({ preset: 'single', k0: k0.min, v0: v0.min, width: width.max, sigma: sigma.min });
+  cases.push({ preset: 'single', k0: k0.min, v0: v0.max, width: width.min, sigma: sigma.max });
+
+  for (const c of cases) {
+    const name = `${c.preset} k0 ${c.k0} V0 ${c.v0} a ${c.width} σ ${c.sigma}`;
+    it(`settles within a point of the packet-averaged T: ${name}`, () => {
+      const run = new Scattering(c, DT);
+      const end = run.finish();
+      // what is still inside the structure when the run ends may yet go either way
+      expect(end.transmitted).toBeLessThan(run.packetT + 0.01);
+      expect(end.transmitted + end.inside).toBeGreaterThan(run.packetT - 0.01);
+    }, 30000);
+  }
 });
