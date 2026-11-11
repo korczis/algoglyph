@@ -4,11 +4,21 @@
 // stable for C2 ≤ 1/2. The outer ring of cells is held at zero, wall cells are held at zero,
 // and an optional sponge multiplies the new field by a factor below one near the edges.
 // Pure: no p5, typed arrays only, and no randomness (a run is a function of its parameters).
+//
+// A sponge-damped field decays towards zero and would end in subnormal floats, which x86 runs
+// far slower than normal ones (Apple silicon does not). Every stored value below FLUSH_BELOW in
+// magnitude is therefore written as an exact zero: the field, and the intensity average.
 
 /** Courant number squared, (c·dt/dx)², kept under the 2D stability limit of 1/2. */
 export const C2 = 0.24;
 /** Width of the absorbing sponge in cells. */
 export const SPONGE = 18;
+/**
+ * Stored values smaller than this in magnitude are flushed to zero, far above the smallest
+ * normal Float32 (1.18e-38) and far below anything the plate draws. The same threshold as
+ * `flush` in src/core/budget.ts: switch to that helper once it is on main.
+ */
+export const FLUSH_BELOW = 1e-30;
 
 export type Experiment = 'double' | 'single' | 'two' | 'free';
 
@@ -30,6 +40,17 @@ export interface Tank {
   sources: [number, number][];
   /** Steps taken. */
   step: number;
+  /** Stored values below this magnitude become zero; 0 keeps every value as computed. */
+  flushBelow: number;
+}
+
+export interface TankOptions {
+  /** The absorbing border in cells, 0 for none (default SPONGE). */
+  sponge?: number;
+  /** (c·dt/dx)² (default C2). */
+  c2?: number;
+  /** The flush threshold (default FLUSH_BELOW); 0 turns flushing off. */
+  flushBelow?: number;
 }
 
 /** True for the experiments driven by a plane wave from the left edge. */
@@ -39,12 +60,12 @@ export function planeDriven(e: Experiment): boolean {
 
 /**
  * A w × h tank for an experiment: `gap` is the slit spacing (double), the opening (single) or
- * the source spacing (two). `sponge` is the absorbing border in cells, 0 for none; the plane
- * experiments have no sponge on the driven left edge.
+ * the source spacing (two). The plane experiments have no sponge on the driven left edge.
  */
 export function tank(
-  w: number, h: number, experiment: Experiment, gap: number, sponge = SPONGE, c2 = C2,
+  w: number, h: number, experiment: Experiment, gap: number, options: TankOptions = {},
 ): Tank {
+  const sponge = options.sponge ?? SPONGE;
   const n = w * h;
   const damp = new Float32Array(n);
   const wall = new Uint8Array(n);
@@ -76,13 +97,14 @@ export function tank(
       [Math.floor(w * 0.3), Math.floor(h / 2 + gap / 2)]]
     : [];
   return {
-    w, h, c2, experiment,
+    w, h, c2: options.c2 ?? C2, experiment,
     u: new Float32Array(n),
     prev: new Float32Array(n),
     nxt: new Float32Array(n),
     intensity: new Float32Array(n),
     damp, wall, barrierX, sources,
     step: 0,
+    flushBelow: options.flushBelow ?? FLUSH_BELOW,
   };
 }
 
@@ -93,7 +115,7 @@ export function omega(lambda: number, c2 = C2): number {
 
 /** One time step: drive the sources at wavelength `lambda`, update the field, average u². */
 export function advance(t: Tank, lambda: number): void {
-  const { w, h, c2, damp, wall, intensity } = t;
+  const { w, h, c2, damp, wall, intensity, flushBelow: f } = t;
   const drive = Math.sin(omega(lambda, c2) * t.step);
   let u = t.u;
   if (planeDriven(t.experiment)) {
@@ -110,14 +132,18 @@ export function advance(t: Tank, lambda: number): void {
         continue;
       }
       const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * u[i];
-      nxt[i] = (2 * u[i] - prev[i] + c2 * lap) * damp[i];
+      const v = (2 * u[i] - prev[i] + c2 * lap) * damp[i];
+      nxt[i] = v < f && v > -f ? 0 : v;
     }
   }
   t.prev = u;
   t.u = nxt;
   t.nxt = prev;
   u = t.u;
-  for (let i = 0; i < u.length; i++) intensity[i] = intensity[i] * 0.992 + u[i] * u[i] * 0.008;
+  for (let i = 0; i < u.length; i++) {
+    const e = intensity[i] * 0.992 + u[i] * u[i] * 0.008;
+    intensity[i] = e < f ? 0 : e;
+  }
   t.step++;
 }
 

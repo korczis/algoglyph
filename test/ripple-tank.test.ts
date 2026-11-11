@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { advance, drop, tank, type Experiment, type Tank } from '../src/plates/ripple-tank/wave';
+import {
+  advance, drop, FLUSH_BELOW, tank, type Experiment, type Tank,
+} from '../src/plates/ripple-tank/wave';
 
 // ---------------------------------------------------------------------------------------------
 // The frozen reference: the simulation of src/plates/ripple-tank/plate.ts as it was before the
@@ -142,7 +144,9 @@ describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', (
       old.setup();
       const p = { ...params };
       const res = p.res;
-      const t: Tank = tank(Math.floor(W / res), Math.floor(H / res), p.experiment as Experiment, p.gap);
+      // flushing off: the pre-refactor code kept subnormals, and the oracle is bit for bit
+      const t: Tank = tank(Math.floor(W / res), Math.floor(H / res), p.experiment as Experiment, p.gap,
+        { flushBelow: 0 });
       for (let f = 0; f < 200; f++) {
         // pebbles (one on the barrier) and a slider drag mid-run, applied to both runs
         if (f % 37 === 5) {
@@ -176,3 +180,56 @@ describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', (
     }, 60000);
   }
 });
+
+describe('ripple-tank: flushing tiny values to zero', () => {
+  it('changes a driven run only at the level of float32 rounding', () => {
+    // values below FLUSH_BELOW are set to zero; float32 rounding then carries that difference
+    // through the run, but it stays orders of magnitude below the field
+    const exact = tank(160, 100, 'double', 30, { flushBelow: 0 });
+    const flushed = tank(160, 100, 'double', 30);
+    let peak = 0;
+    let diff = 0;
+    for (let s = 0; s < 3000; s++) {
+      advance(exact, 14);
+      advance(flushed, 14);
+    }
+    for (let i = 0; i < exact.u.length; i++) {
+      peak = Math.max(peak, Math.abs(exact.u[i]));
+      diff = Math.max(diff, Math.abs(exact.u[i] - flushed.u[i]));
+    }
+    expect(peak).toBeGreaterThan(0.1);
+    expect(diff).toBeLessThanOrEqual(1e-4 * peak);
+  });
+
+  it('leaves no subnormal float in the stored state through a long undriven run', () => {
+    // the smallest normal float32 is 2^-126; anything non-zero below it is subnormal, and x86
+    // runs arithmetic on those far slower. They appear where values decay towards zero: ahead
+    // of every wavefront (the five-point stencil leaks exponentially small values one cell per
+    // step) and in the squares of those values in the intensity average.
+    const MIN_NORMAL = 2 ** -126;
+    const subnormals = (t: Tank) => {
+      let n = 0;
+      for (const a of [t.u, t.prev, t.intensity]) {
+        for (let i = 0; i < a.length; i++) if (a[i] !== 0 && Math.abs(a[i]) < MIN_NORMAL) n++;
+      }
+      return n;
+    };
+    const run = (options: { flushBelow?: number }) => {
+      // the free surface has no drive: two pebbles spread, reflect and decay in the sponge
+      const t = tank(200, 150, 'free', 0, options);
+      drop(t, 100, 75);
+      drop(t, 60, 40, 1.5);
+      let seen = 0;
+      for (let s = 0; s < 3000; s++) {
+        advance(t, 14);
+        if (s % 5 === 0 || s === 2999) seen = Math.max(seen, subnormals(t));
+      }
+      return seen;
+    };
+    // without the flush the same run does reach subnormals, so the check has teeth
+    expect(run({ flushBelow: 0 })).toBeGreaterThan(0);
+    expect(run({})).toBe(0);
+    expect(FLUSH_BELOW).toBeGreaterThan(MIN_NORMAL);
+  }, 60000);
+});
+

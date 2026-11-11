@@ -1,7 +1,16 @@
+import { bounded, cellWithin, stepsWithin } from '../../core/budget';
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { advance, C2, drop, tank, type Experiment, type Tank } from './wave';
+
+/**
+ * Cells in the tank at most, and cell updates (cells × steps) per frame (src/core/budget.ts):
+ * shading every cell costs as much as stepping it, so a desktop canvas at the finest cell size
+ * would otherwise spend the whole frame budget on the intensity view.
+ */
+export const MAX_CELLS = 160_000;
+export const CELL_STEPS_PER_FRAME = 1_200_000;
 
 export const rippleTank: PlateCode = {
   id: 'ripple-tank',
@@ -41,7 +50,7 @@ export const rippleTank: PlateCode = {
 
     return {
       setup() {
-        res = num(params, 'res');
+        res = cellWithin(ctx.width, ctx.height, num(params, 'res'), MAX_CELLS);
         const w = Math.floor(ctx.width / res);
         const h = Math.floor(ctx.height / res);
         t = tank(w, h, str(params, 'experiment') as Experiment, num(params, 'gap'));
@@ -55,7 +64,8 @@ export const rippleTank: PlateCode = {
       },
       draw() {
         const lambda = num(params, 'lambda');
-        const steps = num(params, 'speed');
+        const asked = num(params, 'speed');
+        const steps = stepsWithin(asked, t.w * t.h, CELL_STEPS_PER_FRAME);
         for (let s = 0; s < steps; s++) advance(t, lambda);
         const { w, h, u, intensity, wall, barrierX, step } = t;
 
@@ -82,8 +92,9 @@ export const rippleTank: PlateCode = {
         raster.blit(p, true);
 
         ctx.stats([
-          { label: 'grid', value: `${w}×${h} cells` },
+          { label: 'grid', value: `${w}×${h} cells of ${bounded(res, num(params, 'res'), ' px')}` },
           { label: 'time steps', value: step.toLocaleString('en') },
+          { label: 'steps this frame', value: bounded(steps, asked) },
           { label: 'wave speed', value: `${Math.sqrt(C2).toFixed(3)} cells / step` },
           { label: 'period', value: `${(num(params, 'lambda') / Math.sqrt(C2)).toFixed(1)} steps` },
         ]);
