@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { cloth, step, type Cloth, type Forces, type Scene } from '../src/plates/verlet-cloth/cloth';
+import {
+  cloth, integrate, step, type Cloth, type Forces, type Scene,
+} from '../src/plates/verlet-cloth/cloth';
+import { verletCloth } from '../src/plates/verlet-cloth/plate';
+import type { RangeParam } from '../src/core/plate';
 
 // ---------------------------------------------------------------------------------------------
 // The frozen reference: the simulation of src/plates/verlet-cloth/plate.ts as it was before the
@@ -14,7 +18,9 @@ interface Link {
   rest: number;
 }
 
-type LegacyParams = { setup: string; res: number; iterations: number; gravity: number; wind: number };
+type LegacyParams = {
+  setup: string; res: number; iterations: number; gravity: number; wind: number;
+};
 
 function legacyCloth(params: LegacyParams, ctx: { rnd: () => number }) {
   const num = (_p: LegacyParams, k: 'res' | 'iterations' | 'gravity' | 'wind') => params[k];
@@ -176,8 +182,10 @@ function sameBits(a: Float64Array, b: Float64Array): boolean {
 describe('verlet-cloth: cloth.ts reproduces the pre-refactor plate bit for bit', () => {
   const cases: [string, LegacyParams, number][] = [
     ['default drape', { setup: 'drape', res: 40, iterations: 8, gravity: 1, wind: 0.6 }, 4242],
-    ['curtain at the maxima', { setup: 'curtain', res: 56, iterations: 24, gravity: 3, wind: 3 }, 7],
-    ['hammock at the minima', { setup: 'corners', res: 12, iterations: 1, gravity: 0, wind: 0 }, 99],
+    ['curtain at the maxima',
+      { setup: 'curtain', res: 56, iterations: 24, gravity: 3, wind: 3 }, 7],
+    ['hammock at the minima',
+      { setup: 'corners', res: 12, iterations: 1, gravity: 0, wind: 0 }, 99],
     ['drape, heavy', { setup: 'drape', res: 30, iterations: 3, gravity: 2.5, wind: 1.7 }, 123456],
   ];
   for (const [name, params, seed] of cases) {
@@ -200,11 +208,118 @@ describe('verlet-cloth: cloth.ts reproduces the pre-refactor plate bit for bit',
         old.draw();
         frame(c, p);
         const s = old.state();
-        if (!sameBits(c.pos, s.pos) || !sameBits(c.prev, s.prev) || !Object.is(c.strain, s.strain)) {
+        const same = sameBits(c.pos, s.pos) && sameBits(c.prev, s.prev) && Object.is(c.strain, s.strain);
+        if (!same) {
           throw new Error(`${name}: state diverged at frame ${f}`);
         }
       }
       expect(sameBits(c.pos, old.state().pos)).toBe(true);
+    }, 60000);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Physics, against references written here: the analytic free fall, the rest lengths of a unit
+// grid, and the requirement that pinned points never move.
+// ---------------------------------------------------------------------------------------------
+
+/** One free particle, no links, no sphere, the floor out of reach. */
+function particle(x0: number[], prev0: number[]): Cloth {
+  return {
+    cols: 1, rows: 1,
+    pos: Float64Array.from(x0), prev: Float64Array.from(prev0), pinned: new Uint8Array(1),
+    la: new Uint32Array(0), lb: new Uint32Array(0), rest: new Float64Array(0),
+    sphere: null, floor: Infinity, t: 0, strain: 0,
+  };
+}
+
+/** Mean relative stretch |d − rest| / rest over every link, measured here from the positions. */
+function stretch(c: Cloth): number {
+  let sum = 0;
+  for (let k = 0; k < c.rest.length; k++) {
+    const a = c.la[k] * 3;
+    const b = c.lb[k] * 3;
+    const { pos } = c;
+    const d = Math.hypot(pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]);
+    sum += Math.abs(d - c.rest[k]) / c.rest[k];
+  }
+  return sum / c.rest.length;
+}
+
+/** A slider's maximum, read from the plate's own controls. */
+const max = (key: string) => (verletCloth.params.find((p) => p.key === key) as RangeParam).max;
+/** Every slider at its maximum, scaled per step as plate.ts scales it. */
+const heaviest = (): Forces => ({
+  gravity: max('gravity') * 0.012, wind: max('wind') * 0.004, iterations: max('iterations'),
+});
+
+describe('verlet-cloth: position Verlet with distance constraints', () => {
+  it('a free particle follows x(t) = x0 + v0 t + ½ g t² exactly (undamped)', () => {
+    const g = 0.036;
+    const x0 = [1.5, -4, 2];
+    const v0 = [0.03, -0.2, -0.01];
+    // Verlet starts from the position one step earlier: x(−1) = x0 − v0 + ½ g along y
+    const c = particle(x0, [x0[0] - v0[0], x0[1] - v0[1] + 0.5 * g, x0[2] - v0[2]]);
+    for (let n = 1; n <= 500; n++) {
+      integrate(c, g, 0, 1);
+      const want = [x0[0] + v0[0] * n, x0[1] + v0[1] * n + 0.5 * g * n * n, x0[2] + v0[2] * n];
+      for (let d = 0; d < 3; d++) {
+        expect(Math.abs(c.pos[d] - want[d])).toBeLessThan(1e-9 * Math.max(1, Math.abs(want[d])));
+      }
+    }
+  });
+
+  it('builds unit structural links and √2 shear links (the seeded wrinkle aside)', () => {
+    const c = cloth(16, 'curtain', mulberry32(3));
+    let structural = 0;
+    let shear = 0;
+    for (const r of c.rest) {
+      if (Math.abs(r - 1) < 0.04) structural++;
+      else if (Math.abs(r - Math.SQRT2) < 0.04) shear++;
+    }
+    expect(structural).toBe(2 * 16 * 15);
+    expect(shear).toBe(2 * 15 * 15);
+  });
+
+  it('the links converge: the mean stretch falls as the constraint iterations rise', () => {
+    const counts = [1, 2, 4, 8, 16, 24];
+    const errors = counts.map((iterations) => {
+      const c = cloth(24, 'curtain', mulberry32(11));
+      const f: Forces = { gravity: 3 * 0.012, wind: 0.6 * 0.004, iterations };
+      for (let s = 0; s < 60; s++) step(c, f);
+      return stretch(c);
+    });
+    for (let i = 1; i < errors.length; i++) {
+      expect(errors[i], `${counts[i]} iterations against ${counts[i - 1]}`)
+        .toBeLessThan(errors[i - 1]);
+    }
+    expect(errors[errors.length - 1]).toBeLessThan(0.2 * errors[0]);
+  });
+
+  for (const scene of ['curtain', 'corners'] as Scene[]) {
+    it(`pinned points never move (${scene}, every slider at its maximum)`, () => {
+      const c = cloth(max('res'), scene, mulberry32(5));
+      const fixed: [number, number[]][] = [];
+      for (let k = 0; k < c.pinned.length; k++) {
+        if (c.pinned[k]) fixed.push([k, [c.pos[k * 3], c.pos[k * 3 + 1], c.pos[k * 3 + 2]]]);
+      }
+      expect(fixed.length).toBe(scene === 'curtain' ? max('res') : 2);
+      const f = heaviest();
+      for (let s = 0; s < 200; s++) step(c, f);
+      for (const [k, p] of fixed) {
+        expect([c.pos[k * 3], c.pos[k * 3 + 1], c.pos[k * 3 + 2]]).toEqual(p);
+      }
+    }, 60000);
+  }
+
+  for (const scene of ['drape', 'curtain', 'corners'] as Scene[]) {
+    it(`no NaN at the slider maxima (${scene})`, () => {
+      const c = cloth(max('res'), scene, mulberry32(8));
+      const f = heaviest();
+      for (let s = 0; s < 300; s++) step(c, f);
+      expect(c.pos.every(Number.isFinite)).toBe(true);
+      expect(c.prev.every(Number.isFinite)).toBe(true);
+      expect(Number.isFinite(c.strain)).toBe(true);
     }, 60000);
   }
 });

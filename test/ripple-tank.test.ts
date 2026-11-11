@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  advance, drop, FLUSH_BELOW, tank, type Experiment, type Tank,
+  advance, C2 as MODULE_C2, drop, FLUSH_BELOW, tank, type Experiment, type Tank,
 } from '../src/plates/ripple-tank/wave';
 
 // ---------------------------------------------------------------------------------------------
@@ -145,8 +145,9 @@ describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', (
       const p = { ...params };
       const res = p.res;
       // flushing off: the pre-refactor code kept subnormals, and the oracle is bit for bit
-      const t: Tank = tank(Math.floor(W / res), Math.floor(H / res), p.experiment as Experiment, p.gap,
-        { flushBelow: 0 });
+      const t: Tank = tank(
+        Math.floor(W / res), Math.floor(H / res), p.experiment as Experiment, p.gap, { flushBelow: 0 },
+      );
       for (let f = 0; f < 200; f++) {
         // pebbles (one on the barrier) and a slider drag mid-run, applied to both runs
         if (f % 37 === 5) {
@@ -233,3 +234,190 @@ describe('ripple-tank: flushing tiny values to zero', () => {
   }, 60000);
 });
 
+// ---------------------------------------------------------------------------------------------
+// Physics, against references written here: the discrete energy of the leapfrog scheme, the
+// numerical dispersion relation of the five-point stencil, and Young's fringe condition.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The energy the leapfrog scheme conserves exactly (up to rounding) with fixed zero boundaries:
+ *   E = ½ Σ (u[n+1] − u[n])² + ½ C2 Σ_edges (u[n+1]_a − u[n+1]_b)(u[n]_a − u[n]_b)
+ * over every pair of neighbouring cells (a, b).
+ */
+function leapfrogEnergy(t: Tank, c2: number): number {
+  const { w, h, u, prev } = t;
+  let kinetic = 0;
+  let strain = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const v = u[i] - prev[i];
+      kinetic += v * v;
+      if (x + 1 < w) strain += (u[i] - u[i + 1]) * (prev[i] - prev[i + 1]);
+      if (y + 1 < h) strain += (u[i] - u[i + w]) * (prev[i] - prev[i + w]);
+    }
+  }
+  return 0.5 * kinetic + 0.5 * c2 * strain;
+}
+
+/** Zero crossings along a row, each placed by linear interpolation between its two cells. */
+function zeroCrossings(row: Float32Array, from: number, to: number): number[] {
+  const out: number[] = [];
+  for (let x = from; x < to; x++) {
+    const a = row[x];
+    const b = row[x + 1];
+    if ((a < 0 && b >= 0) || (a > 0 && b <= 0)) out.push(x + a / (a - b));
+  }
+  return out;
+}
+
+/** Least-squares slope of ys against their index. */
+function slope(ys: number[]): number {
+  const n = ys.length;
+  let sx = 0;
+  let sy = 0;
+  let sxx = 0;
+  let sxy = 0;
+  ys.forEach((y, i) => {
+    sx += i;
+    sy += y;
+    sxx += i * i;
+    sxy += i * y;
+  });
+  return (n * sxy - sx * sy) / (n * sxx - sx * sx);
+}
+
+function bilinear(w: number, a: Float64Array, x: number, y: number): number {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  const i = y0 * w + x0;
+  return a[i] * (1 - fx) * (1 - fy) + a[i + 1] * fx * (1 - fy)
+    + a[i + w] * (1 - fx) * fy + a[i + w + 1] * fx * fy;
+}
+
+describe('ripple-tank: the wave equation integrated', () => {
+  it('runs at C2 = 0.24, under the 2D stability limit of 1/2', () => {
+    expect(MODULE_C2).toBe(0.24);
+    expect(MODULE_C2).toBeLessThan(0.5);
+  });
+
+  it('keeps the discrete energy bounded over many steps with no sponge and no drive', () => {
+    const t = tank(120, 90, 'free', 0, { sponge: 0 });
+    drop(t, 60, 45);
+    drop(t, 30, 20, 1.2);
+    advance(t, 14);
+    const e0 = leapfrogEnergy(t, 0.24);
+    let worst = 0;
+    let peak = 0;
+    for (let s = 0; s < 6000; s++) {
+      advance(t, 14);
+      if (s % 50 === 0) worst = Math.max(worst, Math.abs(leapfrogEnergy(t, 0.24) - e0) / e0);
+    }
+    for (const v of t.u) peak = Math.max(peak, Math.abs(v));
+    expect(e0).toBeGreaterThan(0);
+    expect(worst).toBeLessThan(1e-3);
+    expect(peak).toBeLessThan(3);
+  }, 60000);
+
+  it('the same check fails above the limit (C2 = 0.55 grows without bound)', () => {
+    const t = tank(120, 90, 'free', 0, { sponge: 0, c2: 0.55 });
+    drop(t, 60, 45);
+    advance(t, 14);
+    const e0 = leapfrogEnergy(t, 0.55);
+    let ratio = 1;
+    for (let s = 0; s < 300 && ratio < 1e6; s++) {
+      advance(t, 14);
+      ratio = Math.abs(leapfrogEnergy(t, 0.55)) / e0;
+    }
+    expect(ratio).toBeGreaterThan(1e6);
+  });
+
+  // A driven plane wave, measured before its front reaches the barrier (no reflection yet) on
+  // a grid tall enough that the sponged top and bottom edges do not reach the middle row.
+  // The five-point stencil with leapfrog obeys sin²(ω/2) = C2·(sin²(kx/2) + sin²(ky/2)), not
+  // ω = c·k: driven at ω = 2π·√C2/λ, the wave along x has the numerical wavelength
+  //   λ_num = 2π / k,  k = 2·asin(sin(ω/2) / √C2),
+  // a little shorter than λ, the more so the fewer cells per wavelength.
+  for (const lambda of [6, 14, 24]) {
+    it(`a plane wave driven at λ = ${lambda} cells has it, net of the stencil's dispersion`, () => {
+      const w = 700;
+      const h = 400;
+      const t = tank(w, h, 'single', 20);
+      const c = Math.sqrt(0.24);
+      const om = (2 * Math.PI * c) / lambda;
+      const k = 2 * Math.asin(Math.sin(om / 2) / c);
+      const lambdaNum = (2 * Math.PI) / k;
+      const group = (c * Math.cos(k / 2)) / Math.cos(om / 2);
+      const steps = Math.floor((t.barrierX - 10) / group);
+      for (let s = 0; s < steps; s++) advance(t, lambda);
+      const y = Math.floor(h / 2);
+      const row = t.u.subarray(y * w, (y + 1) * w);
+      const front = 2 + group * steps;
+      const xs = zeroCrossings(row, 8, Math.floor(front - 3 * lambda));
+      expect(xs.length).toBeGreaterThanOrEqual(3);
+      const measured = 2 * slope(xs);
+      expect(Math.abs(measured - lambdaNum) / lambdaNum).toBeLessThan(0.005);
+      expect(Math.abs(measured - lambda) / lambda).toBeLessThan(0.05);
+      // at six cells per wavelength the dispersion is visible: closer to λ_num than to λ
+      if (lambda === 6) expect(Math.abs(measured - lambda) / lambda).toBeGreaterThan(0.03);
+    }, 60000);
+  }
+
+  it("the double slit's time-averaged intensity peaks where sin θ = mλ/d", () => {
+    const lambda = 10;
+    const d = 40;
+    const R = 220;
+    const w = 520;
+    const h = 420;
+    const t = tank(w, h, 'double', d);
+    for (let s = 0; s < 1400; s++) advance(t, lambda);
+    // the time average of u² over about thirty drive periods, taken here
+    const mean = new Float64Array(w * h);
+    for (let s = 0; s < 600; s++) {
+      advance(t, lambda);
+      for (let i = 0; i < mean.length; i++) mean[i] += t.u[i] * t.u[i];
+    }
+    const ox = t.barrierX + 1.5;
+    const oy = Math.floor(h / 2);
+    const at = (deg: number) => {
+      const th = (deg * Math.PI) / 180;
+      return bilinear(w, mean, ox + R * Math.cos(th), oy + R * Math.sin(th));
+    };
+    const angle = (s: number) => (Math.asin(s) * 180) / Math.PI;
+    const maxima: number[] = [];
+    for (const m of [-2, -1, 0, 1, 2]) {
+      const predicted = angle((m * lambda) / d);
+      let best = predicted;
+      for (let deg = predicted - 5; deg <= predicted + 5; deg += 0.25) {
+        if (at(deg) > at(best)) best = deg;
+      }
+      expect(Math.abs(best - predicted), `order ${m}: peak at ${best}°, predicted ${predicted}°`)
+        .toBeLessThanOrEqual(1);
+      maxima.push(at(best));
+    }
+    // and dark fringes between them, where the path difference is half a wavelength
+    for (const m of [-2, -1, 0, 1]) {
+      const dark = at(angle(((m + 0.5) * lambda) / d));
+      expect(dark).toBeLessThan(0.35 * Math.min(maxima[m + 2], maxima[m + 3]));
+    }
+  }, 60000);
+
+  it('keeps every wall cell at zero, pebbles dropped on the barrier included', () => {
+    const t = tank(240, 150, 'double', 34);
+    let walls = 0;
+    for (const v of t.wall) walls += v;
+    expect(walls).toBeGreaterThan(0);
+    for (let s = 0; s < 1500; s++) {
+      if (s % 100 === 0) drop(t, t.barrierX + 1, 20 + (s % 110));
+      advance(t, 12);
+    }
+    for (let i = 0; i < t.wall.length; i++) {
+      if (!t.wall[i]) continue;
+      if (t.u[i] !== 0 || t.prev[i] !== 0 || t.intensity[i] !== 0) {
+        throw new Error(`wall cell ${i} moved`);
+      }
+    }
+  });
+});
