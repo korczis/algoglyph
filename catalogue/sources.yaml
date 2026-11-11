@@ -58,3 +58,17 @@ sources:
   - id: practice-logistics
     title: Warehouse logistics
     kind: practice
+  - id: bowyer-dirichlet
+    title: Computing Dirichlet tessellations (The Computer Journal 24(2), 1981)
+    author: Adrian Bowyer
+    kind: paper
+  - id: watson-delaunay
+    title: Computing the n-dimensional Delaunay tessellation with application to Voronoi polytopes (The Computer Journal 24(2), 1981)
+    author: David F. Watson
+    kind: paper
+  - id: de-berg-cgaa
+    title: 'Computational Geometry: Algorithms and Applications (third edition)'
+    author: Mark de Berg, Otfried Cheong, Marc van Kreveld, Mark Overmars
+    publisher: Springer
+    year: 2008
+    kind: book
