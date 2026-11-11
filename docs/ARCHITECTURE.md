@@ -62,7 +62,7 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a one-off visualisation | `src/plates/<id>/plate.ts` with a default `PlateCode` + its entry (`engine: custom`) | path |
 | a comparison | a `labs.yaml` entry; entries opt in with `labs: [<id>]` | the entries that name it |
 | a chart | `ctx.chart({ title, x, y, series })` from any plate or engine | rendered by `src/core/charts.ts` |
-| a heavy kernel | Rust in `crates/algoglyph-kernels`, a C ABI in `src/wasm.rs`, a plate that imports `src/wasm/algoglyph_kernels.wasm?init` | built by `scripts/wasm.sh` |
+| a heavy kernel | Rust in `crates/algoglyph-kernels`, a C ABI in `crates/algoglyph-kernels/src/wasm.rs`, a plate that imports `src/wasm/algoglyph_kernels.wasm?init` | built by `scripts/wasm.sh` |
 | a classification level | a node in `taxonomy.yaml` (any depth) | the tree |
 
 ### Engine and kernel
@@ -114,6 +114,7 @@ npm run catalogue -- new <id> --title "<t>" --taxonomy <wing/shelf> --engine <e>
 npm run catalogue -- plan --write  # regenerate the MC-*/IC-* plan from the planned entries
 npm run wasm                       # Rust tests + wasm32 build
 npm run readme                     # regenerate the README's derived regions
+npm run facts                      # no hand-typed counts, plate numbers or dangling links
 npm run verify                     # everything CI runs, in CI's order
 ```
 
@@ -122,7 +123,9 @@ npm run verify                     # everything CI runs, in CI's order
 | Rule | Checked by | Runs in |
 |------|------------|---------|
 | `project.catalogue-integrity` | `scripts/catalogue.mjs --check`, `build-readme.mjs --check`, the Vite plugin | verify, CI, every build |
+| `project.derived-facts` | `scripts/check-facts.mjs` (policy `config/derived-facts.yaml`), `test/derived-facts.test.ts` | pre-commit, verify, CI |
 | `project.viz-component-layer` | the live↔code check, `test/registry.test.ts`, the browser gate | verify, CI |
 | `project.no-fake-science` | the engine harness tests, `cargo test`, the wasm fixture test | verify, CI |
+| main-thread budget (`project.viz-component-layer`) | `test/budget.test.ts` over every live plate and lab at its heaviest settings, budgets in `config/budgets.yaml`, run alone (`npm run test:budget`) | verify, CI |
 | `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail) | verify, CI before every deploy |
 | the plan | `majordomus plan validate`, `majordomus doctor` | the commit hook, CI |

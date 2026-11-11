@@ -5,7 +5,7 @@ title: "Sorting and selection: every catalogued algorithm runs"
 slug: sorting-and-selection-every-catalogued-algorithm-runs
 order: 101
 priority: p2
-problem: 6 algorithm(s) of the Sorting and selection wing are catalogued and not yet running.
+problem: "Algorithms of the Sorting and selection wing are catalogued and not yet running: npm run catalogue -- list --under sorting --status planned."
 outcome: Every entry under sorting/ is live, tested by its engine's harness and in the browser gate.
 acceptance_criteria:
   - npm run catalogue -- list --under sorting --status planned prints nothing.

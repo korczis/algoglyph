@@ -11,6 +11,9 @@ step() { printf '\n== %s\n' "$*"; }
 step "catalogue (schema, references, live and code agree, derived plan current)"
 node scripts/catalogue.mjs --check
 
+step "derived facts (no hand-typed counts, plate numbers or dangling links)"
+node scripts/check-facts.mjs
+
 step "Rust kernels (native tests, wasm32 build)"
 scripts/wasm.sh
 
@@ -18,7 +21,7 @@ step "typecheck"
 npx tsc --noEmit
 
 step "unit tests"
-npx vitest run
+npm test
 
 step "README derived sections are current"
 node scripts/build-readme.mjs --check
