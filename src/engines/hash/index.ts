@@ -482,6 +482,32 @@ function stats(r: Replay, kernel: HashKernel): Stat[] {
 
 // ---- the plate -------------------------------------------------------------------------------
 
+/**
+ * The next run of a looping plate or lab, traced a slice of at most FRAME_EVENTS events per
+ * frame while the finished run stays on screen, so the handover never computes a whole trace in
+ * one frame.
+ */
+export class Rebuild {
+  private jobs: { run: Tracer; at: number }[];
+  /** Events recorded by the last step. */
+  lastEvents = 0;
+  constructor(kernels: HashKernel[], private steps: Step[], size: Size) {
+    this.jobs = kernels.map((k) => ({ run: tracer(k, size), at: 0 }));
+  }
+  get ready(): boolean { return this.jobs.every((j) => j.at >= this.steps.length); }
+  step(budget = FRAME_EVENTS): void {
+    this.lastEvents = 0;
+    for (const j of this.jobs) {
+      if (this.lastEvents >= budget) return;
+      if (j.at >= this.steps.length) continue;
+      const before = j.run.length;
+      j.at = j.run.run(this.steps, j.at, budget - this.lastEvents);
+      this.lastEvents += j.run.length - before;
+    }
+  }
+  traces(): Trace[] { return this.jobs.map((j) => j.run.result()); }
+}
+
 function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
   return {
     id: info.id,
@@ -492,12 +518,9 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
-      const make = () => {
-        const n = num(ctx.params, 'n');
-        const tr = trace(kernel, steps(ctx, n, ctx.seed + generation * 7919), sizeOf(ctx, n));
-        return new Replay(tr, kernel.layout, n);
-      };
-      let r = make();
+      let next: { rebuild: Rebuild; n: number } | null = null;
+      const n0 = num(ctx.params, 'n');
+      let r = new Replay(trace(kernel, steps(ctx, n0, ctx.seed), sizeOf(ctx, n0)), kernel.layout, n0);
       return {
         setup() {
           if (ctx.thumbnail) r.advance(Math.floor(r.t.length * 0.55));
@@ -506,10 +529,19 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
             if (!r.done) r.advance(num(ctx.params, 'speed'));
-            else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
-              generation++;
-              hold = 0;
-              r = make();
+            else if (bool(ctx.params, 'loop')) {
+              // trace the next run across the hold frames; show it once it is complete
+              if (!next) {
+                const n = num(ctx.params, 'n');
+                generation++;
+                next = { rebuild: new Rebuild([kernel], steps(ctx, n, ctx.seed + generation * 7919), sizeOf(ctx, n)), n };
+              }
+              if (!next.rebuild.ready) next.rebuild.step();
+              if (++hold > HOLD_FRAMES && next.rebuild.ready) {
+                r = new Replay(next.rebuild.traces()[0], kernel.layout, next.n);
+                next = null;
+                hold = 0;
+              }
             }
           }
           const pad = Math.round(Math.min(ctx.width, ctx.height) * 0.04);
@@ -580,12 +612,20 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
       const curves = kernels.map((k) => ({ info: k.info, pts: [] as [number, number][], slope: NaN }));
       const scaling = new Scaling(kernels.map((k) => k.kernel), str(ctx.params, 'stream') as Stream,
         (n) => sizeOf(ctx, n), ctx.seed);
-      const build = () => {
-        const n = num(ctx.params, 'n');
-        const s = steps(ctx, n, ctx.seed + generation * 7919);
-        const size = sizeOf(ctx, n);
+      let next: { rebuild: Rebuild; n: number } | null = null;
+      const show = (traces: Trace[], n: number) => {
         finishedCount = 0;
-        panes = kernels.map((k) => ({ ...k, r: new Replay(trace(k.kernel, s, size), k.kernel.layout, n), finished: 0 }));
+        panes = kernels.map((k, i) => ({ ...k, r: new Replay(traces[i], k.kernel.layout, n), finished: 0 }));
+      };
+      const start = () => {
+        const n = num(ctx.params, 'n');
+        return { rebuild: new Rebuild(kernels.map((k) => k.kernel), steps(ctx, n, ctx.seed + generation * 7919), sizeOf(ctx, n)), n };
+      };
+      const build = () => {
+        // the first run is traced at creation; later ones a slice per frame (see draw)
+        const first = start();
+        while (!first.rebuild.ready) first.rebuild.step(Infinity);
+        show(first.rebuild.traces(), first.n);
       };
       // a bounded slice of the scaling runs per frame, so the lab never blocks a phone's main thread
       const measure = () => {
@@ -608,10 +648,14 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
               pane.r.advance(speed);
               if (pane.r.done) pane.finished = ++finishedCount;
             }
-            if (panes.every((x) => x.r.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
-              generation++;
-              hold = 0;
-              build();
+            if (panes.every((x) => x.r.done) && bool(ctx.params, 'loop')) {
+              if (!next) { generation++; next = start(); }
+              if (!next.rebuild.ready) next.rebuild.step();
+              if (++hold > HOLD_FRAMES && next.rebuild.ready) {
+                show(next.rebuild.traces(), next.n);
+                next = null;
+                hold = 0;
+              }
             }
           }
           const W = ctx.width; const H = ctx.height;

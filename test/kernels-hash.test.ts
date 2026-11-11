@@ -2,11 +2,15 @@
 // come from the code under test: a Map for membership, probe counts recounted from the final
 // table with hash functions written out again here, and the structural invariants of resizing
 // tables and extendible directories (ADR 0004 §4).
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 import { ENTRIES } from '../src/core/catalogue';
 import { mulberry32 } from '../src/core/random';
 import { PALETTES } from '../src/core/palette';
-import { drawTable, engine, exponent, FRAME_EVENTS, pageRuns, Replay, Scaling, SCALING_N } from '../src/engines/hash/index';
+import type { ParamDef, Params, PlateCode, PlateContext } from '../src/core/plate';
+import { p5Stub } from './support/p5-stub';
+import { drawTable, engine, exponent, FRAME_EVENTS, pageRuns, Rebuild, Replay, Scaling, SCALING_N } from '../src/engines/hash/index';
 import { apply, EMPTY, KIND, keysOf, MAX_DEPTH, OP, STRIDE, Table, trace, type HashKernel, type Size,
   type Step, type Trace } from '../src/engines/hash/table';
 import { keys, STREAMS, workload, type Stream } from '../src/engines/hash/workload';
@@ -414,5 +418,84 @@ describe('hash engine bounds', () => {
       const code = engine.plate({ id, title: id, group: 'g' }, kernel);
       expect(code.params.find((d) => d.key === 'speed')?.label).toBe('Trace events per frame');
     }
+  });
+});
+
+describe('hash plates loop without a heavy frame', () => {
+  const frameMs = (parse(readFileSync('config/budgets.yaml', 'utf8')) as { frame_ms: number }).frame_ms;
+  const cpuMs = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
+  const heaviest = (defs: ParamDef[]): Params => {
+    const out: Params = {};
+    for (const d of defs) out[d.key] = d.kind === 'range' ? d.max : d.value;
+    return { ...out, stream: 'adversarial', loop: true };
+  };
+  const ctxOf = (params: Params, sink: { progress: string }): PlateContext => ({
+    width: 400, height: 225, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
+    bg: [0, 0, 0], fg: [255, 255, 255], thumbnail: false, palette: () => PALETTES[0],
+    stats(rows) { sink.progress = rows.find((r) => r.label === 'Progress')?.value ?? rows.map((r) => r.value).join('|'); },
+    chart() {},
+  });
+
+  /** Drive a plate to the end of its run and through the handover; the worst frame's CPU time. */
+  function drive(code: PlateCode, done: (s: string) => boolean): number {
+    let best = Infinity;
+    for (let rep = 0; rep < 3 && best > frameMs; rep++) {
+      const sink = { progress: '' };
+      const sim = code.create(p5Stub(), ctxOf(heaviest(code.params), sink));
+      sim.setup();
+      let worst = 0; let ended = false; let handed = false;
+      for (let f = 0; f < 20000 && !handed; f++) {
+        const t = cpuMs();
+        sim.draw();
+        worst = Math.max(worst, cpuMs() - t);
+        if (done(sink.progress)) ended = true;
+        else if (ended) handed = true;
+      }
+      expect(handed, `${code.id} handed over to its next run`).toBe(true);
+      best = Math.min(best, worst);
+    }
+    return best;
+  }
+
+  for (const e of live) {
+    it(`${e.id}: the frame that starts the next run stays within the frame budget`, () => {
+      const code = engine.plate({ id: e.id, title: e.id, group: 'g' }, kernelOf(e.id));
+      const worst = drive(code, (s) => s.startsWith('100%'));
+      expect(worst, `${e.id}: ${worst.toFixed(1)} ms`).toBeLessThanOrEqual(frameMs);
+    }, 120000);
+  }
+
+  it('the hashing lab hands over to its next run within the frame budget', () => {
+    const code = engine.lab('hashing', live.map((e) => ({ info: { id: e.id, title: e.id, group: 'g' }, kernel: kernelOf(e.id) })));
+    const worst = drive(code, (s) => s.split('|').every((v) => v.includes('finished')));
+    expect(worst, `${worst.toFixed(1)} ms`).toBeLessThanOrEqual(frameMs);
+  }, 120000);
+
+  it('traces a next run in slices of bounded events', () => {
+    const n = 512;
+    const r = new Rebuild(live.map((e) => kernelOf(e.id)), workload('adversarial', n, 90, 1), { n, m: Math.ceil(n / 0.95), pageSize: 4 });
+    const again = live.map((e) => trace(kernelOf(e.id), workload('adversarial', n, 90, 1), { n, m: Math.ceil(n / 0.95), pageSize: 4 }));
+    // a slice stops at the budget, overshooting by at most the one operation it is inside
+    // (a resize that reinserts every key is one operation)
+    let largest = 0;
+    for (const t of again) {
+      let begin = 0;
+      for (let e = 0; e < t.length; e++) {
+        const op = t.events[STRIDE * e];
+        if (op === OP.begin) begin = e;
+        else if (op === OP.end) largest = Math.max(largest, e - begin + 1);
+      }
+    }
+    let steps = 0;
+    while (!r.ready) {
+      r.step();
+      steps++;
+      expect(r.lastEvents).toBeLessThanOrEqual(FRAME_EVENTS + largest);
+    }
+    expect(steps).toBeGreaterThan(1);
+    r.traces().forEach((t, i) => {
+      expect(t.length).toBe(again[i].length);
+      expect(t.table.buckets).toEqual(again[i].table.buckets);
+    });
   });
 });
