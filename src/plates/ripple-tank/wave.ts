@@ -6,19 +6,15 @@
 // Pure: no p5, typed arrays only, and no randomness (a run is a function of its parameters).
 //
 // A sponge-damped field decays towards zero and would end in subnormal floats, which x86 runs
-// far slower than normal ones (Apple silicon does not). Every stored value below FLUSH_BELOW in
-// magnitude is therefore written as an exact zero: the field, and the intensity average.
+// far slower than normal ones (Apple silicon does not). Every stored value, the field and the
+// intensity average, goes through `flush` (src/core/budget.ts): below TINY it is an exact zero.
+
+import { flush } from '../../core/budget';
 
 /** Courant number squared, (c·dt/dx)², kept under the 2D stability limit of 1/2. */
 export const C2 = 0.24;
 /** Width of the absorbing sponge in cells. */
 export const SPONGE = 18;
-/**
- * Stored values smaller than this in magnitude are flushed to zero, far above the smallest
- * normal Float32 (1.18e-38) and far below anything the plate draws. The same threshold as
- * `flush` in src/core/budget.ts: switch to that helper once it is on main.
- */
-export const FLUSH_BELOW = 1e-30;
 
 export type Experiment = 'double' | 'single' | 'two' | 'free';
 
@@ -40,8 +36,8 @@ export interface Tank {
   sources: [number, number][];
   /** Steps taken. */
   step: number;
-  /** Stored values below this magnitude become zero; 0 keeps every value as computed. */
-  flushBelow: number;
+  /** Stored values go through `flush`; false keeps every value as computed (tests only). */
+  flush: boolean;
 }
 
 export interface TankOptions {
@@ -49,8 +45,8 @@ export interface TankOptions {
   sponge?: number;
   /** (c·dt/dx)² (default C2). */
   c2?: number;
-  /** The flush threshold (default FLUSH_BELOW); 0 turns flushing off. */
-  flushBelow?: number;
+  /** Flush stored values below TINY to zero (default true). */
+  flush?: boolean;
 }
 
 /** True for the experiments driven by a plane wave from the left edge. */
@@ -104,7 +100,7 @@ export function tank(
     intensity: new Float32Array(n),
     damp, wall, barrierX, sources,
     step: 0,
-    flushBelow: options.flushBelow ?? FLUSH_BELOW,
+    flush: options.flush ?? true,
   };
 }
 
@@ -115,7 +111,8 @@ export function omega(lambda: number, c2 = C2): number {
 
 /** One time step: drive the sources at wavelength `lambda`, update the field, average u². */
 export function advance(t: Tank, lambda: number): void {
-  const { w, h, c2, damp, wall, intensity, flushBelow: f } = t;
+  const { w, h, c2, damp, wall, intensity } = t;
+  const f = t.flush;
   const drive = Math.sin(omega(lambda, c2) * t.step);
   let u = t.u;
   if (planeDriven(t.experiment)) {
@@ -133,7 +130,7 @@ export function advance(t: Tank, lambda: number): void {
       }
       const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * u[i];
       const v = (2 * u[i] - prev[i] + c2 * lap) * damp[i];
-      nxt[i] = v < f && v > -f ? 0 : v;
+      nxt[i] = f ? flush(v) : v;
     }
   }
   t.prev = u;
@@ -142,7 +139,7 @@ export function advance(t: Tank, lambda: number): void {
   u = t.u;
   for (let i = 0; i < u.length; i++) {
     const e = intensity[i] * 0.992 + u[i] * u[i] * 0.008;
-    intensity[i] = e < f ? 0 : e;
+    intensity[i] = f ? flush(e) : e;
   }
   t.step++;
 }

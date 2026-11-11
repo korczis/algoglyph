@@ -9,7 +9,7 @@ import { advance, C2, drop, tank, type Experiment, type Tank } from './wave';
  * shading every cell costs as much as stepping it, so a desktop canvas at the finest cell size
  * would otherwise spend the whole frame budget on the intensity view.
  */
-export const MAX_CELLS = 160_000;
+export const MAX_CELLS = 90_000;
 export const CELL_STEPS_PER_FRAME = 1_200_000;
 
 export const rippleTank: PlateCode = {

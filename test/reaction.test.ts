@@ -41,4 +41,16 @@ describe('gray-scott', () => {
       }
     }
   });
+
+  it('a dying pattern decays to exact zeros, never into subnormal floats (slow on x86)', () => {
+    // feed and kill past the coral regime: the pattern dies and V decays towards zero; without
+    // the flush every V cell sat subnormal from step 800 on (Pages run 43120590754)
+    const fl = field(195, 122);
+    for (let d = 0; d < 10; d++) seed(fl, 20 + d * 15, 30 + (d % 3) * 30, 4);
+    const p = PRESETS.coral;
+    for (let s = 0; s < 1200; s++) step(fl, p.f + 0.01, p.k + 0.005);
+    const subnormal = (x: number) => x !== 0 && Math.abs(x) < 1.1754944e-38;
+    expect([...fl.u, ...fl.v].filter(subnormal).length).toBe(0);
+    expect(fl.v.every((x) => x === 0)).toBe(true);
+  });
 });

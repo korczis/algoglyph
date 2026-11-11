@@ -1,16 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
-  advance, C2 as MODULE_C2, drop, FLUSH_BELOW, tank, type Experiment, type Tank,
+  advance, C2 as MODULE_C2, drop, tank, type Experiment, type Tank,
 } from '../src/plates/ripple-tank/wave';
+import {
+  CELL_STEPS_PER_FRAME as PLATE_CELL_STEPS, MAX_CELLS as PLATE_MAX_CELLS,
+} from '../src/plates/ripple-tank/plate';
+import { cellWithin, flush, stepsWithin, TINY } from '../src/core/budget';
 
 // ---------------------------------------------------------------------------------------------
-// The frozen reference: the simulation of src/plates/ripple-tank/plate.ts as it was before the
-// integrator moved into wave.ts, copied verbatim with only the drawing removed. It is the
-// pre-refactor oracle the module must match bit for bit; it is not used anywhere else.
+// The frozen reference: the simulation of src/plates/ripple-tank/plate.ts as it was on main
+// before the integrator moved into wave.ts (commit ab4938d, flushed and bounded), copied
+// verbatim with only the drawing removed. It is the pre-refactor oracle the module must match
+// bit for bit; it is not used anywhere else.
 // ---------------------------------------------------------------------------------------------
 
 const C2 = 0.24;
 const SPONGE = 18;
+/** Cells in the tank at most, and cell updates (cells × steps) per frame (src/core/budget.ts). */
+const MAX_CELLS = 90_000;
+const CELL_STEPS_PER_FRAME = 1_200_000;
 
 type LegacyParams = { experiment: string; lambda: number; gap: number; res: number; speed: number };
 
@@ -47,7 +55,7 @@ function legacyTank(params: LegacyParams, ctx: { width: number; height: number }
   return {
     state: () => ({ u, prev, intensity, w, h, step }),
     setup() {
-      res = num(params, 'res');
+      res = cellWithin(ctx.width, ctx.height, num(params, 'res'), MAX_CELLS);
       w = Math.floor(ctx.width / res);
       h = Math.floor(ctx.height / res);
       u = new Float32Array(w * h);
@@ -92,7 +100,7 @@ function legacyTank(params: LegacyParams, ctx: { width: number; height: number }
     /** The simulation half of the old draw(). */
     draw() {
       const omega = (2 * Math.PI * Math.sqrt(C2)) / num(params, 'lambda');
-      const steps = num(params, 'speed');
+      const steps = stepsWithin(num(params, 'speed'), w * h, CELL_STEPS_PER_FRAME);
       for (let s = 0; s < steps; s++) {
         const drive = Math.sin(omega * step);
         if (experiment === 'double' || experiment === 'single') {
@@ -107,14 +115,15 @@ function legacyTank(params: LegacyParams, ctx: { width: number; height: number }
               continue;
             }
             const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * u[i];
-            nxt[i] = (2 * u[i] - prev[i] + C2 * lap) * damp[i];
+            // flushed: the sponge decays waves into subnormal floats, slow on x86 (src/core/budget.ts)
+            nxt[i] = flush((2 * u[i] - prev[i] + C2 * lap) * damp[i]);
           }
         }
         const t = prev;
         prev = u;
         u = nxt;
         nxt = t;
-        for (let i = 0; i < u.length; i++) intensity[i] = intensity[i] * 0.992 + u[i] * u[i] * 0.008;
+        for (let i = 0; i < u.length; i++) intensity[i] = flush(intensity[i] * 0.992 + u[i] * u[i] * 0.008);
         step++;
       }
     },
@@ -129,24 +138,29 @@ function sameBits(a: Float32Array, b: Float32Array): boolean {
 }
 
 describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', () => {
-  const W = 400;
-  const H = 250;
-  const cases: [string, LegacyParams][] = [
-    ['default double slit', { experiment: 'double', lambda: 14, gap: 34, res: 3, speed: 3 }],
-    ['single slit at the maxima', { experiment: 'single', lambda: 40, gap: 80, res: 6, speed: 8 }],
-    ['two sources at the minima', { experiment: 'two', lambda: 6, gap: 6, res: 2, speed: 1 }],
-    ['free surface with pebbles', { experiment: 'free', lambda: 20, gap: 30, res: 2, speed: 5 }],
+  const cases: [string, LegacyParams, number][] = [
+    ['default double slit',
+      { experiment: 'double', lambda: 14, gap: 34, res: 3, speed: 3 }, 400],
+    ['single slit at the maxima',
+      { experiment: 'single', lambda: 40, gap: 80, res: 6, speed: 8 }, 400],
+    ['two sources at the minima',
+      { experiment: 'two', lambda: 6, gap: 6, res: 2, speed: 1 }, 400],
+    ['free surface with pebbles',
+      { experiment: 'free', lambda: 20, gap: 30, res: 2, speed: 5 }, 400],
+    ['double slit at a desktop width, finest cells (grid bounded)',
+      { experiment: 'double', lambda: 14, gap: 34, res: 2, speed: 8 }, 1440],
   ];
-  for (const [name, params] of cases) {
+  for (const [name, params, W] of cases) {
     it(`${name}: same field, previous field and intensity after every frame`, () => {
+      const H = Math.round(W / 1.6);
       const lp = { ...params };
       const old = legacyTank(lp, { width: W, height: H });
       old.setup();
       const p = { ...params };
-      const res = p.res;
-      // flushing off: the pre-refactor code kept subnormals, and the oracle is bit for bit
+      // what plate.ts does with the module: bound the cells, then the steps per frame
+      const res = cellWithin(W, H, p.res, PLATE_MAX_CELLS);
       const t: Tank = tank(
-        Math.floor(W / res), Math.floor(H / res), p.experiment as Experiment, p.gap, { flushBelow: 0 },
+        Math.floor(W / res), Math.floor(H / res), p.experiment as Experiment, p.gap,
       );
       for (let f = 0; f < 200; f++) {
         // pebbles (one on the barrier) and a slider drag mid-run, applied to both runs
@@ -168,7 +182,8 @@ describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', (
           }
         }
         old.draw();
-        for (let s = 0; s < p.speed; s++) advance(t, p.lambda);
+        const steps = stepsWithin(p.speed, t.w * t.h, PLATE_CELL_STEPS);
+        for (let s = 0; s < steps; s++) advance(t, p.lambda);
         const o = old.state();
         if (!sameBits(t.u, o.u) || !sameBits(t.prev, o.prev) || !sameBits(t.intensity, o.intensity)
           || t.step !== o.step) {
@@ -184,9 +199,9 @@ describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', (
 
 describe('ripple-tank: flushing tiny values to zero', () => {
   it('changes a driven run only at the level of float32 rounding', () => {
-    // values below FLUSH_BELOW are set to zero; float32 rounding then carries that difference
+    // values below TINY are set to zero; float32 rounding then carries that difference
     // through the run, but it stays orders of magnitude below the field
-    const exact = tank(160, 100, 'double', 30, { flushBelow: 0 });
+    const exact = tank(160, 100, 'double', 30, { flush: false });
     const flushed = tank(160, 100, 'double', 30);
     let peak = 0;
     let diff = 0;
@@ -215,7 +230,7 @@ describe('ripple-tank: flushing tiny values to zero', () => {
       }
       return n;
     };
-    const run = (options: { flushBelow?: number }) => {
+    const run = (options: { flush?: boolean }) => {
       // the free surface has no drive: two pebbles spread, reflect and decay in the sponge
       const t = tank(200, 150, 'free', 0, options);
       drop(t, 100, 75);
@@ -228,9 +243,9 @@ describe('ripple-tank: flushing tiny values to zero', () => {
       return seen;
     };
     // without the flush the same run does reach subnormals, so the check has teeth
-    expect(run({ flushBelow: 0 })).toBeGreaterThan(0);
+    expect(run({ flush: false })).toBeGreaterThan(0);
     expect(run({})).toBe(0);
-    expect(FLUSH_BELOW).toBeGreaterThan(MIN_NORMAL);
+    expect(TINY).toBeGreaterThan(MIN_NORMAL);
   }, 60000);
 });
 
