@@ -39,26 +39,37 @@ function context(plate: Plate, params: Params): PlateContext {
   };
 }
 
+/**
+ * CPU milliseconds this process has used. Vitest runs each file in a forked process, so this is
+ * the plate's own work plus its garbage collection; time the scheduler gives to other processes
+ * is not in it. Wall-clock time read preemption as a slow plate: n-body measured 2.2 ms per
+ * frame alone and 56 ms at a load average of 56; gray-scott 1.9 ms locally and 55 ms on CI's
+ * runner while other test files ran (Pages run 43115536542).
+ */
+function cpuMs(): number {
+  const u = process.cpuUsage();
+  return (u.user + u.system) / 1000;
+}
+
 function once(plate: Plate, params: Params): { create: number; frame: number } {
-  const t0 = performance.now();
+  const t0 = cpuMs();
   const sim = plate.create(p5Stub(), context(plate, params));
   sim.setup();
   sim.draw();
-  const create = performance.now() - t0;
+  const create = cpuMs() - t0;
   let frame = 0;
   for (let i = 0; i < budget.frames; i++) {
-    const t = performance.now();
+    const t = cpuMs();
     sim.draw();
-    frame = Math.max(frame, performance.now() - t);
+    frame = Math.max(frame, cpuMs() - t);
   }
   return { create, frame };
 }
 
 /**
- * The best of `repeats` runs. Wall-clock time on a loaded machine (parallel suites, shared CI
- * runners) adds preemption to single runs; a plate whose work is genuinely over budget is over
- * it in every run, so the minimum keeps the signal and drops the noise. The worst frame inside
- * a run is kept: periodic heavy frames recur in every run.
+ * The best of `repeats` runs: what is left of the noise (cache and memory contention on a loaded
+ * machine) varies between runs, while a plate whose work is genuinely over budget is over it in
+ * every run. The worst frame inside a run is kept: periodic heavy frames recur in every run.
  */
 function measure(plate: Plate, params: Params): { create: number; frame: number } {
   let best = { create: Infinity, frame: Infinity };

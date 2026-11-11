@@ -6,9 +6,11 @@
 # option in turn, with drawing stubbed out: this is the plate's own computation. The bounds are
 # generous on purpose (shared CI runners, phones 3-5x slower than a desktop); they catch
 # seconds at creation and tens of milliseconds per frame, not noise.
+# Time is the CPU time the test process uses, not wall-clock time, and the file runs alone
+# (`npm run test:budget`, after the rest of `npm test`): preemption by other processes or by
+# parallel test files is not the plate's cost.
 version: 1
 create_ms: 400        # setup() plus the first frame
 frame_ms: 40          # the worst of the measured frames
 frames: 30            # frames measured after setup
-repeats: 3            # runs per setting; the best is judged, so load on the machine is not read
-                      # as a regression (a run within budget ends the repeats early)
+repeats: 3            # runs per setting; the best is judged (a run within budget ends the repeats)
