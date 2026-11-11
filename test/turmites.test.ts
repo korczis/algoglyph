@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTurmite, Turmite } from '../src/plates/langton-turmites/ant';
+import { MOVES, parseTurmite, Turmite } from '../src/plates/langton-turmites/ant';
 
 describe('Langton\'s ant', () => {
   it('parses turmite strings', () => {
@@ -57,5 +57,31 @@ describe('Langton\'s ant', () => {
     expect(t.ants[0].x - before.x).toBe(hw!.dx);
     expect(t.ants[0].y - before.y).toBe(hw!.dy);
     expect(t.ants[0].dir).toBe(before.dir);
+  });
+
+  it('keeps the highway\'s start once the move memory has rolled past it', () => {
+    const t = new Turmite(1000, 1000, [1, 3], [{ x: 500, y: 500, dir: 0 }]);
+    const starts: number[] = [];
+    for (let k = 1; k <= 30; k++) {
+      for (let s = 0; s < 1000; s++) t.step();
+      const hw = t.highway();
+      if (k >= 11) {
+        expect(hw?.period).toBe(104);
+        starts.push(hw!.since);
+        expect(hw!.exact).toBe(true);
+      }
+    }
+    expect(t.steps).toBeGreaterThan(MOVES + 10000);
+    expect(new Set(starts)).toEqual(new Set([starts[0]]));
+    expect(starts[0]).toBeGreaterThan(9000);
+    expect(starts[0]).toBeLessThan(11000);
+
+    // seen for the first time long after it began: only a bound, and an honest one
+    const late = new Turmite(1000, 1000, [1, 3], [{ x: 500, y: 500, dir: 0 }]);
+    for (let s = 0; s < 30000; s++) late.step();
+    const hw = late.highway()!;
+    expect(hw.exact).toBe(false);
+    expect(hw.since).toBe(30000 - MOVES);
+    expect(hw.since).toBeGreaterThanOrEqual(starts[0]);
   });
 });

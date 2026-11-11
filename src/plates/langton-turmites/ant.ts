@@ -33,8 +33,10 @@ export interface Highway {
   /** Displacement per period, in cells. */
   dx: number;
   dy: number;
-  /** Step at which the repeating motion began (exact while it lies in the move memory). */
+  /** Step at which the repeating motion began, or a bound on it when `exact` is false. */
   since: number;
+  /** False when the repetition had already filled the move memory when it was first seen. */
+  exact: boolean;
 }
 
 export class Turmite {
@@ -52,6 +54,9 @@ export class Turmite {
   coloured = 0;
   private readonly turns: Int8Array;
   private readonly moves = new Uint8Array(MOVES);
+  // the first sighting of the current highway, kept once the memory rolls past its start
+  private latched: Highway | null = null;
+  private checkedAt = -1;
 
   constructor(w: number, h: number, turns: number[], ants: Ant[]) {
     this.w = w;
@@ -119,8 +124,26 @@ export class Turmite {
   /**
    * The smallest period of ant 0's recent moves that carries it somewhere: its last
    * max(3p, minRun) moves repeat with period p and one period has a non-zero displacement.
+   * Once seen, the highway keeps the start found then, as long as it is checked again before
+   * the move memory has rolled over completely.
    */
   highway(maxPeriod = 1024, minRun = 240): Highway | null {
+    const found = this.detect(maxPeriod, minRun);
+    const last = this.latched;
+    const fresh = this.checkedAt >= 0 && this.steps - this.checkedAt <= MOVES - minRun;
+    this.checkedAt = this.steps;
+    if (!found) {
+      this.latched = null;
+      return null;
+    }
+    const same = last !== null && last.period === found.period && last.dx === found.dx
+      && last.dy === found.dy;
+    if (same && (found.exact ? found.since === last.since : fresh)) return last;
+    this.latched = found;
+    return found;
+  }
+
+  private detect(maxPeriod: number, minRun: number): Highway | null {
     const t = this.steps;
     const memory = Math.min(t, MOVES);
     for (let p = 1; p <= maxPeriod; p++) {
@@ -143,7 +166,7 @@ export class Turmite {
       if (dx === 0 && dy === 0) continue;
       let since = t - run;
       while (since > t - memory && this.move(since - 1) === this.move(since - 1 + p)) since--;
-      return { period: p, dx, dy, since };
+      return { period: p, dx, dy, since, exact: since > t - memory || t <= MOVES };
     }
     return null;
   }

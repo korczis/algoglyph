@@ -173,7 +173,7 @@ export const langtonTurmites: PlateCode = {
           { label: 'coloured cells', value: fmt(a.coloured) },
           { label: 'highway (first ant)', value: hw
             ? `period ${hw.period}, moves (${signed(hw.dx)}, ${signed(hw.dy)}) per period, `
-              + `since step ${fmt(hw.since)}`
+              + `since step ${hw.exact ? '' : '≤ '}${fmt(hw.since)}`
             : 'none detected' },
           { label: 'board', value: `${w}×${h} (torus)` },
         ]);
