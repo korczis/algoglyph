@@ -71,3 +71,100 @@ describe('shareable parameters', () => {
     }
   });
 });
+
+import { HashWriter, parseSeed, SEED_MAX, snap } from '../src/core/share';
+import { shouldRun } from '../src/core/loop';
+import { parseRoute } from '../src/core/route';
+import type { RangeParam } from '../src/core/plate';
+
+const onGrid = (d: RangeParam, v: number) => {
+  if (!(d.step > 0)) return true;
+  const k = (v - d.min) / d.step;
+  return Math.abs(k - Math.round(k)) < 1e-6;
+};
+
+async function everyRange(): Promise<{ id: string; d: RangeParam }[]> {
+  const out: { id: string; d: RangeParam }[] = [];
+  for (const e of ENTRIES.filter((x) => x.status === 'live')) {
+    for (const d of (await loadPlate(e.id))!.params) if (d.kind === 'range') out.push({ id: e.id, d });
+  }
+  for (const l of CATALOGUE.labs) {
+    if (!labRunnable(l.id)) continue;
+    for (const d of (await loadLab(l.id))!.params) if (d.kind === 'range') out.push({ id: `lab-${l.id}`, d });
+  }
+  return out;
+}
+
+describe('review round: values, seeds, routes and timing', () => {
+  it('every range default lies on its own slider grid, so a link never moves it', async () => {
+    for (const { id, d } of await everyRange()) {
+      expect(onGrid(d, d.value), `${id}.${d.key} = ${d.value} on step ${d.step}`).toBe(true);
+    }
+  });
+
+  it('values beyond a range clamp to its last grid point and round-trip', async () => {
+    for (const { id, d } of await everyRange()) {
+      const beyond = d.max + 3 * (d.step > 0 ? d.step : 1);
+      const v = parse([d], `${d.key}=${beyond}`).params[d.key] as number;
+      expect(v, `${id}.${d.key}`).toBeLessThanOrEqual(d.max);
+      expect(onGrid(d, v), `${id}.${d.key}`).toBe(true);
+      expect(parse([d], serialise([d], { [d.key]: v }, 1)).params[d.key] ?? d.value).toBe(v);
+    }
+  });
+
+  it('accepts only plain decimal numbers', () => {
+    for (const bad of ['0x20', '0b111', '0o17', 'Infinity', '1,5', ' ', '--3']) {
+      expect(parse(defs, `n=${encodeURIComponent(bad)}`).params.n, bad).toBeUndefined();
+    }
+    expect(parse(defs, 'n=4.5e1').params.n).toBe(45);
+    expect(parse(defs, 'n=.5e2').params.n).toBe(50);
+  });
+
+  it('clamps without snapping when a step is not positive', () => {
+    const d: RangeParam = { kind: 'range', key: 'x', label: 'x', min: 0, max: 1, step: 0, value: 0.5 };
+    expect(snap(d, 0.123)).toBe(0.123);
+    expect(snap(d, 7)).toBe(1);
+    expect(snap({ ...d, step: -1 }, 0.3)).toBe(0.3);
+  });
+
+  it('reads the seed in one place and refuses seeds that would alias', () => {
+    expect(parseSeed('seed=42')).toBe(42);
+    expect(parseSeed(`seed=${SEED_MAX}`)).toBe(SEED_MAX);
+    for (const bad of ['0', '-1', '1.5', '1e3', '0x10', String(SEED_MAX + 1), '4294967338', '']) {
+      expect(parseSeed(`seed=${bad}`), bad).toBeUndefined();
+    }
+    expect(parse(defs, 'seed=4294967338').seed).toBeUndefined();
+  });
+
+  it('a malformed percent-encoding is an unknown route, not an exception', () => {
+    expect(() => parseRoute('#/p/%E0%A4%A')).not.toThrow();
+    expect(parseRoute('#/p/%E0%A4%A').view).toBe('browse');
+    const live = ENTRIES.find((e) => e.status === 'live')!;
+    expect(parseRoute(`#/p/${live.id}?seed=7&x=1`)).toMatchObject({ view: 'plate', id: live.id, seed: 7 });
+    expect(parseRoute(`#/p/${live.id}?seed=4294967338`).seed).toBeUndefined();
+  });
+
+  it('leaving a plate cancels a pending URL write', () => {
+    const jobs: (() => void)[] = [];
+    const w = new HashWriter(250, {
+      set: ((fn: () => void) => { jobs.push(fn); return jobs.length as unknown as ReturnType<typeof setTimeout>; }) as typeof setTimeout,
+      clear: ((id: number) => { jobs[id - 1] = () => {}; }) as unknown as typeof clearTimeout,
+    });
+    let writes = 0;
+    w.schedule(() => { writes++; });
+    expect(w.pending).toBe(true);
+    w.cancel(); // what route() does on every navigation
+    jobs.forEach((j) => j());
+    expect(writes).toBe(0);
+    w.schedule(() => { writes++; });
+    jobs[jobs.length - 1]();
+    expect(writes).toBe(1);
+  });
+
+  it('a reset burst runs a paused plate and ends with the pause', () => {
+    expect(shouldRun({ userPaused: true, visible: true, burst: 0 })).toBe(false);
+    expect(shouldRun({ userPaused: true, visible: true, burst: 5 })).toBe(true);
+    expect(shouldRun({ userPaused: false, visible: false, burst: 0 })).toBe(false);
+    expect(shouldRun({ userPaused: false, visible: true, burst: 0 })).toBe(true);
+  });
+});

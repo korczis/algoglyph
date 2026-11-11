@@ -1,8 +1,34 @@
 // A plate's URL carries its seed and every parameter that differs from the default, so a copied
-// link redraws the same picture with the same knobs. Values from a URL are untrusted: each is
-// checked against its control (range bounds and step, select options, toggle) and dropped when
-// it does not fit, never passed through.
-import type { ParamDef, Params, ParamValue } from './plate';
+// link redraws the same picture with the same knobs. Values from a URL are untrusted:
+//   - a range value must be a plain decimal number; it is clamped into [min, max] and snapped to
+//     the control's step (a value outside the range is clamped, not dropped, so a link made
+//     with an older, wider slider still opens close to what it showed);
+//   - a select value must be one of the options and a toggle 0/1/true/false; anything else is
+//     dropped and the default stays;
+//   - the seed must be a decimal integer in 1 … SEED_MAX, the range freshSeed() draws from, so
+//     two different links never alias to the same generator state.
+import type { ParamDef, Params, ParamValue, RangeParam } from './plate';
+
+export const SEED_MAX = 0x7fffffff;
+const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+
+/** The seed of a query, or undefined when it is absent or not a plain integer in range. */
+export function parseSeed(query: string): number | undefined {
+  const text = new URLSearchParams(query).get('seed');
+  if (text === null || !/^\d{1,10}$/.test(text)) return undefined;
+  const n = Number(text);
+  return n >= 1 && n <= SEED_MAX ? n : undefined;
+}
+
+/** A number clamped into the range and snapped to its step (no snapping for a step <= 0). */
+export function snap(d: RangeParam, n: number): number {
+  const clamped = Math.min(d.max, Math.max(d.min, n));
+  if (!(d.step > 0)) return clamped;
+  const snapped = d.min + Math.round((clamped - d.min) / d.step) * d.step;
+  // the last grid point never passes max, and float noise is trimmed so values compare equal
+  const top = d.min + Math.floor((d.max - d.min) / d.step + 1e-9) * d.step;
+  return Number(Math.min(top, snapped).toFixed(10));
+}
 
 function fromText(d: ParamDef, text: string): ParamValue | undefined {
   if (d.kind === 'toggle') {
@@ -11,13 +37,9 @@ function fromText(d: ParamDef, text: string): ParamValue | undefined {
     return undefined;
   }
   if (d.kind === 'select') return d.options.some((o) => o.value === text) ? text : undefined;
-  if (text.trim() === '') return undefined;
+  if (!DECIMAL.test(text)) return undefined;
   const n = Number(text);
-  if (!Number.isFinite(n)) return undefined;
-  const clamped = Math.min(d.max, Math.max(d.min, n));
-  // snap to the control's own grid, so a value always matches what the slider can show
-  const snapped = d.min + Math.round((clamped - d.min) / d.step) * d.step;
-  return Number(Math.min(d.max, snapped).toFixed(10));
+  return Number.isFinite(n) ? snap(d, n) : undefined;
 }
 
 function toText(d: ParamDef, v: ParamValue): string {
@@ -37,7 +59,7 @@ export function serialise(defs: ParamDef[], params: Params, seed: number): strin
   return q.toString();
 }
 
-/** Parameters read from a query, each validated against its definition; unknown keys are ignored. */
+/** Seed and parameters read from a query, each validated; unknown keys are ignored. */
 export function parse(defs: ParamDef[], query: string): { seed?: number; params: Params } {
   const q = new URLSearchParams(query);
   const params: Params = {};
@@ -47,6 +69,34 @@ export function parse(defs: ParamDef[], query: string): { seed?: number; params:
     const v = fromText(d, text);
     if (v !== undefined) params[d.key] = v;
   }
-  const seed = Number(q.get('seed'));
-  return { seed: Number.isInteger(seed) && seed > 0 ? seed : undefined, params };
+  return { seed: parseSeed(query), params };
+}
+
+/**
+ * A debounced URL writer that a route change can cancel. Live knobs schedule a write; leaving
+ * the plate cancels it, so a late write never puts a plate URL over a catalogue view.
+ */
+export class HashWriter {
+  private timer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(private readonly delay = 250,
+    private readonly timers: { set: typeof setTimeout; clear: typeof clearTimeout } =
+    { set: setTimeout, clear: clearTimeout }) {}
+
+  schedule(write: () => void): void {
+    this.cancel();
+    this.timer = this.timers.set(() => {
+      this.timer = undefined;
+      write();
+    }, this.delay);
+  }
+
+  cancel(): void {
+    if (this.timer !== undefined) this.timers.clear(this.timer);
+    this.timer = undefined;
+  }
+
+  get pending(): boolean {
+    return this.timer !== undefined;
+  }
 }

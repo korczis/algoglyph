@@ -4,6 +4,7 @@
 import p5 from './p5';
 import { GROUNDS, palette as lookupPalette } from './palette';
 import type { Chart, Params, Plate, PlateContext, Sim, Stat, Theme } from './plate';
+import { RESET_BURST_FRAMES, shouldRun } from './loop';
 import { mulberry32 } from './random';
 
 export interface MountOptions {
@@ -63,6 +64,7 @@ export class Stage {
   private instance: p5 | null = null;
   private sim: Sim | null = null;
   private userPaused = false;
+  private burst = 0;
   private visible = true;
   private readonly observer: IntersectionObserver;
   private readonly resizer: ResizeObserver;
@@ -120,7 +122,10 @@ export class Stage {
         sim.setup();
         this.sync();
       };
-      p.draw = () => sim.draw();
+      p.draw = () => {
+        sim.draw();
+        if (this.burst > 0 && --this.burst === 0) this.sync();
+      };
       p.mousePressed = () => {
         if (sim.pressed && inside()) sim.pressed(p.mouseX, p.mouseY);
       };
@@ -135,7 +140,7 @@ export class Stage {
   private sync(): void {
     const p = this.instance;
     if (!p) return;
-    const run = !this.userPaused && this.visible;
+    const run = shouldRun({ userPaused: this.userPaused, visible: this.visible, burst: this.burst });
     if (run && !p.isLooping()) p.loop();
     if (!run && p.isLooping()) p.noLoop();
     this.onLoopChange(run);
@@ -143,12 +148,14 @@ export class Stage {
 
   setPaused(paused: boolean): void {
     this.userPaused = paused;
+    this.burst = 0;
     this.sync();
   }
 
   step(): void {
     if (!this.instance || !this.sim) return;
     this.userPaused = true;
+    this.burst = 0;
     this.sync();
     this.instance.redraw();
   }
@@ -160,7 +167,11 @@ export class Stage {
   reset(): void {
     if (!this.sim?.reset) return;
     this.sim.reset();
-    this.instance?.redraw();
+    // a paused plate runs a short burst so a progressive render can finish, then pauses again
+    if (this.instance && !this.instance.isLooping()) {
+      this.burst = RESET_BURST_FRAMES;
+      this.sync();
+    }
   }
 
   save(name: string): void {
@@ -168,6 +179,7 @@ export class Stage {
   }
 
   unmount(): void {
+    this.burst = 0;
     this.instance?.remove();
     this.instance = null;
     this.sim = null;

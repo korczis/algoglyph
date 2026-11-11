@@ -6,11 +6,12 @@ import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, links, 
 import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
-import { parse as parseShared, serialise } from './core/share';
+import { parseRoute } from './core/route';
+import { HashWriter, parse as parseShared, serialise } from './core/share';
 import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
 
-type View = 'browse' | 'plate' | 'lab';
+import type { View } from './core/route';
 
 const THUMB_CACHE = 'algoglyph:thumb:v3';
 const FACTS = facts(CATALOGUE);
@@ -28,31 +29,12 @@ let plateCode: Plate | null = null;
 let thumbQueue: string[] = [];
 // the query of the route being loaded, applied once the plate's controls are known
 let pendingQuery = '';
+const hashWriter = new HashWriter(250);
 let thumbBusy = false;
 let thumbObserver: IntersectionObserver | null = null;
 
 function currentTheme(): Theme {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-}
-
-interface Route { view: View; key: string; id: string; seed?: number; query: string }
-
-function parseHash(): Route {
-  const raw = location.hash.replace(/^#\/?/, '');
-  const [path, query = ''] = raw.split('?');
-  const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
-  const seed = Number(new URLSearchParams(query).get('seed'));
-  const s = Number.isInteger(seed) && seed > 0 ? seed : undefined;
-  if (parts[0] === 'p' && parts[1] && entry(parts[1])) {
-    return { view: 'plate', key: '', id: parts[1], seed: s, query };
-  }
-  if (parts[0] === 'lab' && parts[1] && findLab(parts[1])) {
-    return { view: 'lab', key: '', id: parts[1], seed: s, query };
-  }
-  if (parts[0] === 'c' && parts.length > 1 && node(parts.slice(1).join('/'))) {
-    return { view: 'browse', key: parts.slice(1).join('/'), id: '', query: '' };
-  }
-  return { view: 'browse', key: '', id: '', query: '' };
 }
 
 function cacheGet(key: string): string | null {
@@ -146,11 +128,12 @@ Alpine.data('app', () => ({
         else thumbQueue = thumbQueue.filter((x) => x !== id);
       }
     }, { rootMargin: '200px' });
-    let hashTimer = 0;
     this.$watch('params', () => {
       if (this.view === 'browse' || !plateCode) return;
-      window.clearTimeout(hashTimer);
-      hashTimer = window.setTimeout(() => this.writeHash(), 250);
+      hashWriter.schedule(() => {
+        // the route may have changed since the knob moved: never write a plate URL over it
+        if (this.view !== 'browse' && plateCode) this.writeHash();
+      });
     });
     this.route();
     watchSidebar();
@@ -210,8 +193,9 @@ Alpine.data('app', () => ({
   },
 
   route() {
+    hashWriter.cancel();
     closeDrawer();
-    const r = parseHash();
+    const r = parseRoute(location.hash);
     if (r.view === 'browse') {
       stage?.unmount();
       plateCode = null;
@@ -228,6 +212,7 @@ Alpine.data('app', () => ({
     this.view = r.view;
     if (changed) {
       this.currentId = r.id;
+      this.canReset = false;
       this.stats = [];
       this.resetChart();
       this.defs = [];
@@ -251,12 +236,16 @@ Alpine.data('app', () => ({
       if (paramsDiffer) Object.assign(this.params, wanted);
     }
     const seed = r.seed ?? (changed ? freshSeed() : this.seed);
-    if (!changed && !paramsDiffer && seed === this.seed && plateCode) return;
+    if (!changed && !paramsDiffer && seed === this.seed && plateCode) {
+      this.writeHash(); // unknown or ill-fitting keys: show the canonical URL
+      return;
+    }
     this.seed = seed;
     if (plateCode) this.writeHash();
-    void this.load(changed || paramsDiffer);
+    void this.load(changed);
   },
 
+  /** Load the plate if needed and mount it; scroll to the top only for a new plate. */
   async load(changed: boolean) {
     const id = this.currentId;
     const view = this.view;
@@ -334,6 +323,8 @@ Alpine.data('app', () => ({
     else void el.requestFullscreen?.();
   },
   async copyLink() {
+    hashWriter.cancel();
+    if (plateCode && this.view !== 'browse') this.writeHash();
     try {
       await navigator.clipboard.writeText(location.href);
       this.copied = true;
