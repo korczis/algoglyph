@@ -171,13 +171,19 @@ try {
         if (i === 0) await axe(p, where);
         if (!proveThumbs) continue;
         const ids = live.filter((e) => e.path[0] === wing).map((e) => e.id);
+        // thumbnails render one after another in a queue, so a card waits for every card ahead
+        // of it: the budget is derived from the cards on the page, then each card is judged
+        // (run 43108000193: a 3D card behind other 3D cards outran a fixed per-card budget)
+        const budget = THUMB_MS * Math.max(1, ids.length);
+        const started = Date.now();
         for (const id of ids) {
           const card = p.locator(`main [data-thumb="${id}"]`);
           if (!(await card.count())) { fail(where, `no card for ${id}`); continue; }
           await card.scrollIntoViewIfNeeded();
+          const left = Math.max(1000, budget - (Date.now() - started));
           await p.waitForFunction((x) => document.querySelector(`main [data-thumb="${x}"] img`)
-            ?.getAttribute('src')?.startsWith('data:image'), id, { timeout: THUMB_MS, polling: 250 })
-            .catch(() => fail(where, `thumbnail ${id} did not render within ${THUMB_MS / 1000} s`));
+            ?.getAttribute('src')?.startsWith('data:image'), id, { timeout: left, polling: 250 })
+            .catch(() => fail(where, `thumbnail ${id} did not render within the wing's budget of ${budget / 1000} s`));
         }
         log(`${where}: ${ids.length} thumbnail(s) proven`);
       }
