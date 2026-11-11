@@ -38,7 +38,7 @@ export const kernel: GridKernel<KnapsackData, KnapsackResult> = {
       colLabels: range(capacity + 1).map(String),
       input: `${n} items (weight/value) ${weights.map((w, i) => `${w}/${values[i]}`).join(' ')}, capacity ${capacity}`,
       data: { weights, values, capacity },
-      run(g: GridOps) {
+      *run(g: GridOps) {
         for (let w = 0; w <= capacity; w++) g.write(0, w, 0);
         for (let i = 1; i <= n; i++) {
           const wt = weights[i - 1];
@@ -51,6 +51,7 @@ export const kernel: GridKernel<KnapsackData, KnapsackResult> = {
               if (g.less(skip, take)) best = take;
             }
             g.write(i, w, best);
+            yield;
           }
         }
         const best = g.read(n, capacity);
@@ -58,6 +59,7 @@ export const kernel: GridKernel<KnapsackData, KnapsackResult> = {
         let w = capacity;
         for (let i = n; i >= 1; i--) {
           g.mark(i, w);
+          yield;
           if (!g.equal(g.read(i, w), g.read(i - 1, w))) {
             items.push(i - 1);
             w -= weights[i - 1];

@@ -3,8 +3,11 @@
 // under test (rule project.no-fake-science).
 import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
-import { engine } from '../src/engines/grid';
-import { OP, Tally, trace, type GridKernel, type Trace } from '../src/engines/grid/trace';
+import type p5 from 'p5';
+import { GROUNDS, palette } from '../src/core/palette';
+import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
+import { BUILD_EVENTS_PER_FRAME, engine, FLASH_FRAMES, Replay } from '../src/engines/grid';
+import { OP, OP_COUNT, seeded, trace, Tracer, type GridKernel, type GridOps, type Trace } from '../src/engines/grid/trace';
 import type { KnapsackData, KnapsackResult } from '../src/kernels/grid/knapsack-dp';
 import type { LcsData, LcsResult } from '../src/kernels/grid/longest-common-subsequence';
 import type { ChainData, ChainResult } from '../src/kernels/grid/matrix-chain';
@@ -41,6 +44,77 @@ const isSubsequence = (s: string, of: string) => {
 };
 
 type Check = (n: number, seed: number) => void;
+
+/** Events a kernel may record past a step's budget before its next yield. */
+const SLACK = 256;
+const OP_LIST = Array.from({ length: OP_COUNT }, (_, i) => i);
+
+/** Counts a trace's events by op, row and cell, with plain loops and sets (no Tally). */
+function recount(t: Trace) {
+  const total = OP_LIST.map(() => 0);
+  const byRow = OP_LIST.map(() => new Array<number>(t.rows).fill(0));
+  const written = new Set<string>();
+  const writtenByRow = new Array<number>(t.rows).fill(0);
+  const crossed = new Set<string>();
+  let hits = 0;
+  for (let i = 0; i < t.length; i++) {
+    const [op, r, c, v] = [t.events[4 * i], t.events[4 * i + 1], t.events[4 * i + 2], t.events[4 * i + 3]];
+    total[op] += 1;
+    if (r >= 0) byRow[op][r] += 1;
+    const key = `${r},${c}`;
+    if (op === OP.write && !written.has(key)) { written.add(key); writtenByRow[r] += 1; }
+    if (op === OP.cross) crossed.add(key);
+    if (op === OP.lookup && v === 1) hits += 1;
+  }
+  return { total, byRow, written, writtenByRow, crossed, hits };
+}
+
+let traced = 0;
+/** The kernel, with every grid operation it performs counted in `traced`. */
+function counting(k: GridKernel): GridKernel {
+  const wrap = (g: GridOps): GridOps => new Proxy(g, {
+    get(target, key) {
+      const v = (target as unknown as Record<string | symbol, unknown>)[key];
+      if (typeof v !== 'function') return v;
+      return (...args: unknown[]) => { traced++; return (v as (...a: unknown[]) => unknown)(...args); };
+    },
+  });
+  return { ...k, instance(n, seed) {
+    const inst = k.instance(n, seed);
+    return { ...inst, run: (g: GridOps) => inst.run(wrap(g)) };
+  } };
+}
+
+/** A p5 that draws nothing: every method is a no-op, every constant its own name. */
+const stubP5 = new Proxy({}, {
+  get: (_t, k) => (typeof k === 'string' && k === k.toUpperCase() ? k : () => undefined),
+}) as unknown as p5;
+
+const defaultsOf = (plate: PlateCode): Params => Object.fromEntries(plate.params.map((d) => [d.key, d.value]));
+
+/** Runs a plate for `frames` frames; reports the most operations traced in any one call. */
+function drive(plate: PlateCode, params: Params, frames: number) {
+  const stats: Stat[][] = [];
+  const charts: Chart[] = [];
+  const ctx: PlateContext = {
+    width: 800, height: 450, params, seed: 3, rnd: () => 0.5, theme: 'dark',
+    bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg, palette: () => palette('abyss'),
+    stats: (r) => { stats.push(r); }, chart: (c) => { charts.push(c); }, thumbnail: false,
+  };
+  let maxPerCall = 0;
+  const call = (f: () => void) => {
+    const before = traced;
+    f();
+    maxPerCall = Math.max(maxPerCall, traced - before);
+    return traced - before;
+  };
+  let sim: ReturnType<PlateCode['create']> | undefined;
+  call(() => { sim = plate.create(stubP5, ctx); });
+  call(() => sim!.setup());
+  const perFrame: number[] = [];
+  for (let f = 0; f < frames; f++) perFrame.push(call(() => sim!.draw()));
+  return { maxPerCall, perFrame, stats, charts };
+}
 
 /** One independent reference per entry; an entry without one fails the harness. */
 const REFERENCES: Record<string, { sizes?: number; check: Check }> = {
@@ -246,12 +320,33 @@ describe('grid kernels', () => {
           expect(a.truncated).toBe(false);
           expect(b.length).toBe(a.length);
           expect(Array.from(b.events.subarray(0, 4 * b.length))).toEqual(Array.from(a.events.subarray(0, 4 * a.length)));
-          const re = new Tally(a.rows, a.cols);
-          for (let i = 0; i < a.length; i++) re.add(a.events[4 * i], a.events[4 * i + 1], a.events[4 * i + 2], a.events[4 * i + 3]);
-          expect(re.total).toEqual(a.tally.total);
-          expect(re.computed).toBe(a.tally.computed);
+          const re = recount(a);
+          expect(a.tally.total).toEqual(re.total);
+          OP_LIST.forEach((op) => expect(Array.from(a.tally.byRow[op]), `op ${op} by row`).toEqual(re.byRow[op]));
+          expect(a.tally.computed).toBe(re.written.size);
+          expect(Array.from(a.tally.computedByRow)).toEqual(re.writtenByRow);
+          expect(a.tally.hits).toBe(re.hits);
+          expect(a.tally.crossedCells).toBe(re.crossed.size);
           for (const m of kernel.readouts) expect(Number.isFinite(m.of(a.tally)), m.name).toBe(true);
         }
+      });
+
+      it('traces a bounded number of events per step, to the same trace', () => {
+        const n = kernel.size.max;
+        const whole = trace(kernel.instance(n, 5));
+        const t = new Tracer(kernel.instance(n, 5));
+        while (!t.done) expect(t.step(1000)).toBeLessThanOrEqual(1000 + SLACK);
+        const r = t.result();
+        expect(r.length).toBe(whole.length);
+        expect(Array.from(r.events.subarray(0, 4 * r.length))).toEqual(Array.from(whole.events.subarray(0, 4 * whole.length)));
+      });
+
+      it('never traces more than one frame budget in create, setup or one draw', () => {
+        const plate = engine.plate({ id: e.id, title: e.title, group: 'g' }, counting(kernel));
+        const params = { ...defaultsOf(plate), n: kernel.size.max, speed: 2000, loop: true };
+        const run = drive(plate, params, 800);
+        expect(run.maxPerCall, `${e.id}: events traced in one call`).toBeLessThanOrEqual(BUILD_EVENTS_PER_FRAME + SLACK);
+        expect(run.stats.some((rows) => rows.some((x) => x.label === 'Result')), 'reaches its result').toBe(true);
       });
 
       it('measures every chart size without hitting the operation cap', () => {
@@ -282,6 +377,78 @@ describe('grid kernels against known growth', () => {
       // each split reads two cells; the traceback reads the corner once
       expect(t.tally.count(OP.read)).toBe((2 * (n - 1) * n * (n + 1)) / 6 + 1);
     }
+  });
+
+  it.runIf(has('n-queens'))('a seed-free kernel replays its trace instead of tracing it again', () => {
+    const k = kernelOf('n-queens');
+    expect(seeded(k)).toBe(false);
+    const plate = engine.plate({ id: 'n-queens', title: 'q', group: 'g' }, counting(k));
+    expect(plate.params.find((d) => d.key === 'loop')?.label).toBe('Replay when done');
+    const before = traced;
+    const run = drive(plate, { ...defaultsOf(plate), speed: 2000, loop: true }, 600);
+    const results = run.stats.filter((rows) => rows.some((x) => x.label === 'Result')).length;
+    const restarts = run.stats.filter((rows, i) => i > 0 && rows.some((x) => x.label === 'Progress' && x.value.startsWith('0%'))
+      && run.stats[i - 1].some((x) => x.label === 'Result')).length;
+    expect(results).toBeGreaterThan(0);
+    expect(restarts, 'it restarted').toBeGreaterThan(0);
+    expect(traced - before, 'traced once').toBe(trace(k.instance(8, 0)).length);
+  });
+
+  it('a kernel whose input depends on the seed offers new input', () => {
+    for (const e of live) {
+      const k = kernelOf(e.id);
+      const label = engine.plate({ id: e.id, title: e.title, group: 'g' }, k).params.find((d) => d.key === 'loop')?.label;
+      const differs = JSON.stringify(k.instance(k.size.value, 11).data) !== JSON.stringify(k.instance(k.size.value, 12).data);
+      expect(label, e.id).toBe(differs ? 'New input when done' : 'Replay when done');
+    }
+  });
+
+  it.runIf(has('n-queens'))('the per-row chart numbers rows as the board labels them', () => {
+    const k = kernelOf('n-queens');
+    const plate = engine.plate({ id: 'n-queens', title: 'q', group: 'g' }, k);
+    const run = drive(plate, { ...defaultsOf(plate), speed: 2000, loop: false }, 60);
+    const chart = run.charts[run.charts.length - 1];
+    const labels = k.instance(8, 0).rowLabels!;
+    const placed = trace(k.instance(8, 0)).tally;
+    for (const s of chart.series) {
+      expect(s.points.map((q) => q[0])).toEqual(labels.map(Number));
+    }
+    // the top row is where the search starts: its label is 1 and it holds the first placement
+    expect(chart.series.find((s) => s.name === 'Queens placed')!.points[0]).toEqual([Number(labels[0]), placed.inRow(OP.place, 0)]);
+    expect(labels[0]).toBe('1');
+  });
+
+  it.runIf(has('n-queens'))('the solution frame lasts a fixed number of frames, not events', () => {
+    const k = kernelOf('n-queens');
+    const inst = k.instance(6, 0);
+    const t = trace(inst);
+    const rp = new Replay(inst, t);
+    let e = 0;
+    while (t.events[4 * e] !== OP.solution) e++;
+    rp.advance(e + 1);
+    rp.advance(200);
+    expect(rp.solutionFlash).toBe(FLASH_FRAMES);
+    for (let f = 0; f < FLASH_FRAMES; f++) rp.tick();
+    expect(rp.solutionFlash).toBe(0);
+  });
+
+  it.runIf(has('optimal-bst'))('the optimal tree is reported as a weighted cost, its root 0-based', () => {
+    for (const seed of SEEDS) {
+      const { data, t, r } = run<BstData, BstResult>('optimal-bst', 7, seed);
+      expect(r.parent[r.root]).toBe(-1);
+      const total = data.freq.reduce((s, f) => s + f, 0);
+      expect(t.outcome!.summary).toBe(`weighted cost ${r.cost}, ${(r.cost / total).toFixed(2)} comparisons per search on average, root key ${r.root}`);
+    }
+  });
+
+  it('the lab never traces more than one frame budget in one call', () => {
+    const dp = live.filter((e) => e.labs.includes('dynamic-programming'));
+    if (dp.length < 2) return;
+    const lab = engine.lab('dynamic-programming', dp.map((e) => ({ info: { id: e.id, title: e.title, group: 'g' }, kernel: counting(kernelOf(e.id)) })));
+    const params = { ...defaultsOf(lab), n: (lab.params[0] as { max: number }).max, speed: 2000, loop: true };
+    const run = drive(lab, params, 400);
+    expect(run.maxPerCall).toBeLessThanOrEqual(BUILD_EVENTS_PER_FRAME + SLACK);
+    expect(run.stats[run.stats.length - 1].every((x) => /finished #/.test(x.value) || /operations/.test(x.value))).toBe(true);
   });
 
   it.runIf(has('n-queens'))('eight queens: 92 solutions', () => {

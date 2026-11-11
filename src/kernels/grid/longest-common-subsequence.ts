@@ -44,7 +44,7 @@ export const kernel: GridKernel<LcsData, LcsResult> = {
       colLabels: ['-', ...b],
       input: `a = ${a}, b = ${b}`,
       data: { a, b },
-      run(g: GridOps) {
+      *run(g: GridOps) {
         for (let j = 0; j <= m; j++) g.write(0, j, 0);
         for (let i = 1; i <= n; i++) g.write(i, 0, 0);
         for (let i = 1; i <= n; i++) {
@@ -57,6 +57,7 @@ export const kernel: GridKernel<LcsData, LcsResult> = {
               const left = g.read(i, j - 1);
               g.write(i, j, g.less(up, left) ? left : up);
             }
+            yield;
           }
         }
         const length = g.read(n, m);
@@ -65,6 +66,7 @@ export const kernel: GridKernel<LcsData, LcsResult> = {
         let j = m;
         while (i > 0 && j > 0) {
           g.mark(i, j);
+          yield;
           if (g.equal(a.charCodeAt(i - 1), b.charCodeAt(j - 1))) {
             lcs = a[i - 1] + lcs;
             i--; j--;

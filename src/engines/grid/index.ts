@@ -2,18 +2,27 @@
 // their trace. A plate runs one kernel (cells filling with arrows from the cells each one reads,
 // the traceback, pieces placed and taken back, multiples crossed out); a lab runs several on the
 // same problem size with the same operation budget per frame and measures how each one's work
-// grows with n (ADR 0004 §4-5).
+// grows with n (ADR 0004 §4-5). Traces are built a bounded number of events per frame, so a
+// rebuild, a restart or a chart measurement never blocks one frame.
 import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, type Chart, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
-import { OP, Tally, trace, type GridKernel, type Instance, type Trace } from './trace';
+import { OP, seeded, Tally, Tracer, type GridKernel, type Instance, type Trace } from './trace';
 
 const HOLD_FRAMES = 120;
 const LAB_N = [4, 6, 8, 12, 16, 24, 32];
 const MAX_ARROWS = 48;
+/** Trace events recorded per frame, shared by every build and measurement a plate runs. */
+export const BUILD_EVENTS_PER_FRAME = 20_000;
+/** Events a thumbnail records before it draws (a partial trace replays like a whole one). */
+export const THUMBNAIL_EVENTS = 60_000;
+/** Frames the board stays framed after a solution is reached. */
+export const FLASH_FRAMES = 24;
 
 const fmt = (x: number) => x.toLocaleString('en-US');
+const LAB_RANGE = `n = ${LAB_N[0]} to ${LAB_N[LAB_N.length - 1]}`;
+const WORK_LABEL = 'counted operations (visits, reads, lookups, writes, comparisons, moves)';
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
 function exponent(points: [number, number][]): number {
@@ -26,8 +35,13 @@ function exponent(points: [number, number][]): number {
   return sxx ? sxy / sxx : NaN;
 }
 
+function emptyTrace(inst: Instance): Trace {
+  return { events: new Int32Array(0), length: 0, rows: inst.rows, cols: inst.cols,
+    tally: new Tally(inst.rows, inst.cols), truncated: false };
+}
+
 /** One replayed run: the grid as replayed so far, its tally, and where it stands. */
-class Replay {
+export class Replay {
   readonly tally: Tally;
   readonly value: Float64Array;
   readonly has: Uint8Array;
@@ -48,6 +62,7 @@ class Replay {
   reads: number[] = [];
   lastReads: number[] = [];
   lastTarget = -1;
+  /** Frames left to frame the board after a solution; counted down by tick(), once per frame. */
   solutionFlash = 0;
   constructor(readonly inst: Instance, readonly t: Trace) {
     const size = t.rows * t.cols;
@@ -74,7 +89,10 @@ class Replay {
     this.maxValue = Number.isFinite(hi) ? hi : 1;
     this.minValue = Number.isFinite(lo) ? lo : 0;
   }
+  static empty(inst: Instance): Replay { return new Replay(inst, emptyTrace(inst)); }
   get done(): boolean { return this.at >= this.t.length; }
+  /** One frame has passed. */
+  tick(): void { if (this.solutionFlash > 0) this.solutionFlash--; }
   advance(steps: number): void {
     const ev = this.t.events;
     const cols = this.t.cols;
@@ -83,9 +101,8 @@ class Replay {
       const e = this.at;
       const op = ev[4 * e]; const r = ev[4 * e + 1]; const c = ev[4 * e + 2]; const v = ev[4 * e + 3];
       this.tally.add(op, r, c, v);
-      if (this.solutionFlash > 0) this.solutionFlash--;
       if (r < 0) {
-        if (op === OP.solution) this.solutionFlash = 24;
+        if (op === OP.solution) this.solutionFlash = FLASH_FRAMES;
         continue;
       }
       const i = r * cols + c;
@@ -259,41 +276,91 @@ function drawGrid(p: p5, ctx: PlateContext, kernel: GridKernel, rp: Replay, box:
   }
 }
 
-const baseParams = (k: GridKernel): ParamDef[] => [
+const baseParams = (k: GridKernel, varies: boolean): ParamDef[] => [
   { kind: 'range', key: 'n', label: k.size.label, min: k.size.min, max: k.size.max, step: k.size.step,
     value: k.size.value, rebuild: true },
   { kind: 'range', key: 'speed', label: 'Operations per frame', min: 1, max: 2000, step: 1, value: k.speed },
-  { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
+  loopParam(varies),
   paletteParam('abyss'),
 ];
 
-function start(kernel: GridKernel, n: number, seed: number): Replay {
-  const inst = kernel.instance(n, seed);
-  return new Replay(inst, trace(inst));
+/** A kernel whose instances ignore the seed would only re-trace the same input: it replays. */
+function loopParam(varies: boolean): ParamDef {
+  return { kind: 'toggle', key: 'loop', label: varies ? 'New input when done' : 'Replay when done', value: true };
+}
+
+/** The x of a per-row chart: the row's own label when it is a number, so chart and board agree. */
+export function rowX(inst: Instance, r: number): number {
+  const x = Number(inst.rowLabels?.[r]);
+  return Number.isFinite(x) ? x : r + 1;
+}
+
+/** Measures one size per pending entry, a bounded number of events at a time. */
+class Measurer {
+  private current: { key: number; n: number; tracer: Tracer } | null = null;
+  constructor(private readonly pending: [number, number][],
+    private readonly make: (key: number, n: number) => Instance,
+    private readonly done: (key: number, n: number, t: Trace) => void) {}
+  /** Spend up to `budget` events; returns what is left of it. */
+  work(budget: number): number {
+    while (budget > 0) {
+      if (!this.current) {
+        const next = this.pending.shift();
+        if (!next) break;
+        this.current = { key: next[0], n: next[1], tracer: new Tracer(this.make(next[0], next[1])) };
+      }
+      budget -= this.current.tracer.step(budget);
+      if (this.current.tracer.done) {
+        const { key, n, tracer } = this.current;
+        this.current = null;
+        const t = tracer.result();
+        if (!t.truncated) this.done(key, n, t);
+      }
+    }
+    return budget;
+  }
+}
+
+/** A trace being built for display: an empty grid until it is complete. */
+class Build {
+  readonly tracer: Tracer;
+  constructor(readonly inst: Instance) { this.tracer = new Tracer(inst); }
+  work(budget: number): number { return budget - this.tracer.step(budget); }
+  get done(): boolean { return this.tracer.done; }
+  replay(): Replay { return new Replay(this.inst, this.tracer.result()); }
+  /** For a thumbnail: whatever has been traced so far. */
+  partial(budget: number): Replay {
+    this.tracer.step(budget);
+    return new Replay(this.inst, this.tracer.done ? this.tracer.result() : this.tracer.snapshot());
+  }
 }
 
 function plate(info: KernelInfo, kernel: GridKernel): PlateCode {
+  const varies = seeded(kernel);
   return {
     id: info.id,
     mode: '2d',
     aspect: 16 / 9,
     thumbnailFrames: 2,
-    params: baseParams(kernel),
+    params: baseParams(kernel, varies),
     create(p, ctx) {
       let generation = 0;
-      const seedOf = () => ctx.seed + generation * 7919;
-      let rp = start(kernel, num(ctx.params, 'n'), seedOf());
+      const instance = () => kernel.instance(num(ctx.params, 'n'), ctx.seed + generation * 7919);
+      let build: Build | null = new Build(instance());
+      let rp = Replay.empty(build.inst);
       let hold = 0;
       const spec = kernel.chart;
       const curves = spec.kind === 'scaling' ? spec.series.map(() => [] as [number, number][]) : [];
-      const pending = spec.kind === 'scaling' ? spec.ns.slice() : [];
-      const measure = () => {
-        // one size per frame, so the chart never blocks a phone's main thread
-        const n = pending.shift();
-        if (n === undefined || spec.kind !== 'scaling') return;
-        const t = trace(kernel.instance(n, ctx.seed + n));
-        if (t.truncated) return;
-        spec.series.forEach((m, i) => curves[i].push([n, m.of(t.tally)]));
+      const measurer = new Measurer(spec.kind === 'scaling' ? spec.ns.map((n) => [0, n]) : [],
+        (_, n) => kernel.instance(n, ctx.seed + n),
+        (_, n, t) => { if (spec.kind === 'scaling') spec.series.forEach((m, i) => curves[i].push([n, m.of(t.tally)])); });
+      const work = () => {
+        let budget = BUILD_EVENTS_PER_FRAME;
+        if (build) {
+          budget = build.work(budget);
+          if (build.done) { rp = build.replay(); build = null; hold = 0; }
+        }
+        measurer.work(budget);
       };
       const chart = (): Chart => {
         if (spec.kind === 'scaling') {
@@ -304,38 +371,47 @@ function plate(info: KernelInfo, kernel: GridKernel): PlateCode {
             series: spec.series.map((m, i) => ({ name: m.name, points: curves[i].slice() })),
           };
         }
-        const rows = rp.t.rows;
         return {
           title: spec.title,
           x: { label: spec.x },
           y: { label: spec.y },
           series: spec.series.map((s) => ({
             name: s.name,
-            points: Array.from({ length: rows }, (_, r) => [r + 1, rp.tally.inRow(s.op, r)] as [number, number]),
+            points: Array.from({ length: rp.t.rows }, (_, r) => [rowX(rp.inst, r), rp.tally.inRow(s.op, r)] as [number, number]),
           })),
         };
       };
       return {
         setup() {
-          if (ctx.thumbnail) rp.advance(Math.floor(rp.t.length * 0.55));
+          if (ctx.thumbnail && build) {
+            rp = build.partial(THUMBNAIL_EVENTS);
+            build = null;
+            rp.advance(Math.floor(rp.t.length * 0.55));
+          }
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            measure();
-            if (!rp.done) rp.advance(num(ctx.params, 'speed'));
-            else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
-              generation++;
-              hold = 0;
-              rp = start(kernel, num(ctx.params, 'n'), seedOf());
+            work();
+            rp.tick();
+            if (!build) {
+              if (!rp.done) rp.advance(num(ctx.params, 'speed'));
+              else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
+                hold = 0;
+                if (varies) {
+                  generation++;
+                  build = new Build(instance());
+                } else rp = new Replay(rp.inst, rp.t);
+              }
             }
           }
           const pad = Math.round(Math.min(ctx.width, ctx.height) * 0.04);
           drawGrid(p, ctx, kernel, rp, { x: pad, y: pad, w: ctx.width - 2 * pad, h: ctx.height - 2 * pad }, true);
           const rows: Stat[] = kernel.readouts.map((m) => ({ label: m.name, value: fmt(m.of(rp.tally)) }));
-          rows.push({ label: 'Input', value: rp.inst.input });
-          rows.push({ label: 'Progress', value: `${Math.round((100 * rp.at) / Math.max(1, rp.t.length))}% of ${fmt(rp.t.length)} operations` });
-          if (rp.done) rows.push({ label: 'Result', value: rp.t.outcome?.summary ?? 'stopped at the operation cap' });
+          rows.push({ label: 'Input', value: (build ?? rp).inst.input });
+          if (build) rows.push({ label: 'Tracing', value: `${fmt(build.tracer.recorded)} operations recorded` });
+          else rows.push({ label: 'Progress', value: `${Math.round((100 * rp.at) / Math.max(1, rp.t.length))}% of ${fmt(rp.t.length)} operations` });
+          if (!build && rp.done) rows.push({ label: 'Result', value: rp.t.outcome?.summary ?? 'stopped at the operation cap' });
           ctx.stats(rows);
           ctx.chart(chart());
         },
@@ -348,10 +424,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): P
   const lo = Math.max(...kernels.map((k) => k.kernel.size.min));
   const hi = Math.max(lo, Math.min(...kernels.map((k) => k.kernel.size.max)));
   const value = Math.min(hi, Math.max(lo, 8));
+  const varies = kernels.map((k) => seeded(k.kernel));
   const params: ParamDef[] = [
     { kind: 'range', key: 'n', label: 'Problem size n', min: lo, max: hi, step: 1, value, rebuild: true },
     { kind: 'range', key: 'speed', label: 'Operations per frame', min: 1, max: 2000, step: 1, value: 8 },
-    { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
+    loopParam(varies.some(Boolean)),
     paletteParam('abyss'),
   ];
   return {
@@ -362,45 +439,62 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): P
     params,
     create(p, ctx) {
       let generation = 0;
-      let panes: { info: KernelInfo; kernel: GridKernel; rp: Replay; finished: number }[] = [];
       let finishedCount = 0;
       let hold = 0;
+      const instance = (ki: number) => kernels[ki].kernel.instance(num(ctx.params, 'n'), ctx.seed + generation * 7919);
+      const panes = kernels.map((k, ki) => {
+        const build = new Build(instance(ki));
+        return { ...k, build: build as Build | null, rp: Replay.empty(build.inst), finished: 0 };
+      });
       const curves = kernels.map(() => ({ pts: [] as [number, number][], slope: NaN }));
-      const pending = kernels.flatMap((_, ki) => LAB_N.map((n) => [ki, n] as [number, number]));
-      const build = () => {
-        const n = num(ctx.params, 'n');
-        finishedCount = 0;
-        panes = kernels.map((k) => ({ ...k, rp: start(k.kernel, n, ctx.seed + generation * 7919), finished: 0 }));
+      const measurer = new Measurer(kernels.flatMap((_, ki) => LAB_N.map((n) => [ki, n] as [number, number])),
+        (ki, n) => kernels[ki].kernel.instance(n, ctx.seed + n),
+        (ki, n, t) => { curves[ki].pts.push([n, t.tally.work]); curves[ki].slope = exponent(curves[ki].pts); });
+      const ready = () => panes.every((x) => !x.build);
+      const work = () => {
+        let budget = BUILD_EVENTS_PER_FRAME;
+        for (const pane of panes) {
+          if (!pane.build || budget <= 0) continue;
+          budget = pane.build.work(budget);
+          if (pane.build.done) { pane.rp = pane.build.replay(); pane.build = null; }
+        }
+        measurer.work(budget);
       };
-      const measure = () => {
-        const next = pending.shift();
-        if (!next) return;
-        const [ki, n] = next;
-        const t = trace(kernels[ki].kernel.instance(n, ctx.seed + n));
-        if (t.truncated) return;
-        curves[ki].pts.push([n, t.tally.work]);
-        curves[ki].slope = exponent(curves[ki].pts);
-      };
-      build();
       return {
         setup() {
-          if (ctx.thumbnail) for (const pane of panes) pane.rp.advance(Math.floor(pane.rp.t.length * 0.5));
+          if (!ctx.thumbnail) return;
+          for (const pane of panes) {
+            if (!pane.build) continue;
+            pane.rp = pane.build.partial(THUMBNAIL_EVENTS / panes.length);
+            pane.build = null;
+            pane.rp.advance(Math.floor(pane.rp.t.length * 0.5));
+          }
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            measure();
-            const steps = num(ctx.params, 'speed');
-            for (const pane of panes) {
-              if (!pane.rp.done) {
-                pane.rp.advance(steps);
-                if (pane.rp.done) pane.finished = ++finishedCount;
+            const wasReady = ready();
+            work();
+            if (!wasReady && ready()) { finishedCount = 0; hold = 0; }
+            for (const pane of panes) pane.rp.tick();
+            if (ready()) {
+              const steps = num(ctx.params, 'speed');
+              for (const pane of panes) {
+                if (!pane.rp.done) {
+                  pane.rp.advance(steps);
+                  if (pane.rp.done) pane.finished = ++finishedCount;
+                }
               }
-            }
-            if (panes.every((x) => x.rp.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
-              generation++;
-              hold = 0;
-              build();
+              if (panes.every((x) => x.rp.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
+                hold = 0;
+                finishedCount = 0;
+                generation++;
+                panes.forEach((pane, ki) => {
+                  pane.finished = 0;
+                  if (varies[ki]) pane.build = new Build(instance(ki));
+                  else pane.rp = new Replay(pane.rp.inst, pane.rp.t);
+                });
+              }
             }
           }
           const W = ctx.width; const H = ctx.height;
@@ -422,17 +516,19 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[]): P
             drawGrid(p, ctx, pane.kernel, pane.rp, { x, y: y + fs + 6, w: cw, h: ch - fs - 6 }, false);
           });
           ctx.chart({
-            title: 'Measured work as n grows',
+            title: `Measured work, growth exponent fitted over ${LAB_RANGE} (not the asymptote)`,
             x: { label: 'problem size n', log: true },
-            y: { label: 'cell operations', log: true },
+            y: { label: WORK_LABEL, log: true },
             series: kernels.map((k, i) => ({ name: k.info.title, points: curves[i].pts.slice() })),
           });
           ctx.stats(panes.map((pane, i) => {
             const t = pane.rp.tally;
             const slope = curves[i].slope;
+            const state = pane.build ? `tracing, ${fmt(pane.build.tracer.recorded)} operations recorded`
+              : `${fmt(t.computed)} cells · ${fmt(t.reused)} reads · ${fmt(t.work)} operations`;
             return {
               label: pane.info.title,
-              value: `${fmt(t.computed)} cells · ${fmt(t.reused)} reads · ${fmt(t.work)} operations · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
+              value: `${state} · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'} over ${LAB_RANGE}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
             };
           }));
         },

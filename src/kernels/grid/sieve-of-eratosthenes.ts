@@ -38,14 +38,15 @@ export const kernel: GridKernel<{ limit: number }, SieveResult> = {
       label: (y, x) => String(y * cols + x),
       input: `integers 2 .. ${limit}`,
       data: { limit },
-      run(g: GridOps) {
+      *run(g: GridOps) {
         for (let p = 2; p * p <= limit; p++) {
           if (g.crossed(r(p), c(p))) continue;
-          for (let m = p * p; m <= limit; m += p) g.cross(r(m), c(m));
+          for (let m = p * p; m <= limit; m += p) { g.cross(r(m), c(m)); yield; }
         }
         const primes: number[] = [];
         for (let k = 2; k <= limit; k++) {
           if (!g.crossed(r(k), c(k))) { g.mark(r(k), c(k)); primes.push(k); }
+          yield;
         }
         return { result: { primes }, summary: `${primes.length} primes up to ${limit}` };
       },

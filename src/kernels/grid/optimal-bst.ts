@@ -1,5 +1,5 @@
 import { mulberry32 } from '../../core/random';
-import { between, type GridKernel, type GridOps } from '../../engines/grid/trace';
+import { between, type GridKernel, type GridOps, type Steps } from '../../engines/grid/trace';
 import { DP_READOUTS, DP_SERIES, range } from './_dp';
 
 export interface BstData {
@@ -8,8 +8,10 @@ export interface BstData {
 }
 
 export interface BstResult {
-  /** Sum over keys of frequency x (depth + 1), the root at depth 0. */
+  /** Weighted search cost: the sum over keys of frequency x comparisons (depth + 1). */
   cost: number;
+  /** The root key (0-based, as in the table's boundaries). */
+  root: number;
   /** parent[k] is the parent key of k, -1 for the root. */
   parent: number[];
 }
@@ -35,9 +37,9 @@ export const kernel: GridKernel<BstData, BstResult> = {
       rowLabels: range(n + 1).map(String),
       colLabels: range(n + 1).map(String),
       inactive: (r, c) => c < r,
-      input: `frequencies ${freq.join(' ')}`,
+      input: `frequencies of keys 0 .. ${n - 1}: ${freq.join(' ')}`,
       data: { freq },
-      run(g: GridOps) {
+      *run(g: GridOps) {
         const root = range(n + 1).map(() => new Array<number>(n + 1).fill(-1));
         for (let i = 0; i <= n; i++) g.write(i, i, 0);
         for (let len = 1; len <= n; len++) {
@@ -48,22 +50,29 @@ export const kernel: GridKernel<BstData, BstResult> = {
             for (let r = i; r < j; r++) {
               const q = g.read(i, r) + g.read(r + 1, j);
               if (r === i || g.less(q, best)) { best = q; root[i][j] = r; }
+              yield;
             }
             g.write(i, j, best + prefix[j] - prefix[i]);
           }
         }
         const parent = new Array<number>(n).fill(-1);
-        const build = (i: number, j: number, up: number): void => {
+        function* build(i: number, j: number, up: number): Steps<void> {
           g.mark(i, j);
+          yield;
           if (i === j) return;
           const r = root[i][j];
           parent[r] = up;
-          build(i, r, r);
-          build(r + 1, j, r);
-        };
+          yield* build(i, r, r);
+          yield* build(r + 1, j, r);
+        }
         const cost = g.read(0, n);
-        build(0, n, -1);
-        return { result: { cost, parent }, summary: `expected cost ${cost}, root key ${root[0][n] + 1}` };
+        yield* build(0, n, -1);
+        const total = prefix[n];
+        const top = root[0][n];
+        return {
+          result: { cost, parent, root: top },
+          summary: `weighted cost ${cost}, ${(cost / total).toFixed(2)} comparisons per search on average, root key ${top}`,
+        };
       },
     };
   },

@@ -19,7 +19,7 @@ related:
 
 The search tree with least expected cost for known access frequencies, built from subtrees.
 
-Keys are known in order with access frequencies; the cost of a tree is the sum of each key's frequency times its number of comparisons (depth plus one). Cell (i, j) is the cheapest tree on keys i to j-1, and the diagonal holds the empty ranges.
+Keys 0 to n-1 are known in order with access frequencies. The weighted cost of a tree is the sum of each key's frequency times its number of comparisons (depth plus one); divided by the total frequency it is the expected number of comparisons per search, and the readout prints both. Cell (i, j) is the cheapest tree on keys i to j-1, and the diagonal holds the empty ranges.
 
 Choosing a root pushes every other key in the range one level down, so a cell is the range's total frequency plus the cheapest left and right subtrees, both shorter ranges already in the table. Like the matrix chain, it fills diagonal by diagonal and tries every root.
 

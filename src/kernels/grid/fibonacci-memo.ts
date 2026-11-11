@@ -1,4 +1,4 @@
-import { OP, type GridKernel, type GridOps } from '../../engines/grid/trace';
+import { OP, type GridKernel, type GridOps, type Steps } from '../../engines/grid/trace';
 
 export interface FibResult {
   naive: number;
@@ -38,22 +38,24 @@ export const kernel: GridKernel<{ n: number }, FibResult> = {
       colLabels: Array.from({ length: n + 1 }, (_, k) => String(k)),
       input: `F(${n})`,
       data: { n },
-      run(g: GridOps) {
-        const naive = (k: number): number => {
+      *run(g: GridOps) {
+        function* naive(k: number): Steps<number> {
           g.visit(0, k);
-          const v = k < 2 ? k : naive(k - 1) + naive(k - 2);
+          yield;
+          const v = k < 2 ? k : (yield* naive(k - 1)) + (yield* naive(k - 2));
           g.write(0, k, v);
           return v;
-        };
-        const memo = (k: number): number => {
+        }
+        function* memo(k: number): Steps<number> {
           g.visit(1, k);
+          yield;
           if (g.known(1, k)) return g.read(1, k);
-          const v = k < 2 ? k : memo(k - 1) + memo(k - 2);
+          const v = k < 2 ? k : (yield* memo(k - 1)) + (yield* memo(k - 2));
           g.write(1, k, v);
           return v;
-        };
-        const a = naive(n);
-        const b = memo(n);
+        }
+        const a = yield* naive(n);
+        const b = yield* memo(n);
         return { result: { naive: a, memo: b }, summary: `F(${n}) = ${b}` };
       },
     };

@@ -1,5 +1,5 @@
 import { mulberry32 } from '../../core/random';
-import { between, type GridKernel, type GridOps } from '../../engines/grid/trace';
+import { between, type GridKernel, type GridOps, type Steps } from '../../engines/grid/trace';
 import { DP_READOUTS, DP_SERIES, range } from './_dp';
 
 export interface ChainData {
@@ -35,7 +35,7 @@ export const kernel: GridKernel<ChainData, ChainResult> = {
       inactive: (r, c) => c < r,
       input: `dimensions ${dims.join(' x ')}`,
       data: { dims },
-      run(g: GridOps) {
+      *run(g: GridOps) {
         const split = range(n).map(() => new Array<number>(n).fill(-1));
         for (let i = 0; i < n; i++) g.write(i, i, 0);
         for (let len = 2; len <= n; len++) {
@@ -46,18 +46,22 @@ export const kernel: GridKernel<ChainData, ChainResult> = {
             for (let k = i; k < j; k++) {
               const q = g.read(i, k) + g.read(k + 1, j) + dims[i] * dims[k + 1] * dims[j + 1];
               if (k === i || g.less(q, best)) { best = q; split[i][j] = k; }
+              yield;
             }
             g.write(i, j, best);
           }
         }
-        const paren = (i: number, j: number): string => {
+        function* paren(i: number, j: number): Steps<string> {
           g.mark(i, j);
+          yield;
           if (i === j) return names[i];
           const k = split[i][j];
-          return `(${paren(i, k)} ${paren(k + 1, j)})`;
-        };
+          const left = yield* paren(i, k);
+          const right = yield* paren(k + 1, j);
+          return `(${left} ${right})`;
+        }
         const cost = g.read(0, n - 1);
-        const order = paren(0, n - 1);
+        const order = yield* paren(0, n - 1);
         return { result: { cost, order }, summary: `${cost} multiplications: ${order}` };
       },
     };

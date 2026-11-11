@@ -1,4 +1,4 @@
-import { OP, type GridKernel, type GridOps } from '../../engines/grid/trace';
+import { OP, type GridKernel, type GridOps, type Steps } from '../../engines/grid/trace';
 import { range } from './_dp';
 
 export interface QueensResult {
@@ -34,17 +34,17 @@ export const kernel: GridKernel<{ n: number }, QueensResult> = {
     return {
       rows: n,
       cols: n,
-      rowLabels: range(n).map((r) => String(n - r)),
+      rowLabels: range(n).map((r) => String(r + 1)),
       colLabels: range(n).map((c) => String.fromCharCode(97 + c)),
       input: `${n} x ${n} board`,
       data: { n },
-      run(g: GridOps) {
+      *run(g: GridOps) {
         const col = new Uint8Array(n);
         const down = new Uint8Array(2 * n);
         const up = new Uint8Array(2 * n);
         const queen = new Array<number>(n).fill(-1);
         const solutions: number[][] = [];
-        const solve = (r: number): void => {
+        function* solve(r: number): Steps<void> {
           if (r === n) {
             g.solution();
             solutions.push(queen.slice());
@@ -52,15 +52,16 @@ export const kernel: GridKernel<{ n: number }, QueensResult> = {
           }
           for (let c = 0; c < n; c++) {
             g.visit(r, c);
+            yield;
             if (col[c] || down[r + c] || up[r - c + n]) continue;
             g.place(r, c);
             col[c] = 1; down[r + c] = 1; up[r - c + n] = 1; queen[r] = c;
-            solve(r + 1);
+            yield* solve(r + 1);
             col[c] = 0; down[r + c] = 0; up[r - c + n] = 0; queen[r] = -1;
             g.remove(r, c);
           }
-        };
-        solve(0);
+        }
+        yield* solve(0);
         return { result: { solutions }, summary: `${solutions.length} solutions` };
       },
     };

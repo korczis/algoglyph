@@ -62,6 +62,13 @@ export interface Outcome<R> {
   summary: string;
 }
 
+/**
+ * A kernel's run, written as a generator: every `yield` is a point where the engine may pause
+ * and resume it on a later frame, so building a long trace never blocks one frame. Kernels yield
+ * once per cell, call or position, which bounds the work between two pauses.
+ */
+export type Steps<R> = Generator<void, R, void>;
+
 /** One seeded problem: the grid it is solved on and the run that solves it. */
 export interface Instance<D = unknown, R = unknown> {
   rows: number;
@@ -76,7 +83,7 @@ export interface Instance<D = unknown, R = unknown> {
   input: string;
   /** The problem itself, for tests that solve it independently. */
   data: D;
-  run(g: GridOps): Outcome<R>;
+  run(g: GridOps): Steps<Outcome<R>>;
 }
 
 /** A measured quantity of a run, counted from its trace. */
@@ -135,7 +142,8 @@ export class Tally {
   get recomputed(): number { return this.total[OP.write] - this.computed; }
   /** Stored subproblems read back and used again. */
   get reused(): number { return this.total[OP.read]; }
-  /** Every counted operation that does work (annotations excluded). */
+  /** Every counted operation: visits, reads, lookups, writes, comparisons, placements,
+   * removals and crossings (the mark and solution annotations excluded). */
   get work(): number {
     return this.total[OP.visit] + this.total[OP.read] + this.total[OP.lookup] + this.total[OP.write]
       + this.total[OP.compare] + this.total[OP.place] + this.total[OP.remove] + this.total[OP.cross];
@@ -158,82 +166,137 @@ export const EVENT_CAP = 2_000_000;
 
 class Stop extends Error {}
 
-/** Run one instance, recording every operation. */
-export function trace<R>(inst: Instance<unknown, R>, cap = EVENT_CAP): Trace<R> {
-  const { rows, cols } = inst;
-  const value = new Float64Array(rows * cols);
-  const has = new Uint8Array(rows * cols);
-  const crossed = new Uint8Array(rows * cols);
-  const piece = new Uint8Array(rows * cols);
-  const tally = new Tally(rows, cols);
-  let buf = new Int32Array(4 * 4096);
-  let len = 0;
-  const push = (op: number, r: number, c: number, v: number) => {
-    if (len >= cap) throw new Stop();
-    if (4 * len + 4 > buf.length) {
-      const next = new Int32Array(buf.length * 2);
-      next.set(buf);
-      buf = next;
-    }
-    buf[4 * len] = op;
-    buf[4 * len + 1] = r;
-    buf[4 * len + 2] = c;
-    buf[4 * len + 3] = v;
-    len++;
-    tally.add(op, r, c, v);
-  };
-  const at = (r: number, c: number) => {
-    if (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || c < 0 || r >= rows || c >= cols) {
-      throw new RangeError(`cell (${r}, ${c}) outside ${rows} x ${cols}`);
-    }
-    return r * cols + c;
-  };
-  const g: GridOps = {
-    rows,
-    cols,
-    visit(r, c) { at(r, c); push(OP.visit, r, c, 0); },
-    read(r, c) {
-      const i = at(r, c);
-      if (!has[i]) throw new Error(`read of cell (${r}, ${c}) before it was computed`);
-      push(OP.read, r, c, 0);
-      return value[i];
-    },
-    known(r, c) { const i = at(r, c); push(OP.lookup, r, c, has[i]); return has[i] === 1; },
-    write(r, c, v) {
-      const i = at(r, c);
-      if (!Number.isInteger(v) || Math.abs(v) > 0x7fffffff) throw new RangeError(`value ${v} is not a 32-bit integer`);
-      value[i] = v;
-      has[i] = 1;
-      push(OP.write, r, c, v);
-    },
-    less(x, y) { push(OP.compare, -1, -1, 0); return x < y; },
-    equal(x, y) { push(OP.compare, -1, -1, 0); return x === y; },
-    place(r, c) {
-      const i = at(r, c);
-      if (piece[i]) throw new Error(`(${r}, ${c}) already holds a piece`);
-      piece[i] = 1;
-      push(OP.place, r, c, 0);
-    },
-    remove(r, c) {
-      const i = at(r, c);
-      if (!piece[i]) throw new Error(`(${r}, ${c}) holds no piece`);
-      piece[i] = 0;
-      push(OP.remove, r, c, 0);
-    },
-    cross(r, c) { const i = at(r, c); push(OP.cross, r, c, crossed[i]); crossed[i] = 1; },
-    crossed(r, c) { const i = at(r, c); push(OP.read, r, c, 0); return crossed[i] === 1; },
-    mark(r, c) { at(r, c); push(OP.mark, r, c, 0); },
-    solution() { push(OP.solution, -1, -1, 0); },
-  };
-  let outcome: Outcome<R> | undefined;
-  let truncated = false;
-  try {
-    outcome = inst.run(g);
-  } catch (e) {
-    if (!(e instanceof Stop)) throw e;
-    truncated = true;
+/**
+ * Records one instance's run, a bounded number of events at a time: `step(budget)` resumes the
+ * kernel until at least `budget` more events are recorded (plus the work up to its next yield)
+ * or it finishes. `trace()` runs a whole instance at once, for tests and small thumbnails.
+ */
+export class Tracer<R = unknown> {
+  private readonly value: Float64Array;
+  private readonly has: Uint8Array;
+  private readonly crossedFlag: Uint8Array;
+  private readonly piece: Uint8Array;
+  private readonly tally: Tally;
+  private buf = new Int32Array(4 * 4096);
+  private len = 0;
+  private outcome: Outcome<R> | undefined;
+  private truncated = false;
+  private finished = false;
+  private readonly steps: Steps<Outcome<R>>;
+  constructor(readonly inst: Instance<unknown, R>, private readonly cap = EVENT_CAP) {
+    const { rows, cols } = inst;
+    this.value = new Float64Array(rows * cols);
+    this.has = new Uint8Array(rows * cols);
+    this.crossedFlag = new Uint8Array(rows * cols);
+    this.piece = new Uint8Array(rows * cols);
+    this.tally = new Tally(rows, cols);
+    this.steps = inst.run(this.ops());
   }
-  return { events: buf, length: len, rows, cols, tally, outcome, truncated };
+  get done(): boolean { return this.finished; }
+  /** Events recorded so far. */
+  get recorded(): number { return this.len; }
+  /** Resume the run for about `budget` events; returns how many were recorded. */
+  step(budget: number): number {
+    const from = this.len;
+    const until = from + budget;
+    try {
+      while (!this.finished && this.len < until) {
+        const r = this.steps.next();
+        if (r.done) { this.outcome = r.value; this.finished = true; }
+      }
+    } catch (e) {
+      if (!(e instanceof Stop)) throw e;
+      this.truncated = true;
+      this.finished = true;
+    }
+    return this.len - from;
+  }
+  result(): Trace<R> {
+    if (!this.finished) throw new Error('trace requested before the run finished');
+    const { rows, cols } = this.inst;
+    return { events: this.buf, length: this.len, rows, cols, tally: this.tally, outcome: this.outcome,
+      truncated: this.truncated };
+  }
+  /** The events recorded so far, as a trace marked truncated: a thumbnail's partial run. */
+  snapshot(): Trace<R> {
+    const { rows, cols } = this.inst;
+    return { events: this.buf, length: this.len, rows, cols, tally: this.tally, outcome: this.outcome,
+      truncated: !this.finished || this.truncated };
+  }
+  private push(op: number, r: number, c: number, v: number): void {
+    if (this.len >= this.cap) throw new Stop();
+    if (4 * this.len + 4 > this.buf.length) {
+      const next = new Int32Array(this.buf.length * 2);
+      next.set(this.buf);
+      this.buf = next;
+    }
+    const b = this.buf; const i = 4 * this.len;
+    b[i] = op; b[i + 1] = r; b[i + 2] = c; b[i + 3] = v;
+    this.len++;
+    this.tally.add(op, r, c, v);
+  }
+  private ops(): GridOps {
+    const { rows, cols } = this.inst;
+    const { value, has, crossedFlag: crossed, piece } = this;
+    const push = (op: number, r: number, c: number, v: number) => this.push(op, r, c, v);
+    const at = (r: number, c: number) => {
+      if (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || c < 0 || r >= rows || c >= cols) {
+        throw new RangeError(`cell (${r}, ${c}) outside ${rows} x ${cols}`);
+      }
+      return r * cols + c;
+    };
+    return {
+      rows,
+      cols,
+      visit(r, c) { at(r, c); push(OP.visit, r, c, 0); },
+      read(r, c) {
+        const i = at(r, c);
+        if (!has[i]) throw new Error(`read of cell (${r}, ${c}) before it was computed`);
+        push(OP.read, r, c, 0);
+        return value[i];
+      },
+      known(r, c) { const i = at(r, c); push(OP.lookup, r, c, has[i]); return has[i] === 1; },
+      write(r, c, v) {
+        const i = at(r, c);
+        if (!Number.isInteger(v) || Math.abs(v) > 0x7fffffff) throw new RangeError(`value ${v} is not a 32-bit integer`);
+        value[i] = v;
+        has[i] = 1;
+        push(OP.write, r, c, v);
+      },
+      less(x, y) { push(OP.compare, -1, -1, 0); return x < y; },
+      equal(x, y) { push(OP.compare, -1, -1, 0); return x === y; },
+      place(r, c) {
+        const i = at(r, c);
+        if (piece[i]) throw new Error(`(${r}, ${c}) already holds a piece`);
+        piece[i] = 1;
+        push(OP.place, r, c, 0);
+      },
+      remove(r, c) {
+        const i = at(r, c);
+        if (!piece[i]) throw new Error(`(${r}, ${c}) holds no piece`);
+        piece[i] = 0;
+        push(OP.remove, r, c, 0);
+      },
+      cross(r, c) { const i = at(r, c); push(OP.cross, r, c, crossed[i]); crossed[i] = 1; },
+      crossed(r, c) { const i = at(r, c); push(OP.read, r, c, 0); return crossed[i] === 1; },
+      mark(r, c) { at(r, c); push(OP.mark, r, c, 0); },
+      solution() { push(OP.solution, -1, -1, 0); },
+    };
+  }
+}
+
+/** Run one instance to its end, recording every operation. */
+export function trace<R>(inst: Instance<unknown, R>, cap = EVENT_CAP): Trace<R> {
+  const t = new Tracer(inst, cap);
+  while (!t.done) t.step(Number.MAX_SAFE_INTEGER);
+  return t.result();
+}
+
+/** Whether a kernel's instances depend on the seed: their data differs between seeds. */
+export function seeded(kernel: GridKernel): boolean {
+  const n = kernel.size.value;
+  const a = JSON.stringify(kernel.instance(n, 1).data);
+  return [2, 3, 1009].some((s) => JSON.stringify(kernel.instance(n, s).data) !== a);
 }
 
 /** A kernel's seeded instance of size n, traced. */
