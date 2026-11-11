@@ -44,7 +44,7 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'depth', label: 'AM depth', min: 0, max: 0.95, step: 0.05, value: 0.6 },
     { kind: 'range', key: 'dev', label: 'FM deviation (Hz)', min: 0, max: 200, step: 10, value: 120 },
   ],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     // every frequency a whole number of cycles in the record, so the FFT sees a periodic signal
     // and the analytic signal has no wrap-around error at the ends
@@ -64,7 +64,9 @@ export const kernel: SignalKernel = {
       truthF[i] = fc + dev * Math.cos(2 * Math.PI * fm * t);
       x[i] = env[i] * Math.cos(2 * Math.PI * fc * t + (dev / fm) * Math.sin(2 * Math.PI * fm * t) + ph);
     }
+    yield null;
     const [re, im] = analytic(x, meter);
+    yield null;
     const mag = Float64Array.from(re, (v, i) => Math.hypot(v, im[i]));
     meter.add(MUL, 2 * LEN);
     const f = instFreq(re, im, FS, meter);
@@ -74,7 +76,6 @@ export const kernel: SignalKernel = {
     envErr = Math.sqrt(envErr / (hi - lo));
     fErr.sort((a, b) => a - b);
     const counts = meter.snapshot();
-    const views: View[] = [];
     const steps = 64;
     const trail = Math.round((2 * FS) / fc); // two carrier cycles
     for (let s = 1; s <= steps; s++) {
@@ -83,7 +84,7 @@ export const kernel: SignalKernel = {
       const pts: number[] = [];
       for (let i = Math.max(0, c - trail); i <= c; i++) pts.push(re[i], im[i]);
       const r = 1 + m + 0.1;
-      views.push({
+      yield {
         layout: [[0], [1, 2]],
         panels: [
           { kind: 'wave', title: 'x(t), the measured envelope |z| and the true one', upto, series: [
@@ -107,9 +108,8 @@ export const kernel: SignalKernel = {
         chart: { title: 'Instantaneous frequency', x: { label: 'time (s)' }, y: { label: 'frequency (Hz)' }, series: [
           { name: 'measured', points: chartPoints(f, (i) => i / FS, 300, 0, upto) },
           { name: 'true', points: chartPoints(truthF, (i) => i / FS, 300, 0, upto) }] },
-      });
+      };
     }
-    return views;
   },
   lab(x, _fs, meter) {
     const [re, im] = analytic(x, meter);

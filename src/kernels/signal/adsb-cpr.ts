@@ -31,7 +31,7 @@ function receive(f: Uint8Array, snrDb: number, rnd: () => number): Float64Array 
 export const kernel: SignalKernel = {
   rate: 3,
   params: [{ kind: 'range', key: 'snr', label: 'Receiver SNR (dB)', min: 4, max: 30, step: 1, value: 11 }],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const icao = Math.floor(rnd() * 0xffffff);
     let lat = 35 + rnd() * 25; let lon = -10 + rnd() * 40;
@@ -43,7 +43,6 @@ export const kernel: SignalKernel = {
     const errors: [number, number][] = [];
     const last: { 0?: [number, number]; 1?: [number, number] } = {};
     let ok = 0; let repaired = 0; let dropped = 0;
-    const views: View[] = [];
     const frames = 24;
     const lat0 = lat; const lon0 = lon;
     for (let k = 0; k < frames; k++) {
@@ -91,7 +90,7 @@ export const kernel: SignalKernel = {
       for (let i = 0; i + 1 < decodedTrack.length; i += 2) dots.push({ x: decodedTrack[i], y: decodedTrack[i + 1], tone: 0.6, r: 3 });
       const zoom: [number, number, number, number] = [lon0 - 0.35, lon0 + 0.35, lat0 - 0.25, lat0 + 0.25];
       const meanErr = errors.length ? errors.reduce((s, e) => s + e[1], 0) / errors.length : NaN;
-      views.push({
+      yield {
         layout: [[0, 1], [2, 3]],
         panels: [
           { kind: 'wave', title: `Frame ${k + 1}: received pulses, preamble at sample ${start}`, range: [0, 1.6],
@@ -118,9 +117,8 @@ export const kernel: SignalKernel = {
         ],
         counts: meter.snapshot(),
         chart: { title: 'Decoding error per fix', x: { label: 'frame' }, y: { label: 'error (m)' }, series: [{ name: 'great-circle error', points: errors.slice() }] },
-      });
+      };
     }
-    return views;
   },
 };
 

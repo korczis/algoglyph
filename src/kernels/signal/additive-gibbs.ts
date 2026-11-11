@@ -71,7 +71,7 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'K', label: 'Harmonics, at most', min: 5, max: 151, step: 2, value: 61 },
     { kind: 'toggle', key: 'sigma', label: 'Lanczos σ factors', value: false },
   ],
-  run(params, _seed, meter): View[] {
+  *run(params, _seed, meter): Generator<View | null> {
     const shape = str(params, 'shape') as Wave;
     const Kmax = Number(params.K);
     const sigma = bool(params, 'sigma');
@@ -79,7 +79,6 @@ export const kernel: SignalKernel = {
     const truth = Float64Array.from({ length: P }, (_, i) => ideal(shape, i / P));
     const amps = Float64Array.from({ length: Kmax + 1 }, (_, k) => (k ? Math.abs(coefficient(shape, k)) : 0));
     const history: [number, number][] = [];
-    const views: View[] = [];
     const Ks: number[] = [];
     for (let K = 1; K <= Kmax; K += K < 15 ? 1 : 2) Ks.push(K);
     if (Ks[Ks.length - 1] !== Kmax) Ks.push(Kmax);
@@ -95,7 +94,7 @@ export const kernel: SignalKernel = {
       const zoom: number[] = []; const zt: number[] = [];
       for (let i = lo; i < hi; i++) { zoom.push(i / P, y[i]); zt.push(i / P, truth[i]); }
       const peak = 1 + (2 * os) / 100;
-      views.push({
+      yield {
         layout: [[0], [1, 2]],
         panels: [
           { kind: 'wave', title: `${K} harmonic${K > 1 ? 's' : ''}${sigma ? ', σ-weighted' : ''}, one period`, range: [-1.35, 1.35], series: [
@@ -114,8 +113,7 @@ export const kernel: SignalKernel = {
         counts: meter.snapshot(),
         chart: { title: 'Overshoot as harmonics are added', x: { label: 'harmonics K' }, y: { label: 'overshoot (% of jump)' }, series: [
           { name: 'measured', points: history.slice() }] },
-      });
+      };
     }
-    return views;
   },
 };

@@ -32,7 +32,7 @@ export const kernel: SignalKernel = {
     { kind: 'select', key: 'window', label: 'Window', value: 'hann', options: WINDOWS.map((w) => ({ value: w.id, label: w.label })) },
     { kind: 'range', key: 'snr', label: 'Signal-to-noise ratio (dB)', min: -10, max: 40, step: 1, value: 10 },
   ],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const frame = Number(str(params, 'frame'));
     const hop = Math.max(1, Math.round(frame * (1 - Number(str(params, 'overlap')))));
@@ -45,7 +45,6 @@ export const kernel: SignalKernel = {
     const w = windowOf(win, frame);
     const rows: Float32Array[] = [];
     const avg = new Float64Array(frame / 2 + 1);
-    const views: View[] = [];
     const total = Math.floor((LEN - frame) / hop) + 1;
     const every = Math.max(1, Math.ceil(total / 80));
     const df = FS / frame;
@@ -66,7 +65,7 @@ export const kernel: SignalKernel = {
       const wk = argmax(mean, 1, mean.length - 1);
       const sorted = Array.from(mean).sort((p, q) => p - q);
       const segment = Float64Array.from({ length: frame }, (_, i) => x[from + i] * w[i]);
-      views.push({
+      yield {
         layout: [[0], [1, 2]],
         panels: [
           { kind: 'waterfall', title: `Spectrogram, ${frame}-sample ${win} frames, hop ${hop}`, rows, upto: rows.length, fmax: FS / 2, floor: -40, ceil: -6 },
@@ -93,9 +92,8 @@ export const kernel: SignalKernel = {
             { name: 'Latest frame', points: chartPoints(rows[rows.length - 1], (i) => i * df) },
           ],
         },
-      });
+      };
     }
-    return views;
   },
   lab(x, fs, meter) {
     const rows = stft(x, 128, 64, 'hann', meter).map((r) => Float32Array.from(r, dbOf));

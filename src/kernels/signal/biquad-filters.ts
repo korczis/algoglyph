@@ -68,13 +68,14 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'q', label: 'Q', min: 0.3, max: 20, step: 0.1, value: 0.7 },
     { kind: 'range', key: 'gain', label: 'Peaking gain (dB)', min: -24, max: 24, step: 1, value: 9 },
   ],
-  run(params, _seed, meter): View[] {
+  *run(params, _seed, meter): Generator<View | null> {
     const kind = str(params, 'type') as Kind;
     const f0 = Number(params.f0); const q = Number(params.q);
     const f = design(kind, f0, q, Number(params.gain));
     const poles = roots(1, f.a[1], f.a[2]);
     const zeros = roots(f.b[0], f.b[1], f.b[2]);
     const { ir, mag } = measuredResponse(f, meter);
+    yield null;
     const df = FS / IR;
     // the response evaluated on the unit circle, H(e^{jω}) = B(e^{jω}) / A(e^{jω})
     const exact = Float64Array.from(mag, (_, k) => {
@@ -103,10 +104,9 @@ export const kernel: SignalKernel = {
     const magDb = Float64Array.from(mag, dB);
     const exactDb = Float64Array.from(exact, dB);
     const show = 256;
-    const views: View[] = [];
     const steps = 32;
     for (let s = 1; s <= steps; s++) {
-      views.push({
+      yield {
         layout: [[0, 1], [2]],
         panels: [
           { kind: 'plane', title: 'z-plane', poles, zeros },
@@ -128,8 +128,7 @@ export const kernel: SignalKernel = {
         chart: { title: 'Magnitude response', x: { label: 'frequency (Hz)', log: true }, y: { label: 'gain (dB)' }, series: [
           { name: 'measured', points: chartPoints(magDb, (k) => k * df, 400, 1) },
           { name: 'H(z) evaluated', points: chartPoints(exactDb, (k) => k * df, 400, 1) }] },
-      });
+      };
     }
-    return views;
   },
 };

@@ -38,7 +38,7 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'weak', label: 'Weak tone level (dB)', min: -100, max: -10, step: 5, value: -50 },
     { kind: 'range', key: 'gap', label: 'Weak tone distance (bins)', min: 2, max: 20, step: 1, value: 6 },
   ],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const id = str(params, 'window');
     const rnd = mulberry32(seed);
     const k0 = 8 + Math.floor(rnd() * 6);
@@ -55,7 +55,8 @@ export const kernel: SignalKernel = {
         return [o, 20 * Math.log10(Math.max(...a))];
       }) };
     });
-    return offsets.map((off) => {
+    yield null;
+    for (const off of offsets) {
       const ph = rnd() * 2 * Math.PI;
       const x = tones(N, FS, [{ f: k0 + off, a: 1, ph }, { f: k0 + off + gap, a: weak, ph: 2 * ph }]);
       const fine = amplitude(x, w, N * PAD, meter);
@@ -66,7 +67,7 @@ export const kernel: SignalKernel = {
       const far = Math.min(bins.length - 1, kp + 10);
       meter.add(MUL, N);
       const shaped = Float64Array.from(x, (v, i) => v * w[i]);
-      return {
+      yield {
         layout: [[0], [1]],
         panels: [
           { kind: 'wave', title: `${N} samples, tone at ${(k0 + off).toFixed(2)} bins, and its ${WINDOWS.find((d) => d.id === id)?.label} window`, series: [
@@ -88,6 +89,6 @@ export const kernel: SignalKernel = {
         counts: meter.snapshot(),
         chart: { title: 'Peak bin amplitude as the tone leaves its bin', x: { label: 'offset (bins)' }, y: { label: 'peak (dB)' }, series: scallop },
       };
-    });
+    }
   },
 };

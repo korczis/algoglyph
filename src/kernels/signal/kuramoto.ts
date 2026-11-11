@@ -61,12 +61,12 @@ export const kernel: SignalKernel = {
   rate: 20,
   aspect: 16 / 9,
   params: [
-    { kind: 'range', key: 'n', label: 'Oscillators', min: 16, max: 512, step: 16, value: 192 },
+    { kind: 'range', key: 'n', label: 'Oscillators', min: 16, max: 512, step: 16, value: 192, rebuild: true },
     { kind: 'range', key: 'K', label: 'Coupling K', min: 0, max: 6, step: 0.05, value: 2 },
     { kind: 'select', key: 'dist', label: 'Natural frequencies', value: 'lorentz', options: [
       { value: 'lorentz', label: 'Lorentzian, width 0.5' }, { value: 'gauss', label: 'Gaussian, σ 0.5' }] },
   ],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const n = Number(params.n); const K = Number(params.K);
     const dist = str(params, 'dist');
@@ -78,7 +78,6 @@ export const kernel: SignalKernel = {
     const steps = 2500; const every = 25;
     const rs: number[] = [];
     const unwrapped = Float64Array.from(theta);
-    const views: View[] = [];
     const lim = Math.min(3, Math.max(...omega.map(Math.abs)) * 1.05);
     const history: Float64Array[] = [];
     for (let s = 1; s <= steps; s++) {
@@ -103,7 +102,7 @@ export const kernel: SignalKernel = {
       const avg = tail.reduce((a, b) => a + b, 0) / tail.length;
       const pts: number[] = [];
       for (let a = 0; a <= 64; a++) pts.push(Math.cos((a / 64) * 2 * Math.PI), Math.sin((a / 64) * 2 * Math.PI));
-      views.push({
+      yield {
         layout: [[0, 2], [1]],
         panels: [
           { kind: 'xy', title: `${n} phases on the circle, coloured by natural frequency`, range: [-1.25, 1.25, -1.25, 1.25], equal: true,
@@ -127,8 +126,7 @@ export const kernel: SignalKernel = {
         counts: meter.snapshot(),
         chart: { title: 'Order parameter over time', x: { label: 'time' }, y: { label: 'r' }, series: [
           { name: 'r(t)', points: rs.filter((_, i) => i % 10 === 0).map((v, i) => [i * 10 * DT, v]) }] },
-      });
+      };
     }
-    return views;
   },
 };

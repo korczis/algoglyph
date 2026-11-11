@@ -7,14 +7,15 @@ import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
 import { mulberry32 } from '../src/core/random';
 import { labWork } from '../src/engines/signal';
-import { Meter, type SignalKernel } from '../src/engines/signal/trace';
+import { Meter, recordAll, type SignalKernel } from '../src/engines/signal/trace';
 import { cprDecode, cprEncode, crc24, fields, flip, fromHex, positionFrame, repair, syndrome } from '../src/kernels/signal/_adsb';
 import { amplitude, fft, welch, windowOf } from '../src/kernels/signal/_fft';
+import { addNoise, tones } from '../src/engines/signal/input';
 import { haversine } from '../src/kernels/signal/adsb-cpr';
 import { coefficient, ideal, overshoot, partialSum } from '../src/kernels/signal/additive-gibbs';
 import { design, measuredResponse, roots, type Kind } from '../src/kernels/signal/biquad-filters';
 import { dwt, FILTERS, highpass, idwt } from '../src/kernels/signal/daubechies-dwt';
-import { sidebands } from '../src/kernels/signal/fm-synthesis';
+import { predicted, sidebands, spectrum } from '../src/kernels/signal/fm-synthesis';
 import { analytic } from '../src/kernels/signal/hilbert-analytic';
 import { frequencies, simulate } from '../src/kernels/signal/kuramoto';
 import { figure, read } from '../src/kernels/signal/lissajous';
@@ -23,7 +24,7 @@ import { convolve, deconvolve, room, sweep } from '../src/kernels/signal/sine-sw
 import { stft } from '../src/kernels/signal/stft-spectrogram';
 import { lobes } from '../src/kernels/signal/window-leakage';
 import { align, captures } from '../src/kernels/signal/xcorr-alignment';
-import { FS as YIN_FS, voice, yin } from '../src/kernels/signal/yin-pitch';
+import { FS as YIN_FS, kernel as yinKernel, TAU_MAX, voice, yin } from '../src/kernels/signal/yin-pitch';
 
 const modules = import.meta.glob<SignalKernel>('../src/kernels/signal/[!_]*.ts', { import: 'kernel', eager: true });
 const live = ENTRIES.filter((e) => e.engine === 'signal' && e.status === 'live');
@@ -100,6 +101,23 @@ const REFERENCES: Record<string, () => void> = {
     // a tone on bin 16 of a 128-sample frame reads its own amplitude there
     const tone = Float64Array.from({ length: 128 }, (_, i) => 0.7 * Math.sin((2 * Math.PI * 16 * i) / 128));
     expect(amplitude(tone, w, 128)[16]).toBeCloseTo(0.7, 9);
+    // the note's overlap claim: on white noise of a fixed length, Hann frames at 50 % overlap
+    // lower the spread of Welch's estimate against none, and 75 % gains little more
+    const spread = (hop: number) => {
+      let sum = 0;
+      for (const seed of [1, 2, 3, 4]) {
+        const r = mulberry32(seed);
+        const noise = Float64Array.from({ length: 8192 }, () => r() - 0.5);
+        const { psd } = welch(noise, 256, hop, windowOf('hann', 256));
+        const band = Array.from(psd.subarray(4, 124));
+        const mean = band.reduce((a, b) => a + b, 0) / band.length;
+        sum += Math.sqrt(band.reduce((a, b) => a + (b - mean) ** 2, 0) / band.length) / mean;
+      }
+      return sum / 4;
+    };
+    const [none, half, most] = [256, 128, 64].map(spread);
+    expect(half / none).toBeLessThan(0.85);
+    expect(most / half).toBeGreaterThan(0.9);
   },
   'window-leakage': () => {
     // highest side lobe and −3 dB width of the classic windows, as published (Harris, 1978);
@@ -148,11 +166,37 @@ const REFERENCES: Record<string, () => void> = {
     }
   },
   'fm-synthesis': () => {
-    for (const [fm, beta] of [[100, 0.5], [125, 2.4048], [200, 3.8], [250, 2]]) {
-      const s = sidebands(fm, beta, 6);
-      // to 1e-6: sidebands far enough below zero hertz fold back onto the measured bins
-      for (let n = -6; n <= 6; n++) expect(s[n + 6], `fm ${fm} β ${beta} n ${n}`).toBeCloseTo(Math.abs(besselIntegral(Math.abs(n), beta)), 6);
+    // the test's own folding: sampled at 8192 Hz, a sine at f reads at f mod 8192, mirrored and
+    // inverted above 4096 Hz, and not at all on 0 Hz or 4096 Hz
+    const fs = 8192; const fc = 2000;
+    const folded = (fm: number, beta: number, n: number) => {
+      const at = fc + n * fm;
+      let sum = 0;
+      for (let m = -30; m <= 30; m++) {
+        const j = (m < 0 && m % 2 ? -1 : 1) * besselIntegral(Math.abs(m), beta);
+        const g = (((fc + m * fm) % fs) + fs) % fs;
+        if (g === 0 || g === fs / 2) continue;
+        if (g < fs / 2 && g === at) sum += j;
+        if (g > fs / 2 && fs - g === at) sum -= j;
+      }
+      return Math.abs(sum);
+    };
+    for (const [fm, beta] of [[100, 0.5], [125, 2.4048], [200, 3.8], [250, 2], [200, 6], [250, 6]]) {
+      const s = sidebands(fm, beta, 8);
+      const want = predicted(fm, beta, 8);
+      for (let n = -8; n <= 8; n++) {
+        expect(s[n + 8], `fm ${fm} β ${beta} n ${n}`).toBeCloseTo(folded(fm, beta, n), 9);
+        expect(want[n + 8], `prediction fm ${fm} β ${beta} n ${n}`).toBeCloseTo(folded(fm, beta, n), 9);
+      }
     }
+    // 2000 − 8·250 = 0 Hz: that sideband vanishes rather than reading |J_8(6)|
+    expect(Math.abs(besselIntegral(8, 6))).toBeGreaterThan(0.05);
+    expect(sidebands(250, 6, 8)[0]).toBeLessThan(1e-9);
+    // a constant and a Nyquist cosine read their own amplitude: bins 0 and N/2 are not doubled
+    const flat = spectrum(new Float64Array(fs).fill(0.5));
+    expect(flat[0]).toBeCloseTo(0.5, 12);
+    const nyq = spectrum(Float64Array.from({ length: fs }, (_, i) => 0.3 * Math.cos(Math.PI * i)));
+    expect(nyq[fs / 2]).toBeCloseTo(0.3, 12);
   },
   'additive-gibbs': () => {
     // the series coefficients against the Fourier integral of the ideal waves
@@ -260,6 +304,36 @@ const REFERENCES: Record<string, () => void> = {
       errs.sort((a, b) => a - b);
       expect(errs[errs.length >> 1], `f0 ${f0}`).toBeLessThan(10);
     }
+    // what the first-dip rule guards: in noise the deepest dip of d'(τ) is often at two or three
+    // periods (threshold 0 leaves only the deepest), the first dip under 0.1 is the period itself
+    const cents = (f: number, ref: number) => Math.abs(1200 * Math.log2(f / ref));
+    for (const seed of [1, 2, 3]) {
+      const x = addNoise(tones(YIN_FS, YIN_FS, [{ f: 200, a: 1 }, { f: 400, a: 0.5 }, { f: 600, a: 0.3 }]), mulberry32(seed), 20);
+      let firstDip = 0; let deepest = 0; let frames = 0;
+      for (let from = 0; from + 912 < x.length; from += 256, frames++) {
+        if (cents(yin(x, from, YIN_FS).f, 200) > 50) firstDip++;
+        if (yin(x, from, YIN_FS, 0).f < 200 / 1.4) deepest++;
+      }
+      expect(firstDip, `seed ${seed}`).toBe(0);
+      expect(deepest, `seed ${seed}`).toBeGreaterThan(frames / 4);
+    }
+    // and what it does not: a second harmonic five times the fundamental dips first at half the
+    // period, so a 150 Hz tone reads an octave high
+    const strong = tones(8000, YIN_FS, [{ f: 150, a: 0.2 }, { f: 300, a: 1 }, { f: 450, a: 0.1 }]);
+    expect(cents(yin(strong, 0, YIN_FS).f, 300)).toBeLessThan(10);
+    // the controls stay inside the detector: their lowest reachable pitch is above the longest
+    // period searched, and at every corner of pitch and glide, clean, no frame is a gross error
+    const def = Object.fromEntries((yinKernel.params ?? []).map((d) => [d.key, d]));
+    const lo = (key: string) => (def[key].kind === 'range' ? def[key].min : NaN);
+    const hi = (key: string) => (def[key].kind === 'range' ? def[key].max : NaN);
+    expect(lo('f0') * 2 ** (lo('glide') / 12) * 2 ** (-hi('vib') / 1200)).toBeGreaterThan(1.15 * YIN_FS / TAU_MAX);
+    for (const f0 of [lo('f0'), hi('f0')]) {
+      for (const glide of [lo('glide'), hi('glide')]) {
+        const views = recordAll(yinKernel.run({ f0, glide, vib: hi('vib'), snr: hi('snr'), thr: 0.1 }, 5, new Meter()));
+        const gross = views[views.length - 1].stats.find((s) => s.label.startsWith('Gross errors'))!.value;
+        expect(gross, `f0 ${f0} glide ${glide}`).toMatch(/^0 of /);
+      }
+    }
   },
   'adsb-cpr': () => {
     // published test frames: an identification message and an even/odd airborne position pair
@@ -331,7 +405,7 @@ describe('signal kernels', () => {
         }
         variants.forEach((params, vi) => {
           for (const seed of vi === 0 ? [1, 99] : [7]) {
-            const views = kernel.run(params, seed, new Meter());
+            const views = recordAll(kernel.run(params, seed, new Meter()));
             expect(views.length, JSON.stringify(params)).toBeGreaterThan(0);
             let prev: Record<string, number> = {};
             for (const v of views) {

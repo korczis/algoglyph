@@ -8,9 +8,15 @@ import { exponentOf } from './fit';
 import type { Engine, KernelInfo } from '../types';
 import { layout, Painter } from './draw';
 import { labSignal } from './input';
-import { fmtInt, Meter, MUL, type Panel, type SignalKernel, type View } from './trace';
+import { fmtInt, Meter, MUL, Recording, type Panel, type SignalKernel, type View } from './trace';
 
 const HOLD_FRAMES = 120;
+/** Milliseconds of recording resumed per live frame, and per thumbnail frame (run 15 at a time). */
+export const SLICE_MS = 6;
+export const THUMB_SLICE_MS = 1.5;
+/** Frames the parameters must stay unchanged before a re-record starts (a slider being dragged). */
+export const SETTLE_FRAMES = 8;
+const THUMB_FRAMES = 90;
 const LAB_N = [256, 512, 1024, 2048, 4096, 8192];
 const LAB_FS = 8000;
 
@@ -22,9 +28,16 @@ function countRows(v: View): Stat[] {
   return Object.entries(v.counts).map(([label, value]) => ({ label, value: fmtInt(value) }));
 }
 
+/**
+ * A kernel as a plate. Recording never runs on the frame path in one piece: the run is resumed
+ * for SLICE_MS per frame. The first run and each new signal are replayed as they are recorded; a
+ * change of parameters waits until the controls settle, records in the background, and the last
+ * finished run stays on screen until the new one is complete. Structural parameters
+ * (`rebuild: true`) remount the plate instead.
+ */
 function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
   const own = kernel.params ?? [];
-  const keys = own.map((d) => d.key);
+  const keys = own.filter((d) => !d.rebuild).map((d) => d.key);
   const rate = kernel.rate ?? 8;
   const params: ParamDef[] = [
     ...own,
@@ -36,43 +49,67 @@ function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
     id: info.id,
     mode: '2d',
     aspect: kernel.aspect ?? 16 / 9,
-    thumbnailFrames: 2,
+    thumbnailFrames: THUMB_FRAMES,
     params,
     create(p, ctx) {
       let generation = 0;
       let sig = signature(ctx.params, keys);
-      const record = () => kernel.run(ctx.params, ctx.seed + generation * 7919, new Meter());
-      let views = record();
+      const record = () => new Recording(kernel.run({ ...ctx.params }, ctx.seed + generation * 7919, new Meter()));
+      /** The run on screen, and a re-record for new parameters finishing in the background. */
+      let live = record();
+      let next: Recording | null = null;
+      let settle = 0;
       let at = 0;
       let hold = 0;
+      let shown: View | null = null;
+      let painted: View | null = null;
+      let draws = 0;
       const painter = new Painter(p, ctx);
       return {
-        setup() {
-          if (ctx.thumbnail) at = views.length - 1;
-        },
+        setup() {},
         draw() {
-          p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
+          const slice = ctx.thumbnail ? THUMB_SLICE_MS : SLICE_MS;
           if (!ctx.thumbnail) {
             const now = signature(ctx.params, keys);
-            if (now !== sig) {
-              sig = now;
-              const keep = at >= views.length - 1;
-              views = record();
-              at = keep ? views.length - 1 : Math.min(at, views.length - 1);
-            }
-            if (at < views.length - 1) at = Math.min(views.length - 1, at + num(ctx.params, 'speed') / 60);
-            else if (bool(ctx.params, 'loop') && views.length > 1 && ++hold > HOLD_FRAMES) {
-              hold = 0;
-              generation++;
-              views = record();
-              at = 0;
-            }
+            if (now !== sig) { sig = now; next = null; settle = SETTLE_FRAMES; }
+            else if (settle > 0 && --settle === 0) next = record();
           }
-          const v = views[Math.floor(at)];
+          if (next) {
+            if (next.pump(slice)) {
+              const keep = at >= live.views.length - 1;
+              live = next;
+              next = null;
+              at = keep ? live.views.length - 1 : Math.min(at, live.views.length - 1);
+              hold = 0;
+            }
+          } else if (!live.done) live.pump(slice);
+          const last = Math.max(0, live.views.length - 1);
+          if (ctx.thumbnail) at = last;
+          else if (at < last) at = Math.min(last, at + num(ctx.params, 'speed') / 60);
+          else if (live.done && !next && settle === 0 && bool(ctx.params, 'loop') && live.views.length > 1
+            && ++hold > HOLD_FRAMES) {
+            hold = 0;
+            generation++;
+            live = record();
+            at = 0;
+          }
+          shown = live.views[Math.floor(at)] ?? shown;
+          // a thumbnail is drawn many times per frame: paint it once, when its run has finished
+          // or on its last frame
+          if (ctx.thumbnail) {
+            draws++;
+            if (shown === painted || (!live.done && draws < THUMB_FRAMES)) return;
+          }
+          p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
+          painted = shown;
+          if (!shown) { ctx.stats([{ label: 'Recorded view', value: 'recording' }]); return; }
+          const v = shown;
           const boxes = layout(v.panels.length, ctx.width, ctx.height, v.layout);
           v.panels.forEach((panel, i) => painter.draw(panel, boxes[i]));
+          const total = live.done ? String(live.views.length) : `${live.views.length} recorded so far`;
           ctx.stats([...v.stats, ...countRows(v),
-            { label: 'Recorded view', value: `${Math.floor(at) + 1} of ${views.length}` }]);
+            { label: 'Recorded view', value: live.views.length ? `${Math.floor(at) + 1} of ${total}` : 'recording' },
+            ...(next || settle ? [{ label: 'New settings', value: `recording, ${next?.views.length ?? 0} views so far` }] : [])]);
           if (v.chart) ctx.chart(v.chart);
         },
       };

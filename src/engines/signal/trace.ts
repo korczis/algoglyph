@@ -129,14 +129,25 @@ export interface View {
   layout?: number[][];
 }
 
+/**
+ * A run as the kernel produces it: each recorded view in order, with `null` marking a point
+ * where the run may be paused between frames. A generator yields as it goes; an array is a run
+ * recorded in one piece.
+ */
+export type Run = Iterable<View | null>;
+
 export interface SignalKernel {
   /** Parameters of this kernel; the engine re-runs it when any of them changes. */
   params?: ParamDef[];
   aspect?: number;
   /** Default replay speed, in recorded views per second. */
   rate?: number;
-  /** Record a run on a signal seeded by `seed`. */
-  run(params: Params, seed: number, meter: Meter): View[];
+  /**
+   * Record a run on a signal seeded by `seed`. The engine resumes it for a few milliseconds per
+   * frame, so a kernel yields each view as soon as it is recorded and yields `null` inside any
+   * stretch of work that takes longer than a millisecond or two.
+   */
+  run(params: Params, seed: number, meter: Meter): Run;
   /** The kernel applied to the lab's shared input: its result as one panel, its work metered. */
   lab?(x: Float64Array, fs: number, meter: Meter): Panel;
 }
@@ -170,3 +181,37 @@ export function chartPoints(y: ArrayLike<number>, x: (i: number) => number, max 
 export const fmtInt = (x: number): string => Math.round(x).toLocaleString('en-US');
 export const fmtHz = (f: number): string => (Math.abs(f) >= 1000 ? `${(f / 1000).toFixed(3)} kHz`
   : `${f.toFixed(2)} Hz`);
+
+/** Every view of a run, recorded at once (tests and tools; the plate records across frames). */
+export function recordAll(run: Run): View[] {
+  const views: View[] = [];
+  for (const v of run) if (v) views.push(v);
+  return views;
+}
+
+/**
+ * A run being recorded across frames: `pump` resumes it for about the given time (at least one
+ * step) and keeps every view it has recorded so far.
+ */
+export class Recording {
+  readonly views: View[] = [];
+  done = false;
+  /** Steps resumed so far (views and pause points). */
+  steps = 0;
+  private readonly it: Iterator<View | null>;
+
+  constructor(run: Run) { this.it = run[Symbol.iterator](); }
+
+  /** Resume for about `ms` milliseconds; true once the run has finished. */
+  pump(ms: number): boolean {
+    const end = performance.now() + ms;
+    while (!this.done) {
+      const r = this.it.next();
+      this.steps++;
+      if (r.done) this.done = true;
+      else if (r.value) this.views.push(r.value);
+      if (performance.now() >= end) break;
+    }
+    return this.done;
+  }
+}

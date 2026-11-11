@@ -69,15 +69,14 @@ export function align(a: Float64Array, b: Float64Array, maxLag = MAXLAG, meter?:
 export const kernel: SignalKernel = {
   rate: 14,
   params: [{ kind: 'range', key: 'snr', label: 'SNR (dB)', min: -5, max: 50, step: 1, value: 20 }],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const delay = (rnd() * 2 - 1) * (MAXLAG * 0.6);
     const [a, b] = captures(seed + 1, delay, Number(params.snr));
     const lags = Int32Array.from({ length: 2 * MAXLAG + 1 }, (_, i) => i - MAXLAG);
     const r = new Float64Array(lags.length).fill(NaN);
-    const views: View[] = [];
     const scale = Math.max(...a.map(Math.abs)) * 1.1;
-    const view = (i: number, extra?: { integer: number; parabola: number; sinc: number }) => {
+    const view = (i: number, extra?: { integer: number; parabola: number; sinc: number }): View => {
       const l = lags[i];
       const shifted = Float64Array.from({ length: N }, (_, n) => b[n + l] ?? 0);
       const known = Array.from(r, (v, k): [number, number] => [lags[k], v]).filter(([, v]) => Number.isFinite(v));
@@ -110,20 +109,19 @@ export const kernel: SignalKernel = {
           { label: 'Sinc-interpolated estimate', value: `${extra.sinc.toFixed(4)} (error ${(extra.sinc - delay).toFixed(4)})` },
         );
       }
-      views.push({
+      return {
         layout: extra ? [[0], [1, 2]] : [[0], [1]], panels, stats, counts: meter.snapshot(),
         chart: { title: 'Cross-correlation', x: { label: 'lag (samples)' }, y: { label: 'r' }, series: [{ name: 'r[lag]', points: known }] },
-      });
+      };
     };
     for (let i = 0; i < lags.length; i++) {
       r[i] = correlateAt(a, b, lags[i], meter);
-      if (i % 3 === 0) view(i);
+      if (i % 3 === 0) yield view(i);
     }
     let best = 0;
     for (let i = 0; i < r.length; i++) if (r[i] > r[best]) best = i;
     const parabola = lags[best] + parabolic(r[best - 1] ?? r[best], r[best], r[best + 1] ?? r[best]);
     const est = { integer: lags[best], parabola, sinc: refine(r, lags, lags[best], meter) };
-    for (let k = 0; k < 6; k++) view(best, est);
-    return views;
+    for (let k = 0; k < 6; k++) yield view(best, est);
   },
 };

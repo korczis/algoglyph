@@ -49,7 +49,7 @@ function directDft(x: Float64Array): [Float64Array, Float64Array] {
 export const kernel: SignalKernel = {
   rate: 1.5,
   params: [
-    { kind: 'select', key: 'n', label: 'Transform size N', value: '32', options: ['8', '16', '32', '64'].map((v) => ({ value: v, label: v })) },
+    { kind: 'select', key: 'n', label: 'Transform size N', value: '32', rebuild: true, options: ['8', '16', '32', '64'].map((v) => ({ value: v, label: v })) },
     { kind: 'select', key: 'signal', label: 'Signal', value: 'tones', options: [
       { value: 'tones', label: 'Two tones on bins' }, { value: 'square', label: 'Square wave' },
       { value: 'chirp', label: 'Chirp' }, { value: 'impulse', label: 'Impulse' }] },

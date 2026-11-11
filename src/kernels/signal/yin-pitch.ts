@@ -4,8 +4,9 @@ import { chartPoints, FRAME, MUL, type Meter, type SignalKernel, type View } fro
 import { parabolic } from './_fft';
 
 export const FS = 16000;
-const W = 512;
-const TAU_MAX = 400;
+export const W = 512;
+/** The longest period searched: FS / TAU_MAX = 40 Hz is the lowest pitch YIN can report here. */
+export const TAU_MAX = 400;
 const HOP = 256;
 
 export interface Pitch { f: number; tau: number; aperiodicity: number; dprime: Float64Array }
@@ -59,26 +60,28 @@ export function voice(n: number, f0: number, glide: number, vibCents: number, sn
 
 const cents = (a: number, b: number) => 1200 * Math.log2(a / b);
 
-// Frame by frame: the cumulative-mean-normalised difference function dips at the period, and
-// its first dip under the threshold is the fundamental rather than an octave below or above.
+// Frame by frame: the cumulative-mean-normalised difference function dips at the period and at
+// every multiple of it; taking the first dip under the threshold rather than the deepest one keeps
+// the detector off those multiples (an octave or more too low). The controls keep the glide and
+// vibrato inside the periods the detector searches (test/kernels-signal.test.ts).
 export const kernel: SignalKernel = {
   rate: 14,
   params: [
-    { kind: 'range', key: 'f0', label: 'Starting pitch (Hz)', min: 60, max: 800, step: 5, value: 196 },
+    { kind: 'range', key: 'f0', label: 'Starting pitch (Hz)', min: 100, max: 600, step: 5, value: 196 },
     { kind: 'range', key: 'glide', label: 'Glide (semitones)', min: -12, max: 12, step: 1, value: 7 },
     { kind: 'range', key: 'vib', label: 'Vibrato depth (cents)', min: 0, max: 100, step: 5, value: 30 },
     { kind: 'range', key: 'snr', label: 'SNR (dB)', min: 0, max: 60, step: 1, value: 25 },
     { kind: 'range', key: 'thr', label: 'Threshold', min: 0.02, max: 0.5, step: 0.01, value: 0.1 },
   ],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const n = Math.round(1.5 * FS);
     const { x, f } = voice(n, Number(params.f0), Number(params.glide), Number(params.vib), Number(params.snr), seed);
+    yield null;
     const thr = Number(params.thr);
     const track = new Float64Array(Math.floor((n - W - TAU_MAX) / HOP) + 1).fill(NaN);
     const truth = Float64Array.from(track, (_, k) => f[k * HOP + W / 2]);
     const errs: number[] = [];
     let gross = 0;
-    const views: View[] = [];
     for (let k = 0; k < track.length; k++) {
       const from = k * HOP;
       const p = yin(x, from, FS, thr, W, TAU_MAX, meter);
@@ -91,7 +94,7 @@ export const kernel: SignalKernel = {
       const known: [number, number][] = [];
       for (let j = 0; j <= k; j++) known.push([(j * HOP + W / 2) / FS, track[j]]);
       const lo = Math.min(...truth) / 1.6; const hi = Math.max(...truth) * 1.4;
-      views.push({
+      yield {
         layout: [[0, 1], [2]],
         panels: [
           { kind: 'wave', title: `Frame at ${((from + W / 2) / FS).toFixed(3)} s`, series: [{ name: 'x', y: x.subarray(from, from + W + TAU_MAX), tone: 0.7 }],
@@ -113,8 +116,7 @@ export const kernel: SignalKernel = {
         chart: { title: 'Pitch track', x: { label: 'time (s)' }, y: { label: 'frequency (Hz)' }, series: [
           { name: 'YIN', points: known },
           { name: 'true', points: chartPoints(truth, (j) => (j * HOP + W / 2) / FS, 400, 0, k + 1) }] },
-      });
+      };
     }
-    return views;
   },
 };

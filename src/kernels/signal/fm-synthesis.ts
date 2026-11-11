@@ -30,12 +30,41 @@ export function fmTone(fm: number, beta: number, meter?: Meter): Float64Array {
   return y;
 }
 
-/** Amplitude of every bin of one second of signal (a sinusoid of amplitude A reads A). */
+/**
+ * Amplitude of every bin of one second of signal: a sinusoid of amplitude A reads A, and so
+ * does a constant A in bin 0 or a cosine A·cos(πn) in the Nyquist bin, which have no mirror image
+ * to share their power with.
+ */
 export function spectrum(y: Float64Array, meter?: Meter): Float64Array {
   const re = Float64Array.from(y); const im = new Float64Array(N);
   fft(re, im, meter);
   meter?.add(MUL, N);
-  return Float64Array.from({ length: N / 2 + 1 }, (_, k) => (2 * Math.hypot(re[k], im[k])) / N);
+  return Float64Array.from({ length: N / 2 + 1 }, (_, k) => ((k === 0 || k === N / 2 ? 1 : 2) * Math.hypot(re[k], im[k])) / N);
+}
+
+/**
+ * Where a sine at f Hz lands once sampled at FS: the bin it reads in, and the sign it reads with.
+ * Below zero or above the Nyquist frequency it folds back inverted (sin(−x) = −sin x); exactly on
+ * zero or on the Nyquist frequency every sample is sin(πk) = 0, so it vanishes (sign 0).
+ */
+export function alias(f: number): { bin: number; sign: number } {
+  const g = ((f % FS) + FS) % FS;
+  if (g === 0 || g === FS / 2) return { bin: g, sign: 0 };
+  return g < FS / 2 ? { bin: g, sign: 1 } : { bin: FS - g, sign: -1 };
+}
+
+/**
+ * The amplitudes the series predicts at fc + n·fm, n = -orders .. orders: every Bessel term
+ * J_m(β)·sin(2π(fc + m·fm)t), m = -M .. M with J_-m = (-1)^m J_m, added into the bin it folds to.
+ */
+export function predicted(fm: number, beta: number, orders = ORDERS, M = 64): number[] {
+  const acc = new Map<number, number>();
+  for (let m = -M; m <= M; m++) {
+    const { bin, sign } = alias(FC + m * fm);
+    const j = (m < 0 && m % 2 ? -1 : 1) * besselJ(Math.abs(m), beta);
+    acc.set(bin, (acc.get(bin) ?? 0) + sign * j);
+  }
+  return Array.from({ length: 2 * orders + 1 }, (_, i) => Math.abs(acc.get(alias(FC + (i - orders) * fm).bin) ?? 0));
 }
 
 /** Measured amplitudes at fc + n·fm for n = -orders .. orders. */
@@ -52,7 +81,7 @@ export const kernel: SignalKernel = {
     { kind: 'select', key: 'fm', label: 'Modulator (Hz)', value: '125', options: ['100', '125', '200', '250'].map((v) => ({ value: v, label: `${v} Hz` })) },
     { kind: 'range', key: 'beta', label: 'Largest modulation index β', min: 0.5, max: 6, step: 0.1, value: 5 },
   ],
-  run(params, _seed, meter): View[] {
+  *run(params, _seed, meter): Generator<View | null> {
     const fm = Number(str(params, 'fm'));
     const bmax = Number(params.beta);
     const steps = 30;
@@ -61,14 +90,14 @@ export const kernel: SignalKernel = {
       for (let i = 0; i <= 120; i++) { const b = (i / 120) * bmax; pts.push(b, besselJ(n, b)); }
       return { pts, tone: 0.15 + 0.25 * n, weight: 1.3, alpha: 200 };
     });
-    const views: View[] = [];
     for (let s = 0; s <= steps; s++) {
       const beta = (s / steps) * bmax;
       const y = fmTone(fm, beta, meter);
       const a = spectrum(y, meter);
       const side = Array.from({ length: 2 * ORDERS + 1 }, (_, i) => a[FC + (i - ORDERS) * fm] ?? 0);
+      const want = predicted(fm, beta);
       let worst = 0;
-      side.forEach((v, i) => { worst = Math.max(worst, Math.abs(v - Math.abs(besselJ(Math.abs(i - ORDERS), beta)))); });
+      side.forEach((v, i) => { worst = Math.max(worst, Math.abs(v - want[i])); });
       // the band holding 99 % of the power, measured from the spectrum outward from the carrier
       let total = 0;
       for (let k = 0; k < a.length; k++) total += a[k] * a[k];
@@ -76,7 +105,7 @@ export const kernel: SignalKernel = {
       while (inside < 0.99 * total && band < FC) { band++; inside += (a[FC - band] ?? 0) ** 2 + (a[FC + band] ?? 0) ** 2; }
       const show = 320;
       const mod = Float64Array.from({ length: show }, (_, i) => Math.sin(2 * Math.PI * fm * i / FS));
-      views.push({
+      yield {
         layout: [[0], [1, 2]],
         panels: [
           { kind: 'wave', title: `Carrier ${FC} Hz, modulator ${fm} Hz, β = ${beta.toFixed(2)} (first ${(1000 * show / FS).toFixed(0)} ms)`, series: [
@@ -91,7 +120,7 @@ export const kernel: SignalKernel = {
           { label: 'Modulation index β', value: beta.toFixed(2) },
           { label: 'Carrier: measured vs |J0(β)|', value: `${side[ORDERS].toFixed(4)} vs ${Math.abs(besselJ(0, beta)).toFixed(4)}` },
           { label: 'First sideband: measured vs |J1(β)|', value: `${side[ORDERS + 1].toFixed(4)} vs ${Math.abs(besselJ(1, beta)).toFixed(4)}` },
-          { label: 'Largest sideband disagreement', value: worst.toExponential(2) },
+          { label: 'Largest disagreement with the folded series', value: worst.toExponential(2) },
           { label: '99 % power bandwidth (measured)', value: `${2 * band} Hz` },
           { label: "Carson's rule 2(β+1)fm", value: `${(2 * (beta + 1) * fm).toFixed(0)} Hz` },
           { label: 'Total power (Parseval, ideal 1)', value: total.toFixed(4) },
@@ -99,9 +128,8 @@ export const kernel: SignalKernel = {
         counts: meter.snapshot(),
         chart: { title: 'Sideband amplitudes', x: { label: 'sideband order n' }, y: { label: 'amplitude' }, series: [
           { name: 'measured', points: side.map((v, i) => [i - ORDERS, v]) },
-          { name: '|J_n(β)| by series', points: side.map((_, i) => [i - ORDERS, Math.abs(besselJ(Math.abs(i - ORDERS), beta))]) }] },
-      });
+          { name: 'series Σ J_m(β), folded into each bin', points: want.map((v, i) => [i - ORDERS, v]) }] },
+      };
     }
-    return views;
   },
 };

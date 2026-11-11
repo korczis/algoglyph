@@ -49,14 +49,13 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'drift', label: 'Phase drift (degrees per view)', min: 0, max: 10, step: 0.5, value: 2 },
     { kind: 'range', key: 'noise', label: 'Noise', min: 0, max: 0.2, step: 0.005, value: 0 },
   ],
-  run(params, seed, meter): View[] {
+  *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const a = Number(params.a); const b = Number(params.b);
     const d0 = (Number(params.delta) * Math.PI) / 180;
     const drift = (Number(params.drift) * Math.PI) / 180;
     const noise = Number(params.noise);
     const g = gcd(a, b);
-    const views: View[] = [];
     const history: [number, number][] = []; const truthH: [number, number][] = [];
     const steps = 90;
     for (let v = 0; v < steps; v++) {
@@ -87,7 +86,7 @@ export const kernel: SignalKernel = {
         }
         if (c) stats.push({ label: 'Ellipse reading |sin δ| at x = 0', value: `${(sum / c).toFixed(4)} (set ${Math.abs(Math.sin(delta)).toFixed(4)})` });
       }
-      views.push({
+      yield {
         layout: [[0, 1]],
         panels: [
           { kind: 'xy', title: `x = sin(${a}·ωt + δ), y = sin(${b}·ωt)`, range: [-1.3, 1.3, -1.3, 1.3], equal: true,
@@ -98,8 +97,7 @@ export const kernel: SignalKernel = {
         counts: meter.snapshot(),
         chart: { title: 'Phase: set and read back', x: { label: 'view' }, y: { label: 'δ (degrees)' }, series: [
           { name: 'read from samples', points: history.slice() }, { name: 'set', points: truthH.slice() }] },
-      });
+      };
     }
-    return views;
   },
 };
