@@ -1,0 +1,23 @@
+id: "I009"
+milestone: "M004"
+title: "Plate: Foucault pendulum in 3D"
+slug: "plate-foucault-pendulum-in-3d"
+priority: "p2"
+profile: "implementation"
+objective: "A 3D physics plate: a spherical pendulum in a rotating frame (Coriolis term) at a chosen latitude, tracing its rosette on the floor; latitude and time scale as parameters."
+why: "The experiment that showed Earth's rotation in 1851, and a 3D physics experiment the owner asked for."
+scope:
+  - "src/plates/foucault"
+  - "src/plates/index.ts"
+  - "test"
+depends_on:
+  - "I001"
+acceptance_criteria:
+  - "Tests: the measured precession rate matches Ω·sin(latitude) within 2 % for small amplitudes; at the equator there is no precession."
+  - "The readout reports the measured precession period against the theoretical one."
+  - "npm run verify passes."
+validation:
+  - "npm run verify"
+evidence_required:
+  - "verified"
+created_at: "2026-11-11"

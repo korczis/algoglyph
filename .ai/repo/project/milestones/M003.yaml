@@ -1,0 +1,14 @@
+id: "M003"
+title: "Lighter page"
+slug: "lighter-page"
+order: 3
+priority: "p2"
+problem: "The bundle carries the whole p5.js build (1,441,990 bytes minified, 421 kB gzip at 1bc7bc4)."
+outcome: "The page loads only the p5.js modules the plates use, with the size measured before and after."
+acceptance_criteria:
+  - "The page loads only the p5.js modules the plates use, with the size measured before and after."
+validation:
+  - "npx vite build"
+evidence_required:
+  - "milestone_verified"
+created_at: "2026-11-11"

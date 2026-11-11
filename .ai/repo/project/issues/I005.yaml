@@ -1,0 +1,23 @@
+id: "I005"
+milestone: "M003"
+title: "Import only the p5.js modules the plates use"
+slug: "import-only-the-p5.js-modules-the-plates-use"
+priority: "p2"
+profile: "implementation"
+objective: "Replace the full p5 import with the p5 2.x core plus the modules in use (shape, color, math, webgl, image, io for saveCanvas, events), keeping every plate working."
+why: "1,441,990 bytes of JS at 1bc7bc4, nearly all p5; a phone loads it before any plate draws."
+scope:
+  - "src/core/stage.ts"
+  - "src/main.ts"
+  - "vite.config.ts"
+  - "package.json"
+depends_on:
+  - "I004"
+acceptance_criteria:
+  - "vite build reports a smaller main chunk than 1,441,990 bytes; the PR states both numbers."
+  - "npm run verify passes (every plate mounts and publishes a readout in both themes)."
+validation:
+  - "npm run verify"
+evidence_required:
+  - "verified"
+created_at: "2026-11-11"

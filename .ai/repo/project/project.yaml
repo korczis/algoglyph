@@ -1,0 +1,5 @@
+# algoglyph plan: milestones are outcomes, issues are execution contracts; state is derived.
+schema_version: 1
+name: algoglyph
+repository: korczis/algoglyph
+default_branch: main

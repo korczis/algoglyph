@@ -1,0 +1,23 @@
+id: "M001"
+title: "The plate collection runs"
+slug: "the-plate-collection-runs"
+order: 1
+priority: "p1"
+problem: "No collection existed."
+outcome: "Eleven seeded, interactive algorithm and physics plates (2D and 3D) behind one stage layer, on the Flowbite Pro shell, passing npm run verify."
+acceptance_criteria:
+  - "Eleven seeded, interactive algorithm and physics plates (2D and 3D) behind one stage layer, on the Flowbite Pro shell, passing npm run verify."
+validation:
+  - "npm run verify"
+evidence_required:
+  - "milestone_verified"
+created_at: "2026-11-11"
+updated_at: 2026-11-11T18:11:16Z
+evidence:
+  - covers: "milestone_verified"
+    type: test
+    command: "npm run verify"
+    result: "I001 done; npm run verify green at 1bc7bc4"
+    artifact: "1bc7bc4"
+    commit: b9541d795f4245eb6db7179344e74e54fe8f8cec
+    recorded_at: 2026-11-11T18:11:16Z

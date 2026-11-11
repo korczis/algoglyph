@@ -1,0 +1,14 @@
+id: "M004"
+title: "More experiments"
+slug: "more-experiments"
+order: 4
+priority: "p2"
+problem: "The owner asked for a collection of visualisations and interactive simulations including 3D physics experiments; eleven plates is a start."
+outcome: "New plates for Fourier series, pathfinding, reaction-diffusion and a 3D Foucault pendulum, each with tested core and measured readouts."
+acceptance_criteria:
+  - "New plates for Fourier series, pathfinding, reaction-diffusion and a 3D Foucault pendulum, each with tested core and measured readouts."
+validation:
+  - "npm run verify"
+evidence_required:
+  - "milestone_verified"
+created_at: "2026-11-11"
