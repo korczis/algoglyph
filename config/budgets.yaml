@@ -14,3 +14,9 @@ create_ms: 400        # setup() plus the first frame
 frame_ms: 40          # the worst of the measured frames
 frames: 30            # frames measured after setup
 repeats: 3            # runs per setting; the best is judged (a run within budget ends the repeats)
+widths: [390, 1440]   # canvas widths measured: a phone and a desktop (the browser gate's widths)
+horizon_frames: 900   # frames driven past the first window, to reach a run's end and its rebuild
+horizon_cpu_ms: 3000  # ...or this much CPU, whichever comes first
+drag_steps: 8         # steps of a slider swept from its minimum to its maximum, one per frame
+reference_cpu_ms: 2.9   # referenceCpuMs() in test/budget.test.ts on the reference machine (an M-series Mac,
+                        # best of seven at 2026-11-12T00:21Z); budgets scale by measured / this, never below 1
