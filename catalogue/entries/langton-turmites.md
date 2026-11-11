@@ -14,8 +14,6 @@ tags:
   - emergence
 complexity: O(1) per ant step, O(cells) per frame drawn
 interaction: Click or drag to toggle a patch of cells under the ants.
-related:
-  - life-like-automata
 ---
 
 An ant on a grid turns right on white, left on black, and flips the cell it leaves: ten thousand steps of chaos, then a straight highway it builds for as long as the grid lets it.
