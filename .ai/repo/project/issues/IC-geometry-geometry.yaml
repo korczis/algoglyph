@@ -6,47 +6,11 @@ title: "Geometry and space: the geometry plates"
 slug: geometry-and-space-geometry-plates
 priority: p2
 profile: implementation
-objective: "Build the geometry engine and its harness test, then make live: ccw-intersection, point-in-polygon, simple-closed-path, gift-wrapping, graham-scan, interior-elimination, quickhull, kd-tree, h3-hex-binning, r-tree, grid-method, general-sweep, orthogonal-sweep, closest-pair, voronoi-diagram, dbscan, k-means-plus-plus, haversine-hhi, map-projections."
+objective: "Make live: haversine-hhi, map-projections."
 why: "Derived from the catalogue (ADR 0004): these entries are planned in this wing for this engine."
 scope:
-  - src/engines/geometry
-  - test/kernels-geometry.test.ts
-  - src/kernels/geometry/ccw-intersection.ts
-  - src/kernels/geometry/point-in-polygon.ts
-  - src/kernels/geometry/simple-closed-path.ts
-  - src/kernels/geometry/gift-wrapping.ts
-  - src/kernels/geometry/graham-scan.ts
-  - src/kernels/geometry/interior-elimination.ts
-  - src/kernels/geometry/quickhull.ts
-  - src/kernels/geometry/kd-tree.ts
-  - src/kernels/geometry/h3-hex-binning.ts
-  - src/kernels/geometry/r-tree.ts
-  - src/kernels/geometry/grid-method.ts
-  - src/kernels/geometry/general-sweep.ts
-  - src/kernels/geometry/orthogonal-sweep.ts
-  - src/kernels/geometry/closest-pair.ts
-  - src/kernels/geometry/voronoi-diagram.ts
-  - src/kernels/geometry/dbscan.ts
-  - src/kernels/geometry/k-means-plus-plus.ts
   - src/kernels/geometry/haversine-hhi.ts
   - src/kernels/geometry/map-projections.ts
-  - catalogue/entries/ccw-intersection.md
-  - catalogue/entries/point-in-polygon.md
-  - catalogue/entries/simple-closed-path.md
-  - catalogue/entries/gift-wrapping.md
-  - catalogue/entries/graham-scan.md
-  - catalogue/entries/interior-elimination.md
-  - catalogue/entries/quickhull.md
-  - catalogue/entries/kd-tree.md
-  - catalogue/entries/h3-hex-binning.md
-  - catalogue/entries/r-tree.md
-  - catalogue/entries/grid-method.md
-  - catalogue/entries/general-sweep.md
-  - catalogue/entries/orthogonal-sweep.md
-  - catalogue/entries/closest-pair.md
-  - catalogue/entries/voronoi-diagram.md
-  - catalogue/entries/dbscan.md
-  - catalogue/entries/k-means-plus-plus.md
   - catalogue/entries/haversine-hhi.md
   - catalogue/entries/map-projections.md
 depends_on: []

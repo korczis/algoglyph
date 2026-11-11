@@ -11,8 +11,7 @@ why: "Derived from the catalogue (ADR 0004): these entries are planned in this w
 scope:
   - src/kernels/geometry/pick-path-routing.ts
   - catalogue/entries/pick-path-routing.md
-depends_on:
-  - IC-geometry-geometry
+depends_on: []
 acceptance_criteria:
   - Every entry named in the objective has status live, and its kernel or plate exists.
   - Its readouts are counted from its own run and its harness tests compare with an independent reference.
