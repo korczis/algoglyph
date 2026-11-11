@@ -3,7 +3,7 @@
 // export and the gallery thumbnails.
 import p5 from './p5';
 import { GROUNDS, palette as lookupPalette } from './palette';
-import type { Params, Plate, PlateContext, Sim, Stat, Theme } from './plate';
+import type { Chart, Params, Plate, PlateContext, Sim, Stat, Theme } from './plate';
 import { mulberry32 } from './random';
 
 export interface MountOptions {
@@ -12,17 +12,21 @@ export interface MountOptions {
   theme: Theme;
   paused: boolean;
   onStats: (rows: Stat[]) => void;
+  onChart?: (c: Chart) => void;
   onLoopChange: (running: boolean) => void;
 }
 
 const MAX_HEIGHT_FRACTION = 0.72;
 const STATS_EVERY_MS = 200;
+const CHART_EVERY_MS = 600;
 
 function context(plate: Plate, width: number, height: number, params: Params, seed: number,
-  theme: Theme, thumbnail: boolean, onStats: (rows: Stat[]) => void): PlateContext {
+  theme: Theme, thumbnail: boolean, onStats: (rows: Stat[]) => void,
+  onChart: (c: Chart) => void = () => {}): PlateContext {
   const ground = GROUNDS[theme];
   const fallback = String(plate.params.find((d) => d.key === 'palette')?.value ?? 'ember');
   let last = 0;
+  let lastChart = 0;
   return {
     width,
     height,
@@ -40,6 +44,13 @@ function context(plate: Plate, width: number, height: number, params: Params, se
       if (now - last < STATS_EVERY_MS) return;
       last = now;
       onStats(rows);
+    },
+    chart(c: Chart) {
+      if (thumbnail) return;
+      const now = performance.now();
+      if (now - lastChart < CHART_EVERY_MS) return;
+      lastChart = now;
+      onChart(c);
     },
   };
 }
@@ -96,7 +107,7 @@ export class Stage {
     this.onLoopChange = opts.onLoopChange;
     this.instance = new p5((p: p5) => {
       const ctx = context(plate, width, height, opts.params, opts.seed, opts.theme, false,
-        opts.onStats);
+        opts.onStats, opts.onChart);
       const sim = plate.create(p, ctx);
       this.sim = sim;
       const inside = () => p.mouseX >= 0 && p.mouseY >= 0 && p.mouseX < p.width

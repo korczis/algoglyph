@@ -18,7 +18,7 @@ export const ENGINES = ['custom', 'array', 'tree', 'hash', 'graph', 'geometry', 
   'numeric', 'signal', 'systems', 'stochastic', 'grid'];
 const ID = /^[a-z0-9][a-z0-9-]*$/;
 const ENTRY_KEYS = new Set(['id', 'title', 'taxonomy', 'status', 'engine', 'mode', 'labs',
-  'sources', 'tags', 'complexity', 'interaction', 'motivation', 'order']);
+  'sources', 'tags', 'complexity', 'interaction', 'motivation', 'order', 'related']);
 // A public tree never carries a locator into someone's machine or private code (ADR 0004 §8).
 const LOCATORS = [
   [/(^|[\s(])(~\/|\/Users\/|\/home\/)/, 'a home-directory path'],
@@ -174,9 +174,18 @@ export function loadCatalogue(root, { code = true } = {}) {
       taxonomy: leaf, path: leaf.split('/'), labs: fm.labs ?? [], sources: cites,
       tags: fm.tags ?? [], complexity: fm.complexity ?? '', interaction: fm.interaction ?? '',
       motivation: fm.motivation ?? '', order: Number.isFinite(fm.order) ? fm.order : null,
+      related: Array.isArray(fm.related) ? fm.related : [],
       summary, notes: paras.slice(1), file: rel,
     });
   }
+
+  // links are declared one way; the reverse is derived, never authored
+  const ids = new Set(entries.map((e) => e.id));
+  for (const e of entries) {
+    for (const r of e.related) if (!ids.has(r)) errors.push(`${e.file}: related ${r} is not an entry`);
+    e.backlinks = [];
+  }
+  for (const e of entries) for (const r of e.related) entries.find((x) => x.id === r)?.backlinks.push(e.id);
 
   // numbering: taxonomy order of the leaf, then the entry's order, then its title
   const leafRank = new Map(leaves.map((l, i) => [l, i]));

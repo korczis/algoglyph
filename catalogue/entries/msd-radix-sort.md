@@ -16,6 +16,9 @@ tags:
   - digits
   - recursive
 complexity: about n log_R n digit examinations
+related:
+  - lsd-radix-sort
+  - three-way-radix-quicksort
 ---
 
 Distribute by the leading base-4 digit, then sort each bin on the next digit, recursively.

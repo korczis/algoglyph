@@ -16,6 +16,8 @@ tags:
   - adaptive
   - runs
 complexity: linear on sorted input, n lg n at worst
+related:
+  - mergesort-bottom-up
 ---
 
 Find the ascending runs the input already has, and merge neighbouring runs until one is left.

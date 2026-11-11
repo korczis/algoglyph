@@ -11,6 +11,9 @@ tags:
   - voronoi
   - delaunay
   - duality
+related:
+  - voronoi-relax
+  - euclidean-mst
 ---
 
 The regions closest to each site, and the triangulation that is their dual.

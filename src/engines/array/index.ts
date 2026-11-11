@@ -56,12 +56,17 @@ class Replay {
   lo = -1;
   hi = -1;
   usesAux: boolean;
+  private c = { compares: 0, writes: 0, aux: 0 };
+  /** [operation, comparisons, array writes, auxiliary writes], about 120 points over the run. */
+  history: [number, number, number, number][] = [[0, 0, 0, 0]];
+  private every: number;
   constructor(readonly t: Trace) {
     this.a = t.input.slice();
     this.aux = new Array(t.input.length).fill(0);
     let aux = false;
     for (let e = 0; e < t.length && !aux; e++) aux = t.events[3 * e] === OP.auxWrite;
     this.usesAux = aux;
+    this.every = Math.max(1, Math.floor(t.length / 120));
   }
   get done(): boolean { return this.at >= this.t.length; }
   advance(steps: number): void {
@@ -72,21 +77,18 @@ class Replay {
         this.lo = this.t.events[3 * this.at + 1];
         this.hi = this.t.events[3 * this.at + 2];
       } else this.last = this.at;
+      if (op === OP.compare) this.c.compares++;
+      else if (op === OP.write) this.c.writes++;
+      else if (op === OP.swap) this.c.writes += 2;
+      else if (op === OP.auxWrite) this.c.aux++;
       apply(this.a, this.aux, this.t.events, this.at);
+      if ((this.at + 1) % this.every === 0 || this.at + 1 === this.t.length) {
+        this.history.push([this.at + 1, this.c.compares, this.c.writes, this.c.aux]);
+      }
     }
   }
-  /** The counts up to the replayed position, counted from the events themselves. */
-  counts() {
-    let compares = 0; let writes = 0; let aux = 0;
-    for (let e = 0; e < this.at; e++) {
-      const op = this.t.events[3 * e];
-      if (op === OP.compare) compares++;
-      else if (op === OP.write) writes++;
-      else if (op === OP.swap) writes += 2;
-      else if (op === OP.auxWrite) aux++;
-    }
-    return { compares, writes, aux };
-  }
+  /** The counts up to the replayed position, counted from the events as they were replayed. */
+  counts() { return { ...this.c }; }
 }
 
 function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: number, h: number) {
@@ -196,6 +198,17 @@ function plate(info: KernelInfo, kernel: ArrayKernel): PlateCode {
             { label: 'Inversions left', value: fmt(inv) },
             { label: 'Progress', value: `${Math.round((100 * r.at) / Math.max(1, r.t.length))}% of ${fmt(r.t.length)} operations` },
           ];
+          const h = r.history;
+          ctx.chart({
+            title: 'Work so far',
+            x: { label: 'operations replayed' },
+            y: { label: 'count' },
+            series: [
+              { name: 'Comparisons', points: h.map((q) => [q[0], q[1]]) },
+              { name: 'Array writes', points: h.map((q) => [q[0], q[2]]) },
+              ...(r.usesAux ? [{ name: 'Auxiliary writes', points: h.map((q) => [q[0], q[3]] as [number, number]) }] : []),
+            ],
+          });
           if (r.done) rows.push({ label: 'Result', value: sortedOK(r, kernel.goal) ? (kernel.goal === 'select' ? `a[${r.t.k}] is the ${r.t.k + 1}-th smallest` : 'ascending, verified') : 'NOT sorted' });
           ctx.stats(rows);
         },
@@ -331,6 +344,12 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
               p.endShape();
             });
           }
+          ctx.chart({
+            title: 'Measured work as n grows',
+            x: { label: 'keys n', log: true },
+            y: { label: 'comparisons + writes', log: true },
+            series: curves.map((cv) => ({ name: cv.info.title, points: cv.pts.slice() })),
+          });
           ctx.stats(panes.map((pane, i) => {
             const c = pane.r.counts();
             const slope = curves[i]?.slope;

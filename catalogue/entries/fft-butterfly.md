@@ -12,6 +12,9 @@ tags:
   - butterflies
   - bit reversal
 motivation: Acoustic measurement and synthesis use it every day.
+related:
+  - fourier-epicycles
+  - stft-spectrogram
 ---
 
 Radix-2 butterflies combine half-size transforms after a bit-reversed shuffle.

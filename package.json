@@ -22,7 +22,11 @@
     "deploy": "scripts/deploy.sh deploy",
     "deploy:validate": "scripts/deploy.sh validate",
     "deploy:verify": "scripts/deploy.sh verify",
-    "catalogue": "node scripts/catalogue.mjs"
+    "catalogue": "node scripts/catalogue.mjs",
+    "wasm": "scripts/wasm.sh",
+    "predev": "scripts/wasm.sh --build",
+    "prebuild": "scripts/wasm.sh --build",
+    "pretest": "scripts/wasm.sh --build"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",
@@ -39,6 +43,7 @@
   },
   "dependencies": {
     "alpinejs": "3.17.5",
+    "echarts": "6.1.0",
     "flowbite": "4.0.2",
     "p5": "2.3.4",
     "three": "0.187.0"

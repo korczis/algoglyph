@@ -44,6 +44,14 @@ export interface Stat {
   value: string;
 }
 
+/** A declarative chart of measured values (rendered with ECharts, one y-axis, ADR 0004). */
+export interface Chart {
+  title: string;
+  x: { label: string; log?: boolean };
+  y: { label: string; log?: boolean };
+  series: { name: string; points: [number, number][] }[];
+}
+
 export interface PlateContext {
   readonly width: number;
   readonly height: number;
@@ -59,6 +67,8 @@ export interface PlateContext {
   palette(): Palette;
   /** Publish readouts; the stage throttles them, so calling every frame is fine. */
   stats(rows: Stat[]): void;
+  /** Publish a chart of measured values; throttled like stats, ignored in thumbnails. */
+  chart(c: Chart): void;
   /** True while the stage renders a gallery thumbnail rather than the live plate. */
   readonly thumbnail: boolean;
 }

@@ -28,6 +28,9 @@ export interface Entry {
   motivation: string;
   summary: string;
   notes: string[];
+  /** Entries this one names as related, and the entries that name it (derived). */
+  related: string[];
+  backlinks: string[];
 }
 
 export interface TaxNode {
@@ -101,6 +104,18 @@ export function under(key: string): Entry[] {
 export function labsUnder(key: string): Lab[] {
   const ids = new Set(under(key).map((e) => e.id));
   return CATALOGUE.labs.filter((l) => l.entries.some((id) => ids.has(id)));
+}
+
+/** Everything an entry links to, each id once: its own links, their reverse, its lab mates
+ * and its shelf siblings, in that order. */
+export function links(e: Entry): { id: string; why: string }[] {
+  const out = new Map<string, string>();
+  const add = (id: string, why: string) => { if (id !== e.id && !out.has(id) && BY_ID.has(id)) out.set(id, why); };
+  for (const r of e.related) add(r, 'related');
+  for (const r of e.backlinks) add(r, 'refers here');
+  for (const l of e.labs) for (const id of LABS.get(l)?.entries ?? []) add(id, 'same lab');
+  for (const x of ENTRIES) if (x.taxonomy === e.taxonomy) add(x.id, 'same shelf');
+  return [...out].map(([id, why]) => ({ id, why }));
 }
 
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

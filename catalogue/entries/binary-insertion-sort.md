@@ -15,6 +15,9 @@ tags:
   - stable
   - binary search
 complexity: n lg n compares, n²/4 moves
+related:
+  - insertion-sort
+  - binary-search
 ---
 
 Insertion sort that finds each insertion point by binary search.

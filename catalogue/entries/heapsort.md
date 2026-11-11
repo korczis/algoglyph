@@ -15,6 +15,8 @@ tags:
   - priority queue
   - in-place
 complexity: 2 n lg n compares worst case, in place
+related:
+  - binary-heap
 ---
 
 Build a max-heap bottom-up, then repeatedly exchange the maximum to the end and restore the heap.

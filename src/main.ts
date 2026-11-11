@@ -1,10 +1,10 @@
 import './styles/app.css';
 import Alpine from 'alpinejs';
 import 'flowbite';
-import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, node, roots, search, source,
+import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, links, node, roots, search, source,
   trail, under, type Entry, type Lab, type Status, type TaxNode } from './core/catalogue';
 import { factCards, facts, pick, spread } from './core/facts';
-import { defaults, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
+import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
 import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
@@ -17,6 +17,8 @@ const LIVE = ENTRIES.filter((e) => e.status === 'live');
 const MOSAIC_SIZE = 9;
 // p5 and the stage load with the first plate or thumbnail, not with the catalogue pages
 const stageModule = () => import('./core/stage');
+// ECharts loads with the first chart a plate publishes
+const chartModule = () => import('./core/charts');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Not reactive on purpose: p5 instances must never be wrapped in Alpine proxies.
@@ -110,6 +112,8 @@ Alpine.data('app', () => ({
   params: {} as Params,
   seed: 0,
   stats: [] as Stat[],
+  chart: null as Chart | null,
+  chartView: 'chart' as 'chart' | 'table',
   running: false,
   loading: false,
   error: '',
@@ -153,6 +157,9 @@ Alpine.data('app', () => ({
   sourceTitle(id: string): string { return source(id)?.title ?? id; },
   sourceAuthor(id: string): string { return source(id)?.author ?? ''; },
   wingOf(e: Entry): TaxNode | undefined { return node(e.path[0]); },
+  linksOf(e: Entry): { entry: Entry; why: string }[] {
+    return links(e).slice(0, 18).map((l) => ({ entry: entry(l.id) as Entry, why: l.why }));
+  },
   shelfOf(e: Entry): TaxNode | undefined { return node(e.taxonomy); },
 
   /** The entries the browse view lists: the node's subtree, or every match of a search. */
@@ -209,6 +216,7 @@ Alpine.data('app', () => ({
     if (changed) {
       this.currentId = r.id;
       this.stats = [];
+      this.resetChart();
       this.defs = [];
       this.error = '';
       plateCode = null;
@@ -277,6 +285,7 @@ Alpine.data('app', () => ({
       theme: this.theme,
       paused: this.paused,
       onStats: (rows) => { this.stats = rows; },
+      onChart: (c) => { this.chart = c; void this.drawChart(); },
       onLoopChange: (running) => { this.running = running; },
     });
   },
@@ -313,9 +322,33 @@ Alpine.data('app', () => ({
     try { localStorage.setItem('color-theme', this.theme); } catch { /* this page only */ }
     document.dispatchEvent(new CustomEvent('dark-mode', { detail: this.theme }));
     if (this.view !== 'browse') void this.mount();
+    void this.drawChart();
     this.thumbs = {};
     thumbQueue = [];
     this.$nextTick(() => this.observeThumbs());
+  },
+
+  // ---- charts: what a plate publishes, as an ECharts line chart or as a table -----------------
+  async drawChart() {
+    const el = document.getElementById('chart');
+    if (!this.chart || !el || this.chartView !== 'chart') return;
+    const { renderChart } = await chartModule();
+    if (this.chart) renderChart(el, JSON.parse(JSON.stringify(this.chart)) as Chart, this.theme);
+  },
+  resetChart() {
+    this.chart = null;
+    const el = document.getElementById('chart');
+    if (el) void chartModule().then(({ disposeChart }) => disposeChart(el));
+  },
+  showChart(view: 'chart' | 'table') {
+    this.chartView = view;
+    if (view === 'chart') this.$nextTick(() => void this.drawChart());
+  },
+  /** At most twelve rows per series, evenly spaced, for the table view. */
+  chartRows(): { series: string; x: string; y: string }[] {
+    if (!this.chart) return [];
+    const f = (v: number) => (Math.abs(v) >= 1e5 || (Math.abs(v) > 0 && Math.abs(v) < 1e-2) ? v.toExponential(2) : v.toLocaleString('en-US', { maximumFractionDigits: 3 }));
+    return this.chart.series.flatMap((s) => spread(s.points, 12).map(([x, y]) => ({ series: s.name, x: f(x), y: f(y) })));
   },
 
   // ---- lazy thumbnails: rendered for cards in view, one at a time ---------------------------

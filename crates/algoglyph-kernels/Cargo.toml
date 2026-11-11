@@ -1,0 +1,22 @@
+[package]
+name = "algoglyph-kernels"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "algoglyph's heavy kernels, written once in Rust: tested natively, shipped to the browser as wasm32 (ADR 0004 §6)."
+license = "MIT"
+publish = false
+
+[lib]
+name = "algoglyph_kernels"
+# rlib for the native tests; the wasm32 module the site loads is the cdylib that
+# scripts/wasm.sh asks for with `cargo rustc --crate-type cdylib` (the majordomus-core pattern).
+crate-type = ["rlib"]
+
+[dependencies]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

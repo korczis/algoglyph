@@ -15,6 +15,8 @@ tags:
   - in-place
   - increments
 complexity: O(n^(4/3)) worst case
+related:
+  - shellsort-knuth
 ---
 
 Shellsort with the increments 1, 8, 23, 77, 281, … = 4^k + 3·2^(k−1) + 1.

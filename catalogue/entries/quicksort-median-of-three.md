@@ -15,6 +15,9 @@ tags:
   - median of three
   - insertion cutoff
 complexity: about 1.19 n lg n compares on average
+related:
+  - quicksort
+  - insertion-sort
 ---
 
 The pivot is the median of the first, middle and last keys; small subfiles are left for one final insertion sort.

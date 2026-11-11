@@ -15,6 +15,8 @@ tags:
   - duplicate keys
   - dutch national flag
 complexity: linear when the number of distinct keys is constant
+related:
+  - quicksort
 ---
 
 Dijkstra's three-way partition into keys less than, equal to and greater than the pivot.

@@ -12,6 +12,9 @@ tags:
   - dfs
   - low link
 motivation: Link analysis in investigations and due diligence leans on it.
+related:
+  - ownership-cycles
+  - kosaraju-scc
 ---
 
 One DFS with a stack and low links pops each strong component as it completes.

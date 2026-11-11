@@ -9,6 +9,8 @@ tags:
   - spanning tree
   - BFS
 complexity: O(cells) carve, O(cells) BFS
+related:
+  - breadth-first-search
 ---
 
 A perfect maze carved cell by cell, then flooded breadth-first from its heart: colour is distance, the white thread is the longest shortest path.

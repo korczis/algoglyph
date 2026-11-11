@@ -15,6 +15,8 @@ tags:
   - parallel
   - oblivious
 complexity: O(n log² n) compare-exchanges, fixed in advance
+related:
+  - perfect-shuffle-merge
 ---
 
 Batcher's odd-even merge exchange: a fixed schedule of compare-exchanges that sorts any input.

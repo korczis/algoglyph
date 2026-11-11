@@ -14,6 +14,8 @@ tags:
   - k-th smallest
   - linear time
 complexity: linear on average
+related:
+  - quicksort
 ---
 
 Partition, then continue only in the side that holds rank k.

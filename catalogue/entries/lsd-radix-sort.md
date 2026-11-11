@@ -16,6 +16,8 @@ tags:
   - non-comparison
   - digits
 complexity: W passes of key-indexed counting for W digits
+related:
+  - counting-sort
 ---
 
 Sort by the least significant base-4 digit first, with one stable counting pass per digit.

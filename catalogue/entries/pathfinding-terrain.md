@@ -9,6 +9,8 @@ tags:
   - A*
   - heuristics
 complexity: O(E log V), binary heap
+related:
+  - dijkstra
 ---
 
 Three searches cross the same hills: Dijkstra floods everything, A* leans towards the goal, greedy sprints and pays for it. Same map, measured costs.

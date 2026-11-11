@@ -16,6 +16,8 @@ tags:
   - iterative
   - auxiliary memory
 complexity: at most n lg n compares, n extra space
+related:
+  - mergesort-top-down
 ---
 
 Merge runs of 1, then 2, 4, 8 and so on across the whole array, without recursion.

@@ -11,6 +11,8 @@ tags:
   - mst
   - greedy
   - union-find
+related:
+  - path-compression
 ---
 
 Take edges cheapest first, skipping any that would close a cycle.

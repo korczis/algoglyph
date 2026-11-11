@@ -15,6 +15,8 @@ tags:
   - in-place
   - increments
 complexity: O(n^(3/2)) worst case for this sequence
+related:
+  - insertion-sort
 ---
 
 Insertion sort on keys h apart, for h = …, 40, 13, 4, 1: Knuth's increments.

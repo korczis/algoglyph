@@ -11,6 +11,9 @@ tags:
   - waves
   - parallelism
 motivation: Coordinating many workers and machines without a shared clock depends on it.
+related:
+  - topological-sort
+  - critical-path
 ---
 
 Remove every vertex without incoming edges at once: each round is a wave that can run in parallel.

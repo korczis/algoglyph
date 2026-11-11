@@ -90,7 +90,7 @@
   </nav>
 
   <!-- Sidebar: the taxonomy tree, derived from catalogue/taxonomy.yaml and the entries -->
-  <aside id="sidebar" class="fixed top-0 left-0 z-40 w-72 h-screen pt-16 transition-transform -translate-x-full bg-white border-r border-gray-200 lg:translate-x-0 dark:bg-gray-800 dark:border-gray-700" aria-label="Catalogue">
+  <aside id="sidebar" class="fixed top-0 left-0 z-40 w-72 h-screen pt-16 transition-transform -translate-x-full bg-white border-r border-gray-200 lg:translate-x-0 dark:bg-gray-800 dark:border-gray-700" aria-label="Sidebar">
     <div class="h-full px-3 pt-5 pb-4 overflow-y-auto bg-white dark:bg-gray-800">
       <div class="space-y-2 divide-y divide-gray-200 dark:divide-gray-700">
         <ul class="pb-2 space-y-1 font-medium">
@@ -478,6 +478,30 @@
                 </span>
               </div>
             </div>
+            <!-- What the plate measures, over time or over n: ECharts, or the same data as a table -->
+            <div x-show="chart" x-cloak class="p-4 mt-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
+              <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 class="text-xl font-bold leading-none text-gray-900 dark:text-white" x-text="chart ? chart.title : ''"></h2>
+                <div class="inline-flex rounded-lg shadow-sm" role="group" aria-label="Chart or table">
+                  <button type="button" @click="showChart('chart')" :aria-pressed="chartView === 'chart'" class="px-3 py-2 text-sm font-medium border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:bg-gray-700 dark:hover:text-white" :class="chartView === 'chart' ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300'">Chart</button>
+                  <button type="button" @click="showChart('table')" :aria-pressed="chartView === 'table'" class="px-3 py-2 text-sm font-medium border border-l-0 border-gray-200 rounded-e-lg hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:bg-gray-700 dark:hover:text-white" :class="chartView === 'table' ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300'">Table</button>
+                </div>
+              </div>
+              <div x-show="chartView === 'chart'" id="chart" class="w-full h-72 sm:h-80" role="img" :aria-label="chart ? chart.title + ': ' + chart.y.label + ' against ' + chart.x.label : ''"></div>
+              <div x-show="chartView === 'table'" class="overflow-x-auto max-h-80">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                  <caption class="sr-only" x-text="chart ? chart.title : ''"></caption>
+                  <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300">
+                    <tr><th scope="col" class="px-4 py-2">Series</th><th scope="col" class="px-4 py-2" x-text="chart ? chart.x.label : ''"></th><th scope="col" class="px-4 py-2" x-text="chart ? chart.y.label : ''"></th></tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="(r, i) in chartRows()" :key="'cr' + i">
+                      <tr class="border-b border-gray-200 dark:border-gray-700"><td class="px-4 py-2 font-medium text-gray-900 dark:text-white" x-text="r.series"></td><td class="px-4 py-2 font-mono" x-text="r.x"></td><td class="px-4 py-2 font-mono" x-text="r.y"></td></tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <div x-show="error" x-cloak class="p-4 mt-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert" x-text="'This could not start: ' + error"></div>
             <div x-show="reducedMotion && paused" x-cloak class="flex items-center p-4 mt-4 text-sm text-gray-800 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600" role="status">
               Your system asks for reduced motion, so plates start paused. Press Play or Step to run it.
@@ -561,6 +585,15 @@
                     <template x-for="l in current.labs" :key="'cl' + l">
                       <a :href="'#/lab/' + l" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-400 dark:hover:bg-gray-600">Compare it in the lab</a>
                     </template>
+                  </div>
+                  <!-- Links derived from the catalogue: declared related entries, their reverse, lab mates, shelf siblings -->
+                  <div x-show="linksOf(current).length" class="mt-6">
+                    <h3 class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Related</h3>
+                    <ul class="flex flex-wrap gap-2">
+                      <template x-for="l in linksOf(current)" :key="'rl' + l.entry.id">
+                        <li><a :href="'#/p/' + l.entry.id" class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"><span x-text="l.entry.title"></span><span class="text-xs text-gray-600 dark:text-gray-300" x-text="l.entry.status === 'planned' ? 'planned' : l.why"></span></a></li>
+                      </template>
+                    </ul>
                   </div>
                 </div>
                 <dl class="space-y-4 text-sm">

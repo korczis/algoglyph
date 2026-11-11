@@ -21,6 +21,10 @@ sources:
     publisher: Addison-Wesley
     year: 1998
     kind: book
+  - id: stam-stable-fluids
+    title: Stable Fluids (SIGGRAPH 1999)
+    author: Jos Stam
+    kind: paper
   - id: pocorgtfo
     title: PoC||GTFO
     author: Manul Laphroaig (ed.)

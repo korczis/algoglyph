@@ -11,6 +11,8 @@ tags:
   - union-find
   - clusters
 motivation: Resolving one company or person across noisy public registries needs it.
+related:
+  - weighted-quick-union
 ---
 
 Pairwise matches become unions, and the components are the resolved entities.

@@ -11,6 +11,9 @@ tags:
   - shortest paths
   - greedy
   - priority queue
+related:
+  - credible-path
+  - prim-mst
 ---
 
 Settle vertices in order of distance, relaxing the edges of each one settled.

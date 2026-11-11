@@ -15,6 +15,8 @@ tags:
   - stable
   - bidirectional
 complexity: n²/2 compares worst case
+related:
+  - bubble-sort
 ---
 
 Bubble sort that alternates direction, so small keys travel left as fast as large keys travel right.

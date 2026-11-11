@@ -11,6 +11,8 @@ tags:
   - hash chain
   - tamper evidence
 motivation: Link analysis in investigations and due diligence leans on it.
+related:
+  - hash-avalanche
 ---
 
 Hashes of hashes up to one root, and a chain in which every entry seals the one before.

@@ -11,7 +11,7 @@
 //                                          from the planned entries (dry run without --write)
 //
 // Exit 0 ok, 1 a validation error or stale derived file, 2 a usage error.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml, stringify } from 'yaml';
@@ -124,6 +124,17 @@ function planFiles(model) {
       const same = existsSync(file) && JSON.stringify(pick(old, own)) === JSON.stringify(pick(obj, own));
       out.push({ file, same, text: header(stringify(next, { lineWidth: 0 })) });
     }
+    // a generated file the catalogue no longer implies is removed, unless Majordomus recorded
+    // plan state in it (it was started or verified): that is history and is kept
+    const wanted = new Set(list.map((o) => `${o.id}.yaml`));
+    const prefix = dir === 'milestones' ? 'MC-' : 'IC-';
+    const dirPath = join(PROJECT, dir);
+    for (const f of existsSync(dirPath) ? readdirSync(dirPath) : []) {
+      if (!f.startsWith(prefix) || wanted.has(f)) continue;
+      const old = parseYaml(readFileSync(join(dirPath, f), 'utf8')) ?? {};
+      const state = Object.keys(old).filter((k) => !own.includes(k) && k !== 'created_at');
+      if (!state.length) out.push({ file: join(dirPath, f), same: false, remove: true });
+    }
   }
   return out;
 }
@@ -195,11 +206,17 @@ if (verb === 'validate') {
   const files = planFiles(model);
   for (const f of files) {
     if (f.same) continue;
+    const rel = f.file.slice(ROOT.length + 1);
     if (flag('--write')) {
+      if (f.remove) {
+        rmSync(f.file);
+        console.log(`catalogue: removed ${rel} (no planned entry implies it)`);
+        continue;
+      }
       mkdirSync(dirname(f.file), { recursive: true });
       writeFileSync(f.file, f.text);
-      console.log(`catalogue: wrote ${f.file.slice(ROOT.length + 1)}`);
-    } else console.log(`catalogue: would write ${f.file.slice(ROOT.length + 1)}`);
+      console.log(`catalogue: wrote ${rel}`);
+    } else console.log(`catalogue: would ${f.remove ? 'remove' : 'write'} ${rel}`);
   }
   console.log(`catalogue: plan of ${files.length} file(s), ${files.filter((f) => !f.same).length} changed`);
 } else die(2, `unknown verb ${verb}`);
