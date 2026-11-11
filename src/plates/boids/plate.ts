@@ -139,8 +139,9 @@ export const boidsMurmuration: Plate = {
         for (let i = 0; i < n; i++) {
           const t = byHeading
             ? Math.atan2(vel[i * 3 + 2], vel[i * 3]) / (2 * Math.PI) + 0.5
-            : 0.18 + 0.82 * Math.min(1, crowd[i] / 16);
-          colours[i] = ramp(pal, t, byHeading);
+            : 0.4 + 0.6 * Math.min(1, crowd[i] / 16);
+          // lift every bird a little towards the ink so the palette's dark end stays visible
+          colours[i] = mix(ramp(pal, t, byHeading), ctx.fg, 0.14);
         }
 
         p.background(...ctx.bg);
