@@ -4,7 +4,8 @@
 import { V, type GraphKernel, type GraphOps } from '../../engines/graph/trace';
 import { arcs, augment, minCut, value, type Arc, type FlowResult } from './_flow';
 
-export function augmentingPaths(ops: GraphOps, s: number, t: number, order: 'dfs' | 'bfs', f?: number[]): FlowResult {
+export function* augmentingPaths(ops: GraphOps, s: number, t: number, order: 'dfs' | 'bfs',
+  f?: number[]): Generator<void, FlowResult, void> {
   const g = ops.g;
   f ??= new Array<number>(g.m).fill(0);
   for (;;) {
@@ -17,6 +18,7 @@ export function augmentingPaths(ops: GraphOps, s: number, t: number, order: 'dfs
     while (work.length && !seen[t]) {
       const u = (order === 'bfs' ? work.shift() : work.pop()) as number;
       ops.settle(u);
+      yield;
       for (const a of arcs(ops, f, u)) {
         ops.scan(a.e);
         if (seen[a.to]) continue;
@@ -39,6 +41,7 @@ export function augmentingPaths(ops: GraphOps, s: number, t: number, order: 'dfs
     }
     augment(ops, f, path.reverse(), delta);
     ops.round();
+    yield;
   }
   const side = minCut(ops, f, s);
   for (let v = 0; v < g.n; v++) if (side[v]) ops.vertex(v, V.done);

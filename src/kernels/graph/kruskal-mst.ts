@@ -10,7 +10,7 @@ export const kernel: GraphKernel<MstResult> = {
   n: { min: 4, max: 400, value: 120 },
   ...MST_VIEW,
   speed: 2,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const uf = new UnionFind(g.n);
     for (let v = 0; v < g.n; v++) ops.group(v, v);
@@ -18,6 +18,7 @@ export const kernel: GraphKernel<MstResult> = {
     const tree: number[] = [];
     for (const e of order) {
       ops.scan(e);
+      yield;
       if (join(ops, uf, e)) tree.push(e);
       else ops.edge(e, E.drop);
       if (tree.length === g.n - 1) break;

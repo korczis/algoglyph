@@ -20,13 +20,13 @@ export const kernel: GraphKernel<KspResult> = {
   readouts: ['scans', 'relaxations', 'tree', 'rounds'],
   chart: { title: 'Edges on the paths found', y: 'edges', series: ['tree'] },
   speed: 20,
-  run(ops, { s, t, p }) {
+  *steps(ops, { s, t, p }) {
     const g = ops.g;
     const k = Number(p.k);
     const w = (e: number) => g.w[e];
     const reset = (touched: number[]) => { for (const v of touched) ops.vertex(v, V.unseen); };
     const touchedOf = (dist: number[]) => dist.map((d, v) => (Number.isFinite(d) ? v : -1)).filter((v) => v >= 0);
-    const first = dijkstra(ops, s, w, { target: t, draw: false });
+    const first = yield* dijkstra(ops, s, w, { target: t, draw: false });
     reset(touchedOf(first.dist));
     const p0 = pathTo(g, first.parentEdge, s, t);
     if (!p0 || s === t) return { paths: [] };
@@ -36,6 +36,7 @@ export const kernel: GraphKernel<KspResult> = {
     let cands: KspPath[] = [];
     for (const e of p0.edges) ops.edge(e, E.mark);
     ops.round();
+    yield;
     while (paths.length < k) {
       const last = paths[paths.length - 1];
       for (let i = 0; i < last.verts.length - 1; i++) {
@@ -45,7 +46,7 @@ export const kernel: GraphKernel<KspResult> = {
         const banned = new Set<number>();
         for (const q of paths) if (keyOf(q.edges.slice(0, i)) === rootKey && q.edges.length > i) banned.add(q.edges[i]);
         const inRoot = new Set(last.verts.slice(0, i));
-        const sp = dijkstra(ops, spur, w, {
+        const sp = yield* dijkstra(ops, spur, w, {
           target: t, draw: false, bannedEdge: (e) => banned.has(e), bannedVertex: (v) => inRoot.has(v),
         });
         reset(touchedOf(sp.dist));
@@ -65,6 +66,7 @@ export const kernel: GraphKernel<KspResult> = {
       for (const e of next.edges) ops.edge(e, E.tree);
       for (const e of p0.edges) ops.edge(e, E.mark);
       ops.round();
+      yield;
       cands = cands.filter((c) => keyOf(c.edges) !== keyOf(next.edges));
     }
     return { paths };

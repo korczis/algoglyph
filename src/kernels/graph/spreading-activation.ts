@@ -22,7 +22,7 @@ export const kernel: GraphKernel<ActivationResult> = {
   readouts: ['rounds', 'scans', 'frontier', 'done', 'change'],
   chart: { title: 'Vertices firing, round by round', x: 'rounds', y: 'vertices', series: ['frontier', 'done'] },
   speed: 4,
-  run(ops, { s, p }) {
+  *steps(ops, { s, p }) {
     const g = ops.g;
     const d = Number(p.decay);
     const th = Number(p.threshold) / 1000;
@@ -40,6 +40,7 @@ export const kernel: GraphKernel<ActivationResult> = {
       for (let u = 0; u < g.n; u++) {
         if (pulse[u] <= 0) continue;
         if (pulse[u] < th || !strength[u]) { if (act[u] > 0) ops.settle(u); continue; }
+        yield;
         firing = true;
         pulses++;
         for (const e of g.out[u]) {
@@ -47,6 +48,7 @@ export const kernel: GraphKernel<ActivationResult> = {
           next[other(g, e, u)] += (d * pulse[u] * g.w[e]) / strength[u];
         }
         ops.settle(u);
+        yield;
       }
       if (!firing) break;
       let biggest = 0;
@@ -59,6 +61,7 @@ export const kernel: GraphKernel<ActivationResult> = {
       }
       pulse = next;
       ops.round();
+      yield;
       if (biggest < 1e-13) break;
     }
     return { act, pulses };

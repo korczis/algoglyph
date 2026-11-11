@@ -10,9 +10,9 @@ export interface LayoutResult { x: number[]; y: number[]; swing: number[] }
 export const kernel: GraphKernel<LayoutResult> = {
   goal: 'force-layout',
   inputs: ['communities', 'small-world', 'grid', 'geometric', 'random'],
-  n: { min: 4, max: 160, value: 70 },
+  n: { min: 4, max: 100, value: 70 },
   params: [
-    { kind: 'range', key: 'iterations', label: 'Iterations', min: 20, max: 600, step: 10, value: 250, rebuild: true },
+    { kind: 'range', key: 'iterations', label: 'Iterations', min: 20, max: 500, step: 10, value: 250, rebuild: true },
     { kind: 'range', key: 'gravity', label: 'Gravity kg', min: 0.1, max: 5, step: 0.1, value: 1, rebuild: true },
   ],
   view: { truth: true },

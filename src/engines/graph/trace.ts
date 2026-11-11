@@ -121,18 +121,19 @@ export interface GraphKernel<R = unknown> {
   speed?: number;
   /** Mark the source (circled), the target (boxed) or both on the drawing. */
   endpoints?: 's' | 't' | 'st';
-  run?(ops: GraphOps, opts: Options): R;
   /**
-   * The same algorithm as a generator that yields between rounds, for kernels heavy enough
-   * that a whole run would block a frame: the engine resumes it a few milliseconds per frame.
-   * A kernel provides `run` or `steps`.
+   * The algorithm, as a generator that yields at its natural pauses (a vertex settled, a round
+   * done): the engine resumes it a few milliseconds per frame, so no run blocks a frame
+   * whatever its size, and runs it to the end in one go for tests and thumbnails.
    */
-  steps?(ops: GraphOps, opts: Options): Generator<void, R, void>;
+  steps(ops: GraphOps, opts: Options): Generator<void, R, void>;
   /**
    * True for an exponential search that may stop at the event cap on large inputs (the plate
    * says so); every other kernel must finish at its maximum size.
    */
   mayStop?: boolean;
+  /** A lower event cap for such a kernel, to bound the memory its trace may take. */
+  cap?: number;
   /** Readouts of the finished run, computed from its result. */
   report?(r: R, g: Graph, opts: Options): { label: string; value: string }[];
 }
@@ -228,10 +229,6 @@ export function start<R>(kernel: GraphKernel<R>, g: Graph, opts: Options, seed =
       if (t.finished) return;
       const until = performance.now() + ms;
       try {
-        if (!kernel.steps) {
-          finish((kernel.run as (o: GraphOps, p: Options) => R)(ops, opts), false);
-          return;
-        }
         gen ??= kernel.steps(ops, opts);
         for (;;) {
           const r = gen.next();

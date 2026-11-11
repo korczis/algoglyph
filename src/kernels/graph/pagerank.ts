@@ -7,16 +7,16 @@ import { pagerank, type RankResult } from './_pagerank';
 export const kernel: GraphKernel<RankResult> = {
   goal: 'pagerank',
   inputs: ['digraph', 'small-world', 'communities', 'random', 'ownership'],
-  n: { min: 3, max: 300, value: 80 },
+  n: { min: 3, max: 150, value: 80 },
   params: [{ kind: 'range', key: 'damping', label: 'Damping d', min: 0.05, max: 0.95, step: 0.05, value: 0.85, rebuild: true }],
   view: { colour: 'value', size: true },
   names: { value: 'Rank' },
   readouts: ['rounds', 'scans', 'change'],
   chart: { title: 'Total change per round (log)', x: 'rounds', y: 'L1 change', series: ['change'], log: true },
   speed: 60,
-  run(ops, { p }) {
+  *steps(ops, { p }) {
     const n = ops.g.n;
-    return pagerank(ops, Number(p.damping), new Array<number>(n).fill(1 / n));
+    return yield* pagerank(ops, Number(p.damping), new Array<number>(n).fill(1 / n));
   },
   report(r) {
     let top = 0;

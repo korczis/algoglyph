@@ -33,13 +33,14 @@ function stillConnected(ops: GraphOps, on: boolean[], end: number, left: number)
 export const kernel: GraphKernel<HamiltonResult> = {
   goal: 'hamilton',
   mayStop: true,
+  cap: 250_000,
   inputs: ['grid', 'small-world', 'geometric', 'random'],
   n: { min: 4, max: 36, value: 16 },
   names: { frontier: 'On the path', tree: 'Path edges', marked: 'Hamilton path' },
   readouts: ['scans', 'frontier', 'discovers', 'rounds'],
   chart: { title: 'Length of the path being tried', y: 'vertices', series: ['frontier'] },
   speed: 2,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const on = new Array<boolean>(g.n).fill(false);
     const deg = new Array<number>(g.n).fill(0);
@@ -56,6 +57,7 @@ export const kernel: GraphKernel<HamiltonResult> = {
       ops.discover(start);
       const options: number[][] = [stillConnected(ops, on, start, g.n - 1) ? choices(start) : []];
       while (path.length) {
+        yield;
         if (path.length === g.n) {
           for (const e of edges) ops.edge(e, E.mark);
           return { path, edges };
@@ -80,6 +82,7 @@ export const kernel: GraphKernel<HamiltonResult> = {
         options.push(stillConnected(ops, on, v, g.n - path.length) ? choices(v) : []);
       }
       ops.round();
+      yield;
     }
     return { path: null, edges: [] };
   },

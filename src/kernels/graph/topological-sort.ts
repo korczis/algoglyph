@@ -13,7 +13,7 @@ export const kernel: GraphKernel<TopoResult> = {
   readouts: ['scans', 'frontier', 'done'],
   chart: { title: 'Vertices placed', y: 'vertices', series: ['done', 'frontier'] },
   speed: 2,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const seen = new Array<boolean>(g.n).fill(false);
     const order = new Array<number>(g.n).fill(-1);
@@ -37,9 +37,11 @@ export const kernel: GraphKernel<TopoResult> = {
           order[pos] = u;
           ops.value(u, pos);
           ops.settle(u);
+          yield;
         }
       }
       ops.round();
+      yield;
     }
     return { order };
   },

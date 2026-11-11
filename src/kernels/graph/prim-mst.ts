@@ -18,7 +18,7 @@ export const kernel: GraphKernel<MstResult> = {
   pick: 's',
   endpoints: 's',
   speed: 3,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const inTree = new Array<boolean>(g.n).fill(false);
     const best = new Array<number>(g.n).fill(-1);
@@ -33,6 +33,7 @@ export const kernel: GraphKernel<MstResult> = {
         const u = pq.pop();
         inTree[u] = true;
         ops.settle(u);
+        yield;
         if (best[u] >= 0) { tree.push(best[u]); ops.edge(best[u], E.tree); }
         for (const e of g.out[u]) {
           ops.scan(e);
@@ -50,6 +51,7 @@ export const kernel: GraphKernel<MstResult> = {
         }
       }
       ops.round();
+      yield;
     }
     return { tree };
   },

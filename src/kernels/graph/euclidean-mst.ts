@@ -14,13 +14,14 @@ export const kernel: GraphKernel<MstResult> = {
   view: { colour: 'group', hidden: true },
   names: { tree: 'Tree edges', groups: 'Fragments' },
   speed: 2,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const id = new Map<number, number>();
     for (let e = 0; e < g.m; e++) id.set(Math.min(g.eu[e], g.ev[e]) * g.n + Math.max(g.eu[e], g.ev[e]), e);
     const cand = delaunayEdges(g.x, g.y).map(([a, b]) => id.get(a * g.n + b) as number);
     for (const e of cand) ops.edge(e, E.seen);
     ops.round();
+    yield;
     const len = (e: number) => Math.hypot(g.x[g.eu[e]] - g.x[g.ev[e]], g.y[g.eu[e]] - g.y[g.ev[e]]);
     cand.sort((a, b) => len(a) - len(b) || a - b);
     const uf = new UnionFind(g.n);
@@ -28,6 +29,7 @@ export const kernel: GraphKernel<MstResult> = {
     const tree: number[] = [];
     for (const e of cand) {
       ops.scan(e);
+      yield;
       if (join(ops, uf, e)) tree.push(e); else ops.edge(e, E.drop);
       if (tree.length === g.n - 1) break;
     }

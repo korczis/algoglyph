@@ -21,7 +21,7 @@ export const kernel: GraphKernel<SirResult> = {
   readouts: ['frontier', 'done', 'maxFrontier', 'rounds', 'scans'],
   chart: { title: 'Susceptible, spreading, recovered', x: 'rounds', y: 'vertices', series: ['unseen', 'frontier', 'done'] },
   speed: 12,
-  run(ops, { s, p }) {
+  *steps(ops, { s, p }) {
     const g = ops.g;
     const beta = Number(p.beta); const gamma = Number(p.gamma);
     const state = new Array<number>(g.n).fill(0);
@@ -47,10 +47,12 @@ export const kernel: GraphKernel<SirResult> = {
       const still: number[] = [];
       for (const u of active) {
         if (ops.rnd() < gamma) { state[u] = 2; recovered[u] = step; ops.settle(u); } else still.push(u);
+        yield;
       }
       for (const v of fresh) ops.discover(v);
       active = [...still, ...fresh];
       ops.round();
+      yield;
     }
     return { infected, recovered, steps: step };
   },

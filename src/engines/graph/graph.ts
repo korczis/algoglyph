@@ -121,15 +121,26 @@ function scatter(n: number, aspect: number, rnd: () => number): { x: number[]; y
 
 const d2 = (x: number[], y: number[], i: number, j: number) => (x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2;
 
-/** Undirected pairs i < j joining each point to its k nearest. */
+/** Undirected pairs i < j joining each point to its k nearest (ties by index). */
 function knn(x: number[], y: number[], k: number, among?: number[]): [number, number][] {
   const ids = among ?? x.map((_, i) => i);
   const seen = new Set<number>();
   const pairs: [number, number][] = [];
   const n = x.length;
+  const best: number[] = []; const bestD: number[] = [];
   for (const i of ids) {
-    const near = ids.filter((j) => j !== i).sort((a, b) => d2(x, y, i, a) - d2(x, y, i, b)).slice(0, k);
-    for (const j of near) {
+    // the k nearest by one pass with a short sorted list, O(n k) per point
+    best.length = 0; bestD.length = 0;
+    for (const j of ids) {
+      if (j === i) continue;
+      const d = d2(x, y, i, j);
+      if (best.length === k && d >= bestD[k - 1]) continue;
+      let at = best.length;
+      while (at > 0 && bestD[at - 1] > d) at--;
+      best.splice(at, 0, j); bestD.splice(at, 0, d);
+      if (best.length > k) { best.pop(); bestD.pop(); }
+    }
+    for (const j of best) {
       const key = Math.min(i, j) * n + Math.max(i, j);
       if (!seen.has(key)) { seen.add(key); pairs.push([Math.min(i, j), Math.max(i, j)]); }
     }
@@ -253,18 +264,23 @@ function noisy(name: string, rnd: () => number): string {
   return c.join('');
 }
 
-/** Jaccard similarity of the character trigrams of two names (padded with spaces). */
-export function trigramJaccard(a: string, b: string): number {
-  const grams = (s: string) => {
-    const p = `  ${s.toLowerCase()} `;
-    const g = new Set<string>();
-    for (let i = 0; i + 3 <= p.length; i++) g.add(p.slice(i, i + 3));
-    return g;
-  };
-  const A = grams(a); const B = grams(b);
+/** The character trigrams of a name, padded with spaces. */
+function trigrams(s: string): Set<string> {
+  const p = `  ${s.toLowerCase()} `;
+  const g = new Set<string>();
+  for (let i = 0; i + 3 <= p.length; i++) g.add(p.slice(i, i + 3));
+  return g;
+}
+
+function jaccard(A: Set<string>, B: Set<string>): number {
   let inter = 0;
   for (const t of A) if (B.has(t)) inter++;
   return inter / (A.size + B.size - inter || 1);
+}
+
+/** Jaccard similarity of the character trigrams of two names (padded with spaces). */
+export function trigramJaccard(a: string, b: string): number {
+  return jaccard(trigrams(a), trigrams(b));
 }
 
 /** A seeded graph of the given shape with about n vertices. */
@@ -568,9 +584,10 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       const x = truth.map((ent) => M + ((aspect - 2 * M) * ((ent % cols) + 0.5)) / cols + (rnd() - 0.5) * (0.5 * aspect) / cols);
       const y = truth.map((ent) => M + ((1 - 2 * M) * (Math.floor(ent / cols) + 0.5)) / rows + (rnd() - 0.5) * 0.5 / rows);
       const edges: Edge[] = [];
+      const grams = names.map(trigrams);
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
-          const sim = trigramJaccard(names[i], names[j]);
+          const sim = jaccard(grams[i], grams[j]);
           if (sim >= 0.2) edges.push([i, j, Math.round(sim * 100) / 100]);
         }
       }

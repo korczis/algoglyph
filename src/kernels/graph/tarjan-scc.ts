@@ -14,7 +14,7 @@ export const kernel: GraphKernel<SccResult> = {
   readouts: ['scans', 'frontier', 'done', 'groups'],
   chart: { title: 'Vertices waiting on the component stack', y: 'vertices', series: ['frontier', 'done'] },
   speed: 3,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const disc = new Array<number>(g.n).fill(-1);
     const low = new Array<number>(g.n).fill(0);
@@ -56,6 +56,7 @@ export const kernel: GraphKernel<SccResult> = {
               comp[w] = k;
               ops.group(w, k);
               ops.settle(w);
+              yield;
               if (w === u) break;
             }
             k++;
@@ -63,6 +64,7 @@ export const kernel: GraphKernel<SccResult> = {
         }
       }
       ops.round();
+      yield;
     }
     return { comp };
   },

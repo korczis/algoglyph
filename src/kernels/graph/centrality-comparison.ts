@@ -46,6 +46,7 @@ export const kernel: GraphKernel<CentralityResult> = {
       ops.value(v, degree[v]);
     }
     ops.round();
+    yield;
     const closeness = new Array<number>(n).fill(0);
     for (let s = 0; s < n; s++) {
       const dist = new Array<number>(n).fill(-1);
@@ -66,6 +67,7 @@ export const kernel: GraphKernel<CentralityResult> = {
       yield;
     }
     ops.round();
+    yield;
     for (let v = 0; v < n; v++) ops.vertex(v, V.unseen);
     let x = new Array<number>(n).fill(1 / Math.sqrt(n));
     let lambda = 0; let iterations = 0; let converged = false;

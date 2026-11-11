@@ -17,7 +17,7 @@ export const kernel: GraphKernel<EgoResult> = {
   readouts: ['scans', 'done', 'frontier', 'rounds'],
   chart: { title: 'Vertices revealed, ring by ring', x: 'rounds', y: 'vertices', series: ['done', 'frontier'] },
   speed: 2,
-  run(ops, { s, p }) {
+  *steps(ops, { s, p }) {
     const g = ops.g;
     const k = Number(p.k);
     const hop = new Array<number>(g.n).fill(-1);
@@ -29,6 +29,7 @@ export const kernel: GraphKernel<EgoResult> = {
       const next: number[] = [];
       for (const u of ring) {
         ops.settle(u);
+        yield;
         for (const e of g.out[u]) {
           ops.scan(e);
           const v = other(g, e, u);
@@ -42,6 +43,7 @@ export const kernel: GraphKernel<EgoResult> = {
       }
       ring = next;
       ops.round();
+      yield;
     }
     for (let v = 0; v < g.n; v++) if (hop[v] < 0) ops.vertex(v, V.dim);
     for (let e = 0; e < g.m; e++) if (hop[g.eu[e]] < 0 || hop[g.ev[e]] < 0) ops.edge(e, E.drop);

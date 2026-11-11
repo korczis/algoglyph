@@ -14,8 +14,8 @@ export const kernel: GraphKernel<Sssp> = {
   readouts: ['scans', 'relaxations', 'done', 'frontier', 'maxFrontier'],
   chart: { title: 'Settled vertices and the queue', y: 'vertices', series: ['done', 'frontier'] },
   speed: 3,
-  run(ops, { s }) {
-    return dijkstra(ops, s, (e) => ops.g.w[e]);
+  *steps(ops, { s }) {
+    return yield* dijkstra(ops, s, (e) => ops.g.w[e]);
   },
   report(r) {
     const fin = r.dist.filter(Number.isFinite);

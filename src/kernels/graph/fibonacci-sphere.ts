@@ -26,7 +26,7 @@ export const kernel: GraphKernel<SphereResult> = {
   readouts: ['places', 'done', 'scans'],
   chart: { title: 'Vertices placed', y: 'vertices', series: ['done'] },
   speed: 2,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const slot = new Array<number>(g.n).fill(-1);
     const x: number[] = []; const y: number[] = []; const z: number[] = [];
@@ -43,6 +43,7 @@ export const kernel: GraphKernel<SphereResult> = {
         x[u] = px; y[u] = py; z[u] = pz;
         ops.place(u, px, py, pz);
         ops.settle(u);
+        yield;
         for (const e of g.out[u]) {
           ops.scan(e);
           const v = other(g, e, u);

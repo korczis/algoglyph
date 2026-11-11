@@ -16,7 +16,7 @@ export const kernel: GraphKernel<DagSpResult> = {
   readouts: ['scans', 'relaxations', 'done', 'rounds'],
   chart: { title: 'Ordering, then one relaxation pass', y: 'vertices', series: ['frontier', 'done'] },
   speed: 3,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const indeg = new Array<number>(g.n).fill(0);
     for (let e = 0; e < g.m; e++) { ops.scan(e); indeg[g.ev[e]]++; }
@@ -29,12 +29,14 @@ export const kernel: GraphKernel<DagSpResult> = {
       }
     }
     ops.round();
+    yield;
     const dist = new Array<number>(g.n).fill(Infinity);
     const parentEdge = new Array<number>(g.n).fill(-1);
     dist[s] = 0;
     ops.value(s, 0);
     for (const u of order) {
       ops.settle(u);
+      yield;
       if (!Number.isFinite(dist[u])) continue;
       for (const e of g.out[u]) {
         ops.scan(e);
@@ -49,6 +51,7 @@ export const kernel: GraphKernel<DagSpResult> = {
       }
     }
     ops.round();
+    yield;
     return { dist, parentEdge, order };
   },
   report(r) {

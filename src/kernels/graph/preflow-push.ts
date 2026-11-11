@@ -14,7 +14,7 @@ export const kernel: GraphKernel<FlowResult> = {
   readouts: ['flow', 'frontier', 'values', 'flows', 'scans'],
   chart: { title: 'Active vertices', y: 'vertices', series: ['frontier'] },
   speed: 16,
-  run(ops, { s, t }) {
+  *steps(ops, { s, t }) {
     const g = ops.g;
     const f = new Array<number>(g.m).fill(0);
     const h = new Array<number>(g.n).fill(0);
@@ -57,6 +57,7 @@ export const kernel: GraphKernel<FlowResult> = {
       }
       ops.vertex(u, V.unseen);
       ops.round();
+      yield;
     }
     const side = minCut(ops, f, s);
     for (let v = 0; v < g.n; v++) if (side[v]) ops.vertex(v, V.done);

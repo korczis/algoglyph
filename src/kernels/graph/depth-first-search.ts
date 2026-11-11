@@ -16,7 +16,7 @@ export const kernel: GraphKernel<DfsResult> = {
   readouts: ['scans', 'done', 'frontier', 'maxFrontier', 'tree'],
   chart: { title: 'Depth of the stack', y: 'vertices', series: ['frontier', 'done'] },
   speed: 3,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const pre = new Array<number>(g.n).fill(-1);
     const post = new Array<number>(g.n).fill(-1);
@@ -52,9 +52,11 @@ export const kernel: GraphKernel<DfsResult> = {
           stack.pop();
           post[u] = finished++;
           ops.settle(u);
+          yield;
         }
       }
       ops.round();
+      yield;
     }
     return { pre, post, parent, back };
   },

@@ -15,7 +15,7 @@ export const kernel: GraphKernel<WavesResult> = {
   readouts: ['scans', 'rounds', 'frontier', 'maxFrontier', 'done'],
   chart: { title: 'Wave sizes', x: 'rounds', y: 'vertices', series: ['frontier', 'done'] },
   speed: 2,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const indeg = new Array<number>(g.n).fill(0);
     for (let e = 0; e < g.m; e++) { ops.scan(e); indeg[g.ev[e]]++; }
@@ -24,11 +24,13 @@ export const kernel: GraphKernel<WavesResult> = {
     let current: number[] = [];
     for (let v = 0; v < g.n; v++) if (!indeg[v]) { current.push(v); wave[v] = 0; ops.group(v, 0); ops.discover(v); }
     ops.round();
+    yield;
     for (let w = 0; current.length; w++) {
       const next: number[] = [];
       for (const u of current) {
         order.push(u);
         ops.settle(u);
+        yield;
         for (const e of g.out[u]) {
           ops.scan(e);
           const v = g.ev[e];
@@ -37,6 +39,7 @@ export const kernel: GraphKernel<WavesResult> = {
       }
       current = next;
       ops.round();
+      yield;
     }
     return { wave, order };
   },

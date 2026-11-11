@@ -5,7 +5,8 @@ import type { GraphOps } from '../../engines/graph/trace';
 
 export interface RankResult { rank: number[]; rounds: number }
 
-export function pagerank(ops: GraphOps, d: number, teleport: number[], tol = 1e-12, maxRounds = 1000): RankResult {
+export function* pagerank(ops: GraphOps, d: number, teleport: number[], tol = 1e-12,
+  maxRounds = 1000): Generator<void, RankResult, void> {
   const g = ops.g;
   const n = g.n;
   const outdeg = new Array<number>(n).fill(0);
@@ -31,6 +32,7 @@ export function pagerank(ops: GraphOps, d: number, teleport: number[], tol = 1e-
     r = next;
     rounds++;
     ops.round();
+    yield;
     if (moved < tol) break;
   }
   return { rank: r, rounds };

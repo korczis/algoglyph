@@ -13,7 +13,7 @@ export const kernel: GraphKernel<MstResult> = {
   readouts: ['scans', 'tree', 'treeWeight', 'groups', 'rounds'],
   chart: { title: 'Fragments, round by round', x: 'rounds', y: 'count', series: ['groups', 'tree'] },
   speed: 6,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const uf = new UnionFind(g.n);
     for (let v = 0; v < g.n; v++) ops.group(v, v);
@@ -31,6 +31,7 @@ export const kernel: GraphKernel<MstResult> = {
       if (!cheapest.size) break;
       for (const e of new Set(cheapest.values())) if (join(ops, uf, e)) tree.push(e);
       ops.round();
+      yield;
     }
     return { tree };
   },

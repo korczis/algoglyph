@@ -16,7 +16,7 @@ export const kernel: GraphKernel<BfsResult> = {
   readouts: ['scans', 'done', 'frontier', 'maxFrontier', 'rounds'],
   chart: { title: 'The frontier, level by level', y: 'vertices', series: ['frontier', 'done'] },
   speed: 3,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const dist = new Array<number>(g.n).fill(-1);
     const parent = new Array<number>(g.n).fill(-1);
@@ -28,7 +28,9 @@ export const kernel: GraphKernel<BfsResult> = {
     for (let head = 0; head < queue.length; head++) {
       const u = queue[head];
       if (dist[u] > level) { level = dist[u]; ops.round(); }
+      yield;
       ops.settle(u);
+      yield;
       for (const e of g.out[u]) {
         ops.scan(e);
         const v = other(g, e, u);
@@ -42,6 +44,7 @@ export const kernel: GraphKernel<BfsResult> = {
       }
     }
     ops.round();
+    yield;
     return { dist, parent };
   },
   report(r) {

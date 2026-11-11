@@ -16,7 +16,7 @@ export const kernel: GraphKernel<LabelsResult> = {
   readouts: ['rounds', 'groups', 'modularity', 'scans'],
   chart: { title: 'Labels in use', x: 'rounds', y: 'labels', series: ['groups'] },
   speed: 6,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const label = Array.from({ length: g.n }, (_, v) => v);
     for (let v = 0; v < g.n; v++) ops.group(v, v);
@@ -45,6 +45,7 @@ export const kernel: GraphKernel<LabelsResult> = {
         changed++;
       }
       ops.round();
+      yield;
       if (!changed) { converged = true; break; }
     }
     return { label, rounds, converged };

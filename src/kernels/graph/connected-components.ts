@@ -13,7 +13,7 @@ export const kernel: GraphKernel<ComponentsResult> = {
   readouts: ['scans', 'done', 'groups'],
   chart: { title: 'Labelling progress', y: 'vertices', series: ['done', 'frontier'] },
   speed: 3,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const comp = new Array<number>(g.n).fill(-1);
     let k = 0;
@@ -26,6 +26,7 @@ export const kernel: GraphKernel<ComponentsResult> = {
       while (stack.length) {
         const u = stack.pop() as number;
         ops.settle(u);
+        yield;
         for (const e of g.out[u]) {
           ops.scan(e);
           const v = other(g, e, u);
@@ -39,6 +40,7 @@ export const kernel: GraphKernel<ComponentsResult> = {
       }
       k++;
       ops.round();
+      yield;
     }
     return { comp };
   },

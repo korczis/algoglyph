@@ -26,10 +26,10 @@ export const kernel: GraphKernel<CredibleResult> = {
   readouts: ['scans', 'relaxations', 'done', 'frontier'],
   chart: { title: 'Settled vertices and the queue', y: 'vertices', series: ['done', 'frontier'] },
   speed: 3,
-  run(ops, { s, t, p }) {
+  *steps(ops, { s, t, p }) {
     const g = ops.g;
     const rule = String(p.cost);
-    const { dist, parentEdge } = dijkstra(ops, s, (e) => credibleCost(g.w[e], rule), { target: t });
+    const { dist, parentEdge } = yield* dijkstra(ops, s, (e) => credibleCost(g.w[e], rule), { target: t });
     const path = pathTo(g, parentEdge, s, t);
     let confidence = 0;
     if (path) {

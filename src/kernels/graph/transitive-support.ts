@@ -18,7 +18,7 @@ export const kernel: GraphKernel<SupportResult> = {
   readouts: ['scans', 'done', 'tree', 'rounds'],
   chart: { title: 'Search, then lines of support', x: 'rounds', y: 'count', series: ['done', 'tree'] },
   speed: 2,
-  run(ops, { t }) {
+  *steps(ops, { t }) {
     const g = ops.g;
     const n = g.n;
     // under the conclusion: reverse BFS over in-edges
@@ -29,6 +29,7 @@ export const kernel: GraphKernel<SupportResult> = {
     for (let h = 0; h < queue.length; h++) {
       const u = queue[h];
       ops.settle(u);
+      yield;
       for (const e of g.in[u]) {
         ops.scan(e);
         const v = g.eu[e];
@@ -40,6 +41,7 @@ export const kernel: GraphKernel<SupportResult> = {
       }
     }
     ops.round();
+    yield;
     const support = queue.slice(1);
     const evidence = support.filter((v) => g.in[v].length === 0);
     for (const v of support) ops.parent(v, -1);
@@ -81,6 +83,7 @@ export const kernel: GraphKernel<SupportResult> = {
       }
       lines++;
       ops.round();
+      yield;
     }
     // read the lines off the flow: original edges whose arc is used (residual capacity 0)
     const used = (e: number) => {

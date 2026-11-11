@@ -14,7 +14,7 @@ export const kernel: GraphKernel<ApspResult> = {
   readouts: ['cells', 'rounds', 'done'],
   chart: { title: 'Finite entries of the distance matrix', x: 'rounds', y: 'pairs', series: ['cells'] },
   speed: 4,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const n = g.n;
     const d = new Float64Array(n * n).fill(Infinity);
@@ -27,6 +27,7 @@ export const kernel: GraphKernel<ApspResult> = {
       if (!g.directed && w < d[v * n + u]) set(v, u, w);
     }
     ops.round();
+    yield;
     for (let k = 0; k < n; k++) {
       ops.discover(k);
       for (let i = 0; i < n; i++) {
@@ -38,7 +39,9 @@ export const kernel: GraphKernel<ApspResult> = {
         }
       }
       ops.settle(k);
+      yield;
       ops.round();
+      yield;
     }
     let negative = false;
     for (let v = 0; v < n; v++) if (d[v * n + v] < 0) { negative = true; ops.vertex(v, V.mark); }

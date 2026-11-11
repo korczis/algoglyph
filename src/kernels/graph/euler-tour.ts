@@ -16,7 +16,7 @@ export const kernel: GraphKernel<EulerResult> = {
   readouts: ['scans', 'tree', 'frontier', 'done'],
   chart: { title: 'Edges walked and edges in the tour', y: 'edges', series: ['tree'] },
   speed: 2,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const used = new Array<boolean>(g.m).fill(false);
     const next = new Array<number>(g.n).fill(0);
@@ -43,6 +43,7 @@ export const kernel: GraphKernel<EulerResult> = {
         tour.push(v);
         if (f >= 0) { edges.push(f); ops.edge(f, E.mark); }
         if (!stack.includes(v)) ops.settle(v);
+        yield;
       }
     }
     tour.reverse(); edges.reverse();

@@ -880,10 +880,13 @@ describe('graph kernels at their maximum size', () => {
     if (kernel.mayStop) continue;
     it(`${e.id} finishes on every input and seed, within the memory bound`, () => {
       const n = kernel.n?.max ?? 240;
+      // the kernel's own controls at their heaviest: every range at its maximum
+      const p = defaultParams(kernel);
+      for (const d of kernel.params ?? []) if (d.kind === 'range') p[d.key] = d.max;
       for (const shape of kernel.inputs) {
         for (const seed of [1, 2, 3, 4]) {
           const g = makeGraph(shape, n, seed);
-          const t = trace(kernel, g, { s: g.s, t: g.t, p: defaultParams(kernel) }, seed);
+          const t = trace(kernel, g, { s: g.s, t: g.t, p }, seed);
           expect(t.truncated, `${shape} n=${n} seed=${seed}`).toBe(false);
           expect(t.length, `${shape} n=${n} seed=${seed} events`).toBeLessThanOrEqual(MAX_EVENTS);
           expect(t.events.length).toBe(5 * t.length);

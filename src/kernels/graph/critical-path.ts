@@ -16,7 +16,7 @@ export const kernel: GraphKernel<CpmResult> = {
   readouts: ['scans', 'frontier', 'done', 'marked'],
   chart: { title: 'Forward, then backward pass', y: 'tasks', series: ['frontier', 'done', 'marked'] },
   speed: 2,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const n = g.n;
     const indeg = new Array<number>(n).fill(0);
@@ -45,6 +45,7 @@ export const kernel: GraphKernel<CpmResult> = {
       slack[u] = lf[u] - g.vw[u] - es[u];
       ops.value(u, slack[u]);
       ops.settle(u);
+      yield;
     }
     for (let v = 0; v < n; v++) if (slack[v] === 0) ops.vertex(v, V.mark);
     for (let e = 0; e < g.m; e++) {

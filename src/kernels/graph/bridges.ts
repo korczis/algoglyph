@@ -15,10 +15,10 @@ export const kernel: GraphKernel<BridgesResult> = {
   readouts: ['scans', 'done', 'tree'],
   chart: { title: 'Depth of the stack', y: 'vertices', series: ['frontier', 'done'] },
   speed: 3,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const bridge = new Array<boolean>(g.m).fill(false);
-    lowLink(ops, s, { child: (u, v, e, l) => { if (l.low[v] > l.disc[u]) bridge[e] = true; } });
+    yield* lowLink(ops, s, { child: (u, v, e, l) => { if (l.low[v] > l.disc[u]) bridge[e] = true; } });
     for (let e = 0; e < g.m; e++) if (bridge[e]) ops.edge(e, E.cut);
     return { bridge };
   },

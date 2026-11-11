@@ -13,7 +13,7 @@ export const kernel: GraphKernel<CyclesResult> = {
   readouts: ['scans', 'frontier', 'done', 'marked'],
   chart: { title: 'Grey and black vertices', y: 'vertices', series: ['frontier', 'done'] },
   speed: 2,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const colour = new Array<number>(g.n).fill(0);
     const via = new Array<number>(g.n).fill(-1);
@@ -50,9 +50,11 @@ export const kernel: GraphKernel<CyclesResult> = {
           stack.pop();
           colour[u] = 2;
           ops.settle(u);
+          yield;
         }
       }
       ops.round();
+      yield;
     }
     for (const w of onCycle) ops.vertex(w, V.mark);
     return { cycles, edges: cycleEdges };

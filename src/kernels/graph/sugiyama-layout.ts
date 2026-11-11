@@ -47,7 +47,7 @@ export const kernel: GraphKernel<LayeredResult> = {
   names: { groups: 'Layers', done: 'Layered' },
   readouts: ['rounds', 'places', 'groups', 'scans'],
   speed: 6,
-  run(ops, { p }) {
+  *steps(ops, { p }) {
     const g = ops.g;
     const n = g.n;
     // 1. break cycles: reverse every back edge of a DFS
@@ -81,6 +81,7 @@ export const kernel: GraphKernel<LayeredResult> = {
       const u = queue[h];
       ops.group(u, layer[u]);
       ops.settle(u);
+      yield;
       for (const e of outs[u]) {
         ops.scan(e);
         const v = to(e);
@@ -89,6 +90,7 @@ export const kernel: GraphKernel<LayeredResult> = {
       }
     }
     ops.round();
+    yield;
     // 3. dummy nodes for long edges
     const segs: [number, number][] = [];
     let next = n;
@@ -115,6 +117,7 @@ export const kernel: GraphKernel<LayeredResult> = {
       ops.round();
     };
     place();
+    yield;
     const initial = crossings(segs, layer, pos);
     let best = initial;
     let bestOrders = orders.map((o) => o.slice());
@@ -135,10 +138,12 @@ export const kernel: GraphKernel<LayeredResult> = {
       const c = crossings(segs, layer, pos);
       if (c < best) { best = c; bestOrders = orders.map((o) => o.slice()); }
       place();
+      yield;
     }
     for (let l = 0; l < L; l++) orders[l] = bestOrders[l];
     index();
     place();
+    yield;
     return { layer, orders: bestOrders, segs, crossings: best, initial, reversed: rev.map((r, e) => (r ? e : -1)).filter((e) => e >= 0) };
   },
   report(r) {

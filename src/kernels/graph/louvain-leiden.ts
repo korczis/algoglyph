@@ -33,7 +33,8 @@ function paint(ops: GraphOps, L: Level, a: number, c: number, label: number[]): 
  * modularity gain k_{a,C} - tot_C k_a / 2m (their own community after removal included; ties
  * keep it), sweeping until a sweep moves nothing. Returns whether anything moved.
  */
-function moveNodes(ops: GraphOps, L: Level, comm: number[], m2: number, label: number[], level0: boolean): boolean {
+function* moveNodes(ops: GraphOps, L: Level, comm: number[], m2: number, label: number[],
+  level0: boolean): Generator<void, boolean, void> {
   const g = ops.g;
   const tot = new Array<number>(L.n).fill(0);
   for (let a = 0; a < L.n; a++) tot[comm[a]] += L.k[a];
@@ -68,6 +69,7 @@ function moveNodes(ops: GraphOps, L: Level, comm: number[], m2: number, label: n
       }
     }
     ops.round();
+    yield;
     if (!moved) break;
     movedAny = true;
   }
@@ -162,7 +164,7 @@ export const kernel: GraphKernel<CommunitiesResult> = {
   readouts: ['rounds', 'groups', 'modularity', 'scans'],
   chart: { title: 'Modularity, sweep by sweep', x: 'rounds', y: 'Q', series: ['modularity'] },
   speed: 4,
-  run(ops, { p }) {
+  *steps(ops, { p }) {
     const g = ops.g;
     const leiden = p.method === 'leiden';
     let L: Level = {
@@ -183,7 +185,7 @@ export const kernel: GraphKernel<CommunitiesResult> = {
     let comm = Array.from({ length: L.n }, (_, a) => a);
     let levels = 0;
     for (; levels < 50; levels++) {
-      moveNodes(ops, L, comm, m2, label, levels === 0);
+      yield* moveNodes(ops, L, comm, m2, label, levels === 0);
       const count = new Set(comm).size;
       if (count === L.n) break;
       let part = comm;

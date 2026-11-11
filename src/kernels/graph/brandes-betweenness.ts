@@ -33,6 +33,7 @@ export const kernel: GraphKernel<BetweennessResult> = {
         const u = queue[h];
         order.push(u);
         ops.settle(u);
+        yield;
         for (const e of g.out[u]) {
           ops.scan(e);
           const w = other(g, e, u);

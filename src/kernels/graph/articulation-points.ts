@@ -16,13 +16,13 @@ export const kernel: GraphKernel<ArticulationResult> = {
   readouts: ['scans', 'done', 'marked', 'tree'],
   chart: { title: 'Depth of the stack', y: 'vertices', series: ['frontier', 'done'] },
   speed: 3,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const cut = new Array<boolean>(g.n).fill(false);
     const block = new Array<number>(g.m).fill(-1);
     const stacked: number[] = [];
     let blocks = 0;
-    const ll = lowLink(ops, s, {
+    const ll = yield* lowLink(ops, s, {
       edge: (e) => { stacked.push(e); },
       child: (u, v, e, l) => {
         if (l.low[v] < l.disc[u]) return;

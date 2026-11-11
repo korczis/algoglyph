@@ -50,7 +50,6 @@ class Replay {
   lastV = -1;
   lastCell: [number, number] = [-1, -1];
   history: number[][] = [];
-  private every: number;
   constructor(readonly t: Trace, readonly kernel: GraphKernel) {
     const g = t.g;
     this.g = g;
@@ -66,7 +65,6 @@ class Replay {
     this.byState[V.unseen] = g.n;
     const mv = kernel.view?.matrix;
     this.mat = mv ? new Float64Array(g.n * g.n).fill(mv === 'distance' ? Infinity : 0) : null;
-    this.every = Math.max(1, Math.floor(t.length / 150));
     this.sample();
   }
   /** Everything replayed, and nothing left to compute. */
@@ -89,6 +87,8 @@ class Replay {
     const ev = this.t.events;
     const end = Math.min(this.t.length, this.at + steps);
     const byRounds = this.kernel.chart?.x === 'rounds';
+    // about 150 chart points over the run; while it is still computing, over what exists so far
+    const every = Math.max(1, Math.floor(this.t.length / 150));
     for (; this.at < end; this.at++) {
       const o = W * this.at;
       const op = ev[o]; const a = ev[o + 1]; const b = ev[o + 2]; const x = ev[o + 3]; const y = ev[o + 4];
@@ -146,7 +146,7 @@ class Replay {
           if (byRounds) this.sample();
           break;
       }
-      if ((!byRounds && (this.at + 1) % this.every === 0)) this.sample(this.at + 1);
+      if (!byRounds && (this.at + 1) % every === 0) this.sample(this.at + 1);
     }
     if (!this.t.finished) return;
     if (this.done && this.history.length && this.history[this.history.length - 1][0] !== (byRounds ? this.c.rounds : this.t.length)) {
@@ -468,7 +468,7 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
       let g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed, aspectOf(kernel));
       let running: Running;
       const run = () => {
-        running = start(kernel, g, options(kernel, g, ctx, pick), ctx.seed + generation);
+        running = start(kernel, g, options(kernel, g, ctx, pick), ctx.seed + generation, kernel.cap);
         // a thumbnail needs the whole run; the live plate computes a slice per frame
         running.step(ctx.thumbnail ? Infinity : SLICE_MS);
         return new Replay(running.t, kernel);

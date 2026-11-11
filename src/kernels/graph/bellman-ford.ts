@@ -17,13 +17,14 @@ export const kernel: GraphKernel<BellmanResult> = {
   readouts: ['relaxations', 'rounds', 'done', 'change'],
   chart: { title: 'Distance improvements per round', x: 'rounds', y: 'total decrease', series: ['change'] },
   speed: 6,
-  run(ops, { s }) {
+  *steps(ops, { s }) {
     const g = ops.g;
     const dist = new Array<number>(g.n).fill(Infinity);
     const parentEdge = new Array<number>(g.n).fill(-1);
     dist[s] = 0;
     ops.value(s, 0);
     ops.settle(s);
+    yield;
     const arcs: [number, number, number][] = [];
     for (let e = 0; e < g.m; e++) {
       arcs.push([e, g.eu[e], g.ev[e]]);
@@ -40,11 +41,13 @@ export const kernel: GraphKernel<BellmanResult> = {
         ops.relax(e, improved);
         if (!improved) continue;
         if (!Number.isFinite(dist[v])) ops.settle(v);
+        yield;
         dist[v] = d; parentEdge[v] = e; changed = v;
         ops.value(v, d);
         ops.parent(v, e);
       }
       ops.round();
+      yield;
       if (changed < 0) break;
       if (round === g.n - 1) last = changed;
     }

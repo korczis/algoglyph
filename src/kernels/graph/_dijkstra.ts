@@ -7,10 +7,10 @@ import { IndexHeap } from './_heap';
 
 export interface Sssp { dist: number[]; parentEdge: number[] }
 
-export function dijkstra(ops: GraphOps, s: number, cost: (e: number) => number, opts: {
+export function* dijkstra(ops: GraphOps, s: number, cost: (e: number) => number, opts: {
   target?: number; bannedEdge?: (e: number) => boolean; bannedVertex?: (v: number) => boolean;
   draw?: boolean;
-} = {}): Sssp {
+} = {}): Generator<void, Sssp, void> {
   const g = ops.g;
   const draw = opts.draw ?? true;
   const dist = new Array<number>(g.n).fill(Infinity);
@@ -25,6 +25,7 @@ export function dijkstra(ops: GraphOps, s: number, cost: (e: number) => number, 
     const u = pq.pop();
     done[u] = true;
     ops.settle(u);
+    yield;
     if (u === opts.target) break;
     for (const e of g.out[u]) {
       if (opts.bannedEdge?.(e)) continue;

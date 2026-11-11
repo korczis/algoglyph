@@ -14,7 +14,7 @@ export const kernel: GraphKernel<SccResult> = {
   readouts: ['scans', 'done', 'groups', 'rounds'],
   chart: { title: 'Two passes over the vertices', y: 'vertices', series: ['done', 'frontier'] },
   speed: 4,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const seen = new Array<boolean>(g.n).fill(false);
     const post: number[] = [];
@@ -36,10 +36,12 @@ export const kernel: GraphKernel<SccResult> = {
           stack.pop();
           post.push(u);
           ops.settle(u);
+          yield;
         }
       }
     }
     ops.round();
+    yield;
     for (let v = 0; v < g.n; v++) ops.vertex(v, V.unseen);
     // pass 2: DFS on the graph in reverse postorder; each tree is a strong component
     const comp = new Array<number>(g.n).fill(-1);
@@ -54,6 +56,7 @@ export const kernel: GraphKernel<SccResult> = {
       while (stack.length) {
         const u = stack.pop() as number;
         ops.settle(u);
+        yield;
         for (const e of g.out[u]) {
           ops.scan(e);
           const v = g.ev[e];
@@ -68,6 +71,7 @@ export const kernel: GraphKernel<SccResult> = {
       k++;
     }
     ops.round();
+    yield;
     return { comp };
   },
   report(r) {

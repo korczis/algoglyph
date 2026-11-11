@@ -18,7 +18,7 @@ export const kernel: GraphKernel<OwnershipResult> = {
   readouts: ['rounds', 'scans', 'values', 'change'],
   chart: { title: 'Change per round', x: 'rounds', y: 'total change', series: ['change'], log: true },
   speed: 30,
-  run(ops, { t }) {
+  *steps(ops, { t }) {
     const g = ops.g;
     let e = new Array<number>(g.n).fill(0);
     e[t] = 1;
@@ -35,6 +35,7 @@ export const kernel: GraphKernel<OwnershipResult> = {
       }
       e = next;
       ops.round();
+      yield;
       if (moved < 1e-12) break;
     }
     return { eff: e, rounds };

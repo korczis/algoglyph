@@ -18,7 +18,7 @@ export const kernel: GraphKernel<MergeResult> = {
   readouts: ['scans', 'tree', 'groups'],
   chart: { title: 'Clusters as matches are merged', y: 'count', series: ['groups', 'tree'] },
   speed: 1,
-  run(ops, { p }) {
+  *steps(ops, { p }) {
     const g = ops.g;
     const th = Number(p.threshold);
     const uf = new UnionFind(g.n);
@@ -26,6 +26,7 @@ export const kernel: GraphKernel<MergeResult> = {
     const order = Array.from({ length: g.m }, (_, e) => e).sort((a, b) => g.w[b] - g.w[a] || a - b);
     for (const e of order) {
       ops.scan(e);
+      yield;
       if (g.w[e] < th) { ops.edge(e, E.drop); continue; }
       const r = uf.union(g.eu[e], g.ev[e]);
       if (!r) { ops.edge(e, E.seen); continue; }

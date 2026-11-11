@@ -14,7 +14,7 @@ export const kernel: GraphKernel<MatchingResult> = {
   readouts: ['tree', 'scans', 'rounds', 'done'],
   chart: { title: 'Size of the matching', x: 'rounds', y: 'edges', series: ['tree'] },
   speed: 1,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const mate = new Array<number>(g.n).fill(-1);
     const mateEdge = new Array<number>(g.n).fill(-1);
@@ -54,10 +54,12 @@ export const kernel: GraphKernel<MatchingResult> = {
           mate[u] = r; mate[r] = u; mateEdge[u] = e; mateEdge[r] = e;
           ops.edge(e, E.tree);
           ops.settle(u); ops.settle(r);
+          yield;
           r = prev;
         }
       } else for (const v of seen) if (mate[v] >= 0) ops.vertex(mate[v], V.done);
       ops.round();
+      yield;
     }
     return { mate };
   },

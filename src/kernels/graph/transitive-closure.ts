@@ -13,7 +13,7 @@ export const kernel: GraphKernel<ClosureResult> = {
   readouts: ['cells', 'rounds', 'done'],
   chart: { title: 'Pairs known to be reachable', x: 'rounds', y: 'pairs', series: ['cells'] },
   speed: 4,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const n = g.n;
     const reach = new Uint8Array(n * n);
@@ -25,6 +25,7 @@ export const kernel: GraphKernel<ClosureResult> = {
     for (let v = 0; v < n; v++) set(v, v);
     for (let e = 0; e < g.m; e++) { ops.scan(e); set(g.eu[e], g.ev[e]); }
     ops.round();
+    yield;
     for (let k = 0; k < n; k++) {
       ops.discover(k);
       for (let i = 0; i < n; i++) {
@@ -32,7 +33,9 @@ export const kernel: GraphKernel<ClosureResult> = {
         for (let j = 0; j < n; j++) if (reach[k * n + j]) set(i, j);
       }
       ops.settle(k);
+      yield;
       ops.round();
+      yield;
     }
     return { reach };
   },

@@ -12,10 +12,10 @@ export interface LowLink {
   isRoot: boolean[];
 }
 
-export function lowLink(ops: GraphOps, start: number, hooks: {
+export function* lowLink(ops: GraphOps, start: number, hooks: {
   edge?(e: number, ll: LowLink): void;
   child?(u: number, v: number, e: number, ll: LowLink): void;
-}): LowLink {
+}): Generator<void, LowLink, void> {
   const g = ops.g;
   const ll: LowLink = {
     disc: new Array<number>(g.n).fill(-1),
@@ -59,6 +59,7 @@ export function lowLink(ops: GraphOps, start: number, hooks: {
       } else {
         stack.pop();
         ops.settle(u);
+        yield;
         if (stack.length) {
           const p = stack[stack.length - 1][0];
           if (low[u] < low[p]) { low[p] = low[u]; ops.value(p, low[p]); }
@@ -67,6 +68,7 @@ export function lowLink(ops: GraphOps, start: number, hooks: {
       }
     }
     ops.round();
+    yield;
   }
   return ll;
 }

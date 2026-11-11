@@ -19,7 +19,7 @@ export const kernel: GraphKernel<MinCostResult> = {
   speed: 40,
   *steps(ops, { s, t }) {
     const g = ops.g;
-    const { flow: f, value } = augmentingPaths(ops, s, t, 'bfs');
+    const { flow: f, value } = yield* augmentingPaths(ops, s, t, 'bfs');
     const costOf = (a: Arc) => (a.fwd ? g.cost[a.e] : -g.cost[a.e]);
     let cancelled = 0;
     for (;;) {
