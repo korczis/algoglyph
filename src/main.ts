@@ -3,6 +3,7 @@ import Alpine from 'alpinejs';
 import 'flowbite';
 import { defaults, type Category, type ParamDef, type Params, type Plate, type Stat,
   type Theme } from './core/plate';
+import { factCards, facts, pick, prose, spread } from './core/facts';
 import { freshSeed } from './core/random';
 import { Stage, thumbnail } from './core/stage';
 import { CATEGORIES, PLATES, plate as findPlate } from './plates';
@@ -11,6 +12,9 @@ type View = 'gallery' | 'plate';
 type Meta = Omit<Plate, 'create'>;
 
 const THUMB_CACHE = 'algoglyph:thumb:v2';
+const FACTS = facts(PLATES, CATEGORIES);
+// the hero mosaic: nine posters spread evenly over the registry order, first and last included
+const MOSAIC_SIZE = 9;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Not reactive on purpose: p5 instances must never be wrapped in Alpine proxies.
@@ -98,6 +102,10 @@ function closeDrawer(): void {
 Alpine.data('app', () => ({
   plates: PLATES.map(meta),
   categories: CATEGORIES,
+  facts: FACTS,
+  factCards: factCards(FACTS),
+  topics: prose(CATEGORIES.map((c) => c.label.toLowerCase())),
+  mosaic: spread(PLATES.map(meta), MOSAIC_SIZE),
   open: { algorithms: true, mathematics: true, physics: true } as Record<Category, boolean>,
   query: '',
   filter: 'all' as Category | 'all',
@@ -164,6 +172,18 @@ Alpine.data('app', () => ({
 
   go(hash: string) {
     if (location.hash !== hash) location.hash = hash;
+  },
+
+  openRandom() {
+    const p = pick(this.plates.filter((x) => x.id !== this.currentId));
+    if (p) this.go(`#/p/${p.id}`);
+  },
+
+  toPlates() {
+    document.getElementById('plates-title')?.scrollIntoView({
+      behavior: reducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
   },
 
   route() {
