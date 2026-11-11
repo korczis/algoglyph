@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import {
-  accelerate, bodies, QuadTree, treeAccel, type Bodies,
+  accelerate, bodies, leapfrog, QuadTree, SlicedStep, treeAccel, type Bodies,
 } from '../src/plates/barnes-hut/quadtree';
 
 const G = 1;
@@ -128,5 +128,39 @@ describe('Barnes–Hut quadtree', () => {
     const t = new QuadTree();
     const perBody = accelerate(t, b, 0.7, G, EPS) / b.n;
     expect(perBody).toBeLessThan((b.n - 1) / 5);
+  });
+
+  it('a force pass sliced over many small budgets gives leapfrog\'s result bit for bit', () => {
+    for (const theta of [0, 0.7]) {
+      const a = cloud(300, 11);
+      const b = cloud(300, 11);
+      for (const k of [a, b]) for (let i = 0; i < k.n; i++) { k.vx[i] = 0.1 * k.y[i]; k.vy[i] = -0.1 * k.x[i]; }
+      const ta = new QuadTree();
+      accelerate(ta, a, theta, G, EPS);
+      for (let s = 0; s < 3; s++) leapfrog(ta, a, 0.004, theta, G, EPS);
+
+      const pass = new SlicedStep(new QuadTree(), b);
+      let calls = 0;
+      pass.prime();
+      while (!pass.force(theta, G, EPS, 500).done) calls++;
+      for (let s = 0; s < 3; s++) {
+        pass.begin(0.004);
+        while (!pass.force(theta, G, EPS, 500).done) calls++;
+        pass.end();
+      }
+      expect(calls).toBeGreaterThan(10); // the pass really was spread over many calls
+      for (const f of ['x', 'y', 'vx', 'vy', 'ax', 'ay'] as const) expect(Array.from(b[f])).toEqual(Array.from(a[f]));
+    }
+  });
+
+  it('a pass slice never exceeds its budget by more than one body', () => {
+    const b = cloud(400, 5);
+    const pass = new SlicedStep(new QuadTree(), b);
+    pass.prime();
+    let r;
+    do {
+      r = pass.force(0, G, EPS, 1000);
+      expect(r.spent).toBeLessThanOrEqual(1000 + b.n);
+    } while (!r.done);
   });
 });

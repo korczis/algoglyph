@@ -5,7 +5,7 @@ title: "Foundations: every catalogued algorithm runs"
 slug: foundations-every-catalogued-algorithm-runs
 order: 100
 priority: p2
-problem: 16 algorithm(s) of the Foundations wing are catalogued and not yet running.
+problem: "Algorithms of the Foundations wing are catalogued and not yet running: npm run catalogue -- list --under foundations --status planned."
 outcome: Every entry under foundations/ is live, tested by its engine's harness and in the browser gate.
 acceptance_criteria:
   - npm run catalogue -- list --under foundations --status planned prints nothing.

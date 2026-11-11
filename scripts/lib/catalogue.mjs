@@ -12,6 +12,8 @@ import { basename, join, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 export const STATUSES = ['live', 'planned'];
+/** A lab compares at least this many entries; the site and the gate read the same constant. */
+export const LAB_MIN = 2;
 export const MODES = ['2d', 'webgl', 'three'];
 /** Engines a kernel may name; `custom` is a bespoke plate under src/plates/<id>/plate.ts. */
 export const ENGINES = ['custom', 'array', 'tree', 'hash', 'graph', 'geometry', 'string',
@@ -222,8 +224,8 @@ export function loadCatalogue(root, { code = true } = {}) {
       else if (e.engine !== k.engine) errors.push(`src/kernels/${k.engine}/${k.id}.ts: entry names engine ${e.engine}`);
     }
   }
-  for (const [id, lab] of labs) if (lab.entries.length < 2) {
-    errors.push(`labs.yaml ${id}: a lab compares at least two entries, it has ${lab.entries.length}`);
+  for (const [id, lab] of labs) if (lab.entries.length < LAB_MIN) {
+    errors.push(`labs.yaml ${id}: a lab compares at least ${LAB_MIN} entries, it has ${lab.entries.length}`);
   }
 
   // the tree, with counts rolled up from the leaves
@@ -238,6 +240,7 @@ export function loadCatalogue(root, { code = true } = {}) {
   return {
     errors,
     model: {
+      labMin: LAB_MIN,
       nodes,
       roots: nodes.filter((n) => n.depth === 1).map((n) => n.key),
       entries: entries.map(({ file: _file, ...e }) => e),

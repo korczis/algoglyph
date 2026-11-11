@@ -5,7 +5,7 @@ title: "Geometry and space: every catalogued algorithm runs"
 slug: geometry-and-space-every-catalogued-algorithm-runs
 order: 104
 priority: p2
-problem: 19 algorithm(s) of the Geometry and space wing are catalogued and not yet running.
+problem: "Algorithms of the Geometry and space wing are catalogued and not yet running: npm run catalogue -- list --under geometry --status planned."
 outcome: Every entry under geometry/ is live, tested by its engine's harness and in the browser gate.
 acceptance_criteria:
   - npm run catalogue -- list --under geometry --status planned prints nothing.
