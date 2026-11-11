@@ -4,7 +4,7 @@ import { Raster } from '../../core/raster';
 import { bounded, cellWithin } from '../../core/budget';
 
 /** Pixels labelled per frame at most: the pixel size is raised to fit (src/core/budget.ts). */
-export const MAX_PIXELS = 120_000;
+export const MAX_PIXELS = 80_000;
 
 interface Site {
   x: number;
