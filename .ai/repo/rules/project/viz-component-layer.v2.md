@@ -33,7 +33,9 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   `?seed=` reproduces the picture.
 - Colours come from `ctx.palette()`, `ctx.bg` and `ctx.fg` (`src/core/palette.ts`).
 - `draw()` never relies on `p.frameCount` (thumbnails run several frames per p5 frame), and
-  work that would block a frame for long (a lab's scaling runs) is spread over frames.
+  work that would block a frame for long (a lab's scaling runs) is spread over frames. At its
+  heaviest settings a plate fits the main-thread budget of `config/budgets.yaml`, proven by
+  `test/budget.test.ts` for every live plate and lab.
 - A parameter that changes the structure (grid size, counts, scene) sets `rebuild: true`.
 
 # Failure behaviour
