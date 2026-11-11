@@ -82,6 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Derived facts (no hand-typed counts, plate numbers or dangling links)
+        run: node scripts/check-facts.mjs
       - name: Rust kernels (native tests, wasm32 build; the .wasm is never committed)
         run: scripts/wasm.sh
       - name: Catalogue (schema, references, live and code agree, derived plan current)
