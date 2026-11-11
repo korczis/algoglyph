@@ -3,7 +3,7 @@ import { mulberry32 } from '../src/core/random';
 import { FRAME_TIME, SETTLE_KE } from '../src/plates/soft-body-3d/plate';
 import {
   BEND, EnergyBaseline, SHEAR, STRUCTURAL, energy, forces, icosphere, lattice, momentum, preset,
-  stableStep, step, volume, type SoftBody, type World,
+  rates, stableStep, step, volume, type SoftBody, type World,
 } from '../src/plates/soft-body-3d/softbody';
 
 const FREE: World = {
@@ -53,12 +53,12 @@ describe('soft body: one spring', () => {
 });
 
 describe('soft body: invariants', () => {
-  // Measured with these seeds at the largest step the plate uses (stableStep): 3.5 % for the
-  // cube and 7.2 % for the ball over 10 000 steps of a violently shaken body. The bound is
-  // stated at 5 % and 10 %; halving the step divides the drift by about 4 (second order).
+  // Measured with these seeds at the largest step the plate uses (stableStep): 3.54 % for the
+  // cube and 7.21 % for the ball over 10 000 steps of a violently shaken body. The bounds are
+  // those plus a 10 % margin; halving the step divides the drift by about 4 (second order).
   const cases: [string, () => SoftBody, World, number][] = [
-    ['cube lattice', () => preset('cube', 6, mulberry32(7)), FREE, 0.05],
-    ['pressure ball', () => preset('ball', 6, mulberry32(7)), { ...FREE, pressure: 20 }, 0.1],
+    ['cube lattice', () => preset('cube', 6, mulberry32(7)), FREE, 0.039],
+    ['pressure ball', () => preset('ball', 6, mulberry32(7)), { ...FREE, pressure: 20 }, 0.08],
   ];
   for (const [name, build, w, bound] of cases) {
     it(`${name}: without damping, gravity or ground, energy drift stays below ${bound * 100} % `
@@ -259,5 +259,157 @@ describe('soft body: energy baseline', () => {
     expect(Math.abs(baseline.drift(energy(b, w).total))).toBeLessThan(0.01);
     // the same world again is not a change
     expect(baseline.track({ ...w }, () => 0, 2)).toBe(false);
+  });
+});
+
+// References written here from the definitions, not taken from the module: the potential of
+// Hookean springs, uniform gravity and an isothermal gas, the enclosed volume as a sum of signed
+// tetrahedra, and the linearised stiffness matrix of the spring network.
+function tetraVolume(b: SoftBody): number {
+  const p = (i: number) => [b.x[i * 3], b.x[i * 3 + 1], b.x[i * 3 + 2]];
+  let v = 0;
+  for (let t = 0; t < b.faces.length; t += 3) {
+    const [a, c, d] = [p(b.faces[t]), p(b.faces[t + 1]), p(b.faces[t + 2])];
+    v += a[0] * (c[1] * d[2] - c[2] * d[1]) - a[1] * (c[0] * d[2] - c[2] * d[0])
+      + a[2] * (c[0] * d[1] - c[1] * d[0]);
+  }
+  return v / 6;
+}
+
+function potential(b: SoftBody, w: World): number {
+  let u = 0;
+  for (let s = 0; s < b.springs; s++) {
+    const [i, j] = [b.sa[s] * 3, b.sb[s] * 3];
+    const d = Math.hypot(b.x[j] - b.x[i], b.x[j + 1] - b.x[i + 1], b.x[j + 2] - b.x[i + 2]);
+    u += 0.5 * w.stiffness * b.kw[s] * (d - b.rest[s]) ** 2;
+  }
+  for (let i = 0; i < b.n; i++) u += b.m[i] * w.gravity * b.x[i * 3 + 1];
+  if (w.pressure > 0) u -= w.pressure * b.restVolume * Math.log(tetraVolume(b));
+  return u;
+}
+
+/** Largest |F_code + ∂U/∂x| over all coordinates, by central differences of U. */
+function forceError(b: SoftBody, w: World): { err: number; scale: number } {
+  b.v.fill(0);
+  forces(b, w);
+  const f = Float64Array.from(b.f);
+  const h = 1e-6;
+  let err = 0;
+  let scale = 0;
+  for (let k = 0; k < b.n * 3; k++) {
+    const x = b.x[k];
+    b.x[k] = x + h;
+    const up = potential(b, w);
+    b.x[k] = x - h;
+    const down = potential(b, w);
+    b.x[k] = x;
+    const numeric = -(up - down) / (2 * h);
+    err = Math.max(err, Math.abs(f[k] - numeric));
+    scale = Math.max(scale, Math.abs(numeric));
+  }
+  return { err, scale };
+}
+
+function deform(b: SoftBody, seed: number, by: number): void {
+  const rnd = mulberry32(seed);
+  for (let k = 0; k < b.n * 3; k++) b.x[k] += (rnd() - 0.5) * by;
+}
+
+describe('soft body: forces against independent references', () => {
+  it('spring and gravity forces are minus the gradient of the potential', () => {
+    const b = preset('cube', 4, mulberry32(21));
+    deform(b, 22, 0.05);
+    const { err, scale } = forceError(b, { ...FREE, gravity: 9.8 });
+    expect(scale).toBeGreaterThan(1);
+    expect(err / scale).toBeLessThan(1e-6);
+  });
+
+  it('the gas force is the numerical gradient of −nRT·ln V alone', () => {
+    const b = icosphere(2, 0.5, 1);
+    deform(b, 23, 0.04);
+    // no springs and no gravity: what is left is the pressure force
+    const { err, scale } = forceError(b, { ...FREE, stiffness: 0, pressure: 25 });
+    expect(scale).toBeGreaterThan(0.01);
+    expect(err / scale).toBeLessThan(1e-6);
+    expect(volume(b)).toBeCloseTo(tetraVolume(b), 12);
+  });
+
+  it('a falling mass rebounds to e² of its drop height (restitution)', () => {
+    for (const e of [0.3, 0.6, 0.9]) {
+      const b = lattice(1, 1, 1, 1, 1);
+      const drop = 1;
+      b.x[1] = drop;
+      const w: World = { ...FREE, gravity: 9.8, ground: true, restitution: e };
+      forces(b, w);
+      const dt = 1e-5;
+      let bounced = false;
+      let apex = 0;
+      for (let s = 0; s < 400000; s++) {
+        if (step(b, w, dt)) bounced = true;
+        if (bounced) apex = Math.max(apex, b.x[1]);
+        if (bounced && b.v[1] < 0) break;
+      }
+      expect(Math.abs(apex - e * e * drop) / (e * e * drop)).toBeLessThan(0.005);
+    }
+  });
+
+  it('a mass sliding on the floor stops after u² / (2μg) in u / (μg) (Coulomb friction)', () => {
+    for (const mu of [0.2, 0.6]) {
+      const b = lattice(1, 1, 1, 1, 1);
+      const u = 2;
+      const g = 9.8;
+      b.v[0] = u;
+      const w: World = { ...FREE, gravity: g, ground: true, friction: mu };
+      forces(b, w);
+      const dt = 1e-4;
+      let s = 0;
+      while (b.v[0] > 0 && s < 1e6) {
+        step(b, w, dt);
+        s++;
+      }
+      expect(Math.abs(b.x[0] - (u * u) / (2 * mu * g)) / ((u * u) / (2 * mu * g)))
+        .toBeLessThan(0.002);
+      expect(Math.abs(s * dt - u / (mu * g)) / (u / (mu * g))).toBeLessThan(0.002);
+    }
+  });
+
+  it('the Gershgorin bound is at least the true highest frequency (power iteration)', () => {
+    for (const b of [lattice(5, 5, 5, 0.15, 1), icosphere(2, 0.5, 1)]) {
+      const w = { ...FREE };
+      // K·u at the rest state, assembled spring by spring: k·(û·(u_b − u_a))·û
+      const apply = (u: Float64Array) => {
+        const out = new Float64Array(u.length);
+        for (let s = 0; s < b.springs; s++) {
+          const [i, j] = [b.sa[s] * 3, b.sb[s] * 3];
+          const d = [0, 1, 2].map((c) => b.x[j + c] - b.x[i + c]);
+          const l = Math.hypot(d[0], d[1], d[2]);
+          const n = d.map((c) => c / l);
+          const k = w.stiffness * b.kw[s];
+          const stretch = n.reduce((acc, c, q) => acc + c * (u[j + q] - u[i + q]), 0);
+          for (let q = 0; q < 3; q++) {
+            out[i + q] += k * stretch * n[q];
+            out[j + q] -= k * stretch * n[q];
+          }
+        }
+        // M^(-1/2) K M^(-1/2) keeps the iteration symmetric; masses here are equal
+        for (let q = 0; q < out.length; q++) out[q] /= b.m[Math.floor(q / 3)];
+        return out;
+      };
+      const rnd = mulberry32(31);
+      let u = Float64Array.from({ length: b.n * 3 }, () => rnd() - 0.5);
+      let lambda = 0;
+      for (let it = 0; it < 3000; it++) {
+        const next = apply(u);
+        const norm = Math.hypot(...next);
+        lambda = norm / Math.hypot(...u);
+        u = next.map((c) => c / norm);
+      }
+      const omega = Math.sqrt(lambda);
+      const bound = rates(b, w).omega;
+      expect(bound).toBeGreaterThanOrEqual(omega);
+      expect(bound).toBeLessThan(3 * omega);
+      // the step the plate uses keeps velocity Verlet inside its stability limit ω·dt < 2
+      expect(stableStep(b, w) * omega).toBeLessThan(2);
+    }
   });
 });
