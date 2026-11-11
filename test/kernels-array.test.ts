@@ -1,21 +1,57 @@
 // Every live array kernel of the catalogue, checked by one harness: a kernel added to the
-// catalogue is tested without a line of test code (ADR 0004 §4).
+// catalogue is tested without a line of test code (ADR 0004 §4). A live array entry with no
+// kernel file is played through a catalogue/<family>-sidecar.yaml mapping; those kernels are
+// exercised by their adapter's own test, so here they only have to be accounted for.
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ENTRIES } from '../src/core/catalogue';
+import { parse } from 'yaml';
+import { CATALOGUE, ENTRIES } from '../src/core/catalogue';
 import { input, inversions, SHAPES, trace, type ArrayKernel } from '../src/engines/array/trace';
 
 const modules = import.meta.glob<ArrayKernel>('../src/kernels/array/[!_]*.ts', { import: 'kernel', eager: true });
 const live = ENTRIES.filter((e) => e.engine === 'array' && e.status === 'live');
 const kernelOf = (id: string) => modules[`../src/kernels/array/${id}.ts`];
 const SIZES = [0, 1, 2, 3, 7, 16, 61, 128];
+const files = Object.keys(modules).map((f) => f.replace(/^.*\/(.*)\.ts$/, '$1')).sort();
+
+// The array records of every sidecar, read here from the files themselves, not from the
+// catalogue's own reader, so the two can disagree.
+interface SidecarRecord {
+  id: string;
+  kernel: string;
+  engine: string;
+  existing?: boolean;
+  sidecar: string;
+}
+const recordsOf = (f: string) =>
+  (parse(readFileSync(`catalogue/${f}`, 'utf8'))?.entries ?? []) as SidecarRecord[];
+const records: SidecarRecord[] = readdirSync('catalogue').filter((f) => f.endsWith('-sidecar.yaml'))
+  .flatMap((f) => recordsOf(f).map((r) => ({ ...r, sidecar: `catalogue/${f}` })))
+  .filter((r) => r.engine === 'array');
+/** Array entries a sidecar plays: mapped, with no kernel file of their own. */
+const sidecarOnly = new Set(records.map((r) => r.id).filter((id) => !files.includes(id)));
+const shipped = (CATALOGUE as typeof CATALOGUE & { sidecar?: Record<string, unknown> }).sidecar
+  ?? {};
 
 describe('array kernels', () => {
-  it('every live array entry has its kernel and every kernel its entry', () => {
-    const files = Object.keys(modules).map((f) => f.replace(/^.*\/(.*)\.ts$/, '$1')).sort();
-    expect(files).toEqual(live.map((e) => e.id).sort());
+  it('every live array entry has its kernel or a sidecar mapping, every kernel its entry', () => {
+    expect(files).toEqual(live.filter((e) => !sidecarOnly.has(e.id)).map((e) => e.id).sort());
   });
 
-  for (const e of live) {
+  it('no entry has both a kernel file and a sidecar mapping that plays it', () => {
+    // `existing: true`: the entry predates the sidecar, keeps its file, and the record describes it
+    const both = records.filter((r) => files.includes(r.id) && r.existing !== true)
+      .map((r) => `${r.id} (${r.sidecar} -> ${r.kernel})`);
+    expect(both).toEqual([]);
+  });
+
+  it('the shipped catalogue maps exactly the sidecar-only array entries', () => {
+    const arrays = new Set(ENTRIES.filter((e) => e.engine === 'array').map((e) => e.id));
+    expect(Object.keys(shipped).sort())
+      .toEqual([...sidecarOnly].filter((id) => arrays.has(id)).sort());
+  });
+
+  for (const e of live.filter((x) => kernelOf(x.id))) {
     const kernel = kernelOf(e.id);
     describe(e.id, () => {
       it('leaves every input shape and size in the order its goal promises', () => {

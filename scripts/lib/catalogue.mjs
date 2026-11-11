@@ -6,6 +6,8 @@
 //   catalogue/labs.yaml            comparison labs: id, title, summary, engine, metrics
 //   catalogue/sources.yaml         cited works and practice areas
 //   catalogue/entries/<id>.md      one algorithm: YAML front matter + body (summary, notes)
+//   catalogue/<family>-sidecar.yaml  optional: entry id -> kernel of a compiled module, played
+//                                  by the adapter src/kernels/<family>-wasm/index.ts
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, relative } from 'node:path';
@@ -84,18 +86,59 @@ function list(dir, pred) {
   return readdirSync(dir).filter((f) => pred(join(dir, f), f)).sort();
 }
 
-/** What code exists, by convention only: plate directories and kernel files. */
-export function discoverCode(root) {
+/** A sidecar file and the family it names: catalogue/<family>-sidecar.yaml. */
+const SIDECAR_FILE = /^([a-z0-9][a-z0-9-]*)-sidecar\.yaml$/;
+/** Engines a sidecar adapter plays: its sidecarKernel(id) returns that engine's kernel. */
+export const SIDECAR_ENGINES = ['array'];
+
+/**
+ * Every catalogue/<family>-sidecar.yaml, each with the adapter directory that plays it
+ * (src/kernels/<family>-wasm), and every record of them (`entries: [{ id, kernel, engine,
+ * existing?, ... }]`) with the sidecar it came from. No sidecar file means no records. Keys a
+ * record carries beyond these are the family's own data and are not read here.
+ */
+export function readSidecars(root, errors = []) {
+  const dir = join(root, 'catalogue');
+  const files = [];
+  const records = [];
+  for (const f of list(dir, (_, f) => SIDECAR_FILE.test(f))) {
+    const file = `catalogue/${f}`;
+    const adapter = `${SIDECAR_FILE.exec(f)[1]}-wasm`;
+    files.push({ file, adapter });
+    const doc = readYaml(join(dir, f), errors);
+    if (!Array.isArray(doc.entries)) { errors.push(`${file}: entries must be a list`); continue; }
+    for (const [i, r] of doc.entries.entries()) {
+      const bad = ['id', 'kernel', 'engine'].filter((k) => typeof r?.[k] !== 'string' || !r[k]);
+      if (bad.length) {
+        errors.push(`${file} record #${i + 1}: ${bad.join(', ')} required`);
+        continue;
+      }
+      records.push({ id: r.id, kernel: r.kernel, engine: r.engine, existing: r.existing === true,
+        sidecar: file, adapter });
+    }
+  }
+  return { files, records };
+}
+
+/**
+ * What code exists, by convention only: plate directories, kernel files and the sidecar
+ * records that map an entry to a compiled kernel. A sidecar's adapter directory holds no
+ * kernels of its own.
+ */
+export function discoverCode(root, errors = []) {
   const plates = list(join(root, 'src/plates'), (p) => statSync(p).isDirectory()
     && existsSync(join(p, 'plate.ts')));
+  const { files: sidecarFiles, records: sidecars } = readSidecars(root, errors);
+  const adapters = new Set(sidecarFiles.map((s) => s.adapter));
   const kernels = [];
-  for (const engine of list(join(root, 'src/kernels'), (p) => statSync(p).isDirectory())) {
+  for (const engine of list(join(root, 'src/kernels'), (p, f) => statSync(p).isDirectory()
+    && !adapters.has(f))) {
     for (const f of list(join(root, 'src/kernels', engine), (_, f) => f.endsWith('.ts')
       && !f.startsWith('_'))) kernels.push({ engine, id: basename(f, '.ts') });
   }
   const engines = list(join(root, 'src/engines'), (p) => statSync(p).isDirectory()
     && existsSync(join(p, 'index.ts')));
-  return { plates, kernels, engines };
+  return { plates, kernels, engines, sidecars, sidecarFiles: sidecarFiles.map((s) => s.file) };
 }
 
 /**
@@ -196,17 +239,49 @@ export function loadCatalogue(root, { code = true } = {}) {
   const width = Math.max(2, String(entries.length).length);
   entries.forEach((e, i) => { e.no = String(i + 1).padStart(width, '0'); });
 
+  // entry id -> { sidecar, adapter }: an entry with no kernel file, played by an adapter
+  const backed = new Map();
+  let sidecarFiles = [];
   if (code) {
-    const found = discoverCode(root);
+    const found = discoverCode(root, errors);
     const byId = new Map(entries.map((e) => [e.id, e]));
+    sidecarFiles = found.sidecarFiles;
+    for (const r of found.sidecars) {
+      const e = byId.get(r.id);
+      const what = `${r.sidecar}: ${r.id} -> kernel ${r.kernel}`;
+      if (!e) { errors.push(`${what}: no catalogue entry catalogue/entries/${r.id}.md`); continue; }
+      if (r.engine !== e.engine) {
+        errors.push(`${what} runs engine ${r.engine}, but ${e.file} names engine ${e.engine}`);
+        continue;
+      }
+      // a record of another engine describes its entry; only an adapter's engine is played
+      if (!SIDECAR_ENGINES.includes(r.engine)) continue;
+      if (found.kernels.some((k) => k.id === e.id && k.engine === e.engine)) {
+        // `existing: true`: the entry predates the sidecar and keeps its own kernel
+        if (!r.existing) {
+          errors.push(`${what}: src/kernels/${e.engine}/${e.id}.ts implements ${e.id} too; `
+            + 'one implementation per entry (delete the file, or mark the record existing)');
+        }
+        continue;
+      }
+      const prev = backed.get(e.id);
+      if (prev && prev.sidecar !== r.sidecar) {
+        errors.push(`${e.file}: mapped by both ${prev.sidecar} and ${r.sidecar}; `
+          + 'one implementation per entry');
+      } else if (!prev) backed.set(e.id, { sidecar: r.sidecar, adapter: r.adapter });
+    }
     for (const e of entries) {
       const plate = found.plates.includes(e.id);
       const kernel = found.kernels.find((k) => k.id === e.id);
-      const has = e.engine === 'custom' ? plate : Boolean(kernel && kernel.engine === e.engine);
+      const has = e.engine === 'custom' ? plate
+        : Boolean(kernel && kernel.engine === e.engine) || backed.has(e.id);
       if (e.status === 'live' && !has) {
+        const unmapped = sidecarFiles.length && SIDECAR_ENGINES.includes(e.engine)
+          ? ` and no ${sidecarFiles.join(', ')} maps it` : '';
         errors.push(`${e.file}: live, but ${e.engine === 'custom' ? `src/plates/${e.id}/plate.ts`
-          : `src/kernels/${e.engine}/${e.id}.ts`} does not exist`);
+          : `src/kernels/${e.engine}/${e.id}.ts`} does not exist${unmapped}`);
       }
+      // a sidecar mapping allows `live` and does not demand it: the plate is promoted by hand
       if (e.status === 'planned' && (plate || kernel)) {
         errors.push(`${e.file}: planned, but its code exists; mark it live`);
       }
@@ -246,8 +321,9 @@ export function loadCatalogue(root, { code = true } = {}) {
       entries: entries.map(({ file: _file, ...e }) => e),
       labs: [...labs.values()],
       sources: [...sources.values()],
+      sidecar: Object.fromEntries(backed),
     },
     files: [join(dir, 'taxonomy.yaml'), join(dir, 'labs.yaml'), join(dir, 'sources.yaml'),
-      ...files.map((f) => join(dir, 'entries', f))],
+      ...files.map((f) => join(dir, 'entries', f)), ...sidecarFiles.map((f) => join(root, f))],
   };
 }
