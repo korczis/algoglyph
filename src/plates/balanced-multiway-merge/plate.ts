@@ -30,6 +30,8 @@ export const balancedMultiwayMerge: PlateCode = {
     let range = 1;
     const gate = chartGate();
     let charted = -1;
+    /** A looped restart publishes the new, still empty chart in place of the last run's. */
+    let restarted = false;
 
     const build = () => {
       const n = num(params, 'records');
@@ -60,6 +62,8 @@ export const balancedMultiwayMerge: PlateCode = {
           if (s.phase === 'done' && ++hold > 180 && bool(params, 'loop')) {
             generation++;
             build();
+            gate.reset();
+            restarted = true;
           }
         }
         const pal = ctx.palette();
@@ -138,8 +142,9 @@ export const balancedMultiwayMerge: PlateCode = {
           { label: 'Key comparisons', value: s.comparisons.toLocaleString('en') },
         ]);
         if (s.runsAfter.length !== charted) gate.mark();
-        if (s.runsAfter.length && gate.open()) {
+        if ((s.runsAfter.length || restarted) && gate.open()) {
           charted = s.runsAfter.length;
+          restarted = s.runsAfter.length === 0 && restarted;
           ctx.chart({
             title: 'Runs left after each pass',
             x: { label: 'pass (0 = distribution)' },

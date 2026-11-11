@@ -76,7 +76,9 @@ export function inconsistencyByRow(m: Matrix, rows = m.evidence.length): number[
 }
 
 /** How differently a row rates the hypotheses: highest minus lowest rating, 0 = not diagnostic. */
-export function diagnosticity(row: Rating[]): number {
+export function diagnosticity(row: readonly Rating[] | undefined): number {
+  // a missing or empty row carries no evidence, so it cannot tell hypotheses apart
+  if (!row || !row.length) return 0;
   return Math.max(...row) - Math.min(...row);
 }
 

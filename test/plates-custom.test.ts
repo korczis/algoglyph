@@ -9,6 +9,7 @@ import {
 }
   from '../src/plates/ach-matrix/ach';
 import { machine, sortExternally } from '../src/plates/balanced-multiway-merge/merge';
+import { chartGate } from '../src/plates/_shared/publish';
 import { ProbeMap } from '../src/plates/_shared/sorted-search/probe-map';
 import { binarySearch, query, sortedKeys } from '../src/plates/_shared/sorted-search/search';
 import { RingQueue, tick as queueTick, traffic } from '../src/plates/circular-queue/ring';
@@ -376,7 +377,13 @@ describe('probe map', () => {
     expect(ref.size).toBeGreaterThan(limit);
     expect(pm.points).toBe(limit);
     expect(pm.moves).toBeLessThanOrEqual(limit);
-    expect(pm.dropped).toBeGreaterThan(0);
+    // every visit to a point the map refused is counted once, and only those visits
+    let refused = 0;
+    for (const [k, v] of ref) {
+      const [d, idx] = k.split(':').map(Number);
+      if (pm.count(d, idx) === 0) refused += v;
+    }
+    expect(pm.pointVisitsDropped).toBe(refused);
     for (let k = 0; k < pm.points; k++) {
       expect(pm.hits[k]).toBe(ref.get(`${pm.step[k]}:${pm.pos[k]}`));
       expect(pm.count(pm.step[k], pm.pos[k])).toBe(pm.hits[k]);
@@ -391,7 +398,7 @@ describe('probe map', () => {
     // a perfect tree of 255 positions: every position probed at one fixed step, 254 parent links
     expect(pm.points).toBe(255);
     expect(pm.moves).toBe(254);
-    expect(pm.dropped).toBe(0);
+    expect(pm.pointVisitsDropped + pm.moveVisitsDropped).toBe(0);
   });
 });
 
@@ -602,5 +609,66 @@ describe('ruler readouts', () => {
   it('a recursive order reports exactly 2ⁿ⁺¹ − 1 calls once drawing ends', async () => {
     const last = (await run('inorder')).at(-1)!;
     expect(last.find((r) => r.label === 'Calls made in all')?.value).toBe(String(2 ** 6 - 1));
+  });
+});
+
+describe('chart gate and restarts', () => {
+  const stub = new Proxy({}, { get: () => () => undefined }) as unknown as p5;
+
+  function mount(code: PlateCode, set: Params) {
+    const params: Params = {};
+    for (const d of code.params) params[d.key] = d.value;
+    Object.assign(params, set);
+    const charts: Chart[] = [];
+    const ctx: PlateContext = {
+      width: 390, height: 260, params, seed: 5, rnd: mulberry32(5), theme: 'dark',
+      bg: [0, 0, 0], fg: [255, 255, 255], palette: () => PALETTES[0], thumbnail: false,
+      stats: () => {}, chart: (c) => charts.push(c),
+    };
+    const sim = code.create(stub, ctx);
+    sim.setup();
+    return { sim, params, charts };
+  }
+
+  it('a reset gate opens on the next frame and once more after', () => {
+    const g = chartGate(30);
+    g.mark();
+    expect(g.open()).toBe(true);
+    expect(g.open()).toBe(false);
+    g.reset();
+    expect(g.open()).toBe(true);
+    for (let f = 0; f < 29; f++) expect(g.open()).toBe(false);
+    expect(g.open()).toBe(true);
+    for (let f = 0; f < 60; f++) expect(g.open()).toBe(false);
+  });
+
+  it('a looped merge replaces the last run\'s chart with the new, empty one', async () => {
+    const code = (await import('../src/plates/balanced-multiway-merge/plate')).default;
+    const { sim, charts } = mount(code, { records: 20, memory: 4, ways: 2, speed: 60, loop: true });
+    let restartAt = -1;
+    for (let f = 0; f < 400 && restartAt < 0; f++) {
+      const before = charts.length;
+      sim.draw();
+      const c = charts.at(-1);
+      if (charts.length > before && c && c.series[0].points.length === 0) restartAt = f;
+    }
+    expect(restartAt).toBeGreaterThan(0);
+  });
+
+  it('a looped ACH case survives a change of size without a remount and clears its chart', async () => {
+    const code = (await import('../src/plates/ach-matrix/plate')).default;
+    const { sim, params, charts } = mount(code, { e: 12, h: 5, speed: 0.5, loop: true });
+    for (let f = 0; f < 40; f++) sim.draw();
+    params.e = 3;
+    params.h = 2;
+    let cleared = false;
+    for (let f = 0; f < 400; f++) {
+      const before = charts.length;
+      sim.draw();
+      const c = charts.at(-1);
+      if (charts.length > before && c && c.series.length === 2 && c.series[0].points.length === 1) cleared = true;
+    }
+    expect(cleared).toBe(true);
+    expect(diagnosticity(undefined)).toBe(0);
   });
 });

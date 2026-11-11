@@ -52,19 +52,21 @@ export const achMatrix: PlateCode = {
         if (ctx.thumbnail) shown = m.evidence.length;
       },
       draw() {
-        const rows = m.evidence.length;
-        const k = m.hypotheses.length;
         if (!ctx.thumbnail) {
           acc += num(params, 'speed');
-          while (acc >= 1 && shown < rows) {
+          while (acc >= 1 && shown < m.evidence.length) {
             acc -= 1;
             shown++;
           }
-          if (shown === rows && ++hold > 300 && bool(params, 'loop') && edits === 0) {
+          if (shown === m.evidence.length && ++hold > 300 && bool(params, 'loop') && edits === 0) {
             generation++;
             build();
+            gate.reset();
           }
         }
+        // read the sizes after a possible rebuild: the new case may have other dimensions
+        const rows = m.evidence.length;
+        const k = m.hypotheses.length;
         const pal = ctx.palette();
         const pad = Math.max(12, ctx.width * 0.03);
         const labelW = Math.min(90, ctx.width * 0.16);
@@ -147,7 +149,7 @@ export const achMatrix: PlateCode = {
         ]);
         const state = `${generation}:${shown}:${edits}`;
         if (state !== chartedAt) gate.mark();
-        if (shown > 0 && gate.open()) {
+        if ((shown > 0 || generation > 0) && gate.open()) {
           chartedAt = state;
           const byRow = inconsistencyByRow(m, shown);
           ctx.chart({

@@ -206,8 +206,9 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
             { label: 'Mean probes when absent', value: own.searches > own.hits
               ? (own.missProbes / (own.searches - own.hits)).toFixed(2) : '–' },
             { label: 'Most probes in one search', value: String(own.most) },
-            { label: 'Probe points mapped', value: map.dropped
-              ? `${map.points} (map full, ${map.dropped.toLocaleString('en')} not drawn)` : String(map.points) },
+            { label: 'Probe points mapped', value: map.pointVisitsDropped
+              ? `${map.points} (map full; ${map.pointVisitsDropped.toLocaleString('en')} probe visits to `
+                + 'unmapped points not drawn)' : String(map.points) },
           ];
           if (o.compare) rows.push({ label: `Mean probes, ${o.compare.name} on the same keys`, value: mean(other) });
           ctx.stats(rows);

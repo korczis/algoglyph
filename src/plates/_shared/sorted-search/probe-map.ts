@@ -1,7 +1,8 @@
 // Every probe the search plates have made, as (step, position) points with a hit count, and the
 // moves between successive probes. Both are bounded: once `limit` distinct points (or moves) are
-// held, new ones are counted as dropped and not stored, so a frame never draws more than
-// `limit` circles and `limit` lines however long the plate runs. Keys are numeric.
+// held, visits to new ones are counted (points and moves apart) and not stored, so a frame
+// never draws more than `limit` circles and `limit` lines however long the plate runs. Keys are
+// numeric.
 
 export class ProbeMap {
   readonly step: Int32Array;
@@ -12,7 +13,10 @@ export class ProbeMap {
   readonly moveTo: Int32Array;
   points = 0;
   moves = 0;
-  dropped = 0;
+  /** Probe visits to a point the full map could not store (repeat visits included). */
+  pointVisitsDropped = 0;
+  /** Steps between probes whose move the full map could not store (repeats included). */
+  moveVisitsDropped = 0;
   private readonly pointAt = new Map<number, number>();
   private readonly moveSeen = new Set<number>();
 
@@ -38,7 +42,7 @@ export class ProbeMap {
         this.pos[this.points] = probes[d];
         this.hits[this.points] = 1;
         this.pointAt.set(key, this.points++);
-      } else this.dropped++;
+      } else this.pointVisitsDropped++;
       if (d === 0) continue;
       const move = (d * n + probes[d - 1]) * n + probes[d];
       if (this.moveSeen.has(move)) continue;
@@ -47,7 +51,7 @@ export class ProbeMap {
         this.moveStep[this.moves] = d;
         this.moveFrom[this.moves] = probes[d - 1];
         this.moveTo[this.moves++] = probes[d];
-      } else this.dropped++;
+      } else this.moveVisitsDropped++;
     }
   }
 
