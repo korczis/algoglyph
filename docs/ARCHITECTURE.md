@@ -60,6 +60,8 @@ path: the validator refuses home paths and source locators, and an untracked den
 | an algorithm of an existing family | `src/kernels/<engine>/<id>.ts` exporting `kernel` + its entry | path; the engine's harness test runs it |
 | a family (an engine) | `src/engines/<engine>/index.ts` exporting `engine: Engine` and a harness `test/kernels-<engine>.test.ts` | path; `ENGINES` in `scripts/lib/catalogue.mjs` names it |
 | a one-off visualisation | `src/plates/<id>/plate.ts` with a default `PlateCode` + its entry (`engine: custom`) | path |
+| code shared by bespoke plates | `src/plates/_shared/<name>/` (no `plate.ts`, so never a plate) | imported |
+| a bound on per-frame work | `cellWithin` / `stepsWithin` / `bounded` from `src/core/budget.ts` | `test/budget.test.ts` |
 | a comparison | a `labs.yaml` entry; entries opt in with `labs: [<id>]` | the entries that name it |
 | a chart | `ctx.chart({ title, x, y, series })` from any plate or engine | rendered by `src/core/charts.ts` |
 | a heavy kernel | Rust in `crates/algoglyph-kernels`, a C ABI in `crates/algoglyph-kernels/src/wasm.rs`, a plate that imports `src/wasm/algoglyph_kernels.wasm?init` | built by `scripts/wasm.sh` |
@@ -126,6 +128,6 @@ npm run verify                     # everything CI runs, in CI's order
 | `project.derived-facts` | `scripts/check-facts.mjs` (policy `config/derived-facts.yaml`), `test/derived-facts.test.ts` | pre-commit, verify, CI |
 | `project.viz-component-layer` | the live↔code check, `test/registry.test.ts`, the browser gate | verify, CI |
 | `project.no-fake-science` | the engine harness tests, `cargo test`, the wasm fixture test | verify, CI |
-| main-thread budget (`project.viz-component-layer`) | `test/budget.test.ts` over every live plate and lab at its heaviest settings, budgets in `config/budgets.yaml`, run alone (`npm run test:budget`) | verify, CI |
+| main-thread budget (`project.viz-component-layer`) | `test/budget.test.ts` over every live plate and lab: every width and heavy corner, past the end of a run, during a slider drag; CPU time calibrated by a reference workload; budgets in `config/budgets.yaml`; run alone (`npm run test:budget`) | verify, CI |
 | `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail) | verify, CI before every deploy |
 | the plan | `majordomus plan validate`, `majordomus doctor` | the commit hook, CI |
