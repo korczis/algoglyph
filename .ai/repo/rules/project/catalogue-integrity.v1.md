@@ -13,7 +13,7 @@ tags: [catalogue, single-source, derived, privacy]
 
 # Rationale
 
-A collection of several hundred algorithms survives only if nothing about it is written twice
+A collection that keeps growing survives only if nothing about it is written twice
 (ADR 0004). A count typed into prose, a title kept in code next to a title in a catalogue, a
 plan issue written by hand for something the catalogue already lists: each drifts the first
 time one half changes. The tree is public, so the same check that keeps the catalogue honest
