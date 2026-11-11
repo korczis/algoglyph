@@ -11,9 +11,9 @@ The registry (`src/plates/index.ts`) is the only list and numbers them in order.
 
 | Category    | Plates |
 |-------------|--------|
-| Algorithms  | Sort Tapestry (ten sorting algorithms side by side), Maze & Flood (spanning-tree mazes, BFS), Lloyd's Stained Glass (Voronoi relaxation), Avalanche Matrix (SHA-256 vs FNV-1a) |
-| Mathematics | Rule Weaver (elementary cellular automata), Collatz Coral |
-| Physics     | Chaos Fan (double pendulums, RK4), Ripple Tank (wave equation, Young's double slit), Lorenz Butterfly (3D), Galactic Waltz (3D n-body, leapfrog), Verlet Cloth (3D) |
+| Algorithms  | Sort Tapestry (ten sorting algorithms side by side), Maze & Flood (spanning-tree mazes, BFS), Cartographer (Dijkstra, A*, greedy over terrain), Lloyd's Stained Glass (Voronoi relaxation), Avalanche Matrix (SHA-256 vs FNV-1a) |
+| Mathematics | Rule Weaver (elementary cellular automata), Collatz Coral, Epicycle Engine (Fourier series) |
+| Physics     | Chaos Fan (double pendulums, RK4), Foucault's Rosette (3D, rotating frame), Ripple Tank (wave equation, Young's double slit), Turing Garden (Gray-Scott reaction-diffusion), Lorenz Butterfly (3D), Galactic Waltz (3D n-body, leapfrog), Verlet Cloth (3D) |
 
 Keyboard: Space play/pause, `.` step, `R` reseed, `D` defaults, `S` PNG, `F` full screen,
 arrows previous/next, `G` gallery, `T` theme.

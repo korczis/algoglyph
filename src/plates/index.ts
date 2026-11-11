@@ -4,10 +4,14 @@ import { ruleWeaver } from './automaton/plate';
 import { hashAvalanche } from './avalanche/plate';
 import { verletCloth } from './cloth/plate';
 import { collatzCoral } from './collatz/plate';
+import { foucaultPendulum } from './foucault/plate';
+import { fourierEpicycles } from './fourier/plate';
 import { lorenzAttractor } from './lorenz/plate';
 import { mazeFlood } from './maze/plate';
 import { nBody } from './nbody/plate';
+import { pathfinding } from './pathfinding/plate';
 import { doublePendulum } from './pendulum/plate';
+import { grayScott } from './reaction/plate';
 import { rippleTank } from './ripple/plate';
 import { sortTapestry } from './sorting/plate';
 import { voronoiRelax } from './voronoi/plate';
@@ -15,12 +19,16 @@ import { voronoiRelax } from './voronoi/plate';
 export const PLATES: Plate[] = [
   sortTapestry,
   mazeFlood,
+  pathfinding,
   voronoiRelax,
   hashAvalanche,
   ruleWeaver,
   collatzCoral,
+  fourierEpicycles,
   doublePendulum,
+  foucaultPendulum,
   rippleTank,
+  grayScott,
   lorenzAttractor,
   nBody,
   verletCloth,
