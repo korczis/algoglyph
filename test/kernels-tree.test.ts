@@ -623,7 +623,7 @@ describe('tree plates', () => {
       const { stats, chart } = drive(engine.lab(l.id, kernels), 400, 50, { shape: worst });
       const slow = kernels[0].kernel.input === 'pairs' ? 'quick-find' : 'bst-search-insert';
       const row = stats.find((r) => r.label === slow)!;
-      expect(row.value).toMatch(/curve stops before n=\d+: over the per-frame budget/);
+      expect(row.value).toMatch(/curve stops before n=\d+: (predicted|measured) over the per-frame budget/);
       const stop = Number(/before n=(\d+)/.exec(row.value)![1]);
       const series = chart!.series.find((sr) => sr.name === slow)!;
       expect(Math.max(...series.points.map((q) => q[0]))).toBeLessThan(stop);
@@ -631,6 +631,19 @@ describe('tree plates', () => {
         const pts = chart!.series.find((sr) => sr.name === r.label)!.points;
         // a curve either reaches the largest size or says why it does not
         if (!r.value.includes('curve stops')) expect(Math.max(...pts.map((q) => q[0])), r.label).toBe(1024);
+      }
+    });
+
+    it(`lab ${l.id} measures every logarithmic kernel up to its largest size on its default input`, () => {
+      const kernels = l.entries.filter((id) => live.some((e) => e.id === id))
+        .map((id) => ({ info: { id, title: id, group: ENTRIES.find((e) => e.id === id)!.taxonomy }, kernel: kernelOf(id) }));
+      const { stats, chart } = drive(engine.lab(l.id, kernels), 400, 50);
+      for (const r of stats) {
+        // quick-find and plain quick-union are not logarithmic: they are meant to stop early
+        if (r.label === 'quick-find' || r.label === 'quick-union') continue;
+        expect(r.value, r.label).not.toMatch(/curve stops/);
+        const pts = chart!.series.find((sr) => sr.name === r.label)!.points;
+        expect(Math.max(...pts.map((q) => q[0])), r.label).toBe(1024);
       }
     });
   }

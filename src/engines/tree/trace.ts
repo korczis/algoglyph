@@ -261,11 +261,19 @@ export function trace(kernel: TreeKernel, w: Workload, record = true, cap = EVEN
   const found: { k: Key; yes: boolean }[] = [];
   const rnd = mulberry32(w.seed ^ 0x5bd1e995);
   let n = 0;
-  const push = (e: Ev) => {
+  // unrecorded runs (a lab's scaling) reuse one event object instead of allocating per step
+  const scratch: Ev = { o: 0, a: 0, b: 0, c: 0 };
+  const push = (o: number, a: number, b: number, c: number, p?: unknown) => {
     if (n >= cap) throw new Stop();
     n++;
-    s.apply(e);
-    if (record) events.push(e);
+    if (record) {
+      const e: Ev = p === undefined ? { o, a, b, c } : { o, a, b, c, p };
+      s.apply(e);
+      events.push(e);
+    } else if (o <= EV.root || o === EV.set || o === EV.size) {
+      scratch.o = o; scratch.a = a; scratch.b = b; scratch.c = c; scratch.p = p;
+      s.apply(scratch);
+    }
   };
   const node = (x: number) => {
     if (!Number.isInteger(x) || x < 0 || x >= s.kids.length || !s.alive[x]) throw new RangeError(`node ${x} does not exist`);
@@ -279,13 +287,13 @@ export function trace(kernel: TreeKernel, w: Workload, record = true, cap = EVEN
     make(keys, degree, tag = 0) {
       const x = s.kids.length;
       counts.nodes++;
-      push({ o: EV.make, a: x, b: degree, c: tag, p: keys.slice() });
+      push(EV.make, x, degree, tag, keys.slice());
       return x;
     },
-    free(x) { node(x); push({ o: EV.free, a: x, b: 0, c: 0 }); },
+    free(x) { node(x); push(EV.free, x, 0, 0); },
     keys(x) { node(x); return s.keys[x]; },
     key(x, i = 0) { node(x); return s.keys[x][i]; },
-    setKeys(x, keys) { node(x); push({ o: EV.keys, a: x, b: 0, c: 0, p: keys.slice() }); },
+    setKeys(x, keys) { node(x); push(EV.keys, x, 0, 0, keys.slice()); },
     degree(x) { node(x); return s.kids[x].length; },
     child(x, i) {
       node(x);
@@ -298,7 +306,7 @@ export function trace(kernel: TreeKernel, w: Workload, record = true, cap = EVEN
       if (c !== NIL) node(c);
       if (s.kids[x][i] === c) return;
       counts.links++;
-      push({ o: EV.child, a: x, b: i, c });
+      push(EV.child, x, i, c);
     },
     setChildren(x, cs) {
       node(x);
@@ -307,52 +315,52 @@ export function trace(kernel: TreeKernel, w: Workload, record = true, cap = EVEN
       if (old.length === cs.length && old.every((c, i) => c === cs[i])) return;
       // a link is counted when it is created; shifting a slot or dropping a child is not one
       counts.links += linksCreated(old, cs);
-      push({ o: EV.children, a: x, b: 0, c: 0, p: cs.slice() });
+      push(EV.children, x, 0, 0, cs.slice());
     },
     tag(x) { node(x); return s.tag[x]; },
     setTag(x, t) {
       node(x);
       if (s.tag[x] === t) return;
       counts.recolours++;
-      push({ o: EV.tag, a: x, b: t, c: 0 });
+      push(EV.tag, x, t, 0);
     },
     info(x) { node(x); return s.info[x]; },
     setInfo(x, v) {
       node(x);
       if (s.info[x] === v) return;
-      push({ o: EV.info, a: x, b: v, c: 0 });
+      push(EV.info, x, v, 0);
     },
     root(slot = 0) { return s.roots[slot] ?? NIL; },
     setRoot(slot, x) {
       if (x !== NIL) node(x);
       if ((s.roots[slot] ?? NIL) === x) return;
       counts.links++;
-      push({ o: EV.root, a: slot, b: x, c: 0 });
+      push(EV.root, slot, x, 0);
     },
-    visit(x) { counts.visits++; push({ o: EV.visit, a: x, b: 0, c: 0 }); },
-    cmp(a, b, at = NIL) { counts.compares++; push({ o: EV.compare, a: at, b: 0, c: 0 }); return cmp(a, b); },
+    visit(x) { counts.visits++; push(EV.visit, x, 0, 0); },
+    cmp(a, b, at = NIL) { counts.compares++; push(EV.compare, at, 0, 0); return cmp(a, b); },
     less(a, b, at = NIL) { return ops_.cmp(a, b, at) < 0; },
     bit(k, b, at = NIL) {
       counts.digits++;
-      push({ o: EV.digit, a: at, b, c: 0 });
+      push(EV.digit, at, b, 0);
       return Math.floor(k / 2 ** (w.bits - 1 - b)) & 1;
     },
     char(str, i, at = NIL) {
       counts.digits++;
-      push({ o: EV.digit, a: at, b: i, c: 0 });
+      push(EV.digit, at, i, 0);
       return i < str.length ? str.charCodeAt(i) : -1;
     },
-    rotate(x) { counts.rotations++; push({ o: EV.rotate, a: x, b: 0, c: 0 }); },
-    split(x) { counts.splits++; push({ o: EV.split, a: x, b: 0, c: 0 }); },
-    get(i) { cell(i); counts.reads++; push({ o: EV.get, a: i, b: 0, c: 0 }); return s.arr[i]; },
-    set(i, v) { cell(i); counts.writes++; push({ o: EV.set, a: i, b: v, c: 0 }); },
-    size(k) { push({ o: EV.size, a: k, b: 0, c: 0 }); },
+    rotate(x) { counts.rotations++; push(EV.rotate, x, 0, 0); },
+    split(x) { counts.splits++; push(EV.split, x, 0, 0); },
+    get(i) { cell(i); counts.reads++; push(EV.get, i, 0, 0); return s.arr[i]; },
+    set(i, v) { cell(i); counts.writes++; push(EV.set, i, v, 0); },
+    size(k) { push(EV.size, k, 0, 0); },
     begin(kind, caption, phase) {
       ops.push({ kind, caption, at: n, c: { ...counts }, ...(phase ? { phase } : {}) });
-      push({ o: EV.begin, a: OP_KINDS.indexOf(kind), b: 0, c: 0, p: caption });
+      push(EV.begin, OP_KINDS.indexOf(kind), 0, 0, caption);
     },
-    emit(v, group = 0) { outputs.push({ v, group }); push({ o: EV.emit, a: group, b: 0, c: 0, p: v }); },
-    found(k, yes) { found.push({ k, yes }); push({ o: EV.found, a: yes ? 1 : 0, b: 0, c: 0, p: k }); },
+    emit(v, group = 0) { outputs.push({ v, group }); push(EV.emit, group, 0, 0, v); },
+    found(k, yes) { found.push({ k, yes }); push(EV.found, yes ? 1 : 0, 0, 0, k); },
     random: rnd,
   };
   let truncated = false;

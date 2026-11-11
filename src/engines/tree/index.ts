@@ -58,9 +58,10 @@ export function unitOf(k: TreeKernel): { name: string; of: (t: Trace, kind: OpKi
 /** The operation kind a lab measures cost on. */
 const probeOf = (k: TreeKernel): OpKind => (k.input === 'pairs' ? 'union' : 'search');
 
-/** Events one scaling run may take, so that a lab frame stays short on a phone. A curve whose
- * next size is predicted to exceed it stops there, and the lab says so. */
-export const PROBE_BUDGET = 60_000;
+/** Events one scaling run may take in one frame (about 40k events measured at 7 ms or less on a
+ * desktop). A curve whose next size is predicted to exceed it is not run, and a run that reaches
+ * it is stopped; either way the lab says which. */
+export const PROBE_BUDGET = 150_000;
 
 /** Mean cost of one probe operation in a fresh, unrecorded trace of n items. */
 export function probeCost(k: TreeKernel, shapeName: string, n: number, seed: number, cap = PROBE_BUDGET):
@@ -253,7 +254,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
       let generation = 0;
       let panes: { info: KernelInfo; kernel: TreeKernel; r: Replay; m: Motion; finished: number }[] = [];
       let curves: { info: KernelInfo; pts: [number, number][]; heights: [number, number][]; steps: number[];
-        stopped: number }[] = [];
+        stopped: number; why: string }[] = [];
       let pending: [number, number][] = [];
       let finishedCount = 0;
       let hold = 0;
@@ -265,7 +266,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
         finishedCount = 0;
         panes = chosen().map((k) => ({ ...k, r: new Replay(run(k.kernel, ctx, generation), k.kernel), m: new Motion(), finished: 0 }));
         if (generation === 0) {
-          curves = chosen().map((k) => ({ info: k.info, pts: [], heights: [], steps: [], stopped: 0 }));
+          curves = chosen().map((k) => ({ info: k.info, pts: [], heights: [], steps: [], stopped: 0, why: '' }));
           pending = SCALING_N.flatMap((n) => curves.map((_, ci) => [ci, n] as [number, number]));
         }
       };
@@ -279,9 +280,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
         const cv = curves[ci];
         if (cv.stopped) return;
         // a size whose run would outgrow one frame's budget is not measured, and the lab says so
-        if (cv.steps.length && predictSteps(cv.steps) > PROBE_BUDGET) { cv.stopped = n; return; }
+        if (cv.steps.length && predictSteps(cv.steps) > PROBE_BUDGET) { cv.stopped = n; cv.why = 'predicted over'; return; }
         const res = probeCost(k.kernel, str(ctx.params, 'shape'), n, ctx.seed + n);
-        if (res.truncated) { cv.stopped = n; return; }
+        if (res.truncated) { cv.stopped = n; cv.why = 'measured over'; return; }
         cv.pts.push([n, res.cost]);
         cv.heights.push([n, res.height]);
         cv.steps.push(res.steps);
@@ -358,7 +359,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
               label: pane.info.title,
               value: `${fmt(c.compares + c.digits)} tests${extras ? ` · ${extras}` : ''}`
                 + (last ? ` · n=${last[0]}: ${fix2(last[1])} per ${probe}, height ${hl?.[1] ?? '?'}` : '')
-                + (cv?.stopped ? ` · curve stops before n=${cv.stopped}: over the per-frame budget` : '')
+                + (cv?.stopped ? ` · curve stops before n=${cv.stopped}: ${cv.why} the per-frame budget` : '')
                 + (pane.finished ? ` · finished #${pane.finished}` : ''),
             };
           }));
