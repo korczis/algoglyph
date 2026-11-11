@@ -2,7 +2,7 @@
 // src/plates/<id>/plate.ts, an engine-driven one is src/kernels/<engine>/<id>.ts, and the
 // catalogue entry of the same id says which. Code is loaded on demand, so the gallery ships
 // the catalogue and nothing else.
-import { entry, lab as findLab, node, type Entry } from './core/catalogue';
+import { CATALOGUE, entry, lab as findLab, node, type Entry } from './core/catalogue';
 import type { Plate, PlateCode } from './core/plate';
 import type { Engine, KernelInfo } from './engines/types';
 
@@ -59,7 +59,7 @@ export async function loadLab(id: string): Promise<Plate | undefined> {
   const l = findLab(id);
   if (!l) return undefined;
   const live = l.entries.map((x) => entry(x)).filter((e): e is Entry => e?.status === 'live');
-  if (live.length < 2) return undefined;
+  if (live.length < CATALOGUE.labMin) return undefined;
   const eng = await engine(l.engine);
   const kernels = await Promise.all(live.map(async (e) => ({ info: info(e), kernel: await kernel(e) })));
   const c = eng.lab(id, kernels);
@@ -69,5 +69,5 @@ export async function loadLab(id: string): Promise<Plate | undefined> {
 /** Whether a lab has enough live kernels to run. */
 export function labRunnable(id: string): boolean {
   const l = findLab(id);
-  return Boolean(l && l.entries.filter((x) => entry(x)?.status === 'live').length >= 2);
+  return Boolean(l && l.entries.filter((x) => entry(x)?.status === 'live').length >= CATALOGUE.labMin);
 }
