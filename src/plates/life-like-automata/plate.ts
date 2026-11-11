@@ -208,7 +208,9 @@ export const lifeLikeAutomata: PlateCode = {
           { label: 'last step', value: `${fmt(g.births)} born, ${fmt(g.deaths)} died` },
           { label: 'period of the board', value: g.period
             ? `${fmt(g.period)}, cycle from generation ${fmt(g.cycleStart)}`
-            : `not periodic in the last ${fmt(g.remembered)} boards` },
+            : g.proposed
+              ? `${fmt(g.proposed)} proposed by the hashes, comparing boards`
+              : `not periodic in the last ${fmt(g.remembered)} boards` },
           { label: 'board', value: `${w}×${h} (torus)` },
         ]);
       },

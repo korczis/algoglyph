@@ -93,10 +93,15 @@ export class Life {
   population = 0;
   births = 0;
   deaths = 0;
-  /** Smallest p with board(t) = board(t − p), once found; 0 while none is known. */
+  /**
+   * Smallest p with board(t) = board(t − p), once confirmed; 0 while none is known. A repeated
+   * hash only proposes p; it is confirmed by comparing the board with a copy p generations on.
+   */
   period = 0;
-  /** First generation of the cycle the board has entered, once a period is known. */
+  /** First generation of the cycle, from the hash match that proposed the period. */
   cycleStart = 0;
+  private candidate: { period: number; start: number; due: number } | null = null;
+  private proof: Uint8Array | null = null;
   private readonly seen = new Map<string, number>();
   private readonly ring: string[] = new Array<string>(HISTORY);
   private readonly ringGen = new Float64Array(HISTORY);
@@ -148,10 +153,16 @@ export class Life {
     this.stored = 0;
     this.period = 0;
     this.cycleStart = 0;
+    this.candidate = null;
     let n = 0;
     for (let i = 0; i < this.cells.length; i++) n += this.cells[i];
     this.population = n;
     this.remember(this.hash());
+  }
+
+  /** A period proposed by a repeated hash and not yet confirmed by the boards; 0 if none. */
+  get proposed(): number {
+    return this.candidate?.period ?? 0;
   }
 
   /** How many consecutive recent boards the detector currently compares against. */
@@ -174,11 +185,15 @@ export class Life {
   }
 
   private remember(key: string): void {
-    if (this.period === 0) {
+    if (this.period === 0 && this.candidate === null) {
       const at = this.seen.get(key);
       if (at !== undefined) {
-        this.period = this.generation - at;
-        this.cycleStart = at;
+        const period = this.generation - at;
+        this.candidate = { period, start: at, due: this.generation + period };
+        if (!this.proof || this.proof.length !== this.cells.length) {
+          this.proof = new Uint8Array(this.cells.length);
+        }
+        this.proof.set(this.cells);
       }
     }
     const slot = this.stored % HISTORY;
@@ -233,6 +248,19 @@ export class Life {
     this.population = pop;
     this.births = born;
     this.deaths = gone;
+    this.confirm();
     this.remember(this.hash());
+  }
+
+  /** Settle a proposed period: the board must equal its copy from one period ago. */
+  private confirm(): void {
+    const c = this.candidate;
+    if (!c || this.generation !== c.due) return;
+    this.candidate = null;
+    const proof = this.proof as Uint8Array;
+    const cells = this.cells;
+    for (let i = 0; i < cells.length; i++) if (cells[i] !== proof[i]) return;
+    this.period = c.period;
+    this.cycleStart = c.start;
   }
 }

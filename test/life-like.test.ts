@@ -99,17 +99,39 @@ describe('life-like rules', () => {
     expect(live(b)).not.toEqual(start);
     b.step(LIFE);
     expect(live(b)).toEqual(start);
-    expect(b.period).toBe(2);
-    expect(b.cycleStart).toBe(0);
+    // the repeated hash proposes 2; one more period of equal boards confirms it
+    expect(b.proposed).toBe(2);
+    expect(b.period).toBe(0);
     expect(b.births).toBe(2);
     expect(b.deaths).toBe(2);
+    b.step(LIFE);
+    b.step(LIFE);
+    expect(b.period).toBe(2);
+    expect(b.cycleStart).toBe(0);
 
     const k = board(16, 16, PATTERNS.block, 6, 7);
     const block = live(k);
     k.step(LIFE);
     expect(live(k)).toEqual(block);
+    k.step(LIFE);
     expect(k.period).toBe(1);
     expect(k.births + k.deaths).toBe(0);
+  });
+
+  it('a hash collision proposes a period that the board comparison refuses', () => {
+    // a deliberately weak hash: every board with the same population collides
+    class Colliding extends Life {
+      hash(): string {
+        return String(this.population);
+      }
+    }
+    const g = new Colliding(20, 20);
+    g.place(PATTERNS.glider, 5, 5);
+    g.perturbed();
+    g.step(LIFE);
+    expect(g.proposed).toBe(1);
+    for (let k = 0; k < 60; k++) g.step(LIFE);
+    expect(g.period).toBe(0);
   });
 
   it('a glider returns to its shape moved by (1, 1) after 4 generations', () => {
@@ -132,11 +154,15 @@ describe('life-like rules', () => {
     }
     g.step(LIFE);
     expect(live(g)).toEqual(start);
+    expect(g.proposed).toBe(48);
+    for (let k = 0; k < 48; k++) g.step(LIFE);
     expect(g.period).toBe(48);
 
     // on a 12 × 8 torus the glider repeats only after 4 · lcm(12, 8) = 96 generations
     const r = board(12, 8, PATTERNS.glider, 2, 2);
-    for (let k = 0; k < 96; k++) r.step(LIFE);
+    for (let k = 0; k < 95; k++) r.step(LIFE);
+    expect(r.proposed).toBe(0);
+    for (let k = 0; k < 97; k++) r.step(LIFE);
     expect(r.period).toBe(96);
     expect(r.cycleStart).toBe(0);
 
