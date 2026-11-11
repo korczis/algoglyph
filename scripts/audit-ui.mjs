@@ -101,13 +101,14 @@ try {
       await context.addInitScript((t) => localStorage.setItem('color-theme', t), theme);
       const p = await page(context, `${label} gallery`);
       await p.goto(base, { waitUntil: 'load' });
-      // every thumbnail is a real render, sequential; give them time
-      await p.waitForFunction(() => {
+      // every thumbnail is a real render, sequential; they do not depend on the viewport, so
+      // they are awaited (and proven) once per theme, at desktop width
+      if (w >= 1024) await p.waitForFunction(() => {
         const imgs = [...document.querySelectorAll('main img')];
         return imgs.length > 0 && imgs.every((i) => i.getAttribute('src')?.startsWith('data:image'));
       }, null, { timeout: 300000, polling: 500 })
         .catch(() => fail(`${label} gallery`, 'thumbnails did not all render'));
-      log(`${label}: gallery thumbnails done`);
+      log(`${label}: gallery ${w >= 1024 ? 'thumbnails done' : 'loaded'}`);
       if (!plates.length) {
         plates.push(...await p.evaluate(() => [...document.querySelectorAll('main a[href^="#/p/"]')]
           .map((a) => a.getAttribute('href').slice(4))));

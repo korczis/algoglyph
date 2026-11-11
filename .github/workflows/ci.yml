@@ -74,9 +74,11 @@ jobs:
   validate:
     name: Validate and build
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
-    # Not yet measured in CI: the default 6 h would hold a stuck browser gate far too long.
-    # Replace with the measured duration plus margin after the first green runs.
-    timeout-minutes: 30
+    # Measured: run 43083820780 (19 plates, lundra-algoglyph) took 1311 s, of which the browser
+    # gate waited for every thumbnail in all four theme/width contexts. The gate now waits for
+    # thumbnails only at desktop width; 45 min keeps twice the measured time as margin and stops
+    # a hung browser long before the 6 h default.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
