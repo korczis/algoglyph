@@ -1,0 +1,23 @@
+id: "I012"
+milestone: "M005"
+title: "Plate: 3D boids on a uniform grid"
+slug: "plate-3d-boids-on-a-uniform-grid"
+priority: "p2"
+profile: "implementation"
+objective: "A plate under src/plates/boids/ with a pure, unit-tested core and readouts measured from its own state, built by a parallel agent in its own worktree and integrated in the M005 train."
+why: "Owner: 'use our best agents / skill / peers in parallel' (2026-11-11)."
+scope:
+  - "src/plates/boids"
+  - "src/plates/index.ts"
+  - "README.md"
+  - "test/boids.test.ts"
+depends_on:
+  - "I001"
+acceptance_criteria:
+  - "test/boids.test.ts: grid neighbours equal brute force; under 5 % of pairs checked at N = 1500; alignment raises polarisation; separation spreads a cluster; speeds and positions stay bounded; seeded runs reproduce."
+  - "npm run verify passes, including the browser gate on the merged train."
+validation:
+  - "npm run verify"
+evidence_required:
+  - "verified"
+created_at: "2026-11-11"
