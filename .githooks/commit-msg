@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Conventional Commits are enforced at commit time; CI checks the same pattern on the pushed range.
+set -euo pipefail
+exec "$(git rev-parse --show-toplevel)/scripts/lint-commits.sh" --file "$1"

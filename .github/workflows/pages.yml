@@ -1,0 +1,77 @@
+name: Pages
+
+# main: validate -> deploy -> verify production. Each stage runs only if the previous one passed.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  deploy:
+    name: Deploy
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Download the validated site
+        uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: site
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+  verify:
+    name: Verify production
+    needs: deploy
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ needs.deploy.outputs.page_url }}
+    steps:
+      - name: Production serves this commit
+        run: |
+          for attempt in $(seq 1 40); do
+            if curl -fsS "${BASE_URL}revision.txt?nocache=${GITHUB_SHA}" | grep -qx "$GITHUB_SHA"; then
+              echo "production serves $GITHUB_SHA (attempt $attempt)"
+              break
+            fi
+            [ "$attempt" = 40 ] && { echo "production does not serve $GITHUB_SHA after 10 minutes" >&2; exit 1; }
+            sleep 15
+          done
+      - name: Smoke test
+        run: |
+          set -e
+          for path in "" favicon.svg revision.txt; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}${path}")"
+            echo "$code ${BASE_URL}${path}"
+            test "$code" = 200
+          done
+          curl -fsS "${BASE_URL}" | grep -q '<title>algoglyph</title>'

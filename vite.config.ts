@@ -1,0 +1,41 @@
+/// <reference types="vitest/config" />
+import { execSync } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
+import { defineConfig, type Plugin } from 'vite';
+
+// The deployed site proves which commit it was built from: pages.yml polls revision.txt.
+function revision(): Plugin {
+  return {
+    name: 'algoglyph-revision',
+    apply: 'build',
+    closeBundle() {
+      let sha = process.env.GITHUB_SHA ?? '';
+      if (!sha) {
+        try {
+          sha = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+            .toString().trim();
+        } catch {
+          sha = 'unknown';
+        }
+      }
+      const out = resolve(process.cwd(), 'dist');
+      mkdirSync(out, { recursive: true });
+      writeFileSync(resolve(out, 'revision.txt'), `${sha}\n`);
+    },
+  };
+}
+
+export default defineConfig({
+  base: process.env.ALGOGLYPH_BASE ?? './',
+  plugins: [tailwindcss(), revision()],
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 1600,
+  },
+  test: {
+    include: ['test/**/*.test.ts'],
+    environment: 'node',
+  },
+});

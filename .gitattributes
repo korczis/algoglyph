@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.gif binary
+*.woff2 binary
+
+package-lock.json linguist-generated
+AGENTS.md linguist-generated
+CLAUDE.md linguist-generated
+GEMINI.md linguist-generated

@@ -1,0 +1,38 @@
+{
+  "name": "algoglyph",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Algorithms and physics drawn as glyphs: a collection of generative visualisations and interactive simulations.",
+  "license": "MIT",
+  "author": "Tomas Korcak",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:ui": "node scripts/audit-ui.mjs",
+    "verify": "scripts/verify-all.sh"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.5",
+    "@types/alpinejs": "3.17.0",
+    "@types/node": "22.20.5",
+    "axe-core": "4.14.0",
+    "playwright-core": "1.65.0",
+    "tailwindcss": "4.3.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0"
+  },
+  "dependencies": {
+    "alpinejs": "3.17.5",
+    "flowbite": "4.0.2",
+    "p5": "2.3.4"
+  }
+}

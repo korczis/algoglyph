@@ -1,0 +1,78 @@
+@import 'tailwindcss' source(none);
+
+@source '../../index.html';
+@source '../**/*.ts';
+@source '../../node_modules/flowbite/lib/esm/components';
+
+@plugin 'flowbite/plugin';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Flowbite Pro theme: one primary accent (a phosphor orange), Inter-first sans, a mono for data */
+@theme {
+  --color-primary-50: #fff7ed;
+  --color-primary-100: #ffedd5;
+  --color-primary-200: #fed7aa;
+  --color-primary-300: #fdba74;
+  --color-primary-400: #fb923c;
+  --color-primary-500: #f97316;
+  --color-primary-600: #ea580c;
+  --color-primary-700: #c2410c;
+  --color-primary-800: #9a3412;
+  --color-primary-900: #7c2d12;
+  --color-primary-950: #431407;
+
+  /* the flowbite 4 plugin styles range thumbs and a few controls from these semantic
+     variables; the Pro radius scale stays Tailwind's, so its theme file is not imported */
+  --color-brand: var(--color-primary-600);
+  --color-brand-strong: var(--color-primary-700);
+  --color-brand-medium: var(--color-primary-300);
+  --color-brand-light: var(--color-primary-200);
+  --color-brand-soft: var(--color-primary-100);
+  --color-brand-softer: var(--color-primary-50);
+  --color-brand-subtle: var(--color-primary-100);
+  --color-body: var(--color-gray-500);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+
+  [x-cloak] {
+    display: none !important;
+  }
+
+  input[type='range'] {
+    accent-color: var(--color-primary-600);
+  }
+}
+
+/* the stage reserves its height before p5 mounts, so nothing below it jumps */
+.stage {
+  min-height: 12rem;
+}
+
+.stage canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.plate-no {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

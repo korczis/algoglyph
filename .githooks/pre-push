@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Majordomus supervision is mandatory in this repository: a push must satisfy the active task's finish contract.
+set -euo pipefail
+if ! command -v majordomus >/dev/null 2>&1; then
+  echo "pre-push: majordomus is required (https://majordomus.dev)" >&2
+  exit 1
+fi
+majordomus finish --check || exit $?

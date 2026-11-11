@@ -1,0 +1,84 @@
+name: CI
+
+# Runs on pull requests and non-main branches, and is called by pages.yml for main, so the gate
+# in front of a deployment is exactly the gate in front of a merge. Same order as
+# scripts/verify-all.sh.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  commits:
+    name: Conventional commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Lint commit subjects
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          head="${PR_HEAD:-$GITHUB_SHA}"
+          if [ -n "$PR_BASE" ]; then
+            range="$PR_BASE..$head"
+          elif [ -n "$PUSH_BEFORE" ] && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            range="$PUSH_BEFORE..$head"
+          else
+            range="$(git rev-list --max-parents=0 "$head" | tail -n 1)..$head"
+          fi
+          scripts/lint-commits.sh --range "$range"
+
+  supervision:
+    name: Majordomus supervision
+    runs-on: ubuntu-latest
+    env:
+      MAJORDOMUS_VERSION: v1.0.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install majordomus (pinned; the installer verifies the SHA-256 of the release)
+        run: |
+          curl -fsSL https://majordomus.dev/install.sh | sh -s -- --version "$MAJORDOMUS_VERSION"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: majordomus doctor
+        run: |
+          git config core.hooksPath .githooks
+          majordomus version
+          majordomus doctor
+
+  validate:
+    name: Validate and build
+    runs-on: ubuntu-latest
+    # Not yet measured in CI: the default 6 h would hold a stuck browser gate far too long.
+    # Replace with the measured duration plus margin after the first green runs.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Unit tests (algorithms against reference values, integrator invariants)
+        run: npx vitest run
+      - name: Build (stamps dist/revision.txt with the commit)
+        run: npx vite build
+      - name: Browser gate (axe WCAG 2.2 AA, console errors, overflow, every plate renders)
+        env:
+          AUDIT_CHANNEL: ''
+        run: |
+          npx playwright-core install --with-deps chromium
+          node scripts/audit-ui.mjs
+      - name: Upload the site
+        uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: dist
+          if-no-files-found: error

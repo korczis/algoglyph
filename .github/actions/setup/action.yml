@@ -1,0 +1,14 @@
+name: Toolchain
+description: Node.js 22 with npm ci from the lockfile.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+        cache: npm
+
+    - name: npm ci
+      shell: bash
+      run: npm ci
