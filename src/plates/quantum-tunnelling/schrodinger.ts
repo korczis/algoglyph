@@ -314,6 +314,8 @@ export class Wave {
     const n = this.spec.n;
     const absorb = this.spec.absorb;
     const dx = this.spec.dx;
+    // whole steps only: a fractional count would end on a full potential step, not a half
+    count = Math.floor(count);
     if (count < 1) return;
     this.phase(this.halfV[0], this.halfV[1], re, im);
     for (let s = 0; s < count; s++) {

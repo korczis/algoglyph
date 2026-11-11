@@ -123,7 +123,7 @@ export const quantumTunnelling: PlateCode = {
       },
       draw() {
         // step in chunks that end on ribbon rows, so the potential half steps fuse in between
-        let left = ctx.thumbnail ? THUMB_STEPS : num(params, 'speed');
+        let left = ctx.thumbnail ? THUMB_STEPS : Math.max(1, Math.round(num(params, 'speed')));
         while (left > 0) {
           const chunk = Math.min(left, rowSteps - (wave.steps % rowSteps));
           wave.step(chunk);

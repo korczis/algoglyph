@@ -226,6 +226,23 @@ describe('split-step Schrödinger integrator', () => {
     expect(Math.abs(fine - coarse)).toBeLessThan(1e-6);
   }, 20000);
 
+  it('takes whole steps only, so a fractional count never ends on a full potential step', () => {
+    // a slider dragged without a remount can hand the plate a fractional steps-per-frame
+    const make = () => {
+      const pot = potential('single', 4, 2, 0.1);
+      const w = new Wave({ n: 512, dx: 0.1, dt: 0.0125, absorb: 0 }, pot);
+      w.gaussian(-6, 2, 2);
+      return w;
+    };
+    const a = make();
+    const b = make();
+    a.step(3.5);
+    b.step(3);
+    expect(Array.from(a.re)).toEqual(Array.from(b.re));
+    expect(Array.from(a.im)).toEqual(Array.from(b.im));
+    expect(a.steps).toBe(3);
+  });
+
   it('is deterministic: the same set-up gives bit-identical states', () => {
     const run = () => {
       const pot = potential('double', 1.2, 1, 0.1);
