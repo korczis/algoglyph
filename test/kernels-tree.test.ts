@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { ENTRIES, CATALOGUE } from '../src/core/catalogue';
 import { GROUNDS, palette } from '../src/core/palette';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
-import { engine } from '../src/engines/tree';
-import { EV, NIL, SHAPES, Store, trace, workload, type Key, type Trace, type TreeKernel,
+import { engine, PROBE_BUDGET, probeCost, unitOf } from '../src/engines/tree';
+import { Replay } from '../src/engines/tree/scene';
+import { EV, NIL, SHAPES, Store, trace, workload, type Counts, type Key, type Trace, type TreeKernel,
   type Workload } from '../src/engines/tree/trace';
 
 const modules = import.meta.glob<TreeKernel>('../src/kernels/tree/[!_]*.ts', { import: 'kernel', eager: true });
@@ -23,7 +24,20 @@ const lg = Math.log2;
 /** The keys the structure must hold at the end. */
 function expected(k: TreeKernel, w: Workload): Key[] {
   const gone = new Set(k.deletes ? w.deletes : []);
-  return asc(w.keys.filter((x) => !gone.has(x)));
+  return asc([...new Set(w.keys)].filter((x) => !gone.has(x)));
+}
+
+/** The parameter settings a kernel is checked under: every degree, a spread of memory sizes. */
+function variants(k: TreeKernel): Record<string, number>[] {
+  const out: Record<string, number>[] = [defaults(k)];
+  for (const p of k.params ?? []) {
+    if (p.kind !== 'range') continue;
+    const values = p.key === 'degree'
+      ? Array.from({ length: p.max - p.min + 1 }, (_, i) => p.min + i)
+      : [p.min, Math.round((p.min + p.max) / 2), p.max];
+    for (const v of values) if (v !== p.value) out.push({ ...defaults(k), [p.key]: v });
+  }
+  return out;
 }
 
 // ---- independent readers of a store ----------------------------------------------------------
@@ -86,9 +100,18 @@ function checkSearches(t: Trace, k: TreeKernel): void {
   expect(searches.map((f) => f.k)).toEqual(w.searches);
   for (const f of searches) expect(f.yes, `search ${f.k}`).toBe(present.has(f.k));
   if (k.deletes) {
+    // a delete reports whether the key was there at that moment
     const dels = t.found.slice(w.searches.length);
     expect(dels.map((f) => f.k)).toEqual(w.deletes);
-    for (const f of dels) expect(f.yes, `delete ${f.k}`).toBe(true);
+    for (const f of dels) {
+      expect(f.yes, `delete ${f.k}`).toBe(present.has(f.k));
+      present.delete(f.k);
+    }
+  } else {
+    // a kernel may repeat the searches later (after rebalancing); the answers must not change
+    const rest = t.found.slice(w.searches.length);
+    expect(rest.length % Math.max(1, w.searches.length)).toBe(0);
+    rest.forEach((f, i) => expect(f).toEqual(searches[i % searches.length]));
   }
 }
 
@@ -149,7 +172,7 @@ function checkStructure(k: TreeKernel, id: string, t: Trace): void {
     case 'multiway': {
       const root = s.roots[0] ?? NIL;
       if (!want.length) { expect(root).toBe(NIL); break; }
-      const deg = defaults(k).degree ?? 2;
+      const deg = w.opts.degree ?? 2;
       const leaves: number[] = [];
       expect(multiway(s, root, 0, leaves), 'in-order equals the sorted keys').toEqual(want);
       expect(new Set(leaves).size, 'every leaf at one depth').toBe(1);
@@ -198,11 +221,14 @@ function checkStructure(k: TreeKernel, id: string, t: Trace): void {
         return s.keys[x][0];
       };
       for (const key of want) expect(look(key as number), `search ${key}`).toBe(key);
+      // below a node testing bit b, every key reached down its side-s link has bit b equal to s
+      const down = (x: number): number[] => [x, ...s.kids[x].flatMap((c) => (c !== NIL && s.info[c] > s.info[x] ? down(c) : []))];
       for (const x of nodes) {
-        for (const c of s.kids[x]) {
-          // a down link leads to a larger bit index and splits on a bit the subtree's keys share
-          if (c !== NIL && s.info[c] > s.info[x] && x !== head) expect(s.info[c]).toBeGreaterThan(s.info[x]);
-        }
+        if (x === head) continue;
+        s.kids[x].forEach((c, side) => {
+          if (c === NIL || s.info[c] <= s.info[x]) return;
+          for (const y of down(c)) expect(bitOf(s.keys[y][0] as number, s.info[x], w.bits), `key ${s.keys[y][0]} below bit ${s.info[x]}`).toBe(side);
+        });
       }
       break;
     }
@@ -363,6 +389,30 @@ function replay(k: TreeKernel, t: Trace): Store {
   return s;
 }
 
+/** Every check that applies to one finished trace. */
+function checkAll(kernel: TreeKernel, id: string, t: Trace): void {
+  const w = t.workload;
+  expect(t.truncated).toBe(false);
+  checkStructure(kernel, id, t);
+  if (['bst', 'avl', 'red-black', 'multiway', 'binary-trie', 'dst', 'patricia', 'rway-trie', 'tst'].includes(kernel.structure)) {
+    checkSearches(t, kernel);
+  }
+  if (kernel.structure === 'heap' || kernel.structure === 'binomial') {
+    expect(t.outputs.map((o) => o.v), 'comes out largest first').toEqual(asc(w.keys).reverse());
+  }
+  if (kernel.structure === 'runs') {
+    const m = Math.min(w.opts.memory, w.keys.length);
+    const runs: number[][] = [];
+    for (const o of t.outputs) (runs[o.group] ??= []).push(o.v as number);
+    expect(runs.flat().slice().sort((a, b) => a - b)).toEqual(asc(w.keys));
+    runs.forEach((r, i) => {
+      expect(r, `run ${i} ascending`).toEqual(r.slice().sort((a, b) => a - b));
+      if (i < runs.length - 1) expect(r.length, `run ${i} holds at least M keys`).toBeGreaterThanOrEqual(m);
+    });
+  }
+  if (['heap', 'runs', 'binomial'].includes(kernel.structure)) replay(kernel, t);
+}
+
 describe('tree kernels', () => {
   it('every live tree entry has its kernel and every kernel its entry', () => {
     const files = Object.keys(modules).map((f) => f.replace(/^.*\/(.*)\.ts$/, '$1')).sort();
@@ -372,31 +422,52 @@ describe('tree kernels', () => {
   for (const e of live) {
     const kernel = kernelOf(e.id);
     describe(e.id, () => {
-      it('keeps its invariants on every input shape and size', () => {
-        for (const { value: shape } of SHAPES[kernel.input]) {
-          for (const n of SIZES) {
-            const t = load(kernel, shape, n);
-            expect(t.truncated).toBe(false);
-            checkStructure(kernel, e.id, t);
-            if (['bst', 'avl', 'red-black', 'multiway', 'binary-trie', 'dst', 'patricia', 'rway-trie', 'tst'].includes(kernel.structure)) {
-              checkSearches(t, kernel);
-            }
-            if (kernel.structure === 'heap' || kernel.structure === 'binomial') {
-              expect(t.outputs.map((o) => o.v), `${shape} n=${n} comes out largest first`)
-                .toEqual(asc(t.workload.keys).reverse());
-            }
-            if (kernel.structure === 'runs') {
-              const m = Math.min(defaults(kernel).memory, n);
-              const runs: number[][] = [];
-              for (const o of t.outputs) (runs[o.group] ??= []).push(o.v as number);
-              expect(runs.flat().slice().sort((a, b) => a - b)).toEqual(asc(t.workload.keys));
-              runs.forEach((r, i) => {
-                expect(r, `run ${i} ascending`).toEqual(r.slice().sort((a, b) => a - b));
-                if (i < runs.length - 1) expect(r.length, `run ${i} holds at least M keys`).toBeGreaterThanOrEqual(m);
-              });
-            }
+      it('keeps its invariants on every input shape, size and parameter setting', () => {
+        for (const opts of variants(kernel)) {
+          for (const { value: shape } of SHAPES[kernel.input]) {
+            for (const n of SIZES) checkAll(kernel, e.id, trace(kernel, workload(kernel.input, shape, n, 1000 + n, opts)));
           }
         }
+      });
+
+      it.runIf(['keys', 'bits', 'words'].includes(kernel.input))('handles repeated keys and deletes of absent keys', () => {
+        for (const n of [1, 5, 40]) {
+          const w = workload(kernel.input, SHAPES[kernel.input][0].value, n, 77 + n, defaults(kernel));
+          const absent = w.searches.filter((k) => !w.keys.includes(k));
+          // every key arrives twice, the second copies interleaved; deletes repeat and miss
+          w.keys = w.keys.flatMap((k, i) => (i % 2 ? [k, w.keys[i - 1]] : [k])).concat(w.keys.slice(0, 3));
+          w.deletes = [...w.deletes, ...w.deletes.slice(0, 2), ...absent.slice(0, 3)];
+          checkAll(kernel, e.id, trace(kernel, w));
+        }
+      });
+
+      it('reports each operation kind\'s cost with the costliest operation as its maximum', () => {
+        const unit = unitOf(kernel);
+        const fields: (keyof Counts)[] = unit.name === 'array accesses' ? ['reads', 'writes'] : ['compares', 'digits'];
+        for (const { value: shape } of SHAPES[kernel.input]) {
+          const t = load(kernel, shape, 61);
+          const groups = new Map<string, number[]>();
+          t.ops.forEach((op, i) => {
+            const end = i + 1 < t.ops.length ? t.ops[i + 1].c : t.counts;
+            const key = `${op.kind}|${op.phase ?? ''}`;
+            const per = fields.reduce((a, f) => a + end[f] - op.c[f], 0);
+            groups.set(key, [...(groups.get(key) ?? []), per]);
+          });
+          for (const [key, per] of groups) {
+            const [kind, phase] = key.split('|');
+            const got = unit.of(t, kind as Trace['ops'][number]['kind'], phase);
+            expect(got.ops, key).toBe(per.length);
+            expect(got.total, key).toBe(per.reduce((a, b) => a + b, 0));
+            expect(got.max, `${shape} ${key}`).toBe(Math.max(...per));
+          }
+        }
+      });
+
+      it('replays to the same counts the kernel made', () => {
+        const t = load(kernel, SHAPES[kernel.input][0].value, 61);
+        const r = new Replay(t, kernel);
+        r.advance(t.events.length);
+        expect(r.c).toEqual(t.counts);
       });
 
       it('replays its events into the structure it built', () => {
@@ -506,8 +577,8 @@ describe('tree plates', () => {
   const fakeP5 = () => new Proxy({ LEFT: 'left', CENTER: 'center', TOP: 'top', BOTTOM: 'bottom' } as Record<string, unknown>, {
     get: (o, k: string) => (k in o ? o[k] : () => undefined),
   });
-  const drive = (code: PlateCode, frames: number, speed = 2000) => {
-    const params: Params = Object.fromEntries(code.params.map((d) => [d.key, d.value]));
+  const drive = (code: PlateCode, frames: number, speed = 2000, over: Params = {}) => {
+    const params: Params = { ...Object.fromEntries(code.params.map((d) => [d.key, d.value])), ...over };
     params.speed = speed;
     params.loop = false;
     let stats: Stat[] = [];
@@ -540,6 +611,89 @@ describe('tree plates', () => {
       const { stats, chart } = drive(engine.lab(l.id, kernels), 120, 50);
       expect(stats.length).toBe(kernels.length);
       expect(chart!.series.filter((sr) => sr.points.length > 0).length).toBeGreaterThanOrEqual(kernels.length);
+      const lab = engine.lab(l.id, kernels);
+      const n = lab.params.find((d) => d.key === 'n');
+      expect(n?.kind === 'range' && n.max).toBeLessThanOrEqual(128);
+    });
+
+    it(`lab ${l.id} says where a curve stops instead of dropping points silently`, () => {
+      const kernels = l.entries.filter((id) => live.some((e) => e.id === id))
+        .map((id) => ({ info: { id, title: id, group: ENTRIES.find((e) => e.id === id)!.taxonomy }, kernel: kernelOf(id) }));
+      const worst = kernels[0].kernel.input === 'pairs' ? 'chain' : 'ascending';
+      const { stats, chart } = drive(engine.lab(l.id, kernels), 400, 50, { shape: worst });
+      const slow = kernels[0].kernel.input === 'pairs' ? 'quick-find' : 'bst-search-insert';
+      const row = stats.find((r) => r.label === slow)!;
+      expect(row.value).toMatch(/curve stops before n=\d+: over the per-frame budget/);
+      const stop = Number(/before n=(\d+)/.exec(row.value)![1]);
+      const series = chart!.series.find((sr) => sr.name === slow)!;
+      expect(Math.max(...series.points.map((q) => q[0]))).toBeLessThan(stop);
+      for (const r of stats) {
+        const pts = chart!.series.find((sr) => sr.name === r.label)!.points;
+        // a curve either reaches the largest size or says why it does not
+        if (!r.value.includes('curve stops')) expect(Math.max(...pts.map((q) => q[0])), r.label).toBe(1024);
+      }
     });
   }
+});
+
+describe('tree review fixes', () => {
+  const has = (id: string) => live.some((e) => e.id === id);
+
+  it.runIf(has('huffman-coding'))('Huffman coding of a single symbol is one leaf with an empty code', () => {
+    const w = workload('weights', 'zipf', 2, 1);
+    w.symbols = ['a'];
+    w.weights = [7];
+    const t = trace(kernelOf('huffman-coding'), w);
+    checkStructure(kernelOf('huffman-coding'), 'huffman-coding', t);
+    const roots = t.store.roots.filter((r) => r !== NIL);
+    expect(roots.length).toBe(1);
+    expect(t.store.kids[roots[0]]).toEqual([]);
+  });
+
+  it.runIf(has('binomial-queue'))('a binomial queue counts one new link per tree link: n - popcount(n) for n inserts', () => {
+    for (const n of [1, 7, 8, 61, 100]) {
+      const t = load(kernelOf('binomial-queue'), 'random', n);
+      // child links created during the inserts, recounted from the events on a store of our own
+      const s = new Store(t.store.arr.length);
+      let made = 0;
+      let inserting = true;
+      for (const e of t.events) {
+        if (e.o === EV.begin && e.a !== 0) inserting = false;
+        if (e.o === EV.children && inserting) {
+          const before = new Set(s.kids[e.a]);
+          made += (e.p as number[]).filter((c) => c !== NIL && !before.has(c)).length;
+        }
+        s.apply(e);
+      }
+      const popcount = n.toString(2).split('').filter((b) => b === '1').length;
+      expect(made, `n=${n}`).toBe(n - popcount);
+      const insertLinks = t.ops.filter((o) => o.kind === 'insert');
+      const end = t.ops.find((o) => o.kind !== 'insert')?.c ?? t.counts;
+      const roots = t.events.filter((e, i) => e.o === EV.root && i < (t.ops.find((o) => o.kind !== 'insert')?.at ?? Infinity)).length;
+      expect(end.links - insertLinks[0].c.links, 'links readout = tree links + root slot writes').toBe(made + roots);
+    }
+  });
+
+  it.runIf(has('bst-rotations'))('bst-rotations reports search cost before and after balancing separately', () => {
+    const k = kernelOf('bst-rotations');
+    const t = load(k, 'ascending', 100);
+    const before = unitOf(k).of(t, 'search', 'before balancing');
+    const after = unitOf(k).of(t, 'search', 'after balancing');
+    expect(before.ops).toBe(t.workload.searches.length);
+    expect(after.ops).toBe(t.workload.searches.length);
+    expect(after.max).toBeLessThanOrEqual(2 * Math.ceil(lg(101)));
+    expect(after.total).toBeLessThan(before.total);
+  });
+
+  it('a scaling run never takes more than the per-frame event budget', () => {
+    for (const e of live) {
+      const k = kernelOf(e.id);
+      for (const { value: shape } of SHAPES[k.input]) {
+        const res = probeCost(k, shape, 1024, 3);
+        expect(res.steps, `${e.id} ${shape}`).toBeLessThanOrEqual(PROBE_BUDGET);
+      }
+    }
+    const worst = probeCost(kernelOf('bst-search-insert'), 'ascending', 1024, 3);
+    expect(worst.truncated).toBe(true);
+  });
 });

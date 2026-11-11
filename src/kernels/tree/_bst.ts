@@ -73,9 +73,9 @@ export function insertAll(t: TreeOps, ins: (h: number, k: Key) => number): void 
   }
 }
 
-export function searchAll(t: TreeOps, find: (k: Key) => boolean = (k) => search(t, k)): void {
+export function searchAll(t: TreeOps, find: (k: Key) => boolean = (k) => search(t, k), phase?: string): void {
   for (const k of t.w.searches) {
-    t.begin('search', `search ${k}`);
+    t.begin('search', `search ${k}`, phase);
     find(k);
   }
 }

@@ -7,11 +7,12 @@ import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { drawArray, drawOutputs, drawScene, Motion, Replay, shape, type Box } from './scene';
-import { costOf, MAX_SYMBOLS, NIL, SHAPES, trace, workload, type InputKind, type OpKind, type Trace,
+import { costOf, MAX_SYMBOLS, NIL, opGroups, SHAPES, trace, workload, type InputKind, type OpKind, type Trace,
   type TreeKernel } from './trace';
 
 const HOLD_FRAMES = 120;
 const SCALING_N = [16, 32, 64, 128, 256, 512, 1024];
+const LAB_MAX_N = 128;
 const fmt = (x: number) => x.toLocaleString('en-US');
 const fix2 = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : '?');
 
@@ -45,25 +46,36 @@ function run(kernel: TreeKernel, ctx: PlateContext, generation: number): Trace {
 
 type Cost = { total: number; ops: number; max: number };
 
-/** The cost an operation is measured in: key and digit tests, or array accesses. */
-function unitOf(k: TreeKernel): { name: string; of: (t: Trace, kind: OpKind) => Cost } {
-  const sum = (t: Trace, kind: OpKind, a: 'reads' | 'compares', b: 'writes' | 'digits'): Cost => {
-    const x = costOf(t, kind, a); const y = costOf(t, kind, b);
-    return { total: x.total + y.total, ops: x.ops, max: Math.max(x.max, y.max) };
-  };
-  if (k.view === 'parent' || k.view === 'heap') return { name: 'array accesses', of: (t, kind) => sum(t, kind, 'reads', 'writes') };
-  return { name: 'key and digit tests', of: (t, kind) => sum(t, kind, 'compares', 'digits') };
+/** The cost an operation is measured in: key and digit tests, or array accesses, summed per
+ * operation (so the maximum is the costliest operation's total). */
+export function unitOf(k: TreeKernel): { name: string; of: (t: Trace, kind: OpKind, phase?: string) => Cost } {
+  if (k.view === 'parent' || k.view === 'heap') {
+    return { name: 'array accesses', of: (t, kind, phase) => costOf(t, kind, ['reads', 'writes'], phase) };
+  }
+  return { name: 'key and digit tests', of: (t, kind, phase) => costOf(t, kind, ['compares', 'digits'], phase) };
 }
 
 /** The operation kind a lab measures cost on. */
 const probeOf = (k: TreeKernel): OpKind => (k.input === 'pairs' ? 'union' : 'search');
 
+/** Events one scaling run may take, so that a lab frame stays short on a phone. A curve whose
+ * next size is predicted to exceed it stops there, and the lab says so. */
+export const PROBE_BUDGET = 60_000;
+
 /** Mean cost of one probe operation in a fresh, unrecorded trace of n items. */
-function probeCost(k: TreeKernel, shapeName: string, n: number, seed: number): { cost: number; height: number } {
-  const t = trace(k, workload(k.input, shapeName, n, seed, optsOf(k, {})), false);
-  if (t.truncated) return { cost: NaN, height: NaN };
+export function probeCost(k: TreeKernel, shapeName: string, n: number, seed: number, cap = PROBE_BUDGET):
+  { cost: number; height: number; steps: number; truncated: boolean } {
+  const t = trace(k, workload(k.input, shapeName, n, seed, optsOf(k, {})), false, cap);
+  if (t.truncated) return { cost: NaN, height: NaN, steps: t.steps, truncated: true };
   const c = unitOf(k).of(t, probeOf(k));
-  return { cost: c.ops ? c.total / c.ops : NaN, height: shape(t.store, k).height };
+  return { cost: c.ops ? c.total / c.ops : NaN, height: shape(t.store, k).height, steps: t.steps, truncated: false };
+}
+
+/** The events the next size will take, extrapolated from the growth between the last two. */
+export function predictSteps(steps: number[]): number {
+  const last = steps[steps.length - 1] ?? 0;
+  const prev = steps[steps.length - 2];
+  return prev ? last * Math.max(2, last / Math.max(1, prev)) : last * 4;
 }
 
 /** What the structure holds now, measured from the replayed store (kernel specific readouts). */
@@ -150,7 +162,6 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
       let r = new Replay(run(kernel, ctx, generation), kernel);
       let m = new Motion();
       let hold = 0;
-      const kinds = [...new Set(r.t.ops.map((o) => o.kind))];
       const digitsWord = kernel.input === 'words' ? 'character tests' : 'bit tests';
       const unitName = unit.name !== 'key and digit tests' ? unit.name
         : !r.t.counts.digits ? 'comparisons' : !r.t.counts.compares ? digitsWord : `comparisons and ${digitsWord}`;
@@ -183,7 +194,7 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
           if (tc.compares) rows.push({ label: 'Key comparisons', value: fmt(c.compares) });
           if (tc.digits) rows.push({ label: kernel.input === 'words' ? 'Character tests' : 'Bit tests', value: fmt(c.digits) });
           if (tc.visits) rows.push({ label: 'Nodes touched', value: fmt(c.visits) });
-          if (tc.links) rows.push({ label: 'Links changed', value: fmt(c.links) });
+          if (tc.links) rows.push({ label: 'Links written', value: fmt(c.links) });
           if (tc.rotations) rows.push({ label: 'Rotations', value: fmt(c.rotations) });
           if (tc.splits) rows.push({ label: 'Node splits', value: fmt(c.splits) });
           if (tc.recolours && kernel.colour === 'red-black') rows.push({ label: 'Recolourings', value: fmt(c.recolours) });
@@ -191,9 +202,11 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
           // cost per operation kind, over the operations completed so far
           const doneOps = Math.max(0, r.done ? r.t.ops.length : r.op);
           const partial: Trace = { ...r.t, ops: r.t.ops.slice(0, doneOps), counts: doneOps < r.t.ops.length ? r.t.ops[doneOps].c : r.t.counts };
-          for (const kind of kinds) {
-            const cost = unit.of(partial, kind);
-            if (cost.ops) rows.push({ label: `Cost per ${kind}`, value: `${fix2(cost.total / cost.ops)} ${unitName} (max ${fmt(cost.max)})` });
+          // an operation kind that costs nothing in this unit over the whole run gets no row
+          for (const g of opGroups(r.t).filter((x) => unit.of(r.t, x.kind, x.phase).total > 0)) {
+            const cost = unit.of(partial, g.kind, g.phase);
+            const label = `Cost per ${g.kind}${g.phase ? ` (${g.phase})` : ''}`;
+            if (cost.ops) rows.push({ label, value: `${fix2(cost.total / cost.ops)} ${unitName} (max ${fmt(cost.max)})` });
           }
           if (r.hits + r.misses) rows.push({ label: kernel.input === 'pairs' ? 'Already connected' : 'Lookups', value: `${fmt(r.hits)} yes, ${fmt(r.misses)} no` });
           rows.push(...extraStats(r));
@@ -209,7 +222,7 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
             series: [
               { name: 'Height', points: h.map((q) => [q[0], q[1]]) },
               { name: 'Average depth', points: h.map((q) => [q[0], q[2]]) },
-              { name: 'lg(n+1)', points: h.map((q) => [q[0], q[3]]) },
+              { name: 'lg(n+1) (reference)', points: h.map((q) => [q[0], q[3]]) },
             ],
           });
         },
@@ -226,7 +239,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
       kind: 'select', key: 'group', label: 'Compare', value: 'all', rebuild: true,
       options: [{ value: 'all', label: 'All kernels' }, ...groups.map((g) => ({ value: g, label: g }))],
     },
-    ...baseParams(kind, [], kind === 'pairs' ? 32 : 40),
+    // every pane replays a recorded trace, so the lab keeps n where a quadratic case stays light
+    ...baseParams(kind, [], kind === 'pairs' ? 32 : 40)
+      .map((d) => (d.key === 'n' && d.kind === 'range' ? { ...d, max: Math.min(d.max, LAB_MAX_N) } : d)),
   ];
   return {
     id: `lab-${id}`,
@@ -237,7 +252,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
     create(p, ctx) {
       let generation = 0;
       let panes: { info: KernelInfo; kernel: TreeKernel; r: Replay; m: Motion; finished: number }[] = [];
-      let curves: { info: KernelInfo; pts: [number, number][]; heights: [number, number][] }[] = [];
+      let curves: { info: KernelInfo; pts: [number, number][]; heights: [number, number][]; steps: number[];
+        stopped: number }[] = [];
       let pending: [number, number][] = [];
       let finishedCount = 0;
       let hold = 0;
@@ -249,7 +265,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
         finishedCount = 0;
         panes = chosen().map((k) => ({ ...k, r: new Replay(run(k.kernel, ctx, generation), k.kernel), m: new Motion(), finished: 0 }));
         if (generation === 0) {
-          curves = chosen().map((k) => ({ info: k.info, pts: [], heights: [] }));
+          curves = chosen().map((k) => ({ info: k.info, pts: [], heights: [], steps: [], stopped: 0 }));
           pending = SCALING_N.flatMap((n) => curves.map((_, ci) => [ci, n] as [number, number]));
         }
       };
@@ -260,9 +276,15 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
         const [ci, n] = next;
         const k = chosen()[ci];
         if (!k) return;
-        const { cost, height } = probeCost(k.kernel, str(ctx.params, 'shape'), n, ctx.seed + n);
-        curves[ci].pts.push([n, cost]);
-        curves[ci].heights.push([n, height]);
+        const cv = curves[ci];
+        if (cv.stopped) return;
+        // a size whose run would outgrow one frame's budget is not measured, and the lab says so
+        if (cv.steps.length && predictSteps(cv.steps) > PROBE_BUDGET) { cv.stopped = n; return; }
+        const res = probeCost(k.kernel, str(ctx.params, 'shape'), n, ctx.seed + n);
+        if (res.truncated) { cv.stopped = n; return; }
+        cv.pts.push([n, res.cost]);
+        cv.heights.push([n, res.height]);
+        cv.steps.push(res.steps);
       };
       build();
       const probe = kernels[0] ? probeOf(kernels[0].kernel) : 'search';
@@ -319,7 +341,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
             y: { label: `${unit} per ${probe}`, log: kind === 'pairs' },
             series: [
               ...curves.map((cv) => ({ name: cv.info.title, points: cv.pts.filter((q) => Number.isFinite(q[1])) })),
-              ...(kind === 'pairs' ? [] : [{ name: 'lg n', points: SCALING_N.map((n) => [n, Math.log2(n)] as [number, number]) }]),
+              ...(kind === 'pairs' ? [] : [{ name: 'lg n (reference)', points: SCALING_N.map((n) => [n, Math.log2(n)] as [number, number]) }]),
             ],
           });
           ctx.stats(panes.map((pane, i) => {
@@ -336,6 +358,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
               label: pane.info.title,
               value: `${fmt(c.compares + c.digits)} tests${extras ? ` · ${extras}` : ''}`
                 + (last ? ` · n=${last[0]}: ${fix2(last[1])} per ${probe}, height ${hl?.[1] ?? '?'}` : '')
+                + (cv?.stopped ? ` · curve stops before n=${cv.stopped}: over the per-frame budget` : '')
                 + (pane.finished ? ` · finished #${pane.finished}` : ''),
             };
           }));

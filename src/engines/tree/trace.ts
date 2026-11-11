@@ -175,7 +175,7 @@ export interface TreeOps {
   set(i: number, v: number): void;
   /** The part of the array in use (drawing only). */
   size(n: number): void;
-  begin(kind: OpKind, caption: string): void;
+  begin(kind: OpKind, caption: string, phase?: string): void;
   /** Output, in order; `group` separates runs or traversal orders. */
   emit(v: Key, group?: number): void;
   found(k: Key, yes: boolean): void;
@@ -213,6 +213,8 @@ export interface TreeKernel {
 export interface OpRecord {
   kind: OpKind;
   caption: string;
+  /** A stage of the run the kernel names (before and after rebalancing), for separate costs. */
+  phase?: string;
   /** Index of its begin event, and the counts when it began. */
   at: number;
   c: Counts;
@@ -227,10 +229,20 @@ export interface Trace {
   /** The structure as the kernel left it. */
   store: Store;
   workload: Workload;
+  /** Events performed, recorded or not. */
+  steps: number;
   truncated: boolean;
 }
 
 export const EVENT_CAP = 2_000_000;
+
+/** Children in `next` that `prev` did not hold: the links a child-list rewrite creates. */
+export function linksCreated(prev: readonly number[], next: readonly number[]): number {
+  const had = new Set(prev);
+  let made = 0;
+  for (const c of next) if (c !== NIL && !had.has(c)) made++;
+  return made;
+}
 
 class Stop extends Error {}
 
@@ -292,10 +304,9 @@ export function trace(kernel: TreeKernel, w: Workload, record = true, cap = EVEN
       node(x);
       for (const c of cs) if (c !== NIL) node(c);
       const old = s.kids[x];
-      let changed = Math.abs(old.length - cs.length);
-      for (let i = 0; i < Math.min(old.length, cs.length); i++) if (old[i] !== cs[i]) changed++;
-      if (!changed) return;
-      counts.links += changed;
+      if (old.length === cs.length && old.every((c, i) => c === cs[i])) return;
+      // a link is counted when it is created; shifting a slot or dropping a child is not one
+      counts.links += linksCreated(old, cs);
       push({ o: EV.children, a: x, b: 0, c: 0, p: cs.slice() });
     },
     tag(x) { node(x); return s.tag[x]; },
@@ -336,8 +347,8 @@ export function trace(kernel: TreeKernel, w: Workload, record = true, cap = EVEN
     get(i) { cell(i); counts.reads++; push({ o: EV.get, a: i, b: 0, c: 0 }); return s.arr[i]; },
     set(i, v) { cell(i); counts.writes++; push({ o: EV.set, a: i, b: v, c: 0 }); },
     size(k) { push({ o: EV.size, a: k, b: 0, c: 0 }); },
-    begin(kind, caption) {
-      ops.push({ kind, caption, at: n, c: { ...counts } });
+    begin(kind, caption, phase) {
+      ops.push({ kind, caption, at: n, c: { ...counts }, ...(phase ? { phase } : {}) });
       push({ o: EV.begin, a: OP_KINDS.indexOf(kind), b: 0, c: 0, p: caption });
     },
     emit(v, group = 0) { outputs.push({ v, group }); push({ o: EV.emit, a: group, b: 0, c: 0, p: v }); },
@@ -351,19 +362,33 @@ export function trace(kernel: TreeKernel, w: Workload, record = true, cap = EVEN
     if (!(e instanceof Stop)) throw e;
     truncated = true;
   }
-  return { events, counts, ops, outputs, found, store: s, workload: w, truncated };
+  return { events, counts, ops, outputs, found, store: s, workload: w, steps: n, truncated };
 }
 
 /** The counts an operation kind spent, summed over its operations, and how many there were. */
-export function costOf(t: Trace, kind: OpKind, field: keyof Counts): { total: number; ops: number; max: number } {
+export function costOf(t: Trace, kind: OpKind, fields: (keyof Counts)[], phase?: string):
+  { total: number; ops: number; max: number } {
   let total = 0; let count = 0; let max = 0;
   t.ops.forEach((op, i) => {
-    if (op.kind !== kind) return;
+    if (op.kind !== kind || (phase !== undefined && (op.phase ?? '') !== phase)) return;
     const end = i + 1 < t.ops.length ? t.ops[i + 1].c : t.counts;
-    const d = end[field] - op.c[field];
+    // the cost of one operation is the sum of its fields, so its maximum is a maximum of sums
+    let d = 0;
+    for (const f of fields) d += end[f] - op.c[f];
     total += d; count++; max = Math.max(max, d);
   });
   return { total, ops: count, max };
+}
+
+/** The (kind, phase) groups of a trace's operations, in order of first appearance. */
+export function opGroups(t: Trace): { kind: OpKind; phase: string }[] {
+  const seen = new Map<string, { kind: OpKind; phase: string }>();
+  for (const op of t.ops) {
+    const g = { kind: op.kind, phase: op.phase ?? '' };
+    const key = `${g.kind}|${g.phase}`;
+    if (!seen.has(key)) seen.set(key, g);
+  }
+  return [...seen.values()];
 }
 
 // ---- workloads ------------------------------------------------------------------------------

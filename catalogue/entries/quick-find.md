@@ -21,4 +21,4 @@ Every object carries its component id, so a find is one look-up and a union rewr
 
 The plate draws the id array as a forest: every site hangs directly under the site whose index is its component id, so each tree is a star one level deep. The strip below the forest is the array itself, and the cells highlighted during a union are the ones the scan rewrote.
 
-A find costs one array read, but every union reads all n entries, whatever the sizes of the two components. Each read and write is counted as performed; in the union-find lab this kernel's cost per union grows in proportion to n while the forest-based versions stay nearly flat.
+A find costs one array read, but every union reads all n entries, whatever the sizes of the two components. Each read and write is counted as performed; in the union-find lab this kernel's cost per union grows in proportion to n. Plain quick-union grows too, with the height of its trees, and only the weighted versions stay nearly flat.

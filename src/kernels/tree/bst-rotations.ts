@@ -32,9 +32,9 @@ export const kernel: TreeKernel = {
   structure: 'bst',
   run(t) {
     insertAll(t, (h, k) => insert(t, h, k, true));
-    searchAll(t);
+    searchAll(t, undefined, 'before balancing');
     t.begin('balance', 'balance by rotations');
     t.setRoot(0, balance(t, t.root()));
-    searchAll(t);
+    searchAll(t, undefined, 'after balancing');
   },
 };

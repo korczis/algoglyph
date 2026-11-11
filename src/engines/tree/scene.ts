@@ -5,7 +5,7 @@
 import type p5 from 'p5';
 import { mix, ramp, type RGB } from '../../core/palette';
 import type { PlateContext } from '../../core/plate';
-import { EV, NIL, OP_KINDS, Store, WORD_LETTERS, type Counts, type Key, type Trace,
+import { EV, linksCreated, NIL, OP_KINDS, Store, WORD_LETTERS, type Counts, type Key, type Trace,
   type TreeKernel } from './trace';
 
 export interface SceneNode {
@@ -226,10 +226,7 @@ export class Replay {
           break;
         case EV.child: case EV.root: this.c.links++; break;
         case EV.children: {
-          const old = this.s.kids[e.a]; const cs = e.p as number[];
-          let ch = Math.abs(old.length - cs.length);
-          for (let i = 0; i < Math.min(old.length, cs.length); i++) if (old[i] !== cs[i]) ch++;
-          this.c.links += ch;
+          this.c.links += linksCreated(this.s.kids[e.a], e.p as number[]);
           break;
         }
         case EV.tag: this.c.recolours++; break;

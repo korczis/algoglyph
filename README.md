@@ -316,7 +316,7 @@ Keep the heights of every node's subtrees within one, with single and double rot
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/randomized-bst">054 · Randomized binary search tree</a></b><br>
 Every insertion lands at the root with the right probability, so the tree is random whatever the order.<br>
-<sub>Balanced trees · about 1.39 lg n expected compares per search, whatever the input order · randomized, balanced trees, treap</sub>
+<sub>Balanced trees · about 1.39 lg n expected compares per search, whatever the input order · randomized, balanced trees, root insertion</sub>
 </td>
 </tr>
 <tr>

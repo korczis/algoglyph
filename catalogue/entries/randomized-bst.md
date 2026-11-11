@@ -12,7 +12,7 @@ sources:
 tags:
   - randomized
   - balanced trees
-  - treap
+  - root insertion
 complexity: about 1.39 lg n expected compares per search, whatever the input order
 related:
   - bst-root-insertion
