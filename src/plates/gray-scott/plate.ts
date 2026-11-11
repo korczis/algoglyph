@@ -6,7 +6,7 @@ import { field, PRESETS, seed, step, type Field } from './grayscott';
 
 /** Cells in the grid at most, and cell updates (cells × steps) per frame (src/core/budget.ts). */
 export const MAX_CELLS = 90_000;
-export const CELL_STEPS_PER_FRAME = 1_200_000;
+export const CELL_STEPS_PER_FRAME = 500_000;
 
 export const grayScott: PlateCode = {
   id: 'gray-scott',
