@@ -8,6 +8,8 @@ import { PALETTES } from '../src/core/palette';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
 import { engine } from '../src/engines/geometry/index';
+import { encode, fromEncoded, fromTrace } from '../src/engines/geometry/track';
+import { krovak, krovakInverse, krovakSW } from '../src/kernels/geometry/_projections';
 import { fromPoints, makeInput } from '../src/engines/geometry/input';
 import { record, type GeometryKernel, type Input, type Pt, type Seg, type Task, type Warehouse } from '../src/engines/geometry/trace';
 
@@ -561,4 +563,43 @@ describe('geometry plates draw', () => {
     for (const r of last) expect(r.value).toMatch(/finished #\d/);
     expect(charts[charts.length - 1].series.every((s) => s.points.length > 0)).toBe(true);
   }, 60_000);
+});
+
+describe('geometry runs built off the main thread', () => {
+  // drawing-equivalent: absent, undefined and false options draw alike
+  const norm = (m: object) => Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined && v !== false));
+  for (const e of live) {
+    it(`${e.id} replays the same from its transferable encoding`, () => {
+      const k = kernelOf(e.id);
+      const params = Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value]));
+      const t = record(k, makeInput(k.input, (k.shapes ?? [])[0] ?? defaultShape(k), k.input === 'none' ? 0 : (k.n?.value ?? 50), 9, params), params, 9);
+      const a = fromTrace(t);
+      const b = fromEncoded(encode(t).enc);
+      expect(b.length).toBe(a.length);
+      for (let i = 0; i < a.length; i += Math.max(1, Math.floor(a.length / 25))) {
+        expect(b.marks(i).map(norm), `${e.id} frame ${i}`).toEqual(a.marks(i).map(norm));
+        expect(b.counts(i)).toEqual(a.counts(i));
+        expect(b.note(i)).toBe(a.note(i));
+      }
+      expect(b.counts(b.length - 1)).toEqual(t.counts);
+    });
+  }
+});
+
+describe('Křovák against the EPSG worked example', () => {
+  // EPSG Guidance Note 7-2, Krovak: 50°12'32.442"N 16°50'59.179"E (S-JTSK, Bessel 1841)
+  const lat = 50 + 12 / 60 + 32.442 / 3600;
+  const lon = 16 + 50 / 60 + 59.179 / 3600;
+  it('projects to southing X = 1050538.63 m and westing Y = 568990.99 m', () => {
+    const [X, Y] = krovakSW(lat, lon);
+    expect(Math.abs(X - 1050538.63)).toBeLessThan(0.01);
+    expect(Math.abs(Y - 568990.99)).toBeLessThan(0.01);
+    expect(krovak(lat, lon)).toEqual([-Y, -X]);
+  });
+  it('inverts back to the same latitude and longitude', () => {
+    const [E, N] = krovak(lat, lon);
+    const [la, lo] = krovakInverse(E, N);
+    expect(Math.abs(la - lat) * 3600).toBeLessThan(1e-6);
+    expect(Math.abs(lo - lon) * 3600).toBeLessThan(1e-6);
+  });
 });
