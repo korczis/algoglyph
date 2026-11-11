@@ -1,5 +1,5 @@
 import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
-import { bool, num, str, type PlateCode } from '../../core/plate';
+import { bool, num, str, type PlateCode, type Stat } from '../../core/plate';
 import { gaussian } from '../../core/random';
 import { circumcentre, Delaunay, LATTICE, minAngle, type Insertion } from './bowyer';
 
@@ -142,6 +142,13 @@ export const bowyerWatsonDelaunay: PlateCode = {
     let age = FADE;
     let fresh = true;
     let clicks = 0;
+    let shown = '';
+    let rows: Stat[] = [];
+    // per-triangle buffers reused across frames, so a frame allocates next to nothing
+    let area = new Float64Array(0);
+    let angle = new Float64Array(0);
+    let cc = new Float64Array(0);
+    const edges: number[] = [];
 
     // the highlight shows the insertions of the latest frame (or click) that inserted any
     const insert = (x: number, y: number): boolean => {
@@ -162,6 +169,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
         recent = [];
         age = FADE;
         clicks = 0;
+        shown = '';
       },
       pressed(x, y) {
         fresh = true;
@@ -177,6 +185,15 @@ export const bowyerWatsonDelaunay: PlateCode = {
         }
         if (!inserted) age++;
 
+        // the canvas keeps its last frame: redraw only when something it shows has changed
+        const key = [mesh.vertices, next, age < FADE ? age : -1, ctx.theme, str(params, 'palette'),
+          str(params, 'colour'), bool(params, 'voronoi'), bool(params, 'circles')].join('|');
+        if (key === shown) {
+          ctx.stats(rows);
+          return;
+        }
+        shown = key;
+
         const g = p.drawingContext as CanvasRenderingContext2D;
         const pal = ctx.palette();
         const X = mesh.xs;
@@ -188,8 +205,12 @@ export const bowyerWatsonDelaunay: PlateCode = {
         // per-triangle measures; area is colour-normalised by the geometric mean
         const tv = mesh.tv;
         const alive = mesh.alive;
-        const area = new Float64Array(alive.length);
-        const angle = new Float64Array(alive.length);
+        if (area.length < alive.length) {
+          const size = 2 * alive.length;
+          area = new Float64Array(size);
+          angle = new Float64Array(size);
+          cc = new Float64Array(2 * size);
+        }
         let logSum = 0;
         let count = 0;
         let smallest = Infinity;
@@ -226,7 +247,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
           g.fill(fills[b]);
         }
 
-        const edges = mesh.edges();
+        mesh.edges(edges);
         const lead = new Path2D();
         for (let i = 0; i < edges.length; i += 4) {
           lead.moveTo(px(edges[i]), py(edges[i]));
@@ -238,7 +259,6 @@ export const bowyerWatsonDelaunay: PlateCode = {
         g.stroke(lead);
 
         if (bool(params, 'voronoi') && count > 0) {
-          const cc = new Float64Array(2 * alive.length);
           for (let t = 0; t < alive.length; t++) {
             if (!alive[t] || mesh.ghost(t)) continue;
             const [x, y] = circumcentre(px(tv[3 * t]), py(tv[3 * t]), px(tv[3 * t + 1]),
@@ -327,7 +347,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
 
         const n = mesh.vertices;
         const { triangles, edges: e, hull } = mesh.counts();
-        ctx.stats([
+        rows = [
           { label: 'points inserted', value: `${n} / ${queue.length + clicks}` },
           { label: 'duplicates skipped', value: String(mesh.duplicates) },
           { label: 'triangles', value: `${triangles} (2n − 2 − h = ${2 * n - 2 - hull})` },
@@ -340,7 +360,8 @@ export const bowyerWatsonDelaunay: PlateCode = {
           },
           { label: 'minimum angle', value: count ? degrees(smallest) : '–' },
           { label: 'mean of triangle minimum angles', value: count ? degrees(angleSum / count) : '–' },
-        ]);
+        ];
+        ctx.stats(rows);
       },
     };
   },

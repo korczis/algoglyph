@@ -329,10 +329,10 @@ export class Delaunay {
 
   /**
    * Every real edge once, flattened as (a, b, left, right): the triangle on its left and the one
-   * on its right, right = -1 on the hull.
+   * on its right, right = -1 on the hull. Pass `out` to reuse an array across frames.
    */
-  edges(): number[] {
-    const out: number[] = [];
+  edges(out: number[] = []): number[] {
+    out.length = 0;
     for (let t = 0; t < this.alive.length; t++) {
       if (!this.alive[t] || this.ghost(t)) continue;
       for (let k = 0; k < 3; k++) {
