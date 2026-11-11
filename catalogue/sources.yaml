@@ -58,3 +58,19 @@ sources:
   - id: practice-logistics
     title: Warehouse logistics
     kind: practice
+  - id: griffiths-qm
+    title: Introduction to Quantum Mechanics (second edition)
+    author: David J. Griffiths
+    publisher: Pearson Prentice Hall
+    year: 2005
+    kind: book
+  - id: feit-fleck-steiger
+    title: Solution of the Schrödinger equation by a spectral method (Journal of Computational Physics 47)
+    author: M. D. Feit, J. A. Fleck Jr., A. Steiger
+    year: 1982
+    kind: paper
+  - id: cooley-tukey
+    title: An algorithm for the machine calculation of complex Fourier series (Mathematics of Computation 19)
+    author: James W. Cooley, John W. Tukey
+    year: 1965
+    kind: paper
