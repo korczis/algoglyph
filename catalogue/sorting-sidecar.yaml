@@ -1,0 +1,3298 @@
+# Sorting sidecar: the atlas sorting catalogue folded into this catalogue, one record per
+# atlas algorithm. DERIVED, not hand-typed: every value is converted from the atlas data
+# (data/ids.json, data/algorithms/*.toml) and from the META block of each atlas kernel
+# (stable, in_place, kind). Regenerate it from those sources; never edit a value by hand.
+#
+# It carries what the v1 entry schema has no field for (year, authors, kind, time and space
+# bounds, stability, in-place, adaptive, online, parallel). The semantic-v2 schema PR absorbs
+# it into the entries' front matter, after which this file is deleted.
+#
+# id: the catalogue entry id (catalogue/entries/<id>.md); one entry may stand for more than
+# one atlas algorithm (see mapping). existing: the entry predates the fold. kernel: the atlas
+# kernel (Rust plugin) id, which is the atlas slug. time_* and space use the atlas notation
+# (n^2, log^2 n, "unknown"); stable may be "variant" where only some formulations are stable.
+# custom_plate: why an entry cannot be an array-engine plate and needs a bespoke one.
+version: 1
+
+entries:
+  - id: "bubble-sort"
+    kernel: "bubble-sort"
+    atlas_id: "TA-01.01"
+    existing: true
+    engine: "array"
+    year: 1956
+    authors: ["Edward H. Friend"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Bubble Sort"
+    aliases: ["sinking sort", "exchange sorting", "sorting by exchange"]
+    family: "vymenne"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "bubble-sort"
+    kernel: "optimized-bubble-sort"
+    atlas_id: "TA-01.02"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Optimized Bubble Sort"
+    aliases: ["bubble sort with early exit", "Knuth Algorithm B"]
+    family: "vymenne"
+    broader: "bubble-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+    mapping: "the bubble-sort entry already stops after a pass without exchanges"
+  - id: "shaker-sort"
+    kernel: "cocktail-shaker-sort"
+    atlas_id: "TA-01.03"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Cocktail Shaker Sort"
+    aliases: ["shaker sort", "bidirectional bubble sort", "cocktail sort"]
+    family: "vymenne"
+    broader: "bubble-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+    mapping: "same method under its other name"
+  - id: "comb-sort"
+    kernel: "comb-sort"
+    atlas_id: "TA-01.04"
+    existing: false
+    engine: "array"
+    year: 1980
+    authors: ["Włodzimierz Dobosiewicz"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "unknown"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Comb Sort"
+    aliases: ["combsort", "Dobosiewicz sort"]
+    family: "vymenne"
+    broader: "bubble-sort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "gnome-sort"
+    kernel: "gnome-sort"
+    atlas_id: "TA-01.05"
+    existing: false
+    engine: "array"
+    year: 2000
+    authors: ["Hamid Sarbazi-Azad"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Gnome Sort"
+    aliases: ["stupid sort"]
+    family: "vymenne"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "odd-even-sort"
+    kernel: "odd-even-sort"
+    atlas_id: "TA-01.06"
+    existing: false
+    engine: "array"
+    year: 1972
+    authors: ["A. Nico Habermann"]
+    kind: "comparison"
+    parallel: true
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Odd-Even Sort (Brick Sort)"
+    aliases: ["odd-even transposition sort", "brick sort", "parallel neighbor-sort"]
+    family: "vymenne"
+    broader: "bubble-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "exchange-sort"
+    kernel: "exchange-sort"
+    atlas_id: "TA-01.07"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Exchange Sort"
+    aliases: ["naive exchange sort"]
+    family: "vymenne"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "circle-sort"
+    kernel: "circle-sort"
+    atlas_id: "TA-01.08"
+    existing: false
+    engine: "array"
+    year: null
+    authors: ["Hans Bezemer"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "unknown"
+    time_worst: "unknown"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Circle Sort"
+    aliases: ["circlesort"]
+    family: "vymenne"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "proportion-extend-sort"
+    kernel: "proportion-extend-sort"
+    atlas_id: "TA-01.09"
+    existing: false
+    engine: "array"
+    year: 2001
+    authors: ["Jing-Chao Chen"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "Proportion Extend Sort"
+    aliases: ["PEsort"]
+    family: "vymenne"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "quicksort"
+    kernel: "quicksort"
+    atlas_id: "TA-01.10"
+    existing: true
+    engine: "array"
+    year: 1961
+    authors: ["C. A. R. Hoare"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "Quicksort"
+    aliases: ["partition-exchange sort"]
+    family: "vymenne"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "randomized-quicksort"
+    kernel: "randomized-quicksort"
+    atlas_id: "TA-01.11"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "Randomized Quicksort"
+    aliases: ["random-pivot quicksort"]
+    family: "vymenne"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "quicksort-three-way"
+    kernel: "three-way-quicksort"
+    atlas_id: "TA-01.12"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "Three-Way Quicksort"
+    aliases: ["3-way quicksort", "Dutch national flag quicksort", "fat-partition quicksort"]
+    family: "vymenne"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+    mapping: "same method, three-way partitioning"
+  - id: "dual-pivot-quicksort"
+    kernel: "dual-pivot-quicksort"
+    atlas_id: "TA-01.13"
+    existing: false
+    engine: "array"
+    year: 2009
+    authors: ["Vladimir Yaroslavskiy", "Jon Bentley", "Joshua Bloch"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "Dual-Pivot Quicksort"
+    aliases: ["Yaroslavskiy's quicksort", "Java 7 dual-pivot quicksort"]
+    family: "vymenne"
+    broader: "multi-pivot-quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "multi-pivot-quicksort"
+    kernel: "multi-pivot-quicksort"
+    atlas_id: "TA-01.14"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "Multi-Pivot Quicksort"
+    aliases: ["k-pivot quicksort", "three-pivot quicksort"]
+    family: "vymenne"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "blockquicksort"
+    kernel: "blockquicksort"
+    atlas_id: "TA-01.15"
+    existing: false
+    engine: "array"
+    year: 2016
+    authors: ["Stefan Edelkamp", "Armin Weiß"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "BlockQuicksort"
+    aliases: ["block partitioning quicksort"]
+    family: "vymenne"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "pdqsort"
+    kernel: "pdqsort"
+    atlas_id: "TA-01.16"
+    existing: false
+    engine: "array"
+    year: 2015
+    authors: ["Orson R. L. Peters"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "Pattern-Defeating Quicksort"
+    aliases: ["pattern-defeating quicksort"]
+    family: "vymenne"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "ipnsort"
+    kernel: "ipnsort"
+    atlas_id: "TA-01.17"
+    existing: false
+    engine: "array"
+    year: 2024
+    authors: ["Lukas Bergdoll", "Orson R. L. Peters"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/quicksort"
+    name: "ipnsort"
+    aliases: ["Rust slice::sort_unstable"]
+    family: "vymenne"
+    broader: "pdqsort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "selection-sort"
+    kernel: "selection-sort"
+    atlas_id: "TA-02.01"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Selection Sort"
+    aliases: ["straight selection"]
+    family: "vyberove"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "double-selection-sort"
+    kernel: "double-selection-sort"
+    atlas_id: "TA-02.02"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Double Selection Sort"
+    aliases: ["bidirectional selection sort", "min-max selection sort"]
+    family: "vyberove"
+    broader: "selection-sort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "heapsort"
+    kernel: "heapsort"
+    atlas_id: "TA-02.03"
+    existing: true
+    engine: "array"
+    year: 1964
+    authors: ["J. W. J. Williams"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/priority-queues"
+    name: "Heapsort"
+    aliases: ["heap sort", "Treesort 3"]
+    family: "vyberove"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "bottom-up-heapsort"
+    kernel: "bottom-up-heapsort"
+    atlas_id: "TA-02.04"
+    existing: false
+    engine: "array"
+    year: 1993
+    authors: ["I. Wegener"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/priority-queues"
+    name: "Bottom-Up Heapsort"
+    aliases: ["BOTTOM-UP-HEAPSORT"]
+    family: "vyberove"
+    broader: "heapsort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "weak-heapsort"
+    kernel: "weak-heapsort"
+    atlas_id: "TA-02.05"
+    existing: false
+    engine: "array"
+    year: 1993
+    authors: ["R. D. Dutton"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n bits"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/priority-queues"
+    name: "Weak-Heapsort"
+    aliases: ["weak-heap sort", "WEAK-HEAPSORT"]
+    family: "vyberove"
+    broader: "heapsort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "smoothsort"
+    kernel: "smoothsort"
+    atlas_id: "TA-02.06"
+    existing: false
+    engine: "array"
+    year: 1981
+    authors: ["E. W. Dijkstra"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/priority-queues"
+    name: "Smoothsort"
+    aliases: ["smooth sort"]
+    family: "vyberove"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "poplar-sort"
+    kernel: "poplar-sort"
+    atlas_id: "TA-02.07"
+    existing: false
+    engine: "array"
+    year: 1991
+    authors: ["C. Bron", "W. H. Hesselink"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/priority-queues"
+    name: "Poplar Sort"
+    aliases: ["poplar heap sort"]
+    family: "vyberove"
+    broader: "smoothsort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "tournament-sort"
+    kernel: "tournament-sort"
+    atlas_id: "TA-02.08"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/priority-queues"
+    name: "Tournament Sort"
+    aliases: ["tree selection sort"]
+    family: "vyberove"
+    broader: null
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "cycle-sort"
+    kernel: "cycle-sort"
+    atlas_id: "TA-02.09"
+    existing: false
+    engine: "array"
+    year: 1990
+    authors: ["B. K. Haddon"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Cycle Sort"
+    aliases: ["cycle-sort", "general_cycle_sort"]
+    family: "vyberove"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "cartesian-tree-sort"
+    kernel: "cartesian-tree-sort"
+    atlas_id: "TA-02.10"
+    existing: false
+    engine: "array"
+    year: 1989
+    authors: ["C. Levcopoulos", "O. Petersson"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/trees"
+    name: "Cartesian Tree Sort"
+    aliases: ["adaptive heap sort", "maxtree-sort"]
+    family: "vyberove"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "d-ary-heapsort"
+    kernel: "d-ary-heapsort"
+    atlas_id: "TA-02.11"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/priority-queues"
+    name: "D-ary Heapsort"
+    aliases: ["d-heap sort", "k-ary heapsort", "ternary heapsort"]
+    family: "vyberove"
+    broader: "heapsort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "insertion-sort"
+    kernel: "insertion-sort"
+    atlas_id: "TA-03.01"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: true
+    taxonomy: "sorting/elementary"
+    name: "Insertion Sort"
+    aliases: ["straight insertion"]
+    family: "vkladaci"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "binary-insertion-sort"
+    kernel: "binary-insertion-sort"
+    atlas_id: "TA-03.02"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: false
+    online: true
+    taxonomy: "sorting/elementary"
+    name: "Binary Insertion Sort"
+    aliases: ["binary insertion"]
+    family: "vkladaci"
+    broader: "insertion-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "two-way-insertion-sort"
+    kernel: "two-way-insertion-sort"
+    atlas_id: "TA-03.03"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: true
+    online: true
+    taxonomy: "sorting/elementary"
+    name: "Two-Way Insertion Sort"
+    aliases: ["2-way insertion"]
+    family: "vkladaci"
+    broader: "insertion-sort"
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "pair-insertion-sort"
+    kernel: "pair-insertion-sort"
+    atlas_id: "TA-03.04"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Pair Insertion Sort"
+    aliases: ["pair insertion"]
+    family: "vkladaci"
+    broader: "insertion-sort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "shellsort-knuth"
+    kernel: "shellsort"
+    atlas_id: "TA-03.05"
+    existing: true
+    engine: "array"
+    year: 1959
+    authors: ["Donald L. Shell"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "unknown"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/elementary"
+    name: "Shellsort"
+    aliases: ["Shell sort", "diminishing increment sort"]
+    family: "vkladaci"
+    broader: "insertion-sort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+    mapping: "the generic method; increment sequences are separate entries (shellsort-knuth, shellsort-sedgewick)"
+  - id: "library-sort"
+    kernel: "library-sort"
+    atlas_id: "TA-03.06"
+    existing: false
+    engine: "array"
+    year: 2004
+    authors: ["Michael A. Bender", "Martin Farach-Colton", "Miguel A. Mosteiro"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: true
+    taxonomy: "sorting/elementary"
+    name: "Library Sort"
+    aliases: ["gapped insertion sort"]
+    family: "vkladaci"
+    broader: "insertion-sort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "tree-sort"
+    kernel: "tree-sort"
+    atlas_id: "TA-03.07"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: true
+    taxonomy: "sorting/trees"
+    name: "Tree Sort"
+    aliases: ["binary tree sort", "BST sort", "tree insertion sort"]
+    family: "vkladaci"
+    broader: null
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "avl-tree-sort"
+    kernel: "avl-tree-sort"
+    atlas_id: "TA-03.08"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: true
+    taxonomy: "sorting/trees"
+    name: "AVL Tree Sort"
+    aliases: ["balanced tree sort"]
+    family: "vkladaci"
+    broader: "tree-sort"
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "splaysort"
+    kernel: "splaysort"
+    atlas_id: "TA-03.09"
+    existing: false
+    engine: "array"
+    year: 1996
+    authors: ["Alistair Moffat", "Gary Eddy", "Ola Petersson"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: true
+    online: true
+    taxonomy: "sorting/trees"
+    name: "Splaysort"
+    aliases: ["splay sort", "splay tree sort"]
+    family: "vkladaci"
+    broader: "tree-sort"
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "patience-sorting"
+    kernel: "patience-sorting"
+    atlas_id: "TA-03.10"
+    existing: false
+    engine: "array"
+    year: 1962
+    authors: ["Colin L. Mallows"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/trees"
+    name: "Patience Sorting"
+    aliases: ["patience sort"]
+    family: "vkladaci"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "mergesort-top-down"
+    kernel: "merge-sort"
+    atlas_id: "TA-04.01"
+    existing: true
+    engine: "array"
+    year: 1945
+    authors: ["John von Neumann"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Merge Sort"
+    aliases: ["mergesort", "two-way merge sort"]
+    family: "slucovaci"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+    mapping: "the generic method; its canonical recursive form is mergesort-top-down"
+  - id: "mergesort-top-down"
+    kernel: "top-down-merge-sort"
+    atlas_id: "TA-04.02"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Top-Down Merge Sort"
+    aliases: ["recursive merge sort"]
+    family: "slucovaci"
+    broader: "merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "mergesort-bottom-up"
+    kernel: "bottom-up-merge-sort"
+    atlas_id: "TA-04.03"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Bottom-Up Merge Sort"
+    aliases: ["straight two-way merge sort", "iterative merge sort"]
+    family: "slucovaci"
+    broader: "merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "mergesort-natural"
+    kernel: "natural-merge-sort"
+    atlas_id: "TA-04.04"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Natural Merge Sort"
+    aliases: ["natural two-way merge sort"]
+    family: "slucovaci"
+    broader: "merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "in-place-merge-sort"
+    kernel: "in-place-merge-sort"
+    atlas_id: "TA-04.05"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: "variant"
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "In-Place Merge Sort"
+    aliases: ["in-situ merge sort", "constant-space merge sort"]
+    family: "slucovaci"
+    broader: "merge-sort"
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "k-way-merge-sort"
+    kernel: "k-way-merge-sort"
+    atlas_id: "TA-04.06"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "K-Way Merge Sort"
+    aliases: ["multiway merge sort"]
+    family: "slucovaci"
+    broader: "merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "block-merge-sort"
+    kernel: "block-merge-sort"
+    atlas_id: "TA-04.07"
+    existing: false
+    engine: "array"
+    year: 2008
+    authors: ["P.-S. Kim", "A. Kutzner"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Block Merge Sort"
+    aliases: ["block sort", "ratio based stable in-place merge sort"]
+    family: "slucovaci"
+    broader: "in-place-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "grailsort"
+    kernel: "grailsort"
+    atlas_id: "TA-04.08"
+    existing: false
+    engine: "array"
+    year: 2013
+    authors: ["Andrey Astrelin"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Grailsort"
+    aliases: ["Grail Sort", "Holy Grail Sort"]
+    family: "slucovaci"
+    broader: "block-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "wikisort"
+    kernel: "wikisort"
+    atlas_id: "TA-04.09"
+    existing: false
+    engine: "array"
+    year: 2014
+    authors: ["Mike McFadden"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "WikiSort"
+    aliases: ["Wiki Sort"]
+    family: "slucovaci"
+    broader: "block-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "symmerge-based-sort"
+    kernel: "symmerge-based-sort"
+    atlas_id: "TA-04.10"
+    existing: false
+    engine: "array"
+    year: 2004
+    authors: ["P.-S. Kim", "A. Kutzner"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log^2 n"
+    time_worst: "n log^2 n"
+    space: "log n"
+    stable: true
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "SymMerge-based Sort"
+    aliases: ["SymMerge sort", "symmetric merge sort"]
+    family: "slucovaci"
+    broader: "in-place-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "strand-sort"
+    kernel: "strand-sort"
+    atlas_id: "TA-04.11"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Strand Sort"
+    aliases: ["strand sort"]
+    family: "slucovaci"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "shiverssort"
+    kernel: "shiverssort"
+    atlas_id: "TA-04.12"
+    existing: false
+    engine: "array"
+    year: 2002
+    authors: ["Olin Shivers"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "ShiversSort"
+    aliases: ["Shivers' sort", "Shivers sort"]
+    family: "slucovaci"
+    broader: "natural-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "adaptiveshiverssort"
+    kernel: "adaptiveshiverssort"
+    atlas_id: "TA-04.13"
+    existing: false
+    engine: "array"
+    year: 2018
+    authors: ["Vincent Jugé"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "AdaptiveShiversSort"
+    aliases: ["adaptive ShiversSort", "Adaptive Shivers Sort"]
+    family: "slucovaci"
+    broader: "natural-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "powersort"
+    kernel: "powersort"
+    atlas_id: "TA-04.14"
+    existing: false
+    engine: "array"
+    year: 2018
+    authors: ["J. Ian Munro", "Sebastian Wild"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Powersort"
+    aliases: ["power sort"]
+    family: "slucovaci"
+    broader: "natural-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "peeksort"
+    kernel: "peeksort"
+    atlas_id: "TA-04.15"
+    existing: false
+    engine: "array"
+    year: 2018
+    authors: ["J. Ian Munro", "Sebastian Wild"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Peeksort"
+    aliases: ["peek sort"]
+    family: "slucovaci"
+    broader: "natural-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "timsort"
+    kernel: "timsort"
+    atlas_id: "TA-04.16"
+    existing: false
+    engine: "array"
+    year: 2002
+    authors: ["Tim Peters"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Timsort"
+    aliases: ["TimSort", "listsort"]
+    family: "slucovaci"
+    broader: "natural-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "quadsort"
+    kernel: "quadsort"
+    atlas_id: "TA-04.17"
+    existing: false
+    engine: "array"
+    year: 2020
+    authors: ["Igor van den Hoven"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Quadsort"
+    aliases: ["quad sort"]
+    family: "slucovaci"
+    broader: "bottom-up-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "glidesort"
+    kernel: "glidesort"
+    atlas_id: "TA-04.18"
+    existing: false
+    engine: "array"
+    year: 2023
+    authors: ["Orson Peters"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Glidesort"
+    aliases: ["glide sort"]
+    family: "slucovaci"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "driftsort"
+    kernel: "driftsort"
+    atlas_id: "TA-04.19"
+    existing: false
+    engine: "array"
+    year: 2024
+    authors: ["Orson Peters", "Lukas Bergdoll"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/mergesort"
+    name: "Driftsort"
+    aliases: ["drift sort"]
+    family: "slucovaci"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "counting-sort"
+    kernel: "counting-sort"
+    atlas_id: "TA-05.01"
+    existing: true
+    engine: "array"
+    year: 1954
+    authors: ["H. H. Seward"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n + k"
+    time_average: "n + k"
+    time_worst: "n + k"
+    space: "n + k"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "Counting Sort"
+    aliases: ["distribution counting"]
+    family: "distribucni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "bucket-sort"
+    kernel: "bucket-sort"
+    atlas_id: "TA-05.02"
+    existing: false
+    engine: "array"
+    year: 1956
+    authors: ["E. J. Isaac", "R. C. Singleton"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n + k"
+    time_average: "n + k"
+    time_worst: "n^2"
+    space: "n + k"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/distribution"
+    name: "Bucket Sort"
+    aliases: ["bin sort"]
+    family: "distribucni"
+    broader: null
+    kernel_stable: "variant"
+    kernel_kind: "distribution"
+  - id: "pigeonhole-sort"
+    kernel: "pigeonhole-sort"
+    atlas_id: "TA-05.03"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "distribution"
+    parallel: false
+    time_best: "n + k"
+    time_average: "n + k"
+    time_worst: "n + k"
+    space: "n + k"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/distribution"
+    name: "Pigeonhole Sort"
+    aliases: ["pigeonhole sorting"]
+    family: "distribucni"
+    broader: "bucket-sort"
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "lsd-radix-sort"
+    kernel: "radix-sort"
+    atlas_id: "TA-05.04"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "distribution"
+    parallel: false
+    time_best: "d(n + k)"
+    time_average: "d(n + k)"
+    time_worst: "d(n + k)"
+    space: "n + k"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "Radix Sort"
+    aliases: ["digital sort"]
+    family: "distribucni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+    mapping: "the generic method; its canonical form is lsd-radix-sort"
+  - id: "lsd-radix-sort"
+    kernel: "lsd-radix-sort"
+    atlas_id: "TA-05.05"
+    existing: true
+    engine: "array"
+    year: 1929
+    authors: ["L. J. Comrie"]
+    kind: "distribution"
+    parallel: false
+    time_best: "d(n + k)"
+    time_average: "d(n + k)"
+    time_worst: "d(n + k)"
+    space: "n + k"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "LSD Radix Sort"
+    aliases: ["least significant digit radix sort", "LSD string sort", "bottom-up radix sort"]
+    family: "distribucni"
+    broader: "radix-sort"
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "msd-radix-sort"
+    kernel: "msd-radix-sort"
+    atlas_id: "TA-05.06"
+    existing: true
+    engine: "array"
+    year: null
+    authors: []
+    kind: "distribution"
+    parallel: false
+    time_best: "n log_R n"
+    time_average: "n log_R n"
+    time_worst: "n·w"
+    space: "n + w·R"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "MSD Radix Sort"
+    aliases: ["most significant digit radix sort", "MSD string sort", "top-down radix sort"]
+    family: "distribucni"
+    broader: "radix-sort"
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "american-flag-sort"
+    kernel: "american-flag-sort"
+    atlas_id: "TA-05.07"
+    existing: false
+    engine: "array"
+    year: 1993
+    authors: ["Peter M. McIlroy", "Keith Bostic", "M. Douglas McIlroy"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n log_R n"
+    time_average: "n log_R n"
+    time_worst: "n·w"
+    space: "w·R"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "American Flag Sort"
+    aliases: ["in-place MSD radix sort", "American flag problem"]
+    family: "distribucni"
+    broader: "msd-radix-sort"
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+  - id: "binary-quicksort"
+    kernel: "radix-exchange-sort"
+    atlas_id: "TA-05.08"
+    existing: true
+    engine: "array"
+    year: 1959
+    authors: ["P. Hildebrandt", "H. Isbitz"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n·b"
+    space: "b"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "Radix Exchange Sort"
+    aliases: ["radix exchange", "binary quicksort"]
+    family: "distribucni"
+    broader: "msd-radix-sort"
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+    mapping: "radix exchange is the binary quicksort entry"
+  - id: "spreadsort"
+    kernel: "spreadsort"
+    atlas_id: "TA-05.09"
+    existing: false
+    engine: "array"
+    year: 2002
+    authors: ["Steven J. Ross"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n·min(log n, log(b/s + s))"
+    space: "b"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "Spreadsort"
+    aliases: ["boost::sort::spreadsort", "integer_sort", "float_sort", "string_sort"]
+    family: "distribucni"
+    broader: "msd-radix-sort"
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+  - id: "flashsort"
+    kernel: "flashsort"
+    atlas_id: "TA-05.10"
+    existing: false
+    engine: "array"
+    year: 1998
+    authors: ["Karl-Dietrich Neubert"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n^2"
+    space: "m"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/distribution"
+    name: "Flashsort"
+    aliases: ["Flashsort1"]
+    family: "distribucni"
+    broader: "bucket-sort"
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+  - id: "burstsort"
+    kernel: "burstsort"
+    atlas_id: "TA-05.11"
+    existing: false
+    engine: "array"
+    year: 2004
+    authors: ["Ranjan Sinha", "Justin Zobel"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n + D"
+    time_average: "n + D"
+    time_worst: "n·w"
+    space: "n·w"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "Burstsort"
+    aliases: ["burst trie sort"]
+    family: "distribucni"
+    broader: "msd-radix-sort"
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+  - id: "proxmap-sort"
+    kernel: "proxmap-sort"
+    atlas_id: "TA-05.12"
+    existing: false
+    engine: "array"
+    year: null
+    authors: ["Thomas A. Standish"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n^2"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/distribution"
+    name: "Proxmap Sort"
+    aliases: ["ProxmapSort", "proximity map sort"]
+    family: "distribucni"
+    broader: "bucket-sort"
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "interpolation-sort"
+    kernel: "interpolation-sort"
+    atlas_id: "TA-05.13"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "distribution"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n^2"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/distribution"
+    name: "Interpolation Sort"
+    aliases: ["histogram sort"]
+    family: "distribucni"
+    broader: "bucket-sort"
+    kernel_stable: "variant"
+    kernel_kind: "distribution"
+  - id: "address-calculation-sort"
+    kernel: "address-calculation-sort"
+    atlas_id: "TA-05.14"
+    existing: false
+    engine: "array"
+    year: 1956
+    authors: ["E. J. Isaac", "R. C. Singleton"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n^2"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/distribution"
+    name: "Address Calculation Sort"
+    aliases: ["sorting by address calculation", "multiple list insertion"]
+    family: "distribucni"
+    broader: null
+    kernel_stable: "variant"
+    kernel_kind: "distribution"
+  - id: "postman-sort"
+    kernel: "postman-sort"
+    atlas_id: "TA-05.15"
+    existing: false
+    engine: "array"
+    year: 1992
+    authors: ["Robert Ramey"]
+    kind: "distribution"
+    parallel: false
+    time_best: "c·n"
+    time_average: "c·n"
+    time_worst: "c·n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "Postman Sort"
+    aliases: ["postman's sort"]
+    family: "distribucni"
+    broader: "msd-radix-sort"
+    kernel_stable: "variant"
+    kernel_kind: "distribution"
+  - id: "bead-sort"
+    kernel: "bead-sort"
+    atlas_id: "TA-05.16"
+    existing: false
+    engine: "array"
+    year: 2002
+    authors: ["Joshua J. Arulanandham", "Cristian S. Calude", "Michael J. Dinneen"]
+    kind: "special"
+    parallel: false
+    time_best: "S"
+    time_average: "S"
+    time_worst: "S"
+    space: "n·m"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/special"
+    name: "Bead Sort"
+    aliases: ["Gravity Sort", "Bead-Sort", "abacus sort"]
+    family: "distribucni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "special"
+  - id: "skasort"
+    kernel: "skasort"
+    atlas_id: "TA-05.17"
+    existing: false
+    engine: "array"
+    year: 2016
+    authors: ["Malte Skarupke"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n·b"
+    time_average: "n·b"
+    time_worst: "n·b"
+    space: "b·R"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "SkaSort"
+    aliases: ["ska_sort", "Ska Byte Sort"]
+    family: "distribucni"
+    broader: "american-flag-sort"
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+  - id: "learnedsort"
+    kernel: "learnedsort"
+    atlas_id: "TA-05.18"
+    existing: false
+    engine: "array"
+    year: 2020
+    authors: ["Ani Kristo", "Kapil Vaidya", "Uğur Çetintemel", "Sanchit Misra", "Tim Kraska"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n^2"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/distribution"
+    name: "LearnedSort"
+    aliases: ["Learned Sort", "LearnedSort 2.0", "model-enhanced sort"]
+    family: "distribucni"
+    broader: "bucket-sort"
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+  - id: "kirkpatrick-reisch-sort"
+    kernel: "kirkpatrick-reisch-sort"
+    atlas_id: "TA-05.19"
+    existing: false
+    engine: "array"
+    year: 1981
+    authors: ["David Kirkpatrick", "Stefan Reisch"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n + n log(b / log n)"
+    time_average: "n + n log(b / log n)"
+    time_worst: "n + n log(b / log n)"
+    space: "n + 2^(b/2)"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/radix"
+    name: "Kirkpatrick-Reisch Sort"
+    aliases: ["Kirkpatrick–Reisch sorting", "range reduction sort"]
+    family: "distribucni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "distribution"
+  - id: "introsort"
+    kernel: "introsort"
+    atlas_id: "TA-06.01"
+    existing: false
+    engine: "array"
+    year: 1997
+    authors: ["David R. Musser"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "Introsort"
+    aliases: ["introspective sort"]
+    family: "hybridni"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "quickxsort"
+    kernel: "quickxsort"
+    atlas_id: "TA-06.02"
+    existing: false
+    engine: "array"
+    year: 2013
+    authors: ["Stefan Edelkamp", "Armin Weiß"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "QuickXsort"
+    aliases: ["QuickMergesort", "QuickHeapsort", "QuickWeakHeapsort"]
+    family: "hybridni"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "ford-johnson"
+    kernel: "ford-johnson"
+    atlas_id: "TA-06.03"
+    existing: false
+    engine: "array"
+    year: 1959
+    authors: ["Lester R. Ford Jr.", "Selmer M. Johnson"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "Merge-Insertion Sort (Ford-Johnson Algorithm)"
+    aliases: ["merge insertion", "merge-insertion sort", "Ford–Johnson algorithm"]
+    family: "hybridni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "fluxsort"
+    kernel: "fluxsort"
+    atlas_id: "TA-06.04"
+    existing: false
+    engine: "array"
+    year: 2021
+    authors: ["Igor van den Hoven"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "Fluxsort"
+    aliases: ["flux sort"]
+    family: "hybridni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "crumsort"
+    kernel: "crumsort"
+    atlas_id: "TA-06.05"
+    existing: false
+    engine: "array"
+    year: 2022
+    authors: ["Igor van den Hoven"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "Crumsort"
+    aliases: ["crum sort"]
+    family: "hybridni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "wolfsort"
+    kernel: "wolfsort"
+    atlas_id: "TA-06.06"
+    existing: false
+    engine: "array"
+    year: 2020
+    authors: ["Igor van den Hoven"]
+    kind: "distribution"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: true
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "Wolfsort"
+    aliases: ["wolf sort", "quantumsort", "flowsort", "dripsort"]
+    family: "hybridni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "weavesort"
+    kernel: "weavesort"
+    atlas_id: "TA-06.07"
+    existing: false
+    engine: "array"
+    year: 2019
+    authors: ["w0rthy"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "Weavesort"
+    aliases: ["Weave Merge Sort", "weave mergesort"]
+    family: "hybridni"
+    broader: "merge-sort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "blitsort"
+    kernel: "blitsort"
+    atlas_id: "TA-06.08"
+    existing: false
+    engine: "array"
+    year: 2021
+    authors: ["Igor van den Hoven"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "BlitSort"
+    aliases: ["blit sort"]
+    family: "hybridni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "octosort"
+    kernel: "octosort"
+    atlas_id: "TA-06.09"
+    existing: false
+    engine: "array"
+    year: 2021
+    authors: ["Igor van den Hoven"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: true
+    online: false
+    taxonomy: "sorting/hybrid"
+    name: "Octosort"
+    aliases: ["octo sort"]
+    family: "hybridni"
+    broader: "block-merge-sort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "bitonic-sort"
+    kernel: "bitonic-sort"
+    atlas_id: "TA-07.01"
+    existing: false
+    engine: "array"
+    year: 1968
+    authors: ["Kenneth E. Batcher"]
+    kind: "network"
+    parallel: true
+    time_best: "n log^2 n"
+    time_average: "n log^2 n"
+    time_worst: "n log^2 n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "Bitonic Sort"
+    aliases: ["bitonic sorter", "bitonic merge sort"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "batcher-merge-exchange"
+    kernel: "batchers-odd-even-merge-sort"
+    atlas_id: "TA-07.02"
+    existing: true
+    engine: "array"
+    year: 1968
+    authors: ["Kenneth E. Batcher"]
+    kind: "network"
+    parallel: true
+    time_best: "n log^2 n"
+    time_average: "n log^2 n"
+    time_worst: "n log^2 n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "Batcher's Odd-Even Merge Sort"
+    aliases: ["odd-even merge sort", "odd-even mergesort", "Batcher's merge exchange"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "network"
+    mapping: "Batcher's odd-even merge, in Knuth's merge-exchange formulation"
+  - id: "pairwise-sorting-network"
+    kernel: "pairwise-sorting-network"
+    atlas_id: "TA-07.03"
+    existing: false
+    engine: "array"
+    year: 1992
+    authors: ["Ian Parberry"]
+    kind: "network"
+    parallel: true
+    time_best: "n log^2 n"
+    time_average: "n log^2 n"
+    time_worst: "n log^2 n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "Pairwise Sorting Network"
+    aliases: ["pairwise sorting network", "Parberry's pairwise network"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "aks-sorting-network"
+    kernel: "aks-sorting-network"
+    atlas_id: "TA-07.04"
+    existing: false
+    engine: "array"
+    year: 1983
+    authors: ["Miklós Ajtai", "János Komlós", "Endre Szemerédi"]
+    kind: "network"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "AKS Sorting Network"
+    aliases: ["Ajtai–Komlós–Szemerédi sorting network", "AKS network"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "zig-zag-sort"
+    kernel: "zig-zag-sort"
+    atlas_id: "TA-07.05"
+    existing: false
+    engine: "array"
+    year: 2014
+    authors: ["Michael T. Goodrich"]
+    kind: "network"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "Zig-Zag Sort"
+    aliases: ["zig-zag sort", "Goodrich's zig-zag sort"]
+    family: "paralelni"
+    broader: "shellsort"
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "shear-sort"
+    kernel: "shear-sort"
+    atlas_id: "TA-07.06"
+    existing: false
+    engine: "array"
+    year: 1986
+    authors: ["Isaac D. Scherson", "Sandeep Sen", "Adi Shamir"]
+    kind: "network"
+    parallel: true
+    time_best: "n^1.5 log n"
+    time_average: "n^1.5 log n"
+    time_worst: "n^1.5 log n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "Shear Sort"
+    aliases: ["shearsort", "row-column sort", "snake-order mesh sort"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "columnsort"
+    kernel: "columnsort"
+    atlas_id: "TA-07.07"
+    existing: false
+    engine: "array"
+    year: 1985
+    authors: ["Tom Leighton"]
+    kind: "network"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "Columnsort"
+    aliases: ["Leighton's columnsort", "column sort"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "enumeration-sort"
+    kernel: "enumeration-sort"
+    atlas_id: "TA-07.08"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: true
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Enumeration Sort"
+    aliases: ["comparison counting sort", "rank sort", "counting by comparison"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "samplesort"
+    kernel: "samplesort"
+    atlas_id: "TA-07.09"
+    existing: false
+    engine: "array"
+    year: 1970
+    authors: ["W. D. Frazer", "A. C. McKellar"]
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Samplesort"
+    aliases: ["sample sort", "sample-sort"]
+    family: "paralelni"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "parallel-samplesort"
+    kernel: "parallel-samplesort"
+    atlas_id: "TA-07.10"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Parallel Samplesort"
+    aliases: ["parallel sample sort", "distributed sample sort"]
+    family: "paralelni"
+    broader: "samplesort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "psrs"
+    kernel: "psrs"
+    atlas_id: "TA-07.11"
+    existing: false
+    engine: "array"
+    year: 1992
+    authors: ["Hanmao Shi", "Jonathan Schaeffer"]
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Parallel Sorting by Regular Sampling (PSRS)"
+    aliases: ["PSRS", "regular sampling sort"]
+    family: "paralelni"
+    broader: "parallel-samplesort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "ips4o"
+    kernel: "ips4o"
+    atlas_id: "TA-07.12"
+    existing: false
+    engine: "array"
+    year: 2017
+    authors: ["Michael Axtmann", "Sascha Witt", "Daniel Ferizovic", "Peter Sanders"]
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "In-Place Parallel Super Scalar Samplesort (IPS⁴o)"
+    aliases: ["IPS4o", "IPSSSSo", "In-place Parallel Super Scalar Samplesort"]
+    family: "paralelni"
+    broader: "samplesort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "ps4o"
+    kernel: "ps4o"
+    atlas_id: "TA-07.13"
+    existing: false
+    engine: "array"
+    year: 2004
+    authors: ["Peter Sanders", "Sebastian Winkel"]
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Parallel Super Scalar Samplesort (PS⁴o)"
+    aliases: ["PS4o", "Super Scalar Samplesort", "S4o", "1S4o"]
+    family: "paralelni"
+    broader: "samplesort"
+    kernel_stable: "yes"
+    kernel_kind: "comparison"
+  - id: "parallel-merge-sort"
+    kernel: "parallel-merge-sort"
+    atlas_id: "TA-07.14"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Parallel Merge Sort"
+    aliases: ["parallel mergesort", "P-MERGE-SORT", "Cole's merge sort"]
+    family: "paralelni"
+    broader: "merge-sort"
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "parallel-quicksort"
+    kernel: "parallel-quicksort"
+    atlas_id: "TA-07.15"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Parallel Quicksort"
+    aliases: ["parallel quick sort", "distributed-memory quicksort"]
+    family: "paralelni"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "parallel-radix-sort"
+    kernel: "parallel-radix-sort"
+    atlas_id: "TA-07.16"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "distribution"
+    parallel: true
+    time_best: "d (n + k)"
+    time_average: "d (n + k)"
+    time_worst: "d (n + k)"
+    space: "n + p k"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Parallel Radix Sort"
+    aliases: ["parallel LSD radix sort", "parallel MSD radix sort", "split radix sort"]
+    family: "paralelni"
+    broader: "radix-sort"
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "parallel-counting-sort"
+    kernel: "parallel-counting-sort"
+    atlas_id: "TA-07.17"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "distribution"
+    parallel: true
+    time_best: "n + k"
+    time_average: "n + k"
+    time_worst: "n + k"
+    space: "n + p k"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "Parallel Counting Sort"
+    aliases: ["parallel histogram sort", "parallel bucket sort with prefix sums"]
+    family: "paralelni"
+    broader: "counting-sort"
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "simd-sorting-network"
+    kernel: "simd-sorting-network"
+    atlas_id: "TA-07.18"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "network"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "SIMD Sorting Network"
+    aliases: ["vectorized sorting network", "in-register sorting network", "SIMD bitonic merge"]
+    family: "paralelni"
+    broader: "bitonic-sort"
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "gpu-bitonic-sort"
+    kernel: "gpu-bitonic-sort"
+    atlas_id: "TA-07.19"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "network"
+    parallel: true
+    time_best: "n log^2 n"
+    time_average: "n log^2 n"
+    time_worst: "n log^2 n"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "GPU Bitonic Sort"
+    aliases: ["GPU bitonic merge sort", "GPUSort"]
+    family: "paralelni"
+    broader: "bitonic-sort"
+    kernel_stable: "no"
+    kernel_kind: "network"
+  - id: "gpu-radix-sort"
+    kernel: "gpu-radix-sort"
+    atlas_id: "TA-07.20"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "distribution"
+    parallel: true
+    time_best: "d (n + k)"
+    time_average: "d (n + k)"
+    time_worst: "d (n + k)"
+    space: "n + p k"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "GPU Radix Sort"
+    aliases: ["CUDA radix sort", "GPU LSD radix sort"]
+    family: "paralelni"
+    broader: "parallel-radix-sort"
+    kernel_stable: "yes"
+    kernel_kind: "distribution"
+  - id: "gpu-merge-sort"
+    kernel: "gpu-merge-sort"
+    atlas_id: "TA-07.21"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "GPU Merge Sort"
+    aliases: ["CUDA merge sort", "merge path sort"]
+    family: "paralelni"
+    broader: "parallel-merge-sort"
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "terasort"
+    kernel: "terasort"
+    atlas_id: "TA-07.22"
+    existing: false
+    engine: "array"
+    year: 2008
+    authors: ["Owen O'Malley"]
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "TeraSort"
+    aliases: ["Hadoop TeraSort", "TeraByte Sort on Hadoop"]
+    family: "paralelni"
+    broader: "mapreduce-sort"
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "mapreduce-sort"
+    kernel: "mapreduce-sort"
+    atlas_id: "TA-07.23"
+    existing: false
+    engine: "array"
+    year: 2004
+    authors: ["Jeffrey Dean", "Sanjay Ghemawat"]
+    kind: "comparison"
+    parallel: true
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/parallel"
+    name: "MapReduce Sort"
+    aliases: ["distributed sort on MapReduce", "MapReduce distributed sort"]
+    family: "paralelni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "comparison"
+  - id: "external-merge-sort"
+    kernel: "external-merge-sort"
+    atlas_id: "TA-08.01"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "External Merge Sort"
+    aliases: ["external sort-merge"]
+    family: "externi"
+    broader: "merge-sort"
+    kernel_stable: "variant"
+    kernel_kind: "external"
+  - id: "balanced-multiway-merge"
+    kernel: "balanced-multiway-merge-sort"
+    atlas_id: "TA-08.02"
+    existing: true
+    engine: "custom"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/networks"
+    name: "Balanced Multiway Merge Sort"
+    aliases: ["balanced merge", "balanced P-way merge"]
+    family: "externi"
+    broader: "external-merge-sort"
+    kernel_stable: "variant"
+    kernel_kind: "external"
+  - id: "two-phase-multiway-merge-sort"
+    kernel: "two-phase-multiway-merge-sort"
+    atlas_id: "TA-08.03"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "Two-Phase Multiway Merge Sort"
+    aliases: ["TPMMS"]
+    family: "externi"
+    broader: "external-merge-sort"
+    kernel_stable: "variant"
+    kernel_kind: "external"
+  - id: "polyphase-merge-sort"
+    kernel: "polyphase-merge-sort"
+    atlas_id: "TA-08.04"
+    existing: false
+    engine: "array"
+    year: 1960
+    authors: ["R. L. Gilstad"]
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "Polyphase Merge Sort"
+    aliases: ["polyphase merge"]
+    family: "externi"
+    broader: "tape-merge-sort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "cascade-merge-sort"
+    kernel: "cascade-merge-sort"
+    atlas_id: "TA-08.05"
+    existing: false
+    engine: "array"
+    year: 1959
+    authors: ["B. K. Betz", "W. C. Carter"]
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "Cascade Merge Sort"
+    aliases: ["cascade merge"]
+    family: "externi"
+    broader: "tape-merge-sort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "oscillating-merge-sort"
+    kernel: "oscillating-merge-sort"
+    atlas_id: "TA-08.06"
+    existing: false
+    engine: "array"
+    year: 1962
+    authors: ["S. Sobel"]
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "Oscillating Merge Sort"
+    aliases: ["oscillating sort"]
+    family: "externi"
+    broader: "tape-merge-sort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "external-radix-sort"
+    kernel: "external-radix-sort"
+    atlas_id: "TA-08.07"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n k"
+    time_average: "n k"
+    time_worst: "n k"
+    space: "n"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "External Radix Sort"
+    aliases: []
+    family: "externi"
+    broader: "radix-sort"
+    kernel_stable: "yes"
+    kernel_kind: "external"
+  - id: "external-quicksort"
+    kernel: "external-quicksort"
+    atlas_id: "TA-08.08"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n^2"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "External Quicksort"
+    aliases: ["external partition sort"]
+    family: "externi"
+    broader: "quicksort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "external-samplesort"
+    kernel: "external-samplesort"
+    atlas_id: "TA-08.09"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "External Samplesort"
+    aliases: ["external distribution sort", "external sample sort"]
+    family: "externi"
+    broader: "samplesort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "external-bucket-sort"
+    kernel: "external-bucket-sort"
+    atlas_id: "TA-08.10"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n^2"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "External Bucket Sort"
+    aliases: ["external bucket sort", "external distribution by key range"]
+    family: "externi"
+    broader: "bucket-sort"
+    kernel_stable: "variant"
+    kernel_kind: "external"
+  - id: "funnel-sort"
+    kernel: "funnel-sort"
+    atlas_id: "TA-08.11"
+    existing: false
+    engine: "array"
+    year: 1999
+    authors: ["M. Frigo", "C. E. Leiserson", "H. Prokop", "S. Ramachandran"]
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "Funnelsort"
+    aliases: ["funnelsort", "cache-oblivious funnelsort", "lazy funnelsort"]
+    family: "externi"
+    broader: "k-way-merge-sort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "buffer-tree-sort"
+    kernel: "buffer-tree-sort"
+    atlas_id: "TA-08.12"
+    existing: false
+    engine: "array"
+    year: 1995
+    authors: ["L. Arge"]
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "Buffer Tree Sort"
+    aliases: ["buffer tree sort", "sorting with a buffer tree"]
+    family: "externi"
+    broader: "tree-sort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "tape-merge-sort"
+    kernel: "tape-merge-sort"
+    atlas_id: "TA-08.13"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/external"
+    name: "Tape Merge Sort"
+    aliases: ["tape sorting", "magnetic tape merge sort"]
+    family: "externi"
+    broader: "external-merge-sort"
+    kernel_stable: "variant"
+    kernel_kind: "external"
+  - id: "replacement-selection"
+    kernel: "replacement-selection-run-generation"
+    atlas_id: "TA-08.14"
+    existing: true
+    engine: "tree"
+    year: null
+    authors: []
+    kind: "external"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: true
+    online: true
+    taxonomy: "sorting/networks"
+    name: "Replacement Selection Run Generation"
+    aliases: ["replacement selection", "snowplow run formation"]
+    family: "externi"
+    broader: "external-merge-sort"
+    kernel_stable: "no"
+    kernel_kind: "external"
+  - id: "pancake-sort"
+    kernel: "pancake-sort"
+    atlas_id: "TA-09.01"
+    existing: false
+    engine: "array"
+    year: 1979
+    authors: ["W. H. Gates", "C. H. Papadimitriou"]
+    kind: "special"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/special"
+    name: "Pancake Sort"
+    aliases: ["sorting by prefix reversals"]
+    family: "specializovane"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "special"
+  - id: "burnt-pancake-sort"
+    kernel: "burnt-pancake-sort"
+    atlas_id: "TA-09.02"
+    existing: false
+    engine: "custom"
+    year: 1979
+    authors: ["W. H. Gates", "C. H. Papadimitriou"]
+    kind: "special"
+    parallel: false
+    time_best: "n^2"
+    time_average: "n^2"
+    time_worst: "n^2"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/special"
+    name: "Burnt Pancake Sort"
+    aliases: ["sorting by signed prefix reversals", "burnt pancake problem"]
+    family: "specializovane"
+    broader: "pancake-sort"
+    kernel_stable: "no"
+    kernel_kind: "special"
+    custom_plate: "every pancake carries an orientation, which the array engine (keys only) cannot show or check"
+  - id: "topological-sort"
+    kernel: "topological-sort"
+    atlas_id: "TA-09.03"
+    existing: true
+    engine: "graph"
+    year: 1962
+    authors: ["A. B. Kahn"]
+    kind: "special"
+    parallel: false
+    time_best: "n + m"
+    time_average: "n + m"
+    time_worst: "n + m"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "graphs/digraphs"
+    name: "Topological Sort"
+    aliases: ["topological ordering"]
+    family: "specializovane"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "special"
+  - id: "spaghetti-sort"
+    kernel: "spaghetti-sort"
+    atlas_id: "TA-09.04"
+    existing: false
+    engine: "array"
+    year: 1984
+    authors: ["A. K. Dewdney"]
+    kind: "special"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/special"
+    name: "Spaghetti Sort"
+    aliases: ["spaghetti computer"]
+    family: "specializovane"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "special"
+  - id: "tag-sort"
+    kernel: "tag-sort"
+    atlas_id: "TA-09.05"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "comparison"
+    parallel: false
+    time_best: "n log n"
+    time_average: "n log n"
+    time_worst: "n log n"
+    space: "n"
+    stable: "variant"
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/special"
+    name: "Tag Sort"
+    aliases: ["key sort", "address table sort", "pointer sort"]
+    family: "specializovane"
+    broader: null
+    kernel_stable: "variant"
+    kernel_kind: "comparison"
+  - id: "bogosort"
+    kernel: "bogosort"
+    atlas_id: "TA-10.01"
+    existing: false
+    engine: "custom"
+    year: null
+    authors: []
+    kind: "joke"
+    parallel: false
+    time_best: "n"
+    time_average: "n·n!"
+    time_worst: "∞"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Bogosort"
+    aliases: ["bogo-sort", "stupid sort", "monkey sort", "permutation sort"]
+    family: "experimentalni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "joke"
+    custom_plate: "expected n·n! shuffles: only a handful of keys finishes, below the array engine’s smallest size, and the harness’s larger sizes never would"
+  - id: "bogobogosort"
+    kernel: "bogobogosort"
+    atlas_id: "TA-10.02"
+    existing: false
+    engine: "custom"
+    year: null
+    authors: ["David Morgan-Mar"]
+    kind: "joke"
+    parallel: false
+    time_best: "n^2"
+    time_average: "unknown"
+    time_worst: "∞"
+    space: "n^2"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Bogobogosort"
+    aliases: ["bogo-bogo-sort"]
+    family: "experimentalni"
+    broader: "bogosort"
+    kernel_stable: "no"
+    kernel_kind: "joke"
+    custom_plate: "grows far faster than n!: no input of the array engine’s sizes finishes"
+  - id: "bozosort"
+    kernel: "bozosort"
+    atlas_id: "TA-10.03"
+    existing: false
+    engine: "custom"
+    year: null
+    authors: []
+    kind: "joke"
+    parallel: false
+    time_best: "n"
+    time_average: "n! to n·n!"
+    time_worst: "∞"
+    space: "1"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Bozosort"
+    aliases: ["bozo-sort", "bozo-sort+"]
+    family: "experimentalni"
+    broader: "bogosort"
+    kernel_stable: "no"
+    kernel_kind: "joke"
+    custom_plate: "expected time grows like n!: the same small-n limit as bogosort"
+  - id: "stooge-sort"
+    kernel: "stooge-sort"
+    atlas_id: "TA-10.04"
+    existing: false
+    engine: "custom"
+    year: null
+    authors: []
+    kind: "joke"
+    parallel: false
+    time_best: "n^2.71"
+    time_average: "n^2.71"
+    time_worst: "n^2.71"
+    space: "log n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Stooge Sort"
+    aliases: ["stoogesort"]
+    family: "experimentalni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "joke"
+    custom_plate: "about n^2.71 comparisons: tens of millions at the array engine’s largest size, too many to record and replay as a trace"
+  - id: "slowsort"
+    kernel: "slowsort"
+    atlas_id: "TA-10.05"
+    existing: false
+    engine: "custom"
+    year: 1984
+    authors: ["A. Broder", "J. Stolfi"]
+    kind: "joke"
+    parallel: false
+    time_best: "n^(log n / (2+ε))"
+    time_average: "n^(log n / (2+ε))"
+    time_worst: "n^(log n / (2+ε))"
+    space: "n"
+    stable: false
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Slowsort"
+    aliases: ["multiply and surrender"]
+    family: "experimentalni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "joke"
+    custom_plate: "superpolynomial: millions of comparisons already at n = 128, beyond reach at the array engine’s largest sizes"
+  - id: "sleep-sort"
+    kernel: "sleep-sort"
+    atlas_id: "TA-10.06"
+    existing: false
+    engine: "array"
+    year: null
+    authors: []
+    kind: "joke"
+    parallel: true
+    time_best: "n log n + max"
+    time_average: "n log n + max"
+    time_worst: "n log n + max"
+    space: "n"
+    stable: false
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Sleep Sort"
+    aliases: ["sleepsort"]
+    family: "experimentalni"
+    broader: null
+    kernel_stable: "no"
+    kernel_kind: "joke"
+  - id: "miracle-sort"
+    kernel: "miracle-sort"
+    atlas_id: "TA-10.07"
+    existing: false
+    engine: "custom"
+    year: null
+    authors: []
+    kind: "joke"
+    parallel: false
+    time_best: "n"
+    time_average: "∞"
+    time_worst: "∞"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Miracle Sort"
+    aliases: ["miraclesort"]
+    family: "experimentalni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "joke"
+    custom_plate: "it never sorts an unsorted input, so it cannot pass the array harness; the plate shows the check and the wait"
+  - id: "worstsort"
+    kernel: "worstsort"
+    atlas_id: "TA-10.08"
+    existing: false
+    engine: "custom"
+    year: 2014
+    authors: ["M. A. Lerma"]
+    kind: "joke"
+    parallel: false
+    time_best: "(n!^(f(n)))^2"
+    time_average: "(n!^(f(n)))^2"
+    time_worst: "(n!^(f(n)))^2"
+    space: "depends on f"
+    stable: true
+    in_place: false
+    adaptive: false
+    online: false
+    taxonomy: "sorting/esoteric"
+    name: "Worstsort"
+    aliases: ["multilevelsort"]
+    family: "experimentalni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "joke"
+    custom_plate: "the kernel refuses n > 5; the array engine starts at n = 8"
+  - id: "stalin-sort"
+    kernel: "stalin-sort"
+    atlas_id: "TA-10.09"
+    existing: false
+    engine: "custom"
+    year: null
+    authors: []
+    kind: "joke"
+    parallel: false
+    time_best: "n"
+    time_average: "n"
+    time_worst: "n"
+    space: "1"
+    stable: true
+    in_place: true
+    adaptive: false
+    online: true
+    taxonomy: "sorting/esoteric"
+    name: "Stalin Sort"
+    aliases: ["stalinsort"]
+    family: "experimentalni"
+    broader: null
+    kernel_stable: "yes"
+    kernel_kind: "joke"
+    custom_plate: "its output drops keys, so it is not a permutation of the input and cannot pass the array harness"
