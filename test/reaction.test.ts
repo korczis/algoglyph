@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import { mulberry32 } from '../src/core/random';
+import { field, PRESETS, seed, step } from '../src/plates/reaction/grayscott';
+
+describe('gray-scott', () => {
+  it('the trivial steady state u = 1, v = 0 stays exactly fixed', () => {
+    const fl = field(24, 16);
+    for (let s = 0; s < 200; s++) step(fl, 0.0545, 0.062);
+    expect(fl.u.every((x) => x === 1)).toBe(true);
+    expect(fl.v.every((x) => x === 0)).toBe(true);
+  });
+
+  for (const [id, { f, k }] of Object.entries(PRESETS)) {
+    it(`${id}: concentrations stay within [0, 1] over 1000 seeded steps`, () => {
+      const fl = field(64, 40);
+      const rnd = mulberry32(5);
+      for (let d = 0; d < 8; d++) seed(fl, Math.floor(rnd() * 64), Math.floor(rnd() * 40), 4);
+      for (let s = 0; s < 1000; s++) step(fl, f, k);
+      for (let i = 0; i < fl.u.length; i++) {
+        expect(fl.u[i]).toBeGreaterThanOrEqual(0);
+        expect(fl.u[i]).toBeLessThanOrEqual(1);
+        expect(fl.v[i]).toBeGreaterThanOrEqual(0);
+        expect(fl.v[i]).toBeLessThanOrEqual(1);
+      }
+    });
+  }
+
+  it('the stencil is translation invariant on the torus', () => {
+    const a = field(20, 20);
+    const b = field(20, 20);
+    seed(a, 5, 5, 3);
+    seed(b, 15, 12, 3);
+    for (let s = 0; s < 100; s++) {
+      step(a, 0.0367, 0.0649);
+      step(b, 0.0367, 0.0649);
+    }
+    for (let y = 0; y < 20; y++) {
+      for (let x = 0; x < 20; x++) {
+        const j = ((y + 7) % 20) * 20 + ((x + 10) % 20);
+        expect(b.v[j]).toBeCloseTo(a.v[y * 20 + x], 6);
+      }
+    }
+  });
+});

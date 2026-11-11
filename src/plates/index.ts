@@ -10,6 +10,7 @@ import { mazeFlood } from './maze/plate';
 import { nBody } from './nbody/plate';
 import { pathfinding } from './pathfinding/plate';
 import { doublePendulum } from './pendulum/plate';
+import { grayScott } from './reaction/plate';
 import { rippleTank } from './ripple/plate';
 import { sortTapestry } from './sorting/plate';
 import { voronoiRelax } from './voronoi/plate';
@@ -25,6 +26,7 @@ export const PLATES: Plate[] = [
   fourierEpicycles,
   doublePendulum,
   rippleTank,
+  grayScott,
   lorenzAttractor,
   nBody,
   verletCloth,
