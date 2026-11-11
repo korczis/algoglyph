@@ -136,9 +136,18 @@ export class Delaunay {
     this.link(g1, 1, g2, 0);
     this.ready = true;
     this.last = t;
-    // the collinear points collected so far go in through the ordinary insertion
-    for (let i = 2; i < n; i++) this.insertVertex(this.xs[i], this.ys[i], i);
-    return { vertex: id, removed: [], created: [a, b, id], walk: 0, tested: 0 };
+    // the collinear points collected so far go in through the ordinary insertion; this point
+    // created every triangle there now is, and none existed before it to be removed
+    let walk = 0;
+    let tested = 0;
+    for (let i = 2; i < n; i++) {
+      const ins = this.insertVertex(this.xs[i], this.ys[i], i);
+      if (ins) {
+        walk += ins.walk;
+        tested += ins.tested;
+      }
+    }
+    return { vertex: id, removed: [], created: this.triangles(), walk, tested };
   }
 
   private alloc(a: number, b: number, c: number): number {

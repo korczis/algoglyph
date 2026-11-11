@@ -257,8 +257,15 @@ describe('degenerate inputs', () => {
     const line: Pt[] = Array.from({ length: 10 }, (_, i) => [100 + 37 * i, 200 + 11 * i]);
     const d = build(shuffle([...line], mulberry32(2)));
     expect(d.counts()).toEqual({ triangles: 0, edges: 9, hull: 0 });
-    d.insert(900, 100);
+    const seeding = d.insert(900, 100);
     const all = [...line, [900, 100] as Pt];
+    // the point that lifts the set off the line creates the whole fan, and reports all of it
+    expect(seeding).not.toBeNull();
+    expect(seeding?.removed).toEqual([]);
+    expect(seeding?.created.length).toBe(3 * d.counts().triangles);
+    const asSet = (t: number[]) => new Set(Array.from({ length: t.length / 3 },
+      (_, i) => [t[3 * i], t[3 * i + 1], t[3 * i + 2]].sort((u, v) => u - v).join(',')));
+    expect(asSet(seeding?.created ?? [])).toEqual(asSet(d.triangles()));
     expect(d.counts().triangles).toBe(2 * 11 - 2 - 11);
     expectValid(d, all);
   });
