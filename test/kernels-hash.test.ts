@@ -1,0 +1,323 @@
+// Every live hash kernel of the catalogue, checked by one harness against references that do not
+// come from the code under test: a Map for membership, probe counts recounted from the final
+// table with hash functions written out again here, and the structural invariants of resizing
+// tables and extendible directories (ADR 0004 §4).
+import { describe, expect, it } from 'vitest';
+import { ENTRIES } from '../src/core/catalogue';
+import { mulberry32 } from '../src/core/random';
+import { apply, EMPTY, KIND, keysOf, OP, STRIDE, Table, trace, type HashKernel, type Size,
+  type Step, type Trace } from '../src/engines/hash/table';
+import { keys, STREAMS, workload, type Stream } from '../src/engines/hash/workload';
+
+const modules = import.meta.glob<HashKernel>('../src/kernels/hash/[!_]*.ts', { import: 'kernel', eager: true });
+const live = ENTRIES.filter((e) => e.engine === 'hash' && e.status === 'live');
+const kernelOf = (id: string) => modules[`../src/kernels/hash/${id}.ts`];
+
+// the hash functions, written out independently of src/engines/hash/table.ts
+const H1 = (k: number) => Number((BigInt(k) * 0x9e3779b1n) % 2n ** 32n);
+const H2 = (k: number) => {
+  let h = BigInt(k);
+  const M = 2n ** 32n;
+  h ^= h >> 16n; h = (h * 0x85ebca6bn) % M;
+  h ^= h >> 13n; h = (h * 0xc2b2ae35n) % M;
+  h ^= h >> 16n;
+  return Number(h);
+};
+const home = (h: number, m: number) => Number((BigInt(h) * BigInt(m)) >> 32n);
+const lead = (h: number, g: number) => (g === 0 ? 0 : Number(BigInt(h) >> BigInt(32 - g)));
+
+interface Result { kind: number; key: number; ok: boolean; probes: number; loads: number; recorded: number }
+
+/** The operations of a trace, read from its events alone. */
+function results(t: Trace): Result[] {
+  const out: Result[] = [];
+  let key = 0; let recorded = 0;
+  for (let e = 0; e < t.length; e++) {
+    const o = STRIDE * e;
+    const op = t.events[o];
+    if (op === OP.begin) { key = t.events[o + 2]; recorded = 0; } else if (op === OP.probe) recorded++;
+    else if (op === OP.end) {
+      out.push({ kind: t.events[o + 1], key, ok: t.events[o + 2] === 1, probes: t.events[o + 3],
+        loads: t.events[o + 4], recorded });
+    }
+  }
+  return out;
+}
+
+/** Replay a trace, calling `each` with the table after every operation. */
+function replay(t: Trace, each: (table: Table, r: number) => void): Table {
+  const table = new Table();
+  let r = 0;
+  for (let e = 0; e < t.length; e++) {
+    apply(table, t.events, e);
+    if (t.events[STRIDE * e] === OP.end) each(table, r++);
+  }
+  return table;
+}
+
+/** A random sequence of inserts, searches and deletes over a universe of keys. */
+function randomSteps(stream: Stream, n: number, seed: number): { steps: Step[]; universe: number[] } {
+  const { inserted, absent } = keys(stream, Math.max(1, n), seed);
+  const universe = [...inserted, ...absent].slice(0, Math.max(1, 2 * n));
+  const rnd = mulberry32(seed + 1);
+  const steps: Step[] = [];
+  for (let i = 0; i < 4 * n; i++) {
+    const u = rnd();
+    const kind = u < 0.45 ? KIND.insert : u < 0.75 ? KIND.search : KIND.remove;
+    steps.push({ kind, key: universe[Math.floor(rnd() * universe.length)] });
+  }
+  return { steps, universe };
+}
+
+/** Probes a search for key must take in the final table, recounted from its layout. */
+const RECOUNT: Record<string, (t: Table, key: number, pageSize: number) => { probes: number; loads: number }> = {
+  'linear-probing': linear,
+  'dynamic-hash-table': linear,
+  'double-hashing'(t, key) {
+    const m = t.m;
+    let i = home(H1(key), m);
+    const step = 1 + (H2(key) % (m - 1));
+    for (let d = 1; d <= m; d++) {
+      const v = t.value(i, 0);
+      if (v === key || v === EMPTY) return { probes: d, loads: 0 };
+      i = (i + step) % m;
+    }
+    return { probes: m, loads: 0 };
+  },
+  'separate-chaining'(t, key) {
+    const chain = t.buckets[home(H1(key), t.m)];
+    const at = chain.indexOf(key);
+    return { probes: at >= 0 ? at + 1 : chain.length, loads: 0 };
+  },
+  'extendible-hashing'(t, key) {
+    const page = t.buckets[t.dir[lead(H1(key), t.globalDepth)]];
+    const at = page.indexOf(key);
+    return { probes: at >= 0 ? at + 1 : page.length, loads: 1 };
+  },
+};
+
+function linear(t: Table, key: number) {
+  const m = t.m;
+  const i = home(H1(key), m);
+  for (let d = 0; d < m; d++) {
+    const v = t.value((i + d) % m, 0);
+    if (v === key || v === EMPTY) return { probes: d + 1, loads: 0 };
+  }
+  return { probes: m, loads: 0 };
+}
+
+const SIZES = [0, 1, 2, 7, 64, 200];
+
+function sizeFor(n: number, load = 0.9): Size {
+  return { n, m: Math.max(1, Math.ceil(n / load)), pageSize: 4 };
+}
+
+describe('hash kernels', () => {
+  it('every live hash entry has its kernel and every kernel its entry', () => {
+    const files = Object.keys(modules).map((f) => f.replace(/^.*\/(.*)\.ts$/, '$1')).sort();
+    expect(files).toEqual(live.map((e) => e.id).sort());
+  });
+
+  it('every live hash kernel has an independent probe recount', () => {
+    for (const e of live) expect(RECOUNT[e.id], e.id).toBeTypeOf('function');
+  });
+
+  for (const e of live) {
+    const kernel = kernelOf(e.id);
+    describe(e.id, () => {
+      it('answers every insert, search and delete as a Map does, and ends holding its keys', () => {
+        for (const stream of STREAMS) {
+          for (const n of SIZES) {
+            // a random mix over twice as many keys as n, with room for all of them
+            const { steps } = randomSteps(stream, n, 300 + n);
+            const t = trace(kernel, steps, sizeFor(2 * n + 1, 0.95));
+            expect(t.truncated).toBe(false);
+            const ref = new Map<number, true>();
+            const got = results(t);
+            expect(got.length).toBe(steps.length);
+            steps.forEach((s, i) => {
+              if (s.kind === 'check') return;
+              const want = s.kind === KIND.insert ? !ref.has(s.key) && Boolean(ref.set(s.key, true))
+                : s.kind === KIND.search ? ref.has(s.key) : ref.delete(s.key);
+              expect(got[i].ok, `${stream} n=${n} step ${i}`).toBe(want);
+            });
+            expect(keysOf(t.table).sort((a, b) => a - b)).toEqual([...ref.keys()].sort((a, b) => a - b));
+            expect(t.table.count).toBe(ref.size);
+            // the replay rebuilds exactly the table the run left
+            const again = replay(t, () => {});
+            expect(again.buckets).toEqual(t.table.buckets);
+            expect(again.dir).toEqual(t.table.dir);
+          }
+        }
+      });
+
+      it("runs the plate's workload with every measured search answered correctly", () => {
+        for (const stream of STREAMS) {
+          const steps = workload(stream, 120, 60, 17);
+          const t = trace(kernel, steps, sizeFor(120, 0.8));
+          const ref = new Set<number>();
+          const ops = steps.filter((s) => s.kind !== 'check');
+          results(t).forEach((r, i) => {
+            const s = ops[i] as { kind: number; key: number };
+            expect(r.key).toBe(s.key);
+            if (s.kind === KIND.insert) { expect(r.ok).toBe(!ref.has(s.key)); ref.add(s.key); }
+            else if (s.kind === KIND.search) expect(r.ok, `${stream} search ${s.key}`).toBe(ref.has(s.key));
+            else { expect(r.ok).toBe(ref.has(s.key)); ref.delete(s.key); }
+          });
+        }
+      });
+
+      it('reports each operation\'s probes as the probe events inside it, and totals as events', () => {
+        const t = trace(kernel, workload('uniform', 200, 50, 5), sizeFor(200, 0.75));
+        for (const r of results(t)) expect(r.probes).toBe(r.recorded);
+        const tally = (op: number) => {
+          let c = 0;
+          for (let e = 0; e < t.length; e++) if (t.events[STRIDE * e] === op) c++;
+          return c;
+        };
+        expect(t.counts.probes).toBe(tally(OP.probe));
+        expect(t.counts.hashes).toBe(tally(OP.hash));
+        expect(t.counts.writes).toBe(tally(OP.write));
+        expect(t.counts.loads).toBe(tally(OP.load));
+        expect(t.counts.doublings).toBe(tally(OP.double));
+      });
+
+      it('takes exactly the probes a recount from the final table predicts', () => {
+        for (const stream of STREAMS) {
+          const base = workload(stream, 160, 40, 23);
+          const { absent } = keys(stream, 160, 23);
+          const ins = base.filter((s) => s.kind === KIND.insert).map((s) => (s as { key: number }).key);
+          const searches: Step[] = [...ins, ...absent.slice(0, 80)].map((key) => ({ kind: KIND.search, key }));
+          const t = trace(kernel, [...base, ...searches], sizeFor(160, 0.8));
+          const tail = results(t).slice(-searches.length);
+          for (const r of tail) {
+            const want = RECOUNT[e.id](t.table, r.key, 4);
+            expect(r.probes, `${stream} ${r.key}`).toBe(want.probes);
+            expect(r.loads).toBe(want.loads);
+          }
+        }
+      });
+
+      if (kernel.layout !== 'pages') {
+        it('never holds more keys than slots in open addressing', () => {
+          if (kernel.layout !== 'slots') return;
+          const t = trace(kernel, workload('adversarial', 200, 30, 9), sizeFor(200, 0.95));
+          replay(t, (table) => expect(table.count + table.tombstones).toBeLessThanOrEqual(table.m));
+        });
+      }
+
+      if (e.tags.includes('resizing')) {
+        it('keeps the load factor between 1/8 and 1/2 after every resize', () => {
+          for (const stream of STREAMS) {
+            const t = trace(kernel, workload(stream, 300, 90, 31), sizeFor(300));
+            let first = 0;
+            let resized = 0;
+            for (let ev = 0; ev < t.length; ev++) {
+              if (t.events[STRIDE * ev] === OP.resize) { first ||= t.events[STRIDE * ev + 1]; resized++; }
+            }
+            expect(resized).toBeGreaterThan(2);
+            replay(t, (table) => {
+              const a = table.count / table.m;
+              expect(a).toBeLessThanOrEqual(0.5);
+              if (table.m > first) expect(a).toBeGreaterThanOrEqual(1 / 8);
+            });
+          }
+        });
+      }
+
+      if (kernel.layout === 'pages') {
+        it('keeps a directory of 2^g entries over pages no deeper than g, each with its prefix', () => {
+          for (const stream of STREAMS) {
+            for (const B of [2, 4, 8]) {
+              const t = trace(kernel, workload(stream, 200, 50, 41), { n: 200, m: 1, pageSize: B });
+              let checked = 0;
+              replay(t, (table, r) => {
+                if (r % 25) return;
+                checked++;
+                const g = table.globalDepth;
+                expect(table.dir.length).toBe(2 ** g);
+                // one pass over the directory: each page's first entry and how many point at it
+                const bad: string[] = [];
+                const first = new Map<number, number>();
+                const refs = new Map<number, number>();
+                for (let i = 0; i < table.dir.length; i++) {
+                  const pg = table.dir[i];
+                  if (!first.has(pg)) first.set(pg, i);
+                  else if (table.dir[i - 1] !== pg) bad.push(`entries of page ${pg} are not consecutive`);
+                  refs.set(pg, (refs.get(pg) ?? 0) + 1);
+                }
+                table.depths.forEach((d, pg) => {
+                  const span = 2 ** (g - d);
+                  const at = first.get(pg) ?? -1;
+                  if (d > g) bad.push(`page ${pg} deeper than the directory`);
+                  if (refs.get(pg) !== span) bad.push(`page ${pg}: ${refs.get(pg)} entries, local depth ${d}`);
+                  if (at % span !== 0) bad.push(`page ${pg} starts off its prefix boundary`);
+                  if (table.buckets[pg].length > B) bad.push(`page ${pg} overfull`);
+                  // its keys share its d leading bits
+                  for (const k of table.buckets[pg]) if (lead(H1(k), d) !== at / span) bad.push(`key ${k} in page ${pg}`);
+                });
+                expect(bad, `${stream} b=${B} after operation ${r}`).toEqual([]);
+              });
+              expect(checked).toBeGreaterThan(0);
+            }
+          }
+        });
+      }
+    });
+  }
+});
+
+describe('hash kernels against the classical averages', () => {
+  // seeded, so these are exact facts about one run, compared with the formulas as references
+  for (const e of live) {
+    const kernel = kernelOf(e.id);
+    if (!kernel.expected || !kernel.maxLoad) continue;
+    it(`${e.id}: measured probes on uniform keys lie near its formula at half load`, () => {
+      const n = 2000;
+      const { inserted, absent } = keys('uniform', n, 77);
+      const steps: Step[] = [
+        ...inserted.map((key) => ({ kind: KIND.insert, key }) as Step),
+        ...inserted.map((key) => ({ kind: KIND.search, key }) as Step),
+        ...absent.map((key) => ({ kind: KIND.search, key }) as Step),
+      ];
+      const t = trace(kernel, steps, { n, m: 2 * n, pageSize: 4 });
+      const r = results(t);
+      const a = n / t.table.m;
+      const mean = (xs: Result[]) => xs.reduce((s, x) => s + x.probes, 0) / xs.length;
+      const hits = r.slice(n, 2 * n);
+      const misses = r.slice(2 * n);
+      expect(hits.every((x) => x.ok)).toBe(true);
+      expect(misses.every((x) => !x.ok)).toBe(true);
+      expect(Math.abs(mean(hits) / kernel.expected!.hit(a) - 1)).toBeLessThan(0.1);
+      expect(Math.abs(mean(misses) / kernel.expected!.miss(a) - 1)).toBeLessThan(0.15);
+    });
+  }
+
+  for (const e of live) {
+    const kernel = kernelOf(e.id);
+    if (!kernel.growth) continue;
+    it(`${e.id}: pages on uniform keys lie near n / (b ln 2)`, () => {
+      const n = 4000;
+      const { inserted } = keys('uniform', n, 5);
+      for (const B of [4, 8]) {
+        const t = trace(kernel, inserted.map((key) => ({ kind: KIND.insert, key }) as Step), { n, m: 1, pageSize: B });
+        expect(Math.abs(t.table.m / kernel.growth!.pages(n, B) - 1)).toBeLessThan(0.15);
+      }
+    });
+  }
+
+  it('linear probing leaves no tombstone and double hashing leaves one per delete', () => {
+    const steps = workload('uniform', 100, 50, 3);
+    const lp = live.some((e) => e.id === 'linear-probing') ? trace(kernelOf('linear-probing'), steps, { n: 100, m: 125, pageSize: 4 }) : null;
+    const dh = live.some((e) => e.id === 'double-hashing') ? trace(kernelOf('double-hashing'), steps, { n: 100, m: 125, pageSize: 4 }) : null;
+    if (lp) expect(lp.table.tombstones).toBe(0);
+    if (dh) expect(dh.table.tombstones).toBe(50);
+  });
+
+  it('the adversarial stream defeats h1 but not h2', () => {
+    const { inserted } = keys('adversarial', 500, 13);
+    const bands = new Set(inserted.map((k) => lead(H1(k), 6)));
+    expect(bands.size).toBe(1);
+    expect(new Set(inserted.map((k) => lead(H2(k), 6))).size).toBeGreaterThan(40);
+  });
+});

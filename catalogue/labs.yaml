@@ -8,3 +8,7 @@ labs:
     title: Sorting lab
     summary: Every sort on the same keys with the same operation budget per frame, ranked by when it finishes, with each one's work measured from n = 16 to 512.
     engine: array
+  - id: hashing
+    title: Hashing lab
+    summary: Every hashing scheme on the same key stream with the same operation budget per frame, ranked by when it finishes, with probes per search and each one's work measured as n grows.
+    engine: hash
