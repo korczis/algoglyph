@@ -1,0 +1,15 @@
+id: "M002"
+title: "Delivered: public, gated and deployed"
+slug: "delivered-public-gated-and-deployed"
+order: 2
+priority: "p1"
+problem: "The repository existed on one disk only; CI and Pages had never run."
+outcome: "github.com/korczis/algoglyph is public, CI gates every change, and GitHub Pages serves main with its revision verified."
+acceptance_criteria:
+  - "github.com/korczis/algoglyph is public, CI gates every change, and GitHub Pages serves main with its revision verified."
+validation:
+  - "gh run list --workflow pages.yml -L 1"
+  - "curl -fsS https://korczis.github.io/algoglyph/revision.txt"
+evidence_required:
+  - "milestone_verified"
+created_at: "2026-11-11"

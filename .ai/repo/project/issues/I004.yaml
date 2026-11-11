@@ -1,0 +1,21 @@
+id: "I004"
+milestone: "M002"
+title: "Pages serves main and production is verified"
+slug: "pages-serves-main-and-production-is-verified"
+priority: "p1"
+profile: "implementation"
+objective: "pages.yml deploys the validated dist and its verify job proves production serves the pushed commit (revision.txt) and the smoke paths answer 200."
+why: "Delivery is proved by production, not by a green build."
+scope:
+  - ".github/workflows/pages.yml"
+  - "vite.config.ts"
+depends_on:
+  - "I003"
+acceptance_criteria:
+  - "https://korczis.github.io/algoglyph/revision.txt equals the main commit."
+  - "The Verify production job of that run is green."
+validation:
+  - "curl -fsS https://korczis.github.io/algoglyph/revision.txt"
+evidence_required:
+  - "verified"
+created_at: "2026-11-11"

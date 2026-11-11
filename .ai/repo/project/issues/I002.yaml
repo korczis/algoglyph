@@ -1,0 +1,35 @@
+id: "I002"
+milestone: "M002"
+title: "Public GitHub remote with main pushed"
+slug: "public-github-remote-with-main-pushed"
+priority: "p1"
+profile: "implementation"
+objective: "Create github.com/korczis/algoglyph (public), push main, enable Pages with the workflow build type (ADR 0002)."
+why: "Owner answer recorded in ADR 0002."
+scope:
+  - ".ai/repo/adrs"
+depends_on:
+  - "I001"
+acceptance_criteria:
+  - "git ls-remote origin main equals the local main."
+  - "licence-check.sh over the whole tree finds 0 Pro source matches before the first push."
+  - "GET repos/korczis/algoglyph/pages reports build_type workflow."
+validation:
+  - "git ls-remote origin main"
+  - "gh api repos/korczis/algoglyph/pages --jq .build_type"
+evidence_required:
+  - "verified"
+created_at: "2026-11-11"
+started_at: 2026-11-11T18:11:10Z
+started_event: sha256:eee1f8ecb9921e4c947cf99c79a7615eaace291684afe1972d5428c4ec8f04df
+updated_at: 2026-11-11T18:11:10Z
+completed_at: 2026-11-11T18:11:10Z
+completed_event: sha256:525a9999ca118028879ef6bf1c98c8c7004d8c99a4265f3c634f6d1aeb512e36
+evidence:
+  - covers: "verified"
+    type: artifact
+    command: "git ls-remote origin main; gh api repos/korczis/algoglyph/pages --jq .build_type; licence-check.sh . <empty tree>"
+    result: "origin main = b9541d7 = local main; Pages build_type workflow; licence-check 161 files, 0 Pro source matches"
+    artifact: "https://github.com/korczis/algoglyph"
+    commit: b9541d795f4245eb6db7179344e74e54fe8f8cec
+    recorded_at: 2026-11-11T18:11:10Z

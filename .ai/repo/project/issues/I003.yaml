@@ -1,0 +1,21 @@
+id: "I003"
+milestone: "M002"
+title: "CI green on GitHub with a measured timeout"
+slug: "ci-green-on-github-with-a-measured-timeout"
+priority: "p1"
+profile: "implementation"
+objective: "Make every job of ci.yml pass on GitHub runners and replace the provisional timeout-minutes of the validate job with the measured duration plus margin, citing the run."
+why: "The CI has never run; its browser gate uses a Chromium installed by playwright-core, not the local Chrome."
+scope:
+  - ".github/workflows/ci.yml"
+  - "scripts/audit-ui.mjs"
+depends_on:
+  - "I002"
+acceptance_criteria:
+  - "The latest CI run on main has Conventional commits, Majordomus supervision and Validate and build all green."
+  - "ci.yml's validate timeout cites the run id and duration it was derived from."
+validation:
+  - "gh run list --workflow pages.yml -L 1"
+evidence_required:
+  - "verified"
+created_at: "2026-11-11"
