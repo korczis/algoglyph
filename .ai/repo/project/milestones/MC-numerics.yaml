@@ -5,7 +5,7 @@ title: "Numbers and computation: every catalogued algorithm runs"
 slug: numbers-and-computation-every-catalogued-algorithm-runs
 order: 106
 priority: p2
-problem: 19 algorithm(s) of the Numbers and computation wing are catalogued and not yet running.
+problem: 5 algorithm(s) of the Numbers and computation wing are catalogued and not yet running.
 outcome: Every entry under numerics/ is live, tested by its engine's harness and in the browser gate.
 acceptance_criteria:
   - npm run catalogue -- list --under numerics --status planned prints nothing.

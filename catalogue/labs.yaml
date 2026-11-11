@@ -8,3 +8,11 @@ labs:
     title: Sorting lab
     summary: Every sort on the same keys with the same operation budget per frame, ranked by when it finishes, with each one's work measured from n = 16 to 512.
     engine: array
+  - id: quadrature
+    title: Quadrature lab
+    summary: Uniform trapezoid and Simpson panels against adaptive Simpson on the same integrand, each one's error measured against the closed-form integral for the evaluations it spent.
+    engine: numeric
+  - id: interpolation
+    title: Interpolation lab
+    summary: One polynomial through all the nodes against a natural cubic spline on the same function, with the maximum error of each measured as nodes are added.
+    engine: numeric

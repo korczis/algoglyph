@@ -5,7 +5,7 @@ title: "Dynamics and complexity: every catalogued algorithm runs"
 slug: dynamics-and-complexity-every-catalogued-algorithm-runs
 order: 108
 priority: p2
-problem: 9 algorithm(s) of the Dynamics and complexity wing are catalogued and not yet running.
+problem: 4 algorithm(s) of the Dynamics and complexity wing are catalogued and not yet running.
 outcome: Every entry under dynamics/ is live, tested by its engine's harness and in the browser gate.
 acceptance_criteria:
   - npm run catalogue -- list --under dynamics --status planned prints nothing.
