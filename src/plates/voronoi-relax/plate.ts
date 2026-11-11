@@ -1,6 +1,10 @@
 import { paletteParam, ramp, scale } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { bounded, cellWithin } from '../../core/budget';
+
+/** Pixels labelled per frame at most: the pixel size is raised to fit (src/core/budget.ts). */
+export const MAX_PIXELS = 120_000;
 
 interface Site {
   x: number;
@@ -80,7 +84,7 @@ export const voronoiRelax: PlateCode = {
 
     return {
       setup() {
-        res = num(params, 'res');
+        res = cellWithin(ctx.width, ctx.height, num(params, 'res'), MAX_PIXELS);
         raster = new Raster(ctx.width / res, ctx.height / res);
         owner = new Int32Array(raster.w * raster.h);
         d2 = new Float32Array(raster.w * raster.h);
@@ -157,7 +161,7 @@ export const voronoiRelax: PlateCode = {
           { label: 'seeds', value: String(sites.length) },
           { label: 'Lloyd iterations', value: String(iteration) },
           { label: 'quantisation energy', value: `${((energy / owner.length) * res * res).toFixed(1)} px²` },
-          { label: 'labelled pixels', value: `${w}×${h}` },
+          { label: 'labelled pixels', value: `${w}×${h}, pixel size ${bounded(res, num(params, 'res'), ' px')}` },
         ]);
       },
     };

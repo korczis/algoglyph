@@ -1,7 +1,12 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { bounded, cellWithin, stepsWithin } from '../../core/budget';
 import { field, PRESETS, seed, step, type Field } from './grayscott';
+
+/** Cells in the grid at most, and cell updates (cells × steps) per frame (src/core/budget.ts). */
+export const MAX_CELLS = 90_000;
+export const CELL_STEPS_PER_FRAME = 1_200_000;
 
 export const grayScott: PlateCode = {
   id: 'gray-scott',
@@ -40,7 +45,7 @@ export const grayScott: PlateCode = {
 
     return {
       setup() {
-        res = num(params, 'res');
+        res = cellWithin(ctx.width, ctx.height, num(params, 'res'), MAX_CELLS);
         const w = Math.floor(ctx.width / res);
         const h = Math.floor(ctx.height / res);
         fl = field(w, h);
@@ -55,7 +60,7 @@ export const grayScott: PlateCode = {
       dragged: (x, y) => paint(x, y),
       draw() {
         const [f, k] = fk();
-        const n = ctx.thumbnail ? 40 : num(params, 'speed');
+        const n = ctx.thumbnail ? 40 : stepsWithin(num(params, 'speed'), fl.v.length, CELL_STEPS_PER_FRAME);
         for (let s = 0; s < n; s++) step(fl, f, k);
         steps += n;
 
@@ -74,7 +79,8 @@ export const grayScott: PlateCode = {
           { label: 'regime', value: `f ${f.toFixed(4)}, k ${k.toFixed(4)}` },
           { label: 'steps', value: steps.toLocaleString('en') },
           { label: 'mean V', value: (sum / fl.v.length).toFixed(4) },
-          { label: 'grid', value: `${fl.w}×${fl.h} (torus)` },
+          { label: 'steps this frame', value: bounded(n, ctx.thumbnail ? n : num(params, 'speed')) },
+          { label: 'grid', value: `${fl.w}×${fl.h} (torus), cells ${bounded(res, num(params, 'res'), ' px')}` },
         ]);
       },
     };
