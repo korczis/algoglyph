@@ -77,6 +77,14 @@ export function bounds(pattern: Pattern): { w: number; h: number } {
   return { w, h };
 }
 
+/** Cell updates allowed per drawn frame, so a fine grid steps fewer generations per frame. */
+export const CELL_BUDGET = 1_300_000;
+
+/** Generations to step this frame: the requested number, capped by the cell budget. */
+export function generationsPerFrame(requested: number, cells: number): number {
+  return Math.max(1, Math.min(requested, Math.floor(CELL_BUDGET / cells)));
+}
+
 /** How many recent boards the period detector remembers. */
 export const HISTORY = 8192;
 
@@ -85,6 +93,12 @@ export class Life {
   readonly h: number;
   cells: Uint8Array;
   private spare: Uint8Array;
+  // the same two boards as 32-bit words (padded to a whole word), for hashing four at a time
+  private words: Uint32Array;
+  private spareWords: Uint32Array;
+  // next state indexed by 9·alive + live neighbours, rebuilt when the rule changes
+  private readonly table = new Uint8Array(18);
+  private tableRule = -1;
   /** Generations each live cell has survived (0 on the generation it was born). */
   readonly age: Uint16Array;
   /** Set to 1 where a cell dies; the caller clears it when it has drawn the traces. */
@@ -106,22 +120,20 @@ export class Life {
   private readonly ring: string[] = new Array<string>(HISTORY);
   private readonly ringGen = new Float64Array(HISTORY);
   private stored = 0;
-  private readonly left: Int32Array;
-  private readonly right: Int32Array;
 
   constructor(w: number, h: number) {
     this.w = w;
     this.h = h;
-    this.cells = new Uint8Array(w * h);
-    this.spare = new Uint8Array(w * h);
-    this.age = new Uint16Array(w * h);
-    this.died = new Uint8Array(w * h);
-    this.left = new Int32Array(w);
-    this.right = new Int32Array(w);
-    for (let x = 0; x < w; x++) {
-      this.left[x] = (x - 1 + w) % w;
-      this.right[x] = (x + 1) % w;
-    }
+    const n = w * h;
+    const padded = Math.ceil(n / 4) * 4;
+    const a = new ArrayBuffer(padded);
+    const b = new ArrayBuffer(padded);
+    this.cells = new Uint8Array(a, 0, n);
+    this.spare = new Uint8Array(b, 0, n);
+    this.words = new Uint32Array(a);
+    this.spareWords = new Uint32Array(b);
+    this.age = new Uint16Array(n);
+    this.died = new Uint8Array(n);
   }
 
   index(x: number, y: number): number {
@@ -170,16 +182,16 @@ export class Life {
     return Math.min(this.stored, HISTORY);
   }
 
-  /** A 64-bit hash of the set of live cells, as a string key. */
+  /** A 64-bit hash of the board (two 32-bit hashes of its words), as a string key. */
   hash(): string {
     let h1 = 0x811c9dc5;
     let h2 = 0x2545f491;
-    const c = this.cells;
-    for (let i = 0; i < c.length; i++) {
-      if (!c[i]) continue;
-      h1 = Math.imul(h1 ^ i, 0x01000193);
-      h2 = Math.imul(h2 ^ Math.imul(i, 0x9e3779b1), 0x85ebca6b);
-      h2 ^= h2 >>> 15;
+    const words = this.words;
+    for (let k = 0; k < words.length; k++) {
+      const v = words[k];
+      h1 = Math.imul(h1 ^ v, 0x01000193);
+      h2 = Math.imul(h2 + v, 0x5bd1e995);
+      h2 ^= h2 >>> 13;
     }
     return `${h1 >>> 0}:${h2 >>> 0}`;
   }
@@ -208,10 +220,17 @@ export class Life {
   }
 
   step(rule: Rule): void {
-    const { w, h, left, right, age, died } = this;
+    const { w, h, age, died, table } = this;
+    const key = rule.birth | (rule.survive << 9);
+    if (key !== this.tableRule) {
+      this.tableRule = key;
+      for (let n = 0; n <= 8; n++) {
+        table[n] = (rule.birth >> n) & 1;
+        table[9 + n] = (rule.survive >> n) & 1;
+      }
+    }
     const src = this.cells;
     const dst = this.spare;
-    const { birth, survive } = rule;
     let pop = 0;
     let born = 0;
     let gone = 0;
@@ -219,31 +238,34 @@ export class Life {
       const up = ((y - 1 + h) % h) * w;
       const row = y * w;
       const down = ((y + 1) % h) * w;
+      // sliding sums of three-cell columns: left, centre, right of x
+      let cl = src[up + w - 1] + src[row + w - 1] + src[down + w - 1];
+      let cm = src[up] + src[row] + src[down];
       for (let x = 0; x < w; x++) {
-        const l = left[x];
-        const r = right[x];
-        const n = src[up + l] + src[up + x] + src[up + r] + src[row + l] + src[row + r]
-          + src[down + l] + src[down + x] + src[down + r];
+        const xr = x + 1 === w ? 0 : x + 1;
+        const cr = src[up + xr] + src[row + xr] + src[down + xr];
         const i = row + x;
         const was = src[i];
-        const now = was ? (survive >> n) & 1 : (birth >> n) & 1;
+        const now = table[was * 9 + cl + cm + cr - was];
         dst[i] = now;
-        if (now) {
-          pop++;
-          if (was) {
-            if (age[i] < 65535) age[i]++;
-          } else {
-            age[i] = 0;
-            born++;
-          }
-        } else if (was) {
-          died[i] = 1;
-          gone++;
-        }
+        cl = cm;
+        cm = cr;
+        pop += now;
+        const kept = was & now;
+        const lost = was & (now ^ 1);
+        born += now & (was ^ 1);
+        gone += lost;
+        died[i] |= lost;
+        // branch-free: age + 1 for a kept cell, saturating at 65535; 0 otherwise
+        const a = age[i] + 1;
+        age[i] = (a - (a >> 16)) * kept;
       }
     }
     this.cells = dst;
     this.spare = src;
+    const words = this.words;
+    this.words = this.spareWords;
+    this.spareWords = words;
     this.generation++;
     this.population = pop;
     this.births = born;

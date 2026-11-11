@@ -5,6 +5,8 @@ import { parseTurmite, Turmite, type Ant } from './ant';
 
 const TURMITES = ['RL', 'RLR', 'LLRR', 'LRRRRRLLR', 'RRLLLRLLLRRR'];
 const CHART_POINTS = 400;
+// the chart's series are rebuilt every few frames, not every frame
+const CHART_EVERY = 10;
 
 function fmt(n: number): string {
   return n.toLocaleString('en');
@@ -46,6 +48,7 @@ export const langtonTurmites: PlateCode = {
     let ant: Turmite;
     let paintOn = true;
     let history: [number, number, number][] = [];
+    let frames = 0;
     // colour tables per cell colour and glow level, rebuilt only when the palette changes
     let lutKey = '';
     let lut = new Uint8Array(0);
@@ -116,6 +119,7 @@ export const langtonTurmites: PlateCode = {
         trail = new Uint8Array(w * h);
         lutKey = '';
         history = [];
+        frames = 0;
         const turns = parseTurmite(str(params, 'turmite')) ?? [1, 3];
         const ants: Ant[] = [{ x: Math.floor(w / 2), y: Math.floor(h / 2), dir: 0 }];
         for (let k = 1; k < num(params, 'ants'); k++) {
@@ -150,9 +154,12 @@ export const langtonTurmites: PlateCode = {
         }
 
         const a = ant;
+        frames++;
         if (!ctx.thumbnail) {
           history.push([a.steps, a.visitedCount, a.coloured]);
           if (history.length > CHART_POINTS) history.shift();
+        }
+        if (!ctx.thumbnail && frames % CHART_EVERY === 1) {
           ctx.chart({
             title: 'Cells the ants have reached',
             x: { label: 'step' },

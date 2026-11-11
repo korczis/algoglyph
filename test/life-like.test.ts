@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import {
-  bounds, Life, parseRule, PATTERNS, ruleString, type Pattern,
+  bounds, CELL_BUDGET, generationsPerFrame, Life, parseRule, PATTERNS, ruleString,
+  type Pattern,
 } from '../src/plates/life-like-automata/life';
 
 const LIFE = parseRule('B3/S23')!;
@@ -190,5 +191,36 @@ describe('life-like rules', () => {
     }
     for (let t = 30; t + 30 < pops.length; t++) expect(pops[t + 30] - pops[t]).toBe(5);
     expect(g.period).toBe(0);
+  });
+});
+
+describe('cell ages', () => {
+  it('count generations survived and restart at birth', () => {
+    const k = board(10, 10, PATTERNS.block, 3, 3);
+    for (let n = 1; n <= 5; n++) {
+      k.step(LIFE);
+      expect(k.age[k.index(3, 3)]).toBe(n);
+    }
+    // a blinker's centre survives every generation, its ends are reborn each time
+    const b = board(10, 10, PATTERNS.blinker, 3, 4);
+    for (let n = 1; n <= 4; n++) b.step(LIFE);
+    expect(b.age[b.index(4, 4)]).toBe(4);
+    expect(b.age[b.index(3, 4)]).toBe(0);
+    expect(b.age[b.index(5, 4)]).toBe(0);
+  });
+});
+
+describe('frame budget', () => {
+  it('caps generations per frame by the cell budget, never below one', () => {
+    expect(generationsPerFrame(20, 144 * 90)).toBe(20);
+    for (const cells of [1000, 144000, 256000, 324000, 2_000_000]) {
+      for (const asked of [1, 2, 7, 20]) {
+        const n = generationsPerFrame(asked, cells);
+        expect(n).toBeGreaterThanOrEqual(1);
+        expect(n).toBeLessThanOrEqual(asked);
+        if (n > 1) expect(n * cells).toBeLessThanOrEqual(CELL_BUDGET);
+        if (n < asked) expect((n + 1) * cells).toBeGreaterThan(CELL_BUDGET);
+      }
+    }
   });
 });

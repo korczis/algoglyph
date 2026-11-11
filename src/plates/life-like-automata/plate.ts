@@ -1,7 +1,9 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
-import { bounds, Life, parseRule, PATTERNS, ruleString, type Pattern, type Rule } from './life';
+import {
+  bounds, generationsPerFrame, Life, parseRule, PATTERNS, ruleString, type Pattern, type Rule,
+} from './life';
 
 const RULES: { value: string; label: string }[] = [
   { value: 'B3/S23', label: 'B3/S23 · Conway\'s Life' },
@@ -17,6 +19,8 @@ const AGE_CAP = 1023;
 const LOG_CAP = Math.log(AGE_CAP + 1);
 const CONWAY = parseRule('B3/S23') as Rule;
 const CHART_POINTS = 400;
+// the chart's series are rebuilt every few frames, not every frame
+const CHART_EVERY = 10;
 
 function fmt(n: number): string {
   return n.toLocaleString('en');
@@ -65,6 +69,7 @@ export const lifeLikeAutomata: PlateCode = {
     let rule: Rule = CONWAY;
     let paintOn = true;
     let history: [number, number, number, number][] = [];
+    let frames = 0;
     // colour tables, rebuilt only when the palette changes
     let lutKey = '';
     const ageLut = new Uint8Array((AGE_CAP + 1) * 3);
@@ -160,6 +165,7 @@ export const lifeLikeAutomata: PlateCode = {
         lutKey = '';
         ruleText = '';
         history = [];
+        frames = 0;
         life = new Life(w, h);
         seed();
       },
@@ -177,7 +183,8 @@ export const lifeLikeAutomata: PlateCode = {
           rule = parseRule(text) ?? CONWAY;
           life.perturbed();
         }
-        const n = ctx.thumbnail ? 1 : num(params, 'speed');
+        const asked = ctx.thumbnail ? 1 : num(params, 'speed');
+        const n = generationsPerFrame(asked, w * h);
         for (let k = 0; k < n; k++) life.step(rule);
         paint(num(params, 'fade'));
         p.background(...ctx.bg);
@@ -185,9 +192,12 @@ export const lifeLikeAutomata: PlateCode = {
         raster.blit(p, false, ox, oy, w * cell, h * cell);
 
         const g = life;
+        frames++;
         if (!ctx.thumbnail) {
           history.push([g.generation, g.population, g.births, g.deaths]);
           if (history.length > CHART_POINTS) history.shift();
+        }
+        if (!ctx.thumbnail && frames % CHART_EVERY === 1) {
           ctx.chart({
             title: 'Population and turnover',
             x: { label: 'generation' },
@@ -211,6 +221,8 @@ export const lifeLikeAutomata: PlateCode = {
             : g.proposed
               ? `${fmt(g.proposed)} proposed by the hashes, comparing boards`
               : `not periodic in the last ${fmt(g.remembered)} boards` },
+          { label: 'generations per frame', value: n < asked
+            ? `${n} of ${asked} asked, capped by the cell budget` : String(n) },
           { label: 'board', value: `${w}×${h} (torus)` },
         ]);
       },
