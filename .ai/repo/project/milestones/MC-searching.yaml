@@ -5,7 +5,7 @@ title: "Searching and symbol tables: every catalogued algorithm runs"
 slug: searching-and-symbol-tables-every-catalogued-algorithm-runs
 order: 102
 priority: p2
-problem: 20 algorithm(s) of the Searching and symbol tables wing are catalogued and not yet running.
+problem: "Algorithms of the Searching and symbol tables wing are catalogued and not yet running: npm run catalogue -- list --under searching --status planned."
 outcome: Every entry under searching/ is live, tested by its engine's harness and in the browser gate.
 acceptance_criteria:
   - npm run catalogue -- list --under searching --status planned prints nothing.
