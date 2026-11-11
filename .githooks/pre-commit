@@ -6,7 +6,11 @@ if ! command -v majordomus >/dev/null 2>&1; then
   exit 1
 fi
 MAJORDOMUS_DOCTOR_CONTEXT=commit majordomus doctor || exit $?
-# rule project.derived-facts: no hand-typed count, plate number or dangling link reaches a commit
+# rules project.derived-facts and project.catalogue-integrity: no hand-typed count, plate number
+# or dangling link, and no stale derived file (README regions, plan), reaches a commit
+# (Pages run 43111588061 failed on a README a commit had left stale)
 if [ -f scripts/check-facts.mjs ] && [ -d node_modules/yaml ]; then
   node scripts/check-facts.mjs >/dev/null || { node scripts/check-facts.mjs; exit 1; }
+  node scripts/catalogue.mjs --check >/dev/null || { node scripts/catalogue.mjs --check; exit 1; }
+  node scripts/build-readme.mjs --check >/dev/null || { node scripts/build-readme.mjs --check; exit 1; }
 fi
