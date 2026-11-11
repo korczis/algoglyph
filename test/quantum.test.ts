@@ -6,7 +6,7 @@ import {
 
 /**
  * Textbook single rectangular barrier of height v0 and width a (Griffiths, Introduction to
- * Quantum Mechanics, 2nd ed., problem 2.33).
+ * Quantum Mechanics, 2nd ed., chapter 2, the finite square barrier).
  */
 function barrierT(e: number, v0: number, a: number): number {
   if (e < v0) {
