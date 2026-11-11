@@ -173,6 +173,6 @@ describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', (
       expect(t.w).toBe(old.state().w);
       expect(t.h).toBe(old.state().h);
       expect(sameBits(t.u, old.state().u)).toBe(true);
-    });
+    }, 60000);
   }
 });

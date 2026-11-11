@@ -1,11 +1,6 @@
 import { paletteParam, ramp, scale } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
-
-interface Link {
-  a: number;
-  b: number;
-  rest: number;
-}
+import { cloth, step, type Cloth, type Scene } from './cloth';
 
 export const verletCloth: PlateCode = {
   id: 'verlet-cloth',
@@ -32,68 +27,13 @@ export const verletCloth: PlateCode = {
   ],
   create(p, ctx) {
     const params = ctx.params;
+    let sheet: Cloth;
     let cols = 40;
     let rows = 40;
-    let pos: Float64Array;
-    let prev: Float64Array;
-    let pinned: Uint8Array;
     let normals: Float64Array;
-    let links: Link[] = [];
-    let sphere: { x: number; y: number; z: number; r: number } | null = null;
-    let floor = 0;
-    let t = 0;
     let angle = 0;
-    let strain = 0;
 
     const idx = (i: number, j: number) => j * cols + i;
-
-    const relax = () => {
-      let sum = 0;
-      for (const l of links) {
-        const a = l.a * 3;
-        const b = l.b * 3;
-        const dx = pos[b] - pos[a];
-        const dy = pos[b + 1] - pos[a + 1];
-        const dz = pos[b + 2] - pos[a + 2];
-        const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-9;
-        const diff = (d - l.rest) / d;
-        sum += Math.abs(d - l.rest) / l.rest;
-        const wa = pinned[l.a] ? 0 : pinned[l.b] ? 1 : 0.5;
-        const wb = pinned[l.b] ? 0 : pinned[l.a] ? 1 : 0.5;
-        pos[a] += dx * diff * wa;
-        pos[a + 1] += dy * diff * wa;
-        pos[a + 2] += dz * diff * wa;
-        pos[b] -= dx * diff * wb;
-        pos[b + 1] -= dy * diff * wb;
-        pos[b + 2] -= dz * diff * wb;
-      }
-      return sum / links.length;
-    };
-
-    const collide = () => {
-      for (let k = 0; k < cols * rows; k++) {
-        const o = k * 3;
-        if (sphere) {
-          const dx = pos[o] - sphere.x;
-          const dy = pos[o + 1] - sphere.y;
-          const dz = pos[o + 2] - sphere.z;
-          const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          const r = sphere.r * 1.03;
-          if (d < r && d > 0) {
-            const s = r / d;
-            pos[o] = sphere.x + dx * s;
-            pos[o + 1] = sphere.y + dy * s;
-            pos[o + 2] = sphere.z + dz * s;
-          }
-        }
-        if (pos[o + 1] > floor) {
-          pos[o + 1] = floor;
-          // friction on the floor: lose most of the tangential motion
-          prev[o] = pos[o] - (pos[o] - prev[o]) * 0.2;
-          prev[o + 2] = pos[o + 2] - (pos[o + 2] - prev[o + 2]) * 0.2;
-        }
-      }
-    };
 
     const computeNormals = () => {
       normals.fill(0);
@@ -107,12 +47,12 @@ export const verletCloth: PlateCode = {
           const a = idx(i, j);
           const b = idx(i + 1, j);
           const c = idx(i, j + 1);
-          const ux = pos[b * 3] - pos[a * 3];
-          const uy = pos[b * 3 + 1] - pos[a * 3 + 1];
-          const uz = pos[b * 3 + 2] - pos[a * 3 + 2];
-          const vx = pos[c * 3] - pos[a * 3];
-          const vy = pos[c * 3 + 1] - pos[a * 3 + 1];
-          const vz = pos[c * 3 + 2] - pos[a * 3 + 2];
+          const ux = sheet.pos[b * 3] - sheet.pos[a * 3];
+          const uy = sheet.pos[b * 3 + 1] - sheet.pos[a * 3 + 1];
+          const uz = sheet.pos[b * 3 + 2] - sheet.pos[a * 3 + 2];
+          const vx = sheet.pos[c * 3] - sheet.pos[a * 3];
+          const vy = sheet.pos[c * 3 + 1] - sheet.pos[a * 3 + 1];
+          const vz = sheet.pos[c * 3 + 2] - sheet.pos[a * 3 + 2];
           const nx = uy * vz - uz * vy;
           const ny = uz * vx - ux * vz;
           const nz = ux * vy - uy * vx;
@@ -123,80 +63,19 @@ export const verletCloth: PlateCode = {
 
     return {
       setup() {
-        cols = rows = num(params, 'res');
-        const n = cols * rows;
-        pos = new Float64Array(n * 3);
-        prev = new Float64Array(n * 3);
-        normals = new Float64Array(n * 3);
-        pinned = new Uint8Array(n);
-        const scene = str(params, 'setup');
-        const top = -rows * 0.55;
-        for (let j = 0; j < rows; j++) {
-          for (let i = 0; i < cols; i++) {
-            const k = idx(i, j) * 3;
-            pos[k] = i - (cols - 1) / 2;
-            if (scene === 'drape') {
-              pos[k + 1] = top - 2;
-              pos[k + 2] = j - (rows - 1) / 2;
-            } else {
-              // hung horizontally, so it swings down when released
-              pos[k + 1] = top;
-              pos[k + 2] = j;
-            }
-          }
-        }
-        // a tiny seeded wrinkle breaks the symmetry of a perfectly flat sheet
-        for (let k = 0; k < n * 3; k++) pos[k] += (ctx.rnd() - 0.5) * 0.02;
-        prev.set(pos);
-        if (scene === 'curtain') for (let i = 0; i < cols; i++) pinned[idx(i, 0)] = 1;
-        if (scene === 'corners') {
-          pinned[idx(0, 0)] = 1;
-          pinned[idx(cols - 1, 0)] = 1;
-        }
-        sphere = scene === 'drape' ? { x: 0, y: top + rows * 0.42, z: 0, r: rows * 0.24 } : null;
-        floor = top + rows * 1.15;
-        links = [];
-        const link = (a: number, b: number) => {
-          const dx = pos[b * 3] - pos[a * 3];
-          const dy = pos[b * 3 + 1] - pos[a * 3 + 1];
-          const dz = pos[b * 3 + 2] - pos[a * 3 + 2];
-          links.push({ a, b, rest: Math.sqrt(dx * dx + dy * dy + dz * dz) });
-        };
-        for (let j = 0; j < rows; j++) {
-          for (let i = 0; i < cols; i++) {
-            if (i < cols - 1) link(idx(i, j), idx(i + 1, j));
-            if (j < rows - 1) link(idx(i, j), idx(i, j + 1));
-            if (i < cols - 1 && j < rows - 1) {
-              link(idx(i, j), idx(i + 1, j + 1));
-              link(idx(i + 1, j), idx(i, j + 1));
-            }
-          }
-        }
-        t = 0;
+        sheet = cloth(num(params, 'res'), str(params, 'setup') as Scene, ctx.rnd);
+        cols = sheet.cols;
+        rows = sheet.rows;
+        normals = new Float64Array(cols * rows * 3);
         angle = 0.6;
       },
       draw() {
-        const g = num(params, 'gravity') * 0.012;
-        const wind = num(params, 'wind') * 0.004;
-        const iterations = num(params, 'iterations');
-        for (let s = 0; s < 2; s++) {
-          t += 1;
-          for (let k = 0; k < cols * rows; k++) {
-            if (pinned[k]) continue;
-            const o = k * 3;
-            const gust = wind * (0.6 + 0.4 * Math.sin(t * 0.021 + pos[o] * 0.15 + pos[o + 1] * 0.1));
-            for (let d = 0; d < 3; d++) {
-              const x = pos[o + d];
-              const acc = d === 1 ? g : d === 2 ? gust : 0;
-              pos[o + d] = x + (x - prev[o + d]) * 0.995 + acc;
-              prev[o + d] = x;
-            }
-          }
-          for (let it = 0; it < iterations; it++) {
-            strain = relax();
-            collide();
-          }
-        }
+        const forces = {
+          gravity: num(params, 'gravity') * 0.012,
+          wind: num(params, 'wind') * 0.004,
+          iterations: num(params, 'iterations'),
+        };
+        for (let s = 0; s < 2; s++) step(sheet, forces);
 
         p.background(...ctx.bg);
         if (!ctx.thumbnail) p.orbitControl(1, 1, 0.3);
@@ -206,6 +85,7 @@ export const verletCloth: PlateCode = {
         const k = (Math.min(ctx.width, ctx.height) * 0.62) / rows;
         p.scale(k);
 
+        const sphere = sheet.sphere;
         if (sphere) {
           p.push();
           p.translate(sphere.x, sphere.y, sphere.z);
@@ -240,7 +120,7 @@ export const verletCloth: PlateCode = {
           const c = scale(ramp(pal, u), shade(q) * stripe);
           if (wire) p.stroke(c[0], c[1], c[2], 200);
           else p.fill(c[0], c[1], c[2]);
-          p.vertex(pos[q * 3], pos[q * 3 + 1], pos[q * 3 + 2]);
+          p.vertex(sheet.pos[q * 3], sheet.pos[q * 3 + 1], sheet.pos[q * 3 + 2]);
         };
         for (let j = 0; j < rows - 1; j++) {
           for (let i = 0; i < cols - 1; i++) {
@@ -260,9 +140,9 @@ export const verletCloth: PlateCode = {
 
         ctx.stats([
           { label: 'particles', value: String(cols * rows) },
-          { label: 'links', value: links.length.toLocaleString('en') },
-          { label: 'mean strain', value: `${(strain * 100).toFixed(2)} %` },
-          { label: 'pinned', value: String(pinned.reduce((s, v) => s + v, 0)) },
+          { label: 'links', value: sheet.rest.length.toLocaleString('en') },
+          { label: 'mean strain', value: `${(sheet.strain * 100).toFixed(2)} %` },
+          { label: 'pinned', value: String(sheet.pinned.reduce((s, v) => s + v, 0)) },
         ]);
       },
     };

@@ -1,10 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
-
-/** Courant number squared, (c·dt/dx)², kept under the 2D stability limit of 1/2. */
-const C2 = 0.24;
-const SPONGE = 18;
+import { advance, C2, drop, tank, type Experiment, type Tank } from './wave';
 
 export const rippleTank: PlateCode = {
   id: 'ripple-tank',
@@ -38,107 +35,29 @@ export const rippleTank: PlateCode = {
   ],
   create(p, ctx) {
     const params = ctx.params;
-    let w = 0;
-    let h = 0;
     let res = 3;
-    let u: Float32Array;
-    let prev: Float32Array;
-    let nxt: Float32Array;
-    let intensity: Float32Array;
-    let damp: Float32Array;
-    let wall: Uint8Array;
+    let t: Tank;
     let raster: Raster;
-    let step = 0;
-    let experiment = 'double';
-    let barrierX = 0;
-    let sources: [number, number][] = [];
-
-    const drop = (x: number, y: number, amp = 2.2) => {
-      const cx = Math.floor(x / res);
-      const cy = Math.floor(y / res);
-      for (let dy = -4; dy <= 4; dy++) {
-        for (let dx = -4; dx <= 4; dx++) {
-          const xx = cx + dx;
-          const yy = cy + dy;
-          if (xx < 1 || yy < 1 || xx >= w - 1 || yy >= h - 1) continue;
-          const i = yy * w + xx;
-          if (!wall[i]) u[i] += amp * Math.exp(-(dx * dx + dy * dy) / 5);
-        }
-      }
-    };
 
     return {
       setup() {
         res = num(params, 'res');
-        w = Math.floor(ctx.width / res);
-        h = Math.floor(ctx.height / res);
-        u = new Float32Array(w * h);
-        prev = new Float32Array(w * h);
-        nxt = new Float32Array(w * h);
-        intensity = new Float32Array(w * h);
-        damp = new Float32Array(w * h);
-        wall = new Uint8Array(w * h);
+        const w = Math.floor(ctx.width / res);
+        const h = Math.floor(ctx.height / res);
+        t = tank(w, h, str(params, 'experiment') as Experiment, num(params, 'gap'));
         raster = new Raster(w, h);
-        experiment = str(params, 'experiment');
-        const plane = experiment === 'double' || experiment === 'single';
-        for (let y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++) {
-            const edge = Math.min(plane ? SPONGE : x, w - 1 - x, y, h - 1 - y);
-            const s = Math.max(0, (SPONGE - edge) / SPONGE);
-            damp[y * w + x] = 1 - 0.12 * s * s;
-          }
-        }
-        const gap = num(params, 'gap');
-        barrierX = Math.floor(w * 0.28);
-        if (plane) {
-          const mid = Math.floor(h / 2);
-          const open = (y: number) => experiment === 'double'
-            ? Math.abs(Math.abs(y - mid) - gap / 2) <= 2
-            : Math.abs(y - mid) <= Math.max(3, gap / 4);
-          for (let y = 0; y < h; y++) {
-            if (open(y)) continue;
-            for (let x = barrierX; x < barrierX + 3; x++) wall[y * w + x] = 1;
-          }
-        }
-        sources = experiment === 'two'
-          ? [[Math.floor(w * 0.3), Math.floor(h / 2 - gap / 2)],
-            [Math.floor(w * 0.3), Math.floor(h / 2 + gap / 2)]]
-          : [];
-        step = 0;
       },
       pressed(x, y) {
-        drop(x, y);
+        drop(t, Math.floor(x / res), Math.floor(y / res));
       },
       dragged(x, y) {
-        drop(x, y, 0.9);
+        drop(t, Math.floor(x / res), Math.floor(y / res), 0.9);
       },
       draw() {
-        const omega = (2 * Math.PI * Math.sqrt(C2)) / num(params, 'lambda');
+        const lambda = num(params, 'lambda');
         const steps = num(params, 'speed');
-        for (let s = 0; s < steps; s++) {
-          const drive = Math.sin(omega * step);
-          if (experiment === 'double' || experiment === 'single') {
-            for (let y = 1; y < h - 1; y++) u[y * w + 2] = drive;
-          }
-          for (const [sx, sy] of sources) u[sy * w + sx] = 1.4 * drive;
-          for (let y = 1; y < h - 1; y++) {
-            for (let x = 1; x < w - 1; x++) {
-              const i = y * w + x;
-              if (wall[i]) {
-                nxt[i] = 0;
-                continue;
-              }
-              const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * u[i];
-              nxt[i] = (2 * u[i] - prev[i] + C2 * lap) * damp[i];
-            }
-          }
-          const t = prev;
-          prev = u;
-          u = nxt;
-          nxt = t;
-          for (let i = 0; i < u.length; i++) intensity[i] = intensity[i] * 0.992 + u[i] * u[i] * 0.008;
-          step++;
-        }
+        for (let s = 0; s < steps; s++) advance(t, lambda);
+        const { w, h, u, intensity, wall, barrierX, step } = t;
 
         const pal = ctx.palette();
         const view = str(params, 'view');

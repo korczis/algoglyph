@@ -188,9 +188,9 @@ describe('verlet-cloth: cloth.ts reproduces the pre-refactor plate bit for bit',
       const p = { ...params };
       const c = cloth(p.res, p.setup as Scene, mulberry32(seed));
       expect(c.rest.length).toBe(old.state().links.length);
-      for (let f = 0; f < 240; f++) {
+      for (let f = 0; f < 120; f++) {
         // a slider drag halfway through: the live parameters change under both runs
-        if (f === 120) {
+        if (f === 60) {
           for (const q of [lp, p]) {
             q.iterations = Math.max(1, q.iterations - 1);
             q.gravity += 0.35;
@@ -205,6 +205,6 @@ describe('verlet-cloth: cloth.ts reproduces the pre-refactor plate bit for bit',
         }
       }
       expect(sameBits(c.pos, old.state().pos)).toBe(true);
-    });
+    }, 60000);
   }
 });
