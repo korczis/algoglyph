@@ -126,5 +126,6 @@ npm run verify                     # everything CI runs, in CI's order
 | `project.derived-facts` | `scripts/check-facts.mjs` (policy `config/derived-facts.yaml`), `test/derived-facts.test.ts` | pre-commit, verify, CI |
 | `project.viz-component-layer` | the live↔code check, `test/registry.test.ts`, the browser gate | verify, CI |
 | `project.no-fake-science` | the engine harness tests, `cargo test`, the wasm fixture test | verify, CI |
+| main-thread budget (`project.viz-component-layer`) | `test/budget.test.ts` over every live plate and lab at its heaviest settings, budgets in `config/budgets.yaml`, run alone (`npm run test:budget`) | verify, CI |
 | `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail) | verify, CI before every deploy |
 | the plan | `majordomus plan validate`, `majordomus doctor` | the commit hook, CI |
