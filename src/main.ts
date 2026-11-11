@@ -6,6 +6,7 @@ import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, links, 
 import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
+import { parse as parseShared, serialise } from './core/share';
 import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
 
@@ -25,6 +26,8 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 let stage: Stage | null = null;
 let plateCode: Plate | null = null;
 let thumbQueue: string[] = [];
+// the query of the route being loaded, applied once the plate's controls are known
+let pendingQuery = '';
 let thumbBusy = false;
 let thumbObserver: IntersectionObserver | null = null;
 
@@ -32,7 +35,7 @@ function currentTheme(): Theme {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 }
 
-interface Route { view: View; key: string; id: string; seed?: number }
+interface Route { view: View; key: string; id: string; seed?: number; query: string }
 
 function parseHash(): Route {
   const raw = location.hash.replace(/^#\/?/, '');
@@ -40,12 +43,16 @@ function parseHash(): Route {
   const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
   const seed = Number(new URLSearchParams(query).get('seed'));
   const s = Number.isInteger(seed) && seed > 0 ? seed : undefined;
-  if (parts[0] === 'p' && parts[1] && entry(parts[1])) return { view: 'plate', key: '', id: parts[1], seed: s };
-  if (parts[0] === 'lab' && parts[1] && findLab(parts[1])) return { view: 'lab', key: '', id: parts[1], seed: s };
-  if (parts[0] === 'c' && parts.length > 1 && node(parts.slice(1).join('/'))) {
-    return { view: 'browse', key: parts.slice(1).join('/'), id: '' };
+  if (parts[0] === 'p' && parts[1] && entry(parts[1])) {
+    return { view: 'plate', key: '', id: parts[1], seed: s, query };
   }
-  return { view: 'browse', key: '', id: '' };
+  if (parts[0] === 'lab' && parts[1] && findLab(parts[1])) {
+    return { view: 'lab', key: '', id: parts[1], seed: s, query };
+  }
+  if (parts[0] === 'c' && parts.length > 1 && node(parts.slice(1).join('/'))) {
+    return { view: 'browse', key: parts.slice(1).join('/'), id: '', query: '' };
+  }
+  return { view: 'browse', key: '', id: '', query: '' };
 }
 
 function cacheGet(key: string): string | null {
@@ -125,7 +132,7 @@ Alpine.data('app', () => ({
   keys: [
     ['Space', 'Play / pause'], ['.', 'Step one frame'], ['R', 'Reseed'], ['D', 'Default parameters'],
     ['S', 'Save PNG'], ['F', 'Full screen'], ['← →', 'Previous / next live plate'], ['G', 'Collection'],
-    ['T', 'Toggle theme'], ['/', 'Search'],
+    ['T', 'Toggle theme'], ['/', 'Search'], ['V', 'Reset the view (where a plate offers it)'],
   ] as [string, string][],
 
   init() {
@@ -139,6 +146,12 @@ Alpine.data('app', () => ({
         else thumbQueue = thumbQueue.filter((x) => x !== id);
       }
     }, { rootMargin: '200px' });
+    let hashTimer = 0;
+    this.$watch('params', () => {
+      if (this.view === 'browse' || !plateCode) return;
+      window.clearTimeout(hashTimer);
+      hashTimer = window.setTimeout(() => this.writeHash(), 250);
+    });
     this.route();
     watchSidebar();
   },
@@ -229,11 +242,19 @@ Alpine.data('app', () => ({
         return;
       }
     }
+    // the route carries every changed knob; a link redraws the same picture (src/core/share.ts)
+    pendingQuery = r.query;
+    let paramsDiffer = false;
+    if (!changed && plateCode) {
+      const wanted = { ...defaults(plateCode), ...parseShared(plateCode.params, r.query).params };
+      paramsDiffer = plateCode.params.some((d) => wanted[d.key] !== this.params[d.key]);
+      if (paramsDiffer) Object.assign(this.params, wanted);
+    }
     const seed = r.seed ?? (changed ? freshSeed() : this.seed);
-    if (!changed && seed === this.seed && plateCode) return;
+    if (!changed && !paramsDiffer && seed === this.seed && plateCode) return;
     this.seed = seed;
-    this.writeHash();
-    void this.load(changed);
+    if (plateCode) this.writeHash();
+    void this.load(changed || paramsDiffer);
   },
 
   async load(changed: boolean) {
@@ -247,7 +268,8 @@ Alpine.data('app', () => ({
         if (!p) throw new Error(view === 'lab' ? 'this lab needs at least two live plates' : 'not runnable');
         plateCode = p;
         this.defs = p.params;
-        this.params = defaults(p);
+        this.params = { ...defaults(p), ...parseShared(p.params, pendingQuery).params };
+        this.writeHash();
       } catch (err) {
         this.error = String(err instanceof Error ? err.message : err);
         console.error(err);
@@ -263,9 +285,13 @@ Alpine.data('app', () => ({
   },
 
   writeHash() {
-    const hash = `#/${this.view === 'lab' ? 'lab' : 'p'}/${this.currentId}?seed=${this.seed}`;
+    const query = plateCode ? serialise(plateCode.params, this.params, this.seed) : `seed=${this.seed}`;
+    const hash = `#/${this.view === 'lab' ? 'lab' : 'p'}/${this.currentId}?${query}`;
     if (location.hash !== hash) history.replaceState(null, '', hash);
   },
+
+  canReset: false,
+  resetView() { stage?.reset(); },
 
   async mount(attempt = 0) {
     const host = document.getElementById('stage');
@@ -288,6 +314,7 @@ Alpine.data('app', () => ({
       onChart: (c) => { this.chart = c; void this.drawChart(); },
       onLoopChange: (running) => { this.running = running; },
     });
+    this.canReset = stage.canReset();
   },
 
   changed(d: ParamDef) { if (d.rebuild) void this.mount(); },
@@ -404,6 +431,7 @@ Alpine.data('app', () => ({
     if (k === ' ') { e.preventDefault(); this.togglePause(); } else if (k === '.') this.step();
     else if (k === 'r') this.reseed();
     else if (k === 'd') this.resetParams();
+    else if (k === 'v') this.resetView();
     else if (k === 's') this.save();
     else if (k === 'f') this.fullscreen();
     else if (k === 'arrowleft' && this.view === 'plate') this.go(`#/p/${this.neighbour(-1).id}`);

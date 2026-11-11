@@ -301,6 +301,9 @@ export const mandelbrotJulia: PlateCode = {
         if (isJulia) buildInset();
         restart(0);
       },
+      reset() {
+        this.setup();
+      },
       pressed(x, y) {
         if (pointer) pick(x, y);
         else zoom(x, y);

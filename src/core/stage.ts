@@ -153,6 +153,16 @@ export class Stage {
     this.instance.redraw();
   }
 
+  canReset(): boolean {
+    return typeof this.sim?.reset === 'function';
+  }
+
+  reset(): void {
+    if (!this.sim?.reset) return;
+    this.sim.reset();
+    this.instance?.redraw();
+  }
+
   save(name: string): void {
     this.instance?.saveCanvas(name, 'png');
   }
