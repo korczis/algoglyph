@@ -8,3 +8,11 @@ labs:
     title: Sorting lab
     summary: Every sort on the same keys with the same operation budget per frame, ranked by when it finishes, with each one's work measured from n = 16 to 512.
     engine: array
+  - id: stochastic-search
+    title: Stochastic search lab
+    summary: Annealing and a particle swarm on the same landscape and seed, each racing uniform random search with the same evaluation budget, compared by the best value found so far.
+    engine: stochastic
+  - id: uncertainty
+    title: Uncertainty lab
+    summary: Bootstrap percentile intervals and split conformal intervals measured the same way, by repeating the experiment and counting how often each covers the truth at every nominal level.
+    engine: stochastic

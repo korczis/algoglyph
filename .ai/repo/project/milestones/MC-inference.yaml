@@ -5,7 +5,7 @@ title: "Evidence and decisions: every catalogued algorithm runs"
 slug: evidence-and-decisions-every-catalogued-algorithm-runs
 order: 110
 priority: p2
-problem: 19 algorithm(s) of the Evidence and decisions wing are catalogued and not yet running.
+problem: 5 algorithm(s) of the Evidence and decisions wing are catalogued and not yet running.
 outcome: Every entry under inference/ is live, tested by its engine's harness and in the browser gate.
 acceptance_criteria:
   - npm run catalogue -- list --under inference --status planned prints nothing.
