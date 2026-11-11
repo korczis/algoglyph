@@ -1,0 +1,57 @@
+# The derived-facts gate (rule project.derived-facts, scripts/check-facts.mjs). Every number
+# about the collection and every link is derived from the catalogue or measured from a run;
+# this file says what the gate looks for and where a number is a dated record rather than a
+# claim about now. Data only: the gate has no list of its own.
+version: 1
+
+# A number typed next to one of these nouns is a hand-made copy of a derived fact.
+nouns: [plate, plates, entry, entries, algorithm, algorithms, wing, wings, shelf, shelves,
+  lab, labs, kernel, kernels, engine, engines, test, tests, unit test, unit tests, test file,
+  test files, tag, tags, milestone, milestones, issue, issues, parameter,
+  parameters, category, categories, card, cards, preview, previews]
+# Words that may stand between the number and the noun ("40 live plates").
+qualifiers: [live, planned, new, more, comparison, distinct, bespoke, catalogued, running,
+  sorting, graph, string, tree, array, engine]
+# Number words that count like digits ("nineteen plates"). "one" and "a" are articles too
+# often to judge ("one entry per algorithm"), so they are not here.
+number_words: [two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen,
+  fourteen, fifteen, sixteen, seventeen, eighteen, nineteen, twenty, thirty, forty, fifty,
+  hundred, hundreds, dozens]
+
+# A count on a line that also cites a CI run or a full commit is evidence pinned to that
+# moment, not a claim about the present.
+evidence_markers:
+  - 'actions/runs/\d{8,}'
+  - '\brun \d{8,}\b'
+  - '\b[0-9a-f]{40}\b'
+
+files:
+  include: ['**/*.md', '**/*.html', '**/*.yaml', '**/*.yml', '**/*.ts', '**/*.mjs', '**/*.sh', '**/*.rs', '**/*.json']
+  exclude: ['node_modules/**', 'dist/**', 'src/wasm/**', 'package-lock.json', '.ai/local/**',
+    '.ai/repo/rules/vendor/**', 'crates/*/target/**', 'config/derived-facts.yaml',
+    'test/fixtures/derived-facts/**']
+
+# A plan object with one of these top-level keys, or with evidence pinned to a commit, is closed:
+# its whole text is a record of what was true then.
+closed_when: [completed_at, verified_at, cancelled]
+
+# YAML keys whose subtrees are dated records (Majordomus evidence, completion, events).
+record_keys: [evidence, completion, completed_event, started_event, verified_event]
+
+# Paths a check does not apply to, each with the reason; reported, never silent.
+exempt:
+  - path: '.ai/repo/adrs/**'
+    checks: [count, plate-number, path]
+    because: A decision record states the collection as it was on its date and quotes the owner verbatim; it is history, not a description of now.
+  - path: '.ai/repo/workflows/**'
+    checks: [path]
+    because: Majordomus ships these workflow documents; their paths name the tool's own source tree.
+  - path: '.ai/repo/skills/README.md'
+    checks: [path]
+    because: Majordomus ships this section contract; its paths name the tool's own source tree.
+  - path: 'test/derived-facts.test.ts'
+    checks: [count, plate-number, link, path]
+    because: The gate's own tests hold deliberately hand-typed counts, plate numbers and dangling links as the cases it must refuse.
+  - path: '.ai/repo/sessions/**'
+    checks: [count, plate-number, path]
+    because: Closed session records are history written by Majordomus.
