@@ -10,12 +10,37 @@ import {
  * Quantum Mechanics, 2nd ed., chapter 2, the finite square barrier).
  */
 function barrierT(e: number, v0: number, a: number): number {
+  if (Math.abs(e - v0) < 1e-12) return 1 / (1 + (v0 * a * a) / 2);
   if (e < v0) {
     const s = Math.sinh(Math.sqrt(2 * (v0 - e)) * a);
     return 1 / (1 + (v0 * v0 * s * s) / (4 * e * (v0 - e)));
   }
   const s = Math.sin(Math.sqrt(2 * (e - v0)) * a);
   return 1 / (1 + (v0 * v0 * s * s) / (4 * e * (e - v0)));
+}
+
+/**
+ * T of a single barrier averaged over the momentum distribution of the grid's own initial
+ * Gaussian: its FFT (checked against a naive DFT below) on a long grid, summed over the
+ * discrete k > 0 with the closed-form T. Shares no code with packetTransmission, which
+ * integrates the analytic |φ(k)|² with the transfer matrix.
+ */
+function momentumAverage(k0: number, sigma: number, v0: number, a: number): number {
+  // a long grid, so the momenta lie close enough to follow T's fast swings above a barrier
+  const n = 32768;
+  const w = new Wave({ n, dx: 0.1, dt: 0.0125, absorb: 0 }, { edges: [], values: [0] });
+  w.gaussian(0, k0, sigma);
+  const re = w.re.slice();
+  const im = w.im.slice();
+  new Fft(n).transform(re, im);
+  let num = 0;
+  let den = 0;
+  for (let j = 0; j < n; j++) {
+    const pk = re[j] * re[j] + im[j] * im[j];
+    den += pk;
+    if (w.k[j] > 0) num += pk * barrierT((w.k[j] * w.k[j]) / 2, v0, a);
+  }
+  return num / den;
 }
 
 /** Run until the barrier region (±margin) is empty; transmitted and reflected probability. */
@@ -105,6 +130,17 @@ describe('plane-wave transmission (transfer matrix)', () => {
   });
 });
 
+describe('momentum-averaged transmission', () => {
+  it('equals an independent average over the initial state\'s discrete momenta', () => {
+    for (const [k0, sigma, v0, a] of [[1.5, 5, 1.2, 2], [3, 2, 4, 0.3], [1, 2, 1.2, 0.3],
+      [2, 8, 0.5, 8], [3, 8, 4, 8]]) {
+      const pot: Potential = { edges: [0, a], values: [0, v0, 0] };
+      expect(Math.abs(packetTransmission(k0, sigma, pot) - momentumAverage(k0, sigma, v0, a)))
+        .toBeLessThan(1e-6);
+    }
+  });
+});
+
 describe('split-step Schrödinger integrator', () => {
   it('conserves the norm to 1e-9 over 1000 steps across a barrier (periodic grid)', () => {
     const pot = potential('single', 1.2, 2, 0.1);
@@ -169,7 +205,8 @@ describe('split-step Schrödinger integrator', () => {
     w.gaussian(pot.edges[0] - 20, 1.5, 5);
     const e0 = w.measure().energy;
     const { t } = scatter(w, pot);
-    expect(Math.abs(t - packetTransmission(1.5, 5, pot))).toBeLessThan(1e-3);
+    const a = pot.edges[1] - pot.edges[0];
+    expect(Math.abs(t - momentumAverage(1.5, 5, 1.2, a))).toBeLessThan(1e-3);
     expect(Math.abs(t - transmission(e0, pot))).toBeGreaterThan(5e-3);
   });
 
