@@ -2,7 +2,7 @@
 id: three-way-radix-quicksort
 title: Three-way radix quicksort
 taxonomy: sorting/radix
-status: planned
+status: live
 engine: string
 sources:
   - id: sedgewick-aic
@@ -12,6 +12,15 @@ tags:
   - strings
   - radix
   - partitioning
+complexity: "about 2 n ln n character comparisons for random strings; linear in the characters examined for long shared prefixes"
+related:
+  - quicksort-three-way
+  - msd-radix-sort
+  - ternary-search-trie
 ---
 
 Partition strings into less, equal and greater on one character, then recurse on the next.
+
+The highlighted column is the character the current range is partitioned on, taken from the first string of the range. Strings with a smaller character move up, larger ones move down, and equal ones stay in the middle band, which is then sorted on the next character; a string that has ended counts as smaller than any character, so it sorts before its extensions.
+
+The input draws words from a few stems with suffixes, so many strings share prefixes: the equal band carries them past the shared characters without comparing those characters again.
