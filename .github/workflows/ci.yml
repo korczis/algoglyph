@@ -75,7 +75,14 @@ jobs:
           AUDIT_CHANNEL: ''
         run: |
           npx playwright-core install --with-deps chromium
-          node scripts/audit-ui.mjs
+          node scripts/audit-ui.mjs --screenshots "$RUNNER_TEMP/screenshots"
+      - name: Upload the browser gate screenshots (gallery and every plate, both themes)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/screenshots
+          if-no-files-found: warn
       - name: Upload the site
         uses: actions/upload-artifact@v7
         with:
