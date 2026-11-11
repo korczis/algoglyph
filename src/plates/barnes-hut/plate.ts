@@ -2,13 +2,19 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { gaussian, mulberry32 } from '../../core/random';
 import {
-  accelerate, bodies, directAccel, leapfrog, QuadTree, treeAccel, type Bodies,
+  bodies, directAccel, QuadTree, SlicedStep, treeAccel, type Bodies,
 } from './quadtree';
 
 const G = 1;
 const EPS = 0.02;
 const SAMPLE = 16;
 const BUCKETS = 24;
+/**
+ * Force interactions per frame (bodies plus accepted cells). At θ = 0 and the largest disc a
+ * single step is n² of them, so a step's force pass is spread over frames (SlicedStep) and the
+ * steps per frame are what this budget allows, at least one pass slice per frame.
+ */
+export const INTERACTIONS_PER_FRAME = 240_000;
 
 /**
  * A disc of `n` bodies (one heavy core, the rest light) in near-circular orbits. Circular speed
@@ -128,28 +134,62 @@ export const barnesHut: PlateCode = {
     let t = 0;
     let interactions = 0;
     let lastTheta = 0.7;
+    let pass: SlicedStep;
+    let primed = false;
+    let framesThisStep = 0;
+    let framesLastStep = 1;
+
+    /** Advance by up to `steps` steps within `budget` interactions; returns the steps taken. */
+    const advance = (theta: number, dt: number, steps: number, budget: number): number => {
+      let spent = 0;
+      let done = 0;
+      framesThisStep++;
+      while (done < steps && spent < budget) {
+        if (!pass.open) {
+          if (primed) pass.begin(dt);
+          else pass.prime();
+        }
+        const r = pass.force(theta, G, EPS, budget - spent);
+        spent += r.spent;
+        if (!r.done) break;
+        if (pass.stepping) {
+          pass.end();
+          t += dt;
+          done++;
+          interactions = pass.total;
+          framesLastStep = framesThisStep;
+          framesThisStep = 0;
+        } else {
+          pass.open = false;
+          primed = true;
+          interactions = pass.total;
+        }
+        if (spent >= budget) break;
+      }
+      return done;
+    };
 
     return {
       setup() {
         ({ b, born, view } = populate(str(params, 'scene'), num(params, 'count'), ctx.rnd));
+        pass = new SlicedStep(tree, b);
         lastTheta = num(params, 'theta');
-        interactions = accelerate(tree, b, lastTheta, G, EPS);
+        primed = false;
+        interactions = 0;
         t = 0;
         p.background(...ctx.bg);
       },
       draw() {
         const theta = num(params, 'theta');
         const dt = num(params, 'dt');
-        const steps = ctx.thumbnail ? 3 : num(params, 'speed');
         // the stored accelerations must come from the θ in force
         if (theta !== lastTheta) {
           lastTheta = theta;
-          accelerate(tree, b, theta, G, EPS);
+          if (pass.open) pass.restart();
+          else primed = false;
         }
-        for (let s = 0; s < steps; s++) {
-          interactions = leapfrog(tree, b, dt, theta, G, EPS);
-          t += dt;
-        }
+        if (ctx.thumbnail) advance(theta, dt, 3, Infinity);
+        else advance(theta, dt, num(params, 'speed'), INTERACTIONS_PER_FRAME);
 
         const W = ctx.width;
         const H = ctx.height;
@@ -217,7 +257,7 @@ export const barnesHut: PlateCode = {
         }
         g.restore();
 
-        if (ctx.thumbnail) return;
+        if (ctx.thumbnail || tree.nodes === 0) return;
         let err = 0;
         for (let s = 0; s < SAMPLE; s++) {
           const i = Math.floor(probe() * b.n);
@@ -233,6 +273,9 @@ export const barnesHut: PlateCode = {
             + `(direct: ${(b.n - 1).toLocaleString('en')})` },
           { label: `force error (${SAMPLE} bodies)`, value: `${(err * 100).toFixed(3)} %` },
           { label: 'simulated time', value: t.toFixed(2) },
+          { label: 'frames per step', value: pass.open && framesThisStep > framesLastStep
+            ? `${framesThisStep} so far (${Math.round((100 * pass.next) / b.n)} % of the force pass)`
+            : String(framesLastStep) },
         ]);
       },
     };
