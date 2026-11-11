@@ -32,6 +32,7 @@ function stillConnected(ops: GraphOps, on: boolean[], end: number, left: number)
 // must be an end) only such vertices are tried as starts; three or more mean there is no path.
 export const kernel: GraphKernel<HamiltonResult> = {
   goal: 'hamilton',
+  mayStop: true,
   inputs: ['grid', 'small-world', 'geometric', 'random'],
   n: { min: 4, max: 36, value: 16 },
   names: { frontier: 'On the path', tree: 'Path edges', marked: 'Hamilton path' },

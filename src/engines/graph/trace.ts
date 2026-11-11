@@ -121,7 +121,18 @@ export interface GraphKernel<R = unknown> {
   speed?: number;
   /** Mark the source (circled), the target (boxed) or both on the drawing. */
   endpoints?: 's' | 't' | 'st';
-  run(ops: GraphOps, opts: Options): R;
+  run?(ops: GraphOps, opts: Options): R;
+  /**
+   * The same algorithm as a generator that yields between rounds, for kernels heavy enough
+   * that a whole run would block a frame: the engine resumes it a few milliseconds per frame.
+   * A kernel provides `run` or `steps`.
+   */
+  steps?(ops: GraphOps, opts: Options): Generator<void, R, void>;
+  /**
+   * True for an exponential search that may stop at the event cap on large inputs (the plate
+   * says so); every other kernel must finish at its maximum size.
+   */
+  mayStop?: boolean;
   /** Readouts of the finished run, computed from its result. */
   report?(r: R, g: Graph, opts: Options): { label: string; value: string }[];
 }
@@ -129,12 +140,14 @@ export interface GraphKernel<R = unknown> {
 export interface Trace<R = unknown> {
   g: Graph;
   opts: Options;
-  /** Events, five numbers each: op, a, b, x, y. */
+  /** Events, five numbers each: op, a, b, x, y. Grows while the run is computing. */
   events: Float64Array;
   length: number;
   counts: Counts;
   result: R | undefined;
   truncated: boolean;
+  /** False while an incremental run still has steps to take. */
+  finished: boolean;
 }
 
 export const EVENT_CAP = 600_000;
@@ -142,27 +155,37 @@ const W = 5;
 
 class Stop extends Error {}
 
+/** A run in progress: `step` computes for about `ms` milliseconds (Infinity: to the end). */
+export interface Running<R = unknown> {
+  readonly t: Trace<R>;
+  step(ms: number): void;
+}
+
 /**
- * Run `kernel` on `g`, recording every operation (or only counting them when `record` is
+ * Start `kernel` on `g`, recording every operation (or only counting them when `record` is
  * false, for the lab's scaling runs). A run that passes `cap` events stops and is truncated.
+ * Nothing is computed until the first `step`.
  */
-export function trace<R>(kernel: GraphKernel<R>, g: Graph, opts: Options, seed = 1,
-  cap = EVENT_CAP, record = true): Trace<R> {
-  let buf = new Float64Array(record ? W * 4096 : 0);
-  let len = 0;
-  const counts = emptyCounts();
+export function start<R>(kernel: GraphKernel<R>, g: Graph, opts: Options, seed = 1,
+  cap = EVENT_CAP, record = true): Running<R> {
+  const t: Trace<R> = {
+    g, opts, events: new Float64Array(record ? W * 4096 : 0), length: 0, counts: emptyCounts(),
+    result: undefined, truncated: false, finished: false,
+  };
+  const counts = t.counts;
   const push = (op: number, a: number, b: number, x: number, y: number) => {
-    if (len >= cap) throw new Stop();
+    if (t.length >= cap) throw new Stop();
     if (record) {
-      if (W * len + W > buf.length) {
-        const next = new Float64Array(buf.length * 2);
-        next.set(buf);
-        buf = next;
+      if (W * t.length + W > t.events.length) {
+        const next = new Float64Array(t.events.length * 2);
+        next.set(t.events);
+        t.events = next;
       }
-      const o = W * len;
+      const o = W * t.length;
+      const buf = t.events;
       buf[o] = op; buf[o + 1] = a; buf[o + 2] = b; buf[o + 3] = x; buf[o + 4] = y;
     }
-    len++;
+    t.length++;
   };
   const vi = (v: number) => {
     if (!Number.isInteger(v) || v < 0 || v >= g.n) throw new RangeError(`vertex ${v} outside 0..${g.n - 1}`);
@@ -191,15 +214,44 @@ export function trace<R>(kernel: GraphKernel<R>, g: Graph, opts: Options, seed =
     place(v, x, y, z = 0) { vi(v); counts.places++; push(OP.place, v, z, x, y); },
     round() { counts.rounds++; push(OP.round, 0, 0, 0, 0); },
   };
-  let result: R | undefined;
-  let truncated = false;
-  try {
-    result = kernel.run(ops, opts);
-  } catch (e) {
-    if (!(e instanceof Stop)) throw e;
-    truncated = true;
-  }
-  return { g, opts, events: buf, length: len, counts, result, truncated };
+  let gen: Generator<void, R, void> | null = null;
+  const finish = (result: R | undefined, truncated: boolean) => {
+    t.result = result;
+    t.truncated = truncated;
+    t.finished = true;
+    // keep only what was recorded: the doubling slack would otherwise stay allocated
+    if (record && t.events.length > W * t.length) t.events = t.events.slice(0, W * t.length);
+  };
+  return {
+    t,
+    step(ms: number) {
+      if (t.finished) return;
+      const until = performance.now() + ms;
+      try {
+        if (!kernel.steps) {
+          finish((kernel.run as (o: GraphOps, p: Options) => R)(ops, opts), false);
+          return;
+        }
+        gen ??= kernel.steps(ops, opts);
+        for (;;) {
+          const r = gen.next();
+          if (r.done) { finish(r.value, false); return; }
+          if (performance.now() >= until) return;
+        }
+      } catch (e) {
+        if (!(e instanceof Stop)) throw e;
+        finish(undefined, true);
+      }
+    },
+  };
+}
+
+/** Run `kernel` to the end; see `start`. */
+export function trace<R>(kernel: GraphKernel<R>, g: Graph, opts: Options, seed = 1,
+  cap = EVENT_CAP, record = true): Trace<R> {
+  const r = start(kernel, g, opts, seed, cap, record);
+  r.step(Infinity);
+  return r.t;
 }
 
 /** Defaults of a kernel's own parameters, for tests and labs. */

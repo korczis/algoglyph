@@ -394,12 +394,19 @@ const CHECKS: Record<string, Check> = {
       expect(new Set(r.path).size).toBe(g.n);
       for (let i = 1; i < g.n; i++) expect(adjacent(g, r.path[i - 1], r.path[i])).toBe(true);
     }
-    if (g.n <= 8) {
-      const perm = (rest: number[], path: number[]): boolean => {
-        if (!rest.length) return true;
-        return rest.some((v) => (!path.length || adjacent(g, path[path.length - 1], v)) && perm(rest.filter((x) => x !== v), [...path, v]));
-      };
-      expect(r.path !== null, 'agrees with trying every permutation').toBe(perm(Array.from({ length: g.n }, (_, i) => i), []));
+    if (g.n <= 14) {
+      // Held-Karp style subset DP: can a path cover exactly `mask` and end at v?
+      const N = 1 << g.n;
+      const adj = Array.from({ length: g.n }, (_, a) => Array.from({ length: g.n }, (_, b) => adjacent(g, a, b)));
+      const can = Array.from({ length: N }, () => new Array<boolean>(g.n).fill(false));
+      for (let v = 0; v < g.n; v++) can[1 << v][v] = true;
+      for (let mask = 1; mask < N; mask++) {
+        for (let v = 0; v < g.n; v++) {
+          if (!can[mask][v]) continue;
+          for (let w = 0; w < g.n; w++) if (!(mask & (1 << w)) && adj[v][w]) can[mask | (1 << w)][w] = true;
+        }
+      }
+      expect(r.path !== null, 'agrees with the subset DP').toBe(can[N - 1].some(Boolean));
     }
   },
   scc(g, run) {
@@ -864,6 +871,27 @@ function fakeContext(params: Params, seed: number): PlateContext & { rows: numbe
   };
   return out;
 }
+
+describe('graph kernels at their maximum size', () => {
+  // memory on a phone: a recorded event is five doubles, so this bounds a trace at 12 MB
+  const MAX_EVENTS = 300_000;
+  for (const e of live) {
+    const kernel = kernelOf(e.id);
+    if (kernel.mayStop) continue;
+    it(`${e.id} finishes on every input and seed, within the memory bound`, () => {
+      const n = kernel.n?.max ?? 240;
+      for (const shape of kernel.inputs) {
+        for (const seed of [1, 2, 3, 4]) {
+          const g = makeGraph(shape, n, seed);
+          const t = trace(kernel, g, { s: g.s, t: g.t, p: defaultParams(kernel) }, seed);
+          expect(t.truncated, `${shape} n=${n} seed=${seed}`).toBe(false);
+          expect(t.length, `${shape} n=${n} seed=${seed} events`).toBeLessThanOrEqual(MAX_EVENTS);
+          expect(t.events.length).toBe(5 * t.length);
+        }
+      }
+    }, 120000);
+  }
+});
 
 describe('graph plates', () => {
   for (const e of live) {

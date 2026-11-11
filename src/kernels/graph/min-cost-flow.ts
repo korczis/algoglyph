@@ -12,12 +12,12 @@ export interface MinCostResult { flow: number[]; value: number; cost: number; ca
 export const kernel: GraphKernel<MinCostResult> = {
   goal: 'mincostflow',
   ...FLOW_VIEW,
-  n: { min: 4, max: 120, value: 30 },
+  n: { min: 4, max: 80, value: 30 },
   names: { frontier: 'Searched', done: 'Source side of the cut', marked: 'Negative cycle' },
   readouts: ['flow', 'rounds', 'flows', 'relaxations'],
   chart: { title: 'Flow value (it stays while the cost falls)', x: 'rounds', y: 'flow', series: ['flow'] },
   speed: 40,
-  run(ops, { s, t }) {
+  *steps(ops, { s, t }) {
     const g = ops.g;
     const { flow: f, value } = augmentingPaths(ops, s, t, 'bfs');
     const costOf = (a: Arc) => (a.fwd ? g.cost[a.e] : -g.cost[a.e]);
@@ -37,6 +37,7 @@ export const kernel: GraphKernel<MinCostResult> = {
           }
         }
         if (last < 0) break;
+        yield;
       }
       if (last < 0) break;
       // walk back V steps to land on the cycle, then collect it
@@ -59,6 +60,7 @@ export const kernel: GraphKernel<MinCostResult> = {
       for (const a of cycle) ops.edge(a.e, f[a.e] >= g.cap[a.e] ? E.cut : E.seen);
       cancelled++;
       ops.round();
+      yield;
     }
     let cost = 0;
     for (let e = 0; e < g.m; e++) cost += f[e] * g.cost[e];

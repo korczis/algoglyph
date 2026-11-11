@@ -27,17 +27,17 @@ export function spearman(a: number[], b: number[]): number {
 // Three passes, each leaving its scores on the vertices. Degree: incident edges. Closeness: a
 // breadth-first search from each vertex, (r - 1) / (sum of hop distances) over the r vertices
 // it reaches. Eigenvector: power iteration on A + I (the same eigenvectors as A, and it cannot
-// oscillate on bipartite graphs) until no score moves by 1e-10 (or for at most 1000 rounds), normalised to unit length.
+// oscillate on bipartite graphs) until no score moves by 1e-10 (or for at most 300 rounds, which the readouts then say), normalised to unit length.
 export const kernel: GraphKernel<CentralityResult> = {
   goal: 'centrality',
   inputs: ['communities', 'small-world', 'geometric', 'grid'],
-  n: { min: 4, max: 120, value: 60 },
+  n: { min: 4, max: 80, value: 50 },
   view: { colour: 'value', size: true },
   names: { frontier: 'In a search', done: 'Scored', value: 'Score' },
   readouts: ['rounds', 'scans', 'values', 'change'],
   chart: { title: 'Change per round (degree, closeness, then power iteration)', x: 'rounds', y: 'total change', series: ['change'], log: true },
   speed: 600,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const n = g.n;
     const degree = new Array<number>(n).fill(0);
@@ -63,12 +63,13 @@ export const kernel: GraphKernel<CentralityResult> = {
       closeness[s] = sum ? (queue.length - 1) / sum : 0;
       ops.value(s, closeness[s]);
       ops.settle(s);
+      yield;
     }
     ops.round();
     for (let v = 0; v < n; v++) ops.vertex(v, V.unseen);
     let x = new Array<number>(n).fill(1 / Math.sqrt(n));
     let lambda = 0; let iterations = 0; let converged = false;
-    for (let it = 0; it < 1000; it++) {
+    for (let it = 0; it < 300; it++) {
       iterations = it + 1;
       const y = x.slice();
       for (let e = 0; e < g.m; e++) {
@@ -82,6 +83,7 @@ export const kernel: GraphKernel<CentralityResult> = {
       for (let v = 0; v < n; v++) { y[v] /= norm; moved = Math.max(moved, Math.abs(y[v] - x[v])); ops.value(v, y[v]); }
       x = y;
       ops.round();
+      yield;
       if (moved < 1e-10) { converged = true; break; }
     }
     return { degree, closeness, eigen: x, lambda, iterations, converged };

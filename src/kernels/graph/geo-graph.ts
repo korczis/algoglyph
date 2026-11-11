@@ -16,7 +16,7 @@ export const kernel: GraphKernel<GeoResult> = {
   readouts: ['rounds', 'places', 'total'],
   chart: { title: 'Total distance from the map, iteration by iteration', x: 'rounds', y: 'distance', series: ['total'] },
   speed: 120,
-  run(ops, { p }) {
+  *steps(ops, { p }) {
     const g = ops.g;
     const n = g.n;
     const pull = Number(p.pull);
@@ -66,6 +66,7 @@ export const kernel: GraphKernel<GeoResult> = {
       }
       temp *= 0.98;
       ops.round();
+      yield;
     }
     return { x, y, offset };
   },

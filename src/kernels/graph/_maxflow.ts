@@ -47,7 +47,7 @@ export function augmentingPaths(ops: GraphOps, s: number, t: number, order: 'dfs
 
 export const FLOW_VIEW: Pick<GraphKernel, 'inputs' | 'n' | 'view' | 'names' | 'endpoints' | 'report'> = {
   inputs: ['flow'],
-  n: { min: 4, max: 200, value: 40 },
+  n: { min: 4, max: 150, value: 40 },
   view: { flow: true },
   endpoints: 'st',
   names: { frontier: 'Searched', done: 'Source side of the cut' },

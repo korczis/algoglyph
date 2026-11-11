@@ -6,13 +6,15 @@ import { paletteParam, ramp, type Palette, type RGB } from '../../core/palette';
 import { bool, num, str, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { makeGraph, SHAPE_LABELS, type Graph, type Shape } from './graph';
-import { defaultParams, E, emptyCounts, modularity, OP, trace, V, work, type GraphKernel, type Options,
-  type ReadoutKey, type SeriesKey, type Trace } from './trace';
+import { defaultParams, E, emptyCounts, modularity, OP, start, V, work, type GraphKernel, type Options,
+  type ReadoutKey, type Running, type SeriesKey, type Trace } from './trace';
 
 const HOLD_FRAMES = 90;
 const SCALING_N = [16, 32, 64, 128];
 const RECENT = 6;
 const W = 5;
+/** Milliseconds per frame an incremental run may compute, so a rebuild never blocks a frame. */
+const SLICE_MS = 6;
 
 const fmt = (x: number) => (Number.isInteger(x) ? x.toLocaleString('en-US')
   : Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 1 ? x.toFixed(2) : x.toPrecision(3));
@@ -67,7 +69,8 @@ class Replay {
     this.every = Math.max(1, Math.floor(t.length / 150));
     this.sample();
   }
-  get done(): boolean { return this.at >= this.t.length; }
+  /** Everything replayed, and nothing left to compute. */
+  get done(): boolean { return this.at >= this.t.length && this.t.finished; }
   private setV(v: number, s: number) {
     const old = this.vs[v];
     if (old === s) return;
@@ -145,6 +148,7 @@ class Replay {
       }
       if ((!byRounds && (this.at + 1) % this.every === 0)) this.sample(this.at + 1);
     }
+    if (!this.t.finished) return;
     if (this.done && this.history.length && this.history[this.history.length - 1][0] !== (byRounds ? this.c.rounds : this.t.length)) {
       this.sample(byRounds ? this.c.rounds : this.t.length);
     }
@@ -462,7 +466,13 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
       let generation = 0;
       let pick = -1;
       let g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed, aspectOf(kernel));
-      const run = () => new Replay(trace(kernel, g, options(kernel, g, ctx, pick), ctx.seed + generation), kernel);
+      let running: Running;
+      const run = () => {
+        running = start(kernel, g, options(kernel, g, ctx, pick), ctx.seed + generation);
+        // a thumbnail needs the whole run; the live plate computes a slice per frame
+        running.step(ctx.thumbnail ? Infinity : SLICE_MS);
+        return new Replay(running.t, kernel);
+      };
       let r = run();
       let hold = 0;
       let angle = 0.6;
@@ -474,6 +484,7 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
+            if (!r.t.finished) running.step(SLICE_MS);
             if (!r.done) r.advance(num(ctx.params, 'speed'));
             else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
@@ -495,7 +506,12 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
           const rows: Stat[] = [
             { label: 'Graph', value: `${fmt(g.n)} vertices, ${fmt(g.m)} edges` },
             ...keys.map((k) => readout(r, k)),
-            { label: 'Progress', value: `${Math.round((100 * r.at) / Math.max(1, r.t.length))}% of ${fmt(r.t.length)} events${r.t.truncated ? ' (stopped at the event cap)' : ''}` },
+            {
+              label: 'Progress',
+              value: r.t.finished
+                ? `${Math.round((100 * r.at) / Math.max(1, r.t.length))}% of ${fmt(r.t.length)} events${r.t.truncated ? ' (stopped at the event cap)' : ''}`
+                : `${fmt(r.at)} of ${fmt(r.t.length)} events so far (still computing)`,
+            },
           ];
           if (r.done && r.t.result !== undefined && kernel.report) rows.push(...kernel.report(r.t.result, g, r.t.opts));
           ctx.stats(rows);
@@ -555,7 +571,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
     params,
     create(p, ctx) {
       let generation = 0;
-      let panes: { info: KernelInfo; kernel: GraphKernel; r: Replay; finished: number }[] = [];
+      let panes: { info: KernelInfo; kernel: GraphKernel; run: Running; r: Replay; finished: number }[] = [];
       const curves = kernels.map((k) => ({ info: k.info, pts: [] as [number, number][], slope: NaN }));
       let pending = curves.flatMap((_, ci) => SCALING_N.map((n) => [ci, n] as [number, number]));
       let finishedCount = 0;
@@ -566,18 +582,29 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
         finishedCount = 0;
         panes = kernels.map((k) => {
           const opts: Options = { s: g.s, t: g.t, p: defaultParams(k.kernel) };
-          return { ...k, r: new Replay(trace(k.kernel, g, opts, ctx.seed + generation), k.kernel), finished: 0 };
+          const run = start(k.kernel, g, opts, ctx.seed + generation);
+          run.step(ctx.thumbnail ? Infinity : SLICE_MS / kernels.length);
+          return { ...k, run, r: new Replay(run.t, k.kernel), finished: 0 };
         });
       };
+      // the scaling runs: one at a time, counted but not recorded, a slice per frame
+      let measuring: { ci: number; n: number; run: Running } | null = null;
       const measure = () => {
-        const next = pending.shift();
-        if (!next) return;
-        const [ci, n] = next;
-        const k = kernels[ci].kernel;
-        const g = makeGraph(shapeOf(ctx), Math.max(k.n?.min ?? 2, n), ctx.seed + n, 4 / 3);
-        const t = trace(k, g, { s: g.s, t: g.t, p: defaultParams(k) }, ctx.seed, 2_000_000, false);
-        curves[ci].pts.push([g.n, t.truncated ? NaN : work(t.counts)]);
-        curves[ci].slope = exponent(curves[ci].pts);
+        if (!measuring) {
+          const next = pending.shift();
+          if (!next) return;
+          const [ci, n] = next;
+          const k = kernels[ci].kernel;
+          const g = makeGraph(shapeOf(ctx), Math.max(k.n?.min ?? 2, n), ctx.seed + n, 4 / 3);
+          measuring = { ci, n: g.n, run: start(k, g, { s: g.s, t: g.t, p: defaultParams(k) }, ctx.seed, 2_000_000, false) };
+        }
+        measuring.run.step(SLICE_MS);
+        const t = measuring.run.t;
+        if (!t.finished) return;
+        const cv = curves[measuring.ci];
+        cv.pts.push([measuring.n, t.truncated ? NaN : work(t.counts)]);
+        cv.slope = exponent(cv.pts);
+        measuring = null;
       };
       build();
       return {
@@ -590,6 +617,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
           if (!ctx.thumbnail) {
             measure();
             for (const pane of panes) {
+              if (!pane.run.t.finished) pane.run.step(SLICE_MS / panes.length);
               if (!pane.r.done) {
                 pane.r.advance(num(ctx.params, 'speed'));
                 if (pane.r.done) pane.finished = ++finishedCount;
@@ -631,7 +659,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
             const slope = curves[i].slope;
             return {
               label: pane.info.title,
-              value: `${fmt(work(pane.r.c))} operations · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
+              value: `${fmt(work(pane.r.c))} counted operations in ${fmt(pane.r.at)} events replayed · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished} (same events per frame)` : ''}`,
             };
           }));
         },

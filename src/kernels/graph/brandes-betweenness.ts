@@ -17,7 +17,7 @@ export const kernel: GraphKernel<BetweennessResult> = {
   readouts: ['rounds', 'scans', 'values'],
   chart: { title: 'Change in betweenness from each source', x: 'rounds', y: 'total change', series: ['change'] },
   speed: 40,
-  run(ops) {
+  *steps(ops) {
     const g = ops.g;
     const cb = new Array<number>(g.n).fill(0);
     for (let v = 0; v < g.n; v++) ops.value(v, 0);
@@ -48,6 +48,7 @@ export const kernel: GraphKernel<BetweennessResult> = {
       }
       for (const v of order) ops.vertex(v, V.unseen);
       ops.round();
+      yield;
     }
     return { cb };
   },

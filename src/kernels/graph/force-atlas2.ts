@@ -20,7 +20,7 @@ export const kernel: GraphKernel<LayoutResult> = {
   readouts: ['rounds', 'places', 'total'],
   chart: { title: 'Total swing per iteration', x: 'rounds', y: 'swing', series: ['total'], log: true },
   speed: 140,
-  run(ops, { p }) {
+  *steps(ops, { p }) {
     const g = ops.g;
     const n = g.n;
     const iters = Number(p.iterations);
@@ -73,6 +73,7 @@ export const kernel: GraphKernel<LayoutResult> = {
       }
       px = fx; py = fy;
       ops.round();
+      yield;
     }
     return { x, y, swing };
   },
