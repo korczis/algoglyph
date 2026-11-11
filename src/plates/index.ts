@@ -1,5 +1,6 @@
 // The registry: the order here is the plate numbering, and the only list of plates there is.
 import type { Category, Plate } from '../core/plate';
+import { barnesHut } from './barneshut/plate';
 import { boidsMurmuration } from './boids/plate';
 import { collatzCoral } from './collatz/plate';
 import { doublePendulum } from './pendulum/plate';
@@ -24,6 +25,7 @@ export const PLATES: Plate[] = [
   mazeFlood,
   pathfinding,
   boidsMurmuration,
+  barnesHut,
   voronoiRelax,
   hashAvalanche,
   ruleWeaver,
