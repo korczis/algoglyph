@@ -1,0 +1,15 @@
+id: "M006"
+title: "Product presentation"
+slug: "product-presentation"
+order: 6
+priority: "p1"
+problem: "Owner (2026-11-11): 'vyrazne zlepsi product README.md, landing page, github page, pridej nahledy, derived, infered'."
+outcome: "A product README and landing page whose facts are derived from the plate registry, real previews of every plate, a social card, and repository metadata on GitHub."
+acceptance_criteria:
+  - "A product README and landing page whose facts are derived from the plate registry, real previews of every plate, a social card, and repository metadata on GitHub."
+validation:
+  - "node scripts/build-readme.mjs --check"
+  - "npm run verify"
+evidence_required:
+  - "milestone_verified"
+created_at: "2026-11-11"

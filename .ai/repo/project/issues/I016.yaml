@@ -1,0 +1,23 @@
+id: "I016"
+milestone: "M006"
+title: "Previews of every plate, social card and GitHub metadata"
+slug: "previews-of-every-plate-social-card-and-github-metadata"
+priority: "p1"
+profile: "implementation"
+objective: "Previews of every plate, social card and GitHub metadata. Built by parallel agents (README, landing) and the integrator (previews, metadata)."
+why: "Owner request of 2026-11-11 recorded in M006."
+scope:
+  - "scripts/audit-ui.mjs"
+  - "docs/previews"
+  - "public/og.jpg"
+depends_on:
+  - "I001"
+acceptance_criteria:
+  - "audit-ui.mjs --previews writes each plate's canvas (dark and light), the landing page and og.jpg from the verified render in one browser launch."
+  - "The README catalogue shows the previews; the repository has a description without hand-typed counts, the Pages homepage and topics."
+  - "npm run verify passes."
+validation:
+  - "npm run verify"
+evidence_required:
+  - "verified"
+created_at: "2026-11-11"
