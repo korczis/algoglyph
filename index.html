@@ -7,6 +7,24 @@
   <meta name="description" content="Algorithms and physics drawn as glyphs: generative visualisations and interactive simulations built on p5.js.">
   <title>algoglyph</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://korczis.github.io/algoglyph/">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1e2939" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="algoglyph">
+  <meta property="og:title" content="algoglyph: algorithms and physics, drawn as glyphs">
+  <meta property="og:description" content="Seeded, interactive p5.js plates of algorithms, mathematics and physics. Every readout is measured from the running simulation, and a link reproduces the picture.">
+  <meta property="og:url" content="https://korczis.github.io/algoglyph/">
+  <meta property="og:image" content="https://korczis.github.io/algoglyph/og.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="A mosaic of algoglyph plates: sorting tapestries, mazes, fractals, pendulums and attractors on a dark ground.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="algoglyph: algorithms and physics, drawn as glyphs">
+  <meta name="twitter:description" content="Seeded, interactive p5.js plates of algorithms, mathematics and physics, with measured readouts.">
+  <meta name="twitter:image" content="https://korczis.github.io/algoglyph/og.jpg">
+  <meta name="twitter:image:alt" content="A mosaic of algoglyph plates: sorting tapestries, mazes, fractals, pendulums and attractors on a dark ground.">
   <script>
     // Pro theme contract: set the theme before the first paint (localStorage 'color-theme',
     // the system preference when unset).
@@ -141,17 +159,118 @@
               </li>
             </ol>
           </nav>
-          <div class="items-end justify-between gap-4 sm:flex">
-            <div>
-              <h1 id="gallery-title" class="text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white">Algorithms and physics, drawn as glyphs</h1>
-              <p class="max-w-3xl mt-2 text-base text-gray-500 dark:text-gray-400">
-                <span x-text="plates.length"></span> plates: sorting, graph search, geometry, hashing, automata, number theory and Fourier series, then chaos, waves, reaction-diffusion, rotating frames and gravity in 2D and 3D. Each one is a live simulation with its knobs exposed.
-              </p>
+        </div>
+
+        <!-- Hero: adapted from the Pro marketing hero (illustration + default blocks) -->
+        <div class="grid gap-6 p-4 mb-4 bg-white rounded-lg shadow sm:p-6 xl:p-8 lg:grid-cols-12 lg:gap-8 dark:bg-gray-800">
+          <div class="self-center min-w-0 lg:col-span-7">
+            <p class="inline-flex flex-wrap items-center gap-2 p-1 pr-4 mb-5 text-sm text-gray-700 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-200">
+              <span class="px-3 py-1 text-xs font-semibold text-white rounded-full bg-primary-700" x-text="facts.plates + ' plates'"></span>
+              <span class="font-medium">Seeded, measured, open source</span>
+            </p>
+            <h1 id="gallery-title" class="mb-4 text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl xl:text-5xl dark:text-white">Algorithms and physics, drawn as glyphs</h1>
+            <p class="max-w-2xl mb-6 text-base text-gray-500 md:text-lg lg:mb-8 dark:text-gray-400">
+              <span x-text="facts.plates"></span> live simulations across <span x-text="topics"></span>, from sorting and graph search to chaos, waves and gravity in 2D and 3D. Every knob is exposed, every readout is measured, and a link redraws the picture.
+            </p>
+            <div class="flex flex-col gap-3 sm:flex-row">
+              <button type="button" @click="openRandom()" class="inline-flex items-center justify-center px-5 py-3 text-base font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">
+                <svg class="w-5 h-5 mr-2 -ml-1" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"></circle></svg>
+                Open a random plate
+              </button>
+              <a href="https://github.com/korczis/algoglyph" class="inline-flex items-center justify-center px-5 py-3 text-base font-medium text-center text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 dark:text-white dark:bg-gray-800 dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-700">
+                <svg class="w-5 h-5 mr-2 -ml-1" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.48 2 2 6.58 2 12.23c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.35 1.12 2.92.85.09-.66.35-1.12.64-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.4 9.4 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.64 1.03 2.76 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9l-.01 2.81c0 .27.18.6.69.49A10.1 10.1 0 0 0 22 12.23C22 6.58 17.52 2 12 2Z"></path></svg>
+                Source on GitHub
+              </a>
             </div>
-            <div class="inline-flex mt-4 rounded-lg shadow-sm sm:mt-0" role="group" aria-label="Filter by category">
-              <button type="button" @click="filter = 'all'" :aria-pressed="filter === 'all'" class="px-4 py-2 text-sm font-medium border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:text-white dark:hover:bg-gray-700" :class="filter === 'all' ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300'">All</button>
+            <button type="button" @click="toPlates()" class="inline-flex items-center mt-4 text-sm font-medium rounded-lg text-primary-700 hover:underline dark:text-primary-400">
+              Browse all <span class="mx-1" x-text="facts.plates"></span> plates
+              <svg class="w-4 h-4 ml-1" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m0 0-5-5m5 5 5-5"></path></svg>
+            </button>
+          </div>
+          <div class="min-w-0 lg:col-span-5 lg:self-center">
+            <div class="grid grid-cols-3 gap-2" aria-hidden="true">
+              <template x-for="p in mosaic" :key="'mosaic-' + p.id">
+                <div class="overflow-hidden rounded-lg aspect-[8/5] bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700">
+                  <img x-show="thumbs[p.id]" :src="thumbs[p.id]" alt="" width="400" height="250" class="object-cover w-full h-full">
+                </div>
+              </template>
+            </div>
+            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Previews render in your browser from each plate's own code, one fixed seed per plate.</p>
+          </div>
+        </div>
+
+        <!-- The collection in numbers: Pro KPI cards, every value derived from the registry -->
+        <section class="mb-4" aria-labelledby="facts-title">
+          <h2 id="facts-title" class="sr-only">The collection in numbers</h2>
+          <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+            <template x-for="f in factCards" :key="f.key">
+              <div class="flex flex-col min-w-0 p-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
+                <dt class="order-2 mt-1 text-base font-normal text-gray-500 dark:text-gray-400" x-text="f.label"></dt>
+                <dd class="order-1 text-2xl font-bold leading-none text-gray-900 sm:text-3xl dark:text-white" x-text="f.value"></dd>
+                <dd class="order-3 mt-2 text-xs text-gray-500 dark:text-gray-400" x-text="f.detail"></dd>
+              </div>
+            </template>
+          </dl>
+        </section>
+
+        <!-- How it works: adapted from the Pro marketing feature section (default block) -->
+        <section class="p-4 mb-6 bg-white rounded-lg shadow sm:p-6 xl:p-8 dark:bg-gray-800" aria-labelledby="how-title">
+          <div class="max-w-screen-md mb-6 lg:mb-8">
+            <h2 id="how-title" class="mb-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl dark:text-white">How it works</h2>
+            <p class="text-base text-gray-500 sm:text-lg dark:text-gray-400">Each plate is art and also a claim about what an algorithm or an integrator does. Four habits keep the claim honest.</p>
+          </div>
+          <div class="grid gap-8 md:grid-cols-2 md:gap-10 xl:grid-cols-4">
+            <div>
+              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
+                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"></path></svg>
+              </div>
+              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Seeded</h3>
+              <p class="text-gray-500 dark:text-gray-400">A plate draws its randomness only from a generator seeded by the URL. With the same parameters, a shared link redraws the same picture; Reseed draws a new one.</p>
+            </div>
+            <div>
+              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
+                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"></path></svg>
+              </div>
+              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Measured</h3>
+              <p class="text-gray-500 dark:text-gray-400">Every readout is computed from the running simulation's own state: comparisons and writes as performed, frontier sizes, energies and their drift. No constant poses as a measurement.</p>
+            </div>
+            <div>
+              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
+                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z"></path></svg>
+              </div>
+              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Tested</h3>
+              <p class="text-gray-500 dark:text-gray-400">Algorithm cores and integrators are unit-tested against independent references: node:crypto for SHA-256, brute-force sums for Barnes–Hut, Ising and Voronoi, known sequences for automata and Collatz. <a href="https://github.com/korczis/algoglyph/tree/main/test" class="font-medium underline text-primary-700 hover:no-underline dark:text-primary-400">Read the tests</a></p>
+            </div>
+            <div>
+              <div class="flex items-center justify-center w-10 h-10 mb-4 rounded-full bg-primary-100 lg:w-12 lg:h-12 dark:bg-primary-900">
+                <svg class="w-5 h-5 text-primary-700 lg:w-6 lg:h-6 dark:text-primary-300" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"></path></svg>
+              </div>
+              <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">Gated</h3>
+              <p class="text-gray-500 dark:text-gray-400">Before Pages deploys, a real-browser gate mounts every plate and checks that it draws and reports, runs axe-core for WCAG 2.2 AA, and allows no console error or overflow, in light and dark, on phone and desktop. <a href="https://github.com/korczis/algoglyph/blob/main/scripts/audit-ui.mjs" class="font-medium underline text-primary-700 hover:no-underline dark:text-primary-400">Read the gate</a></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Plates: toolbar (search on phones, category filter) above the grid -->
+        <div class="items-end justify-between gap-4 mb-4 sm:flex">
+          <div>
+            <h2 id="plates-title" class="text-xl font-semibold text-gray-900 scroll-mt-20 sm:text-2xl dark:text-white">Plates</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" aria-live="polite">Showing <span x-text="shown().length"></span> of <span x-text="plates.length"></span><span x-show="query.trim()">, matching “<span x-text="query.trim()"></span>”</span></p>
+          </div>
+          <div class="flex flex-col gap-3 mt-4 sm:mt-0 sm:items-end">
+            <div class="w-full md:hidden sm:w-64">
+              <label for="gallery-search" class="sr-only">Search plates</label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"></path></svg>
+                </div>
+                <input type="search" id="gallery-search" x-model="query" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Search plates, e.g. chaos, BFS">
+              </div>
+            </div>
+            <div class="flex w-full rounded-lg shadow-sm sm:w-auto" role="group" aria-label="Filter by category">
+              <button type="button" @click="filter = 'all'" :aria-pressed="filter === 'all'" class="grow px-2 py-2 text-xs font-medium border border-gray-200 sm:grow-0 sm:px-4 sm:text-sm rounded-s-lg hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:text-white dark:hover:bg-gray-700" :class="filter === 'all' ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300'">All</button>
               <template x-for="(cat, i) in categories" :key="cat.id">
-                <button type="button" @click="filter = cat.id" :aria-pressed="filter === cat.id" class="px-4 py-2 text-sm font-medium border-t border-b border-r border-gray-200 hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:text-white dark:hover:bg-gray-700" :class="[filter === cat.id ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300', i === categories.length - 1 ? 'rounded-e-lg' : '']" x-text="cat.label"></button>
+                <button type="button" @click="filter = cat.id" :aria-pressed="filter === cat.id" class="grow px-2 py-2 text-xs font-medium border-t border-b border-r border-gray-200 sm:grow-0 sm:px-4 sm:text-sm hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-2 focus:ring-primary-700 dark:border-gray-700 dark:hover:text-white dark:hover:bg-gray-700" :class="[filter === cat.id ? 'bg-gray-100 text-primary-700 dark:bg-gray-700 dark:text-white' : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-300', i === categories.length - 1 ? 'rounded-e-lg' : '']" x-text="cat.label"></button>
               </template>
             </div>
           </div>
@@ -173,7 +292,7 @@
                   <span class="text-xs font-medium tracking-wide uppercase text-primary-700 dark:text-primary-500" x-text="label(p.category)"></span>
                   <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="p.complexity"></span>
                 </div>
-                <h2 class="mb-2 text-xl font-bold leading-tight text-gray-900 dark:text-white" x-text="p.title"></h2>
+                <h3 class="mb-2 text-xl font-bold leading-tight text-gray-900 dark:text-white" x-text="p.title"></h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400" x-text="p.summary"></p>
                 <div class="flex flex-wrap gap-1.5 mt-4">
                   <template x-for="tag in p.tags" :key="tag">
@@ -185,7 +304,7 @@
           </template>
         </div>
         <div x-show="shown().length === 0" x-cloak class="p-8 mt-4 text-center bg-white rounded-lg shadow dark:bg-gray-800">
-          <h2 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">No plate matches “<span x-text="query"></span>”</h2>
+          <h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white">No plate matches “<span x-text="query"></span>”</h3>
           <p class="mb-4 text-gray-500 dark:text-gray-400">Search looks in titles, summaries and tags.</p>
           <button type="button" @click="query = ''; filter = 'all'" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-700 dark:hover:bg-primary-800 dark:focus:ring-primary-800">Show all plates</button>
         </div>
