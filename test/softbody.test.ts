@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import { FRAME_TIME, SETTLE_KE } from '../src/plates/soft-body-3d/plate';
 import {
-  BEND, SHEAR, STRUCTURAL, energy, forces, icosphere, lattice, momentum, preset, stableStep,
-  step, volume, type SoftBody, type World,
+  BEND, EnergyBaseline, SHEAR, STRUCTURAL, energy, forces, icosphere, lattice, momentum, preset,
+  stableStep, step, volume, type SoftBody, type World,
 } from '../src/plates/soft-body-3d/softbody';
 
 const FREE: World = {
@@ -230,5 +230,34 @@ describe('soft body: builders', () => {
     };
     expect(run(42)).toEqual(run(42));
     expect(run(42)).not.toEqual(run(43));
+  });
+});
+
+describe('soft body: energy baseline', () => {
+  it('measures the change from the last control change, not from a release before it', () => {
+    const b = preset('cube', 5, mulberry32(4));
+    kick(b, 8, 0.3);
+    let w: World = { ...FREE };
+    forces(b, w);
+    const baseline = new EnergyBaseline();
+    baseline.reset(w, energy(b, w).total, 0);
+    const dt = stableStep(b, w) / 2;
+    const run = (steps: number) => {
+      for (let s = 0; s < steps; s++) step(b, w, dt);
+    };
+    run(500);
+    expect(Math.abs(baseline.drift(energy(b, w).total))).toBeLessThan(0.01);
+    // a stiffer world gives the same state a different spring energy
+    const before = energy(b, w).total;
+    w = { ...w, stiffness: 300 };
+    expect(baseline.track(w, () => energy(b, w).total, 1)).toBe(true);
+    expect(baseline.since).toBe(1);
+    expect(Math.abs(energy(b, w).total - before) / before).toBeGreaterThan(0.05);
+    expect(baseline.drift(energy(b, w).total)).toBe(0);
+    forces(b, w);
+    run(500);
+    expect(Math.abs(baseline.drift(energy(b, w).total))).toBeLessThan(0.01);
+    // the same world again is not a change
+    expect(baseline.track({ ...w }, () => 0, 2)).toBe(false);
   });
 });

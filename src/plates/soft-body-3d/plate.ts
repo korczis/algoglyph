@@ -1,7 +1,7 @@
 import { mix, paletteParam, ramp, scale, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import {
-  STRUCTURAL, centroid, energy, forces, preset, stableStep, step, strain, volume,
+  EnergyBaseline, STRUCTURAL, centroid, energy, forces, preset, stableStep, step, strain, volume,
   type Preset, type SoftBody, type World,
 } from './softbody';
 
@@ -60,13 +60,12 @@ export const softBody: PlateCode = {
     let degree: Float64Array;
     let normals: Float64Array;
     let springStrain: Float64Array;
-    let e0 = 0;
+    const baseline = new EnergyBaseline();
     let t = 0;
     let quiet = 0;
     let drops = 0;
     let angle = 0;
     let contacts = 0;
-    let released = 0;
     let history: [number, number, number, number, number][] = [];
 
     const world = (): World => ({
@@ -92,8 +91,7 @@ export const softBody: PlateCode = {
       }
       const w = world();
       forces(b, w);
-      e0 = energy(b, w).total;
-      released = t;
+      baseline.reset(w, energy(b, w).total, t);
       history = [];
       quiet = 0;
       drops++;
@@ -246,6 +244,7 @@ export const softBody: PlateCode = {
         const w = world();
         // the controls may have changed since the last frame
         forces(b, w);
+        if (baseline.track(w, () => energy(b, w).total, t)) history = [];
         const steps = Math.max(num(params, 'substeps'), Math.ceil(FRAME_TIME / stableStep(b, w)));
         const dt = FRAME_TIME / steps;
         for (let s = 0; s < steps; s++) contacts = step(b, w, dt);
@@ -268,10 +267,11 @@ export const softBody: PlateCode = {
         if (bool(params, 'wire')) drawSprings(S);
         else drawBody(S);
 
-        const drift = Math.abs(e0) > 1e-12 ? (100 * (e.total - e0)) / Math.abs(e0) : 0;
+        const drift = 100 * baseline.drift(e.total);
         const rows = [
           { label: 'total energy', value: `${e.total.toFixed(4)} J` },
-          { label: 'energy change since release', value: `${drift.toFixed(3)} %` },
+          { label: 'energy change since release or last control change',
+            value: `${drift.toFixed(3)} %` },
           { label: 'mean | max strain', value: `${(st.mean * 100).toFixed(2)} % | `
             + `${(st.max * 100).toFixed(1)} %` },
           { label: 'ground contacts', value: `${contacts} of ${b.n} masses` },
@@ -284,14 +284,14 @@ export const softBody: PlateCode = {
         }
         ctx.stats(rows);
         if (!ctx.thumbnail) {
-          history.push([t - released, e.kinetic, e.gravity, e.elastic + e.gas, e.total]);
+          history.push([t - baseline.since, e.kinetic, e.gravity, e.elastic + e.gas, e.total]);
           if (history.length > 600) history.shift();
           const series = (name: string, k: number) => ({
             name, points: history.filter((_, i) => i % 3 === 0).map((q) => [q[0], q[k]] as
               [number, number]),
           });
           ctx.chart({
-            title: 'Energy since release',
+            title: 'Energy since release or last control change',
             x: { label: 'simulated time (s)' },
             y: { label: 'energy (J)' },
             series: [series('Kinetic', 1), series('Gravitational', 2),

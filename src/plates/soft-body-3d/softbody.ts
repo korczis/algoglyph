@@ -574,3 +574,38 @@ export function preset(name: Preset, res: number, rnd: () => number): SoftBody {
   spin(b, [0, 0, 0], [sym() * 1.5, sym() * 1.5, sym() * 1.5]);
   return b;
 }
+
+function worldKey(w: World): string {
+  return [w.gravity, w.ground, w.restitution, w.friction, w.stiffness, w.damping, w.pressure]
+    .join(' ');
+}
+
+/**
+ * The energy a drift is measured from. A changed world changes what the energy of the same
+ * state is (stiffness scales the spring energy, gravity the potential), so the reference is
+ * taken again at a release and whenever any world parameter changes.
+ */
+export class EnergyBaseline {
+  e0 = 0;
+  /** Simulated time of the last rebase. */
+  since = 0;
+  private key = '';
+
+  reset(w: World, e: number, t: number): void {
+    this.key = worldKey(w);
+    this.e0 = e;
+    this.since = t;
+  }
+
+  /** Rebase when w differs from the world of the last rebase; returns whether it did. */
+  track(w: World, e: () => number, t: number): boolean {
+    if (worldKey(w) === this.key) return false;
+    this.reset(w, e(), t);
+    return true;
+  }
+
+  /** Relative change of e since the rebase; 0 when the reference energy is 0. */
+  drift(e: number): number {
+    return Math.abs(this.e0) > 1e-12 ? (e - this.e0) / Math.abs(this.e0) : 0;
+  }
+}
