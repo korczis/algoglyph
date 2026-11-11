@@ -137,14 +137,23 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
         finishedCount = 0;
         panes = same.map((k) => ({ ...k, b: new Board(trace(k.kernel, x as never, ctx.params)), finished: 0 }));
       };
-      // one measured point per frame, so the lab never blocks a phone's main thread
+      // one measured point at a time, recorded for SLICE_MS per frame, so the lab never blocks a
+      // phone's main thread even where a kernel's work grows as n²
+      let probe: { ci: number; n: number; rec: Recording } | null = null;
       const measure = () => {
-        const next = pending.shift();
-        if (!next) return;
-        const [ci, n] = next;
-        const t = trace(same[ci].kernel, input(kind, n, str(ctx.params, 'shape'), ctx.seed + n) as never, ctx.params);
-        curves[ci].pts.push([n, t.truncated ? NaN : work(t)]);
-        curves[ci].slope = exponent(curves[ci].pts);
+        if (!probe) {
+          const next = pending.shift();
+          if (!next) return;
+          const [ci, n] = next;
+          const x = input(kind, n, str(ctx.params, 'shape'), ctx.seed + n);
+          probe = { ci, n, rec: new Recording(traceSteps(same[ci].kernel, x as never, { ...ctx.params })) };
+        }
+        if (!probe.rec.pump(SLICE_MS)) return;
+        const t = probe.rec.trace!;
+        const c = curves[probe.ci];
+        c.pts.push([probe.n, t.truncated ? NaN : work(t)]);
+        c.slope = exponent(c.pts);
+        probe = null;
       };
       build();
       return {

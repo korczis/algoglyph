@@ -7,7 +7,8 @@ import { S, type StringKernel } from '../../engines/string/trace';
 export const kernel: StringKernel<'pair', { distance: number; script: string[] }> = {
   input: 'pair',
   counters: { cell: 'Cells written', compare: 'Character comparisons' },
-  run(ops, { a, b }) {
+  // a generator, a row of the table per step: the lab measures it up to long strings
+  *run(ops, { a, b }) {
     const n = a.length; const m = b.length;
     ops.table('d', n + 1, m + 1, { label: 'Edit table', rowHead: ['', ...a], colHead: ['', ...b] });
     const d: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
@@ -22,6 +23,7 @@ export const kernel: StringKernel<'pair', { distance: number; script: string[] }
         ops.heat('d', i * (m + 1) + j, Math.min(1, d[i][j] / Math.max(1, n, m)) * 0.8);
       }
       ops.note(`row ${i}: '${a[i - 1]}' against every prefix of the second string`);
+      yield null;
     }
     const script: string[] = [];
     let i = n; let j = m;

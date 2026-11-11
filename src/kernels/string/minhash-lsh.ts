@@ -17,14 +17,15 @@ export const kernel: StringKernel<'documents', MinhashResult> = {
     { kind: 'range', key: 'bands', label: 'Bands b', min: 2, max: 16, step: 1, value: 8, rebuild: true },
     { kind: 'range', key: 'rows', label: 'Rows per band r', min: 1, max: 6, step: 1, value: 4, rebuild: true },
   ],
-  run(ops, { docs }, params) {
+  // a generator: one document's minima, one band or one row of pairs per step
+  *run(ops, { docs }, params) {
     const bands = Number(params.bands ?? 8) || 8; const rows = Number(params.rows ?? 4) || 4;
     const k = bands * rows;
     // a cell's colour is a function of its minimum, so equal minima show as equal colours
     const sets = docs.map((d) => [...new Set(shingles(d.text, 3).map(fnv1a))]);
     ops.table('sig', docs.length, k, { label: 'Signatures', rowHead: docs.map((d) => `${d.id} ${d.outlet}`) });
     const sig = docs.map(() => new Array<number>(k).fill(0));
-    sets.forEach((set, r) => {
+    for (const [r, set] of sets.entries()) {
       for (let h = 0; h < k; h++) {
         let min = 0xffffffff;
         for (const x of set) { ops.tick('hash'); const v = mix32(x, h + 1); if (v < min) min = v; }
@@ -32,7 +33,8 @@ export const kernel: StringKernel<'documents', MinhashResult> = {
         ops.heat('sig', r * k + h, (min % 251) / 250);
       }
       ops.note(`document ${r}: ${set.length} shingles, ${k} minima`);
-    });
+      yield null;
+    }
     const cand = new Set<string>();
     ops.list('cand', [], { label: 'Candidate pairs', lines: 2 });
     for (let b = 0; b < bands; b++) {
@@ -55,6 +57,7 @@ export const kernel: StringKernel<'documents', MinhashResult> = {
         }
       }
       ops.note(`band ${b}: ${buckets.size} buckets`);
+      yield null;
     }
     ops.clear('sig', true);
     const candidates = [...cand].map((s) => s.split('-').map(Number) as [number, number]);
@@ -71,6 +74,7 @@ export const kernel: StringKernel<'documents', MinhashResult> = {
         err += Math.abs(agree / k - exact); pairs++;
         if (docs[i].family === docs[j].family) { dupes++; if (cand.has(`${i}-${j}`)) caught++; }
       }
+      yield null;
     }
     pts.sort((a, b) => a[0] - b[0]);
     for (const [x, y] of pts) { ops.plot('MinHash estimate', x, y); ops.plot('Exact', x, x); }
