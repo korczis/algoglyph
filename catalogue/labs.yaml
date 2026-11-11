@@ -8,3 +8,38 @@ labs:
     title: Sorting lab
     summary: Every sort on the same keys with the same operation budget per frame, ranked by when it finishes, with each one's work measured from n = 16 to 512.
     engine: array
+
+  - id: graph-search
+    title: Graph search lab
+    summary: "Breadth-first and depth-first search on the same graph with the same event budget per frame, ranked by when they finish, with each one’s counted work measured as the graph grows."
+    engine: graph
+
+  - id: shortest-paths
+    title: Shortest paths lab
+    summary: "Single-source and all-pairs shortest paths on the same layered DAG, ranked by when they finish, with each one’s counted work measured as the graph grows."
+    engine: graph
+
+  - id: spanning-trees
+    title: Spanning trees lab
+    summary: "Kruskal, Prim and Borůvka on the same weighted graph: the same tree weight, built in different orders, with each one’s counted work measured as the graph grows."
+    engine: graph
+
+  - id: max-flow
+    title: Maximum flow lab
+    summary: "Augmenting paths, shortest augmenting paths and preflow-push on the same network, reaching the same flow value by different routes."
+    engine: graph
+
+  - id: strong-components
+    title: Strong components lab
+    summary: "Kosaraju’s two searches against Tarjan’s one, on the same directed graph."
+    engine: graph
+
+  - id: communities
+    title: Communities lab
+    summary: "Label propagation against modularity optimisation on the same graph, side by side."
+    engine: graph
+
+  - id: centrality
+    title: Centrality lab
+    summary: "Who is central by PageRank, by betweenness and by degree, closeness and eigenvector, on the same graph."
+    engine: graph
