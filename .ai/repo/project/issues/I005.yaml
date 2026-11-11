@@ -21,3 +21,16 @@ validation:
 evidence_required:
   - "verified"
 created_at: "2026-11-11"
+started_at: 2026-11-11T21:21:36Z
+started_event: sha256:32c416701bd2a1cb17b24594b62ec15358bb21e1205e28e42d653a892c6dc9c0
+updated_at: 2026-11-11T21:21:38Z
+completed_at: 2026-11-11T21:21:38Z
+completed_event: sha256:c99d8dd27fd4201ed91799fe6e911335c21c075dcca14811fe607af0693e4c34
+evidence:
+  - covers: "verified"
+    type: build
+    command: "npx vite build"
+    result: "main chunk 1,442.67 kB -> 916.70 kB (276.19 kB gzip) at cae7355 with p5 assembled from modules; every plate mounts and reads out in the browser gate of https://github.com/korczis/algoglyph/actions/runs/43098160604"
+    artifact: "https://github.com/korczis/algoglyph/actions/runs/43098160604"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:21:37Z

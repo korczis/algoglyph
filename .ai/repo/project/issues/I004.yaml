@@ -19,3 +19,16 @@ validation:
 evidence_required:
   - "verified"
 created_at: "2026-11-11"
+started_at: 2026-11-11T21:21:34Z
+started_event: sha256:7c0df04a6a1a885c5b71ebb9e96b96ef81533a8cce5b1b8cccbed1593a49401f
+updated_at: 2026-11-11T21:21:36Z
+completed_at: 2026-11-11T21:21:36Z
+completed_event: sha256:50f141850944311916e3e447ade254154d00f360edbacd4b2d36e27ae47097d3
+evidence:
+  - covers: "verified"
+    type: ci
+    command: "curl -fsS https://korczis.github.io/algoglyph/revision.txt"
+    result: "production serves 507f5eeadd79f471d5e9afcbe3573c784bfb7000 = origin/main; Verify production job succeeded; /, favicon.svg, og.jpg answer 200"
+    artifact: "https://korczis.github.io/algoglyph/"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:21:35Z

@@ -12,3 +12,12 @@ validation:
 evidence_required:
   - "milestone_verified"
 created_at: "2026-11-11"
+updated_at: 2026-11-11T21:22:05Z
+evidence:
+  - covers: "milestone_verified"
+    type: ci
+    command: "gh run view 43098160604"
+    result: "every member issue done; deployed and verified at 507f5eeadd79f471d5e9afcbe3573c784bfb7000"
+    artifact: "https://github.com/korczis/algoglyph/actions/runs/43098160604"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:22:05Z

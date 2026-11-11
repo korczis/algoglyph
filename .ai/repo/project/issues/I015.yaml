@@ -23,3 +23,16 @@ validation:
 evidence_required:
   - "verified"
 created_at: "2026-11-11"
+started_at: 2026-11-11T21:21:58Z
+started_event: sha256:769cf2de370af61f0fec08d4df3a4b86431020b96e0e19e2855d2f6092b3b25f
+updated_at: 2026-11-11T21:22:00Z
+completed_at: 2026-11-11T21:22:00Z
+completed_event: sha256:9d498c4ee97ae841be69e4beb2a1cc5f70ec23c8ca277076b6bf49fc1851cf3b
+evidence:
+  - covers: "verified"
+    type: ci
+    command: "browser gate in https://github.com/korczis/algoglyph/actions/runs/43098160604"
+    result: "landing hero, derived stats and how-it-works pass axe WCAG 2.2 AA at 390 and 1440 px in both themes; live at 507f5eeadd79f471d5e9afcbe3573c784bfb7000"
+    artifact: "https://korczis.github.io/algoglyph/"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:21:59Z

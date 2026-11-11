@@ -21,3 +21,16 @@ validation:
 evidence_required:
   - "verified"
 created_at: "2026-11-11"
+started_at: 2026-11-11T21:21:53Z
+started_event: sha256:16cb2582e52d11e9cc91ff0c5b11e8e932d4b253b90fed67f75a06a0f014b955
+updated_at: 2026-11-11T21:21:55Z
+completed_at: 2026-11-11T21:21:55Z
+completed_event: sha256:c5635b48e93e45e5f3f1da7077d269f4851acc79ff4ca7eaea65e950c7119644
+evidence:
+  - covers: "verified"
+    type: ci
+    command: "npm run verify; browser gate in https://github.com/korczis/algoglyph/actions/runs/43098160604"
+    result: "unit tests against independent references pass (96 tests); the plate mounts and publishes a readout in both themes in the browser gate; live at 507f5eeadd79f471d5e9afcbe3573c784bfb7000"
+    artifact: "https://github.com/korczis/algoglyph/actions/runs/43098160604"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:21:54Z

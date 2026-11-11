@@ -23,3 +23,16 @@ validation:
 evidence_required:
   - "verified"
 created_at: "2026-11-11"
+started_at: 2026-11-11T21:21:56Z
+started_event: sha256:c0a7c20d5b1eed69b88c00a346bfb1e34be670f0a0f69a88411024360fb5246e
+updated_at: 2026-11-11T21:21:58Z
+completed_at: 2026-11-11T21:21:58Z
+completed_event: sha256:0ccb0714f681ce02cca6e3c8087eb3476902a556bf244f2ade1ada078e8d74ac
+evidence:
+  - covers: "verified"
+    type: ci
+    command: "node scripts/build-readme.mjs --check"
+    result: "README derived regions current in CI (validate step) at 507f5eeadd79f471d5e9afcbe3573c784bfb7000"
+    artifact: "https://github.com/korczis/algoglyph#readme"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:21:57Z

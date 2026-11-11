@@ -19,3 +19,16 @@ validation:
 evidence_required:
   - "verified"
 created_at: "2026-11-11"
+started_at: 2026-11-11T21:21:32Z
+started_event: sha256:869b51900063179a3db31f0ba71bd73698339bb61cc086d0c78ec82f72fe8622
+updated_at: 2026-11-11T21:21:33Z
+completed_at: 2026-11-11T21:21:33Z
+completed_event: sha256:5e2efb2b743ca26ca6c21045d02c9c4fee0e67d86e7d155fa676f70d399ea9e4
+evidence:
+  - covers: "verified"
+    type: ci
+    command: "gh run view 43098160604"
+    result: "Pages run 43098160604 on lundra-algoglyph: Validate and build, Majordomus supervision, Conventional commits all succeeded; validate timeout 45 min derived from run 43083820780 (1311 s)"
+    artifact: "https://github.com/korczis/algoglyph/actions/runs/43098160604"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:21:33Z

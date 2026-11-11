@@ -21,3 +21,16 @@ validation:
 evidence_required:
   - "verified"
 created_at: "2026-11-11"
+started_at: 2026-11-11T21:22:01Z
+started_event: sha256:7f704e5cd5348cc4b38863c4633bd1ed22fb9ef33258fc055c3204b8c9ddb2a7
+updated_at: 2026-11-11T21:22:02Z
+completed_at: 2026-11-11T21:22:02Z
+completed_event: sha256:fa959bc7f26244d6036b8ed518893f8e645b824808363f31211a93e71046f141
+evidence:
+  - covers: "verified"
+    type: artifact
+    command: "node scripts/audit-ui.mjs --previews docs/previews"
+    result: "41 previews and og.jpg from the verified render; og.jpg answers 200 in production; repo description, homepage and 12 topics set"
+    artifact: "https://korczis.github.io/algoglyph/og.jpg"
+    commit: 507f5eeadd79f471d5e9afcbe3573c784bfb7000
+    recorded_at: 2026-11-11T21:22:02Z
