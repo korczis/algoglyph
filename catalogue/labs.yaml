@@ -8,3 +8,8 @@ labs:
     title: Sorting lab
     summary: Every sort on the same keys with the same operation budget per frame, ranked by when it finishes, with each one's work measured from n = 16 to 512.
     engine: array
+
+  - id: replication
+    title: Replication lab
+    summary: Replicas reconciling, merging and electing a leader on one seeded network with the same delays, losses and partition, each protocol's messages counted as they go.
+    engine: systems
