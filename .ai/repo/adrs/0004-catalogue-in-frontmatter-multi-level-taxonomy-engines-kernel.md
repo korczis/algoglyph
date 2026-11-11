@@ -42,6 +42,17 @@ Owner answers, recorded verbatim (AskUserQuestion, session
 The Sedgewick, three.js/WebAssembly and single-source requests arrived in the same session
 after these answers and extend the scope.
 
+Later owner answers in the same session (AskUserQuestion, 2026-11-11T21:59Z):
+
+- Q: "The Majordomus pre-push hook refused pushing feature/catalogue-labs to main: the task's
+  declared scope omits crates/algoglyph-kernels/* and docs/ARCHITECTURE.md, which I added later.
+  How should I proceed?"
+  A: "Close partial, restart task (Recommended)"
+- Q: "After the deploy, should I launch the engine waves for the 212 planned entries now,
+  roughly 11 parallel agents in their own worktrees (graph, string, tree, numeric, geometry,
+  stochastic, signal, systems, grid, hash, bespoke plates)?"
+  A: "Yes, all 11 at once"
+
 ## Decision
 
 1. **The catalogue is the only description of the collection.** `catalogue/entries/<id>.md`,
