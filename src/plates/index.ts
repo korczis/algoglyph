@@ -4,6 +4,7 @@ import { ruleWeaver } from './automaton/plate';
 import { hashAvalanche } from './avalanche/plate';
 import { verletCloth } from './cloth/plate';
 import { collatzCoral } from './collatz/plate';
+import { foucaultPendulum } from './foucault/plate';
 import { fourierEpicycles } from './fourier/plate';
 import { lorenzAttractor } from './lorenz/plate';
 import { mazeFlood } from './maze/plate';
@@ -25,6 +26,7 @@ export const PLATES: Plate[] = [
   collatzCoral,
   fourierEpicycles,
   doublePendulum,
+  foucaultPendulum,
   rippleTank,
   grayScott,
   lorenzAttractor,
