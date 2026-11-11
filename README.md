@@ -314,7 +314,7 @@ Partition, then continue only in the side that holds rank k.<br>
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/bowyer-watson-delaunay">113 · Empty Circles</a></b><br>
-Bowyer–Watson builds a Delaunay triangulation one point at a time: each point tears out every triangle whose circumcircle it falls inside and stitches the hole shut.<br>
+Bowyer–Watson insertion builds a Delaunay triangulation one point at a time, on exact lattice predicates: each point tears out every triangle whose circumcircle it falls inside and stitches the hole shut.<br>
 <sub>Proximity · O(1) expected cavity; walks of about √n triangles in random order · computational geometry, Delaunay, Voronoi, Bowyer–Watson</sub>
 <br><sub>Pointer: Click to insert a point.</sub>
 </td>

@@ -20,7 +20,7 @@ related:
   - voronoi-diagram
 ---
 
-Bowyer–Watson builds a Delaunay triangulation one point at a time: each point tears out every triangle whose circumcircle it falls inside and stitches the hole shut.
+Bowyer–Watson insertion builds a Delaunay triangulation one point at a time, on exact lattice predicates: each point tears out every triangle whose circumcircle it falls inside and stitches the hole shut.
 
 Each new point walks from the last triangle built towards itself, crossing any edge it lies beyond, until it stands in a triangle. Every triangle whose circumcircle strictly contains the point is then removed (the highlighted cavity, with its circles) and the point is joined to the cavity's rim. What remains has empty circumcircles: the Delaunay triangulation, in which no edge flip can raise the smallest angle.
 
