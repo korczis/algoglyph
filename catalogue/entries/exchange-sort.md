@@ -2,7 +2,7 @@
 id: exchange-sort
 title: Exchange sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

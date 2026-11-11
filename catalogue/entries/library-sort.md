@@ -2,7 +2,7 @@
 id: library-sort
 title: Library sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

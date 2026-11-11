@@ -2,7 +2,7 @@
 id: weak-heapsort
 title: Weak-heapsort
 taxonomy: sorting/priority-queues
-status: planned
+status: live
 engine: array
 labs:
   - sorting

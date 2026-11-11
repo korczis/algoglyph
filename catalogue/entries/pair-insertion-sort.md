@@ -2,7 +2,7 @@
 id: pair-insertion-sort
 title: Pair insertion sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

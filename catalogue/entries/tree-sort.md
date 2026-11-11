@@ -2,7 +2,7 @@
 id: tree-sort
 title: Tree sort
 taxonomy: sorting/trees
-status: planned
+status: live
 engine: array
 labs:
   - sorting

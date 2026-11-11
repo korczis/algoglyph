@@ -2,7 +2,7 @@
 id: ipnsort
 title: ipnsort
 taxonomy: sorting/quicksort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

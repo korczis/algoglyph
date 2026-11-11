@@ -2,7 +2,7 @@
 id: randomized-quicksort
 title: Quicksort, random pivot
 taxonomy: sorting/quicksort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

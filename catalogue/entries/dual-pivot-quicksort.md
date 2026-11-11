@@ -2,7 +2,7 @@
 id: dual-pivot-quicksort
 title: Quicksort, dual pivot
 taxonomy: sorting/quicksort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -2,7 +2,7 @@
 id: patience-sorting
 title: Patience sorting
 taxonomy: sorting/trees
-status: planned
+status: live
 engine: array
 labs:
   - sorting

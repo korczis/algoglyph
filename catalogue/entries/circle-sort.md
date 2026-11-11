@@ -2,7 +2,7 @@
 id: circle-sort
 title: Circle sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

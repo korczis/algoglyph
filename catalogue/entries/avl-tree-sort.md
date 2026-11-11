@@ -2,7 +2,7 @@
 id: avl-tree-sort
 title: AVL tree sort
 taxonomy: sorting/trees
-status: planned
+status: live
 engine: array
 labs:
   - sorting

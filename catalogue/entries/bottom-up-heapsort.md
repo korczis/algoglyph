@@ -2,7 +2,7 @@
 id: bottom-up-heapsort
 title: Bottom-up heapsort
 taxonomy: sorting/priority-queues
-status: planned
+status: live
 engine: array
 labs:
   - sorting

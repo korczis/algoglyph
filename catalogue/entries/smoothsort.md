@@ -2,7 +2,7 @@
 id: smoothsort
 title: Smoothsort
 taxonomy: sorting/priority-queues
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -2,7 +2,7 @@
 id: gnome-sort
 title: Gnome sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

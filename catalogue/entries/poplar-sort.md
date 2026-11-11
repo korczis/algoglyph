@@ -2,7 +2,7 @@
 id: poplar-sort
 title: Poplar sort
 taxonomy: sorting/priority-queues
-status: planned
+status: live
 engine: array
 labs:
   - sorting

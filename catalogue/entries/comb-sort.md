@@ -2,7 +2,7 @@
 id: comb-sort
 title: Comb sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

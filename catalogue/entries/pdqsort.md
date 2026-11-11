@@ -2,7 +2,7 @@
 id: pdqsort
 title: Pattern-defeating quicksort
 taxonomy: sorting/quicksort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

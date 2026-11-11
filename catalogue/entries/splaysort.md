@@ -2,7 +2,7 @@
 id: splaysort
 title: Splaysort
 taxonomy: sorting/trees
-status: planned
+status: live
 engine: array
 labs:
   - sorting

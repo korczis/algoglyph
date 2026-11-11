@@ -2,7 +2,7 @@
 id: two-way-insertion-sort
 title: Two-way insertion sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

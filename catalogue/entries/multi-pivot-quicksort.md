@@ -2,7 +2,7 @@
 id: multi-pivot-quicksort
 title: Quicksort, multi-pivot
 taxonomy: sorting/quicksort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

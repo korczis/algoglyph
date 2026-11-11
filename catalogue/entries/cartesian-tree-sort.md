@@ -2,7 +2,7 @@
 id: cartesian-tree-sort
 title: Cartesian tree sort
 taxonomy: sorting/trees
-status: planned
+status: live
 engine: array
 labs:
   - sorting

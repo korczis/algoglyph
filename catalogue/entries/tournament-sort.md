@@ -2,7 +2,7 @@
 id: tournament-sort
 title: Tournament sort
 taxonomy: sorting/priority-queues
-status: planned
+status: live
 engine: array
 labs:
   - sorting

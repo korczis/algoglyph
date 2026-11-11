@@ -2,7 +2,7 @@
 id: double-selection-sort
 title: Double selection sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting

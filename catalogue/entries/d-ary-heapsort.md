@@ -2,7 +2,7 @@
 id: d-ary-heapsort
 title: d-ary heapsort
 taxonomy: sorting/priority-queues
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -2,7 +2,7 @@
 id: proportion-extend-sort
 title: Proportion extend sort
 taxonomy: sorting/quicksort
-status: planned
+status: live
 engine: array
 labs:
   - sorting
