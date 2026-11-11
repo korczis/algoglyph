@@ -1,14 +1,43 @@
 // The registry is discovered, never listed (ADR 0004 §3): a bespoke plate is
 // src/plates/<id>/plate.ts, an engine-driven one is src/kernels/<engine>/<id>.ts, and the
-// catalogue entry of the same id says which. Code is loaded on demand, so the gallery ships
-// the catalogue and nothing else.
-import { CATALOGUE, entry, lab as findLab, node, type Entry } from './core/catalogue';
+// catalogue entry of the same id says which. An array entry with no kernel file may instead be
+// mapped by a catalogue/<family>-sidecar.yaml to a compiled kernel, which the adapter
+// src/kernels/<family>-wasm/index.ts plays; the catalogue resolves the mapping (model.sidecar).
+// Code is loaded on demand, so the gallery ships the catalogue and nothing else.
+import {
+  CATALOGUE, entry, lab as findLab, node, type Catalogue, type Entry,
+} from './core/catalogue';
 import type { Plate, PlateCode } from './core/plate';
+import type { ArrayKernel } from './engines/array/trace';
 import type { Engine, KernelInfo } from './engines/types';
+
+/** The adapter contract of src/kernels/<family>-wasm/index.ts. */
+export type SidecarKernel = (entryId: string) => Promise<ArrayKernel>;
+/** Where a sidecar-mapped entry is played: the sidecar that maps it, the adapter directory. */
+export interface Backing {
+  sidecar: string;
+  adapter: string;
+}
+type Load<T> = () => Promise<T>;
+/** What kernel resolution reads; the defaults are this tree's files and catalogue. */
+export interface KernelSources {
+  kernels: Record<string, Load<unknown>>;
+  backing: Record<string, Backing>;
+  adapters: Record<string, Load<SidecarKernel>>;
+}
 
 const PLATES = import.meta.glob<PlateCode>('./plates/*/plate.ts', { import: 'default' });
 const KERNELS = import.meta.glob<unknown>('./kernels/*/[!_]*.ts', { import: 'kernel' });
 const ENGINES = import.meta.glob<Engine>('./engines/*/index.ts', { import: 'engine' });
+// A glob, not a literal import(): each adapter becomes its own lazy chunk, and the bundle
+// builds while no adapter exists.
+const ADAPTERS = import.meta.glob<SidecarKernel>('./kernels/*-wasm/index.ts',
+  { import: 'sidecarKernel' });
+const SOURCES: KernelSources = {
+  kernels: KERNELS,
+  backing: (CATALOGUE as Catalogue & { sidecar?: Record<string, Backing> }).sidecar ?? {},
+  adapters: ADAPTERS,
+};
 
 function info(e: Entry): KernelInfo {
   const shelf = node(e.taxonomy);
@@ -21,10 +50,33 @@ async function engine(id: string): Promise<Engine> {
   return load();
 }
 
+/**
+ * The lazy loader of an entry's kernel: its file src/kernels/<engine>/<id>.ts, else, for an
+ * entry a sidecar maps, the adapter's sidecarKernel(id). The catalogue maps only engines an
+ * adapter plays (array) and only entries without a file. Throws when neither exists, when
+ * both do, or when the mapped adapter is not in the tree.
+ */
+export function kernelLoader(
+  e: Pick<Entry, 'id' | 'engine'>, s: KernelSources = SOURCES,
+): Load<unknown> {
+  const file: Load<unknown> | undefined = s.kernels[`./kernels/${e.engine}/${e.id}.ts`];
+  const b: Backing | undefined = s.backing[e.id];
+  if (file !== undefined && b !== undefined) {
+    throw new Error(
+      `${e.id}: src/kernels/${e.engine}/${e.id}.ts and ${b.sidecar} both implement it`);
+  }
+  if (file) return file;
+  if (!b) throw new Error(`${e.id}: no src/kernels/${e.engine}/${e.id}.ts`);
+  const adapter = s.adapters[`./kernels/${b.adapter}/index.ts`];
+  if (!adapter) {
+    throw new Error(
+      `${e.id}: ${b.sidecar} maps it, but src/kernels/${b.adapter}/index.ts does not exist`);
+  }
+  return async () => (await adapter())(e.id);
+}
+
 async function kernel(e: Entry): Promise<unknown> {
-  const load = KERNELS[`./kernels/${e.engine}/${e.id}.ts`];
-  if (!load) throw new Error(`${e.id}: no src/kernels/${e.engine}/${e.id}.ts`);
-  return load();
+  return kernelLoader(e)();
 }
 
 async function code(e: Entry): Promise<PlateCode> {
