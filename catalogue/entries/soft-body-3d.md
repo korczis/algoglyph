@@ -6,6 +6,7 @@ status: live
 engine: custom
 sources:
   - id: matyka-pressure-soft-body
+    ref: arXiv physics/0407003
 tags:
   - mass-spring
   - Verlet

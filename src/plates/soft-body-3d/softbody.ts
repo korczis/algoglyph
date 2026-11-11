@@ -1,7 +1,7 @@
 // A mass-spring soft body. Point masses joined by damped Hookean springs, an optional ideal gas
-// enclosed by the body's surface (the pressure model of Matyka & Ollila, 2004), gravity along
-// -y and a ground plane at y = 0 with restitution and Coulomb friction. Integrated by velocity
-// Verlet (kick-drift-kick): symplectic for the conservative forces, second order.
+// enclosed by the body's surface (the pressure model of Matyka & Ollila, SIGRAD 2003), gravity
+// along -y and a ground plane at y = 0 with restitution and Coulomb friction. Integrated by
+// velocity Verlet (kick-drift-kick): symplectic for the conservative forces, second order.
 // Positions, velocities and forces are packed xyz arrays; y points up.
 
 export const STRUCTURAL = 0;

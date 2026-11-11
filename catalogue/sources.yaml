@@ -61,4 +61,7 @@ sources:
   - id: matyka-pressure-soft-body
     title: Pressure Model of Soft Body Simulation
     author: Maciej Matyka and Mark Ollila
+    publisher: SIGRAD 2003 (also arXiv physics/0407003)
+    year: 2003
     kind: paper
+    url: https://arxiv.org/abs/physics/0407003
