@@ -15,7 +15,7 @@ export const kernel: GeometryKernel = {
   counters: [['visit', 'Node visits'], ['compare', 'Key comparisons'], ['rangeVisit', 'Range query visits'],
     ['nearVisit', 'Nearest query visits'], ['dist', 'Distance computations']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     const box = g.input.box;
     g.base(dots(pts, { a: 130, r: 2 }));
@@ -28,7 +28,7 @@ export const kernel: GeometryKernel = {
         : line({ x: nd.cell.x0, y: p.y }, { x: nd.cell.x1, y: p.y }, { c: 0.35, w: 1.2 });
     };
     const tree = (): Mark[] => all.map(split);
-    pts.forEach((p, i) => {
+    for (const [i, p] of pts.entries()) {
       let cell: Box = { ...box };
       let parent: Node | null = null;
       let low = false;
@@ -47,12 +47,13 @@ export const kernel: GeometryKernel = {
       all.push(made);
       if (!parent) root = made; else if (low) parent.lo = made; else parent.hi = made;
       g.frame(() => [...tree(), ...dots([p], { c: 0.95, r: 4 })], 'insert: x and y alternate');
-    });
+      yield;
+    }
     // rectangle query
     const R = g.input.rect;
     const inside: number[] = [];
     const seen: Box[] = [];
-    const range = (nd: Node | null) => {
+    const range = function* (nd: Node | null): Generator<unknown, void> {
       if (!nd) return;
       g.count('visit'); g.count('rangeVisit');
       seen.push(nd.cell);
@@ -60,18 +61,19 @@ export const kernel: GeometryKernel = {
       if (inBox(p, R)) inside.push(nd.i);
       g.frame(() => [...tree(), ...seen.map((c) => rect(c, { fill: true, c: 0.15, a: 14 })),
         ...queryMarks(R, inside.map((k) => pts[k]))], 'rectangle query');
+      yield;
       const v = coord(p, nd.axis);
       const lo = nd.axis === 0 ? R.x0 : R.y0;
       const hi = nd.axis === 0 ? R.x1 : R.y1;
-      if (g.less(lo, v)) range(nd.lo);
-      if (!g.less(hi, v)) range(nd.hi);
+      if (g.less(lo, v)) yield* range(nd.lo);
+      if (!g.less(hi, v)) yield* range(nd.hi);
     };
-    range(root);
+    yield* range(root);
     const found = inside.map((k) => pts[k]);
     // nearest neighbour
     const Q = g.input.point;
     let best = -1; let bestD = Infinity;
-    const near = (nd: Node | null) => {
+    const near = function* (nd: Node | null): Generator<unknown, void> {
       if (!nd) return;
       g.count('visit'); g.count('nearVisit');
       const p = pts[nd.i];
@@ -83,10 +85,11 @@ export const kernel: GeometryKernel = {
       g.frame(() => [...tree(), ...queryMarks(R, found), rect(nd.cell, { c: 0.95, w: 2 }),
         { t: 'o', x: Q.x, y: Q.y, rad: r, c: 0.95, w: 1.5 }, ...dots([Q], { c: 0.95, r: 4.5 }),
         ...(b >= 0 ? [line(Q, pts[b], { c: 0.95, w: 2 })] : [])], 'nearest neighbour');
-      near(first);
-      if (diff * diff < bestD) near(second);
+      yield;
+      yield* near(first);
+      if (diff * diff < bestD) yield* near(second);
     };
-    near(root);
+    yield* near(root);
     const result: RangeResult = { inside, nearest: best < 0 ? undefined : best };
     g.last(() => [...tree(), ...queryMarks(R, found), ...dots([Q], { c: 0.95, r: 4.5 }),
       ...(best >= 0 ? [line(Q, pts[best], { c: 0.95, w: 2 }), { t: 'o' as const, x: Q.x, y: Q.y, rad: Math.sqrt(bestD), c: 0.95, w: 1.5 }] : [])],

@@ -28,7 +28,7 @@ export const kernel: GeometryKernel = {
   n: { min: 10, max: 4000, value: 900, step: 10 },
   params: [{ kind: 'range', key: 'size', label: 'Hexagon radius', min: 12, max: 120, step: 1, value: 42 }],
   counters: [['bin', 'Points binned'], ['dist', 'Distance computations']],
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     const s = Number(g.params.size ?? 42);
     const side = Math.sqrt(((3 * SQ3) / 2) * s * s); // the square of equal area
@@ -46,7 +46,7 @@ export const kernel: GeometryKernel = {
       }
       return out;
     };
-    pts.forEach((p, i) => {
+    for (const [i, p] of pts.entries()) {
       g.count('bin');
       const [q, r] = hexCell(p, s);
       cells.push([q, r]);
@@ -55,8 +55,8 @@ export const kernel: GeometryKernel = {
       sq.set(`${i0},${j0}`, (sq.get(`${i0},${j0}`) ?? 0) + 1);
       hexD += g.dist(p, hexCentre(q, r, s));
       sqD += g.dist(p, { x: (i0 + 0.5) * side, y: (j0 + 0.5) * side });
-      if (i % 8 === 0) g.frame(draw, 'bin into the nearest hexagon centre');
-    });
+      if (i % 8 === 0) { g.frame(draw, 'bin into the nearest hexagon centre'); yield; }
+    }
     g.last(draw, 'every point binned');
     const hist = (m: Map<string, number>) => {
       const h = new Map<number, number>();

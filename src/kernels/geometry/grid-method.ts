@@ -11,7 +11,7 @@ export const kernel: GeometryKernel = {
   params: RANGE_PARAMS,
   counters: [['test', 'Points tested'], ['cell', 'Cells visited'], ['bucket', 'Points bucketed']],
   scaling: [64, 128, 256, 512, 1024, 2048, 4096],
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     const B = g.input.box;
     const side = Math.sqrt(((B.x1 - B.x0) * (B.y1 - B.y0) * 2) / Math.max(1, pts.length));
@@ -40,6 +40,7 @@ export const kernel: GeometryKernel = {
           if (inBox(pts[k], R)) inside.push(k);
         }
         g.frame(() => [...visited.map((b) => rect(b, { fill: true, c: 0.6, a: 40 })), ...queryMarks(R, inside.map((k) => pts[k]))], 'visit an overlapping cell');
+        yield;
       }
     }
     const result: RangeResult = { inside };

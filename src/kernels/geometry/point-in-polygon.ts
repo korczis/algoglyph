@@ -11,7 +11,7 @@ export const kernel: GeometryKernel = {
   params: [{ kind: 'range', key: 'm', label: 'Polygon vertices', min: 6, max: 120, step: 2, value: 28 }],
   counters: [['edge', 'Edges examined'], ['orient', 'Orientation tests'], ['inside', 'Points inside']],
   scaling: [8, 16, 32, 64, 128, 256, 512],
-  run(g) {
+  *run(g) {
     const P = g.input.polygon;
     const Q = g.input.points;
     const right = g.input.box.x1;
@@ -35,6 +35,7 @@ export const kernel: GeometryKernel = {
         }
       }
       result.push(odd);
+      yield;
       if (odd) { g.count('inside'); inPts.push(p); } else outPts.push(p);
       g.frame(() => [...settled(), line(p, { x: right, y: p.y }, { a: 160, w: 1 }), ...dots(hits, { r: 3.5 }),
         ...dots([p], { c: odd ? 0.85 : 0.1, r: 5 })], `${hits.length} crossing${hits.length === 1 ? '' : 's'}: ${odd ? 'inside' : 'outside'}`);

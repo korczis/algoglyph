@@ -28,7 +28,7 @@ export const kernel: GeometryKernel = {
   task: 'projections',
   input: 'none',
   counters: [['proj', 'Projection evaluations'], ['node', 'Nodes measured']],
-  run(g) {
+  *run(g) {
     const panels: Box[] = [{ x0: 0, y0: 0, x1: 1, y1: 0.78 }, { x0: 1.12, y0: 0, x1: 2.12, y1: 0.78 }];
     g.view({ x0: -0.04, y0: -0.12, x1: 2.16, y1: 0.9 });
     const lats: number[] = []; const lons: number[] = [];
@@ -81,6 +81,7 @@ export const kernel: GeometryKernel = {
           range[i].lo = Math.min(range[i].lo, k); range[i].hi = Math.max(range[i].hi, k);
         }
         g.frame(nodeMarks, `measure the scale at ${la.toFixed(2)}° N, ${lo.toFixed(2)}° E`);
+        yield;
       }
     }
     g.last(nodeMarks, 'every node measured');

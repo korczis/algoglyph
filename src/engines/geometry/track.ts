@@ -51,6 +51,22 @@ const ALIGN = { l: 1, c: 2, r: 3 } as const;
 const opt = (v: number | undefined) => (v === undefined ? NaN : v);
 const back = (v: number) => (Number.isNaN(v) ? undefined : v);
 
+/** One frame's marks as a flat array (strings of text marks beside it). */
+export interface Packed { data: Float64Array; strings: string[] }
+
+export function pack(marks: Mark[]): Packed {
+  let size = 0;
+  for (const m of marks) size += 5 + (m.t === 'g' ? 1 + m.pts.length : 4);
+  const data = new Float64Array(size);
+  const strings: string[] = [];
+  writeMarks(marks, data, 0, strings);
+  return { data, strings };
+}
+
+export function unpack(p: Packed): Mark[] {
+  return readMarks(p.data, 0, p.data.length, p.strings);
+}
+
 export function encode(t: Trace): { enc: Encoded; transfer: ArrayBuffer[] } {
   const keys = Object.keys(t.counts);
   let size = 0;
@@ -63,20 +79,7 @@ export function encode(t: Trace): { enc: Encoded; transfer: ArrayBuffer[] } {
   t.frames.forEach((f, fi) => {
     starts[fi] = k;
     keys.forEach((key, j) => { counts[fi * keys.length + j] = f.counts[key] ?? 0; });
-    for (const m of f.marks) {
-      data[k++] = KIND[m.t];
-      data[k++] = opt(m.c);
-      data[k++] = opt(m.a);
-      data[k++] = m.t === 'p' ? opt(m.r) : m.t === 'x' ? NaN : opt(m.w);
-      data[k++] = ('fill' in m && m.fill ? 1 : 0) + ('close' in m && m.close ? 2 : 0) + (m.t === 'x' ? 4 * (m.align ? ALIGN[m.align] : 0) : 0);
-      switch (m.t) {
-        case 'p': data[k++] = m.x; data[k++] = m.y; data[k++] = 0; data[k++] = 0; break;
-        case 'l': case 'r': data[k++] = m.x0; data[k++] = m.y0; data[k++] = m.x1; data[k++] = m.y1; break;
-        case 'o': data[k++] = m.x; data[k++] = m.y; data[k++] = m.rad; data[k++] = 0; break;
-        case 'x': data[k++] = m.x; data[k++] = m.y; data[k++] = strings.push(m.s) - 1; data[k++] = 0; break;
-        case 'g': data[k++] = m.pts.length; data.set(m.pts, k); k += m.pts.length; break;
-      }
-    }
+    k = writeMarks(f.marks, data, k, strings);
   });
   starts[t.frames.length] = k;
   return {
@@ -89,10 +92,30 @@ export function encode(t: Trace): { enc: Encoded; transfer: ArrayBuffer[] } {
 }
 
 export function decode(e: Encoded, fi: number): Mark[] {
+  return readMarks(e.data, e.starts[fi], e.starts[fi + 1], e.strings);
+}
+
+function writeMarks(marks: Mark[], data: Float64Array, k: number, strings: string[]): number {
+  for (const m of marks) {
+    data[k++] = KIND[m.t];
+    data[k++] = opt(m.c);
+    data[k++] = opt(m.a);
+    data[k++] = m.t === 'p' ? opt(m.r) : m.t === 'x' ? NaN : opt(m.w);
+    data[k++] = ('fill' in m && m.fill ? 1 : 0) + ('close' in m && m.close ? 2 : 0) + (m.t === 'x' ? 4 * (m.align ? ALIGN[m.align] : 0) : 0);
+    switch (m.t) {
+      case 'p': data[k++] = m.x; data[k++] = m.y; data[k++] = 0; data[k++] = 0; break;
+      case 'l': case 'r': data[k++] = m.x0; data[k++] = m.y0; data[k++] = m.x1; data[k++] = m.y1; break;
+      case 'o': data[k++] = m.x; data[k++] = m.y; data[k++] = m.rad; data[k++] = 0; break;
+      case 'x': data[k++] = m.x; data[k++] = m.y; data[k++] = strings.push(m.s) - 1; data[k++] = 0; break;
+      case 'g': data[k++] = m.pts.length; data.set(m.pts, k); k += m.pts.length; break;
+    }
+  }
+  return k;
+}
+
+function readMarks(d: Float64Array, start: number, end: number, strings: string[]): Mark[] {
   const out: Mark[] = [];
-  const d = e.data;
-  let k = e.starts[fi];
-  const end = e.starts[fi + 1];
+  let k = start;
   while (k < end) {
     const kind = d[k]; const c = back(d[k + 1]); const a = back(d[k + 2]); const w = back(d[k + 3]); const flags = d[k + 4];
     k += 5;
@@ -111,7 +134,7 @@ export function decode(e: Encoded, fi: number): Mark[] {
     else if (kind === KIND.o) out.push({ t: 'o', x: x0, y: y0, rad: x1, fill, c, a, w });
     else {
       const al = (flags >> 2) & 3;
-      out.push({ t: 'x', x: x0, y: y0, s: e.strings[x1], c, a, align: al === 1 ? 'l' : al === 2 ? 'c' : al === 3 ? 'r' : undefined });
+      out.push({ t: 'x', x: x0, y: y0, s: strings[x1], c, a, align: al === 1 ? 'l' : al === 2 ? 'c' : al === 3 ? 'r' : undefined });
     }
   }
   return out;
@@ -140,5 +163,28 @@ export function fromEncoded(e: Encoded): Track {
       return out;
     },
     note: (i) => e.notes[i] ?? '',
+  };
+}
+
+/** A finished run whose frames were packed as they were recorded. */
+export function fromPacked(r: { base: Mark[]; view: Box; final: Counts; rows: Stat[]; chart: Chart | undefined;
+  frames: { packed: Packed; counts: Counts; note: string }[] }): Track {
+  let cached = -1;
+  let cache: Mark[] = [];
+  return {
+    length: r.frames.length,
+    base: r.base,
+    view: r.view,
+    final: r.final,
+    rows: r.rows,
+    chart: r.chart,
+    marks(i) {
+      const f = r.frames[i];
+      if (!f) return [];
+      if (i !== cached) { cache = unpack(f.packed); cached = i; }
+      return cache;
+    },
+    counts: (i) => r.frames[i]?.counts ?? r.final,
+    note: (i) => r.frames[i]?.note ?? '',
   };
 }

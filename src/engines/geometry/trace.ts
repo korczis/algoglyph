@@ -4,6 +4,7 @@
 // the readouts are the counts each frame carries, taken at the moment it was recorded.
 import type { Chart, Params, ParamDef, Stat } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
+import { pack, type Packed } from './track';
 
 export interface Pt { x: number; y: number }
 export interface Seg { a: Pt; b: Pt }
@@ -108,7 +109,11 @@ export interface GeometryKernel {
   counters: [string, string][];
   /** Sizes for the measured scaling chart, when the kernel has no chart of its own. */
   scaling?: number[];
-  run(g: Geo): Outcome;
+  /**
+   * The algorithm, as a generator: it yields after every bounded piece of work (about O(n)
+   * operations), so a run can be drained at once or resumed a few milliseconds per frame.
+   */
+  run(g: Geo): Generator<unknown, Outcome, unknown>;
 }
 
 export interface Trace {
@@ -125,52 +130,123 @@ export interface Trace {
 export const FRAME_CAP = 1200;
 export const MARK_CAP = 200_000;
 
-/** Run `kernel` on `input`, counting every primitive and keeping (a sample of) its frames. */
+/**
+ * One run of a kernel on an input, counting every primitive and keeping (a sample of) its
+ * frames. `step()` resumes the kernel to its next yield; the frames, base and view recorded so
+ * far are readable while it runs.
+ */
+export class Recording {
+  frames: Frame[] = [];
+  /** The frames, packed as recorded, when the recording is `packed` (a plate's own builds:
+   * a few flat arrays instead of many small objects keep garbage collection out of frames). */
+  packedFrames: { packed: Packed; counts: Counts; note: string }[] = [];
+  base: Mark[] = [];
+  view: Box;
+  done = false;
+  private readonly counts: Counts = {};
+  private readonly it: Generator<unknown, Outcome, unknown>;
+  private outcome: Outcome = { result: null };
+
+  constructor(kernel: GeometryKernel, readonly input: Input, params: Params, seed: number, readonly recording = true,
+    readonly packed = false) {
+    const counts = this.counts;
+    for (const [k] of kernel.counters) counts[k] = 0;
+    const bump = (k: string, by = 1) => { counts[k] = (counts[k] ?? 0) + by; };
+    this.view = input.box;
+    let stride = 1;
+    let seen = 0;
+    let kept = 0;
+    let sizes: number[] = [];
+    const g: Geo = {
+      input,
+      params,
+      rnd: mulberry32(seed ^ 0x5bd1e995),
+      recording,
+      count: bump,
+      orient(a, b, c) { bump('orient'); return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); },
+      dist2(a, b) { bump('dist'); const dx = a.x - b.x; const dy = a.y - b.y; return dx * dx + dy * dy; },
+      dist(a, b) { bump('dist'); return Math.hypot(a.x - b.x, a.y - b.y); },
+      less(x, y) { bump('compare'); return x < y; },
+      base: (m) => { if (recording) this.base = m; },
+      view: (b) => { this.view = b; },
+      frame: (make, note = '') => {
+        if (!recording || seen++ % stride !== 0) return;
+        const marks = make();
+        this.keep(marks, note);
+        kept += marks.length;
+        sizes.push(marks.length);
+        while (this.size > 2 && (this.size > FRAME_CAP || kept > MARK_CAP)) {
+          const even = (_: unknown, i: number) => i % 2 === 0;
+          if (packed) this.packedFrames = this.packedFrames.filter(even); else this.frames = this.frames.filter(even);
+          sizes = sizes.filter(even);
+          kept = sizes.reduce((t, v) => t + v, 0);
+          stride *= 2;
+        }
+      },
+      last: (make, note = '') => {
+        if (recording) { const marks = make(); this.keep(marks, note); sizes.push(marks.length); }
+      },
+    };
+    this.it = kernel.run(g);
+  }
+
+  private keep(marks: Mark[], note: string): void {
+    if (this.packed) this.packedFrames.push({ packed: pack(marks), counts: { ...this.counts }, note });
+    else this.frames.push({ marks, counts: { ...this.counts }, note });
+  }
+
+  /** Frames kept so far. */
+  get size(): number { return this.packed ? this.packedFrames.length : this.frames.length; }
+
+  /** Counts and note of the latest frame. */
+  private latest(): { counts: Counts; note: string } | undefined {
+    return this.packed ? this.packedFrames[this.packedFrames.length - 1] : this.frames[this.frames.length - 1];
+  }
+
+  /** Resume to the next yield; true once the run has finished. */
+  step(): boolean {
+    if (this.done) return true;
+    const r = this.it.next();
+    if (!r.done) return false;
+    this.outcome = r.value;
+    this.done = true;
+    if (this.recording) {
+      const last = this.latest();
+      const same = last && Object.keys(this.counts).every((k) => last.counts[k] === this.counts[k]);
+      if (!same) {
+        const note = last?.note ?? '';
+        if (this.packed) {
+          const prev = this.packedFrames[this.packedFrames.length - 1];
+          this.packedFrames.push({ packed: prev ? prev.packed : pack([]), counts: { ...this.counts }, note });
+        } else this.frames.push({ marks: this.frames[this.frames.length - 1]?.marks ?? [], counts: { ...this.counts }, note });
+      }
+    }
+    return true;
+  }
+
+  /** Resume until the run finishes or the clock passes `deadline` (performance.now()). */
+  until(deadline: number): boolean {
+    while (!this.step()) if (performance.now() >= deadline) return false;
+    return true;
+  }
+
+  /** The counts so far. */
+  get work(): Counts { return { ...this.counts }; }
+
+  /** The outcome, once done. */
+  get result(): Outcome { return this.outcome; }
+
+  trace(): Trace {
+    return { input: this.input, base: this.base, frames: this.frames, view: this.view, counts: { ...this.counts }, outcome: this.outcome };
+  }
+}
+
+/** Run `kernel` on `input` to the end at once. */
 export function record(kernel: GeometryKernel, input: Input, params: Params, seed: number,
   recording = true): Trace {
-  const counts: Counts = {};
-  for (const [k] of kernel.counters) counts[k] = 0;
-  const bump = (k: string, by = 1) => { counts[k] = (counts[k] ?? 0) + by; };
-  let frames: Frame[] = [];
-  let base: Mark[] = [];
-  let view = input.box;
-  let stride = 1;
-  let seen = 0;
-  let kept = 0;
-  const g: Geo = {
-    input,
-    params,
-    rnd: mulberry32(seed ^ 0x5bd1e995),
-    recording,
-    count: bump,
-    orient(a, b, c) { bump('orient'); return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); },
-    dist2(a, b) { bump('dist'); const dx = a.x - b.x; const dy = a.y - b.y; return dx * dx + dy * dy; },
-    dist(a, b) { bump('dist'); return Math.hypot(a.x - b.x, a.y - b.y); },
-    less(x, y) { bump('compare'); return x < y; },
-    base(m) { if (recording) base = m; },
-    view(b) { view = b; },
-    frame(make, note = '') {
-      if (!recording || seen++ % stride !== 0) return;
-      const marks = make();
-      frames.push({ marks, counts: { ...counts }, note });
-      kept += marks.length;
-      while (frames.length > 2 && (frames.length > FRAME_CAP || kept > MARK_CAP)) {
-        frames = frames.filter((_, i) => i % 2 === 0);
-        kept = frames.reduce((t, f) => t + f.marks.length, 0);
-        stride *= 2;
-      }
-    },
-    last(make, note = '') {
-      if (recording) frames.push({ marks: make(), counts: { ...counts }, note });
-    },
-  };
-  const outcome = kernel.run(g);
-  if (recording) {
-    const last = frames[frames.length - 1];
-    const same = last && Object.keys(counts).every((k) => last.counts[k] === counts[k]);
-    if (!same) frames.push({ marks: last ? last.marks : [], counts: { ...counts }, note: last?.note ?? '' });
-  }
-  return { input, base, frames, view, counts: { ...counts }, outcome };
+  const r = new Recording(kernel, input, params, seed, recording);
+  while (!r.step());
+  return r.trace();
 }
 
 // Small helpers kernels share for building marks.

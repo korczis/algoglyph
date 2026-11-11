@@ -15,7 +15,7 @@ export const kernel: GeometryKernel = {
   ],
   counters: [['dist', 'Distance computations'], ['query', 'Neighbourhood queries'], ['core', 'Core points']],
   scaling: [64, 128, 256, 512, 1024],
-  run(g) {
+  *run(g) {
     const P = g.input.points;
     const n = P.length;
     const eps = Number(g.params.eps ?? 45);
@@ -40,7 +40,7 @@ export const kernel: GeometryKernel = {
     for (let i = 0; i < n; i++) {
       if (label[i] !== UNSEEN) continue;
       const N = region(i);
-      if (N.length < minPts) { label[i] = NOISE; g.frame(() => marks(i), 'too few neighbours: noise for now'); continue; }
+      if (N.length < minPts) { label[i] = NOISE; g.frame(() => marks(i), 'too few neighbours: noise for now'); yield; continue; }
       const c = clusters++;
       label[i] = c; core[i] = 1; g.count('core');
       const queue = N.filter((j) => j !== i);
@@ -56,6 +56,7 @@ export const kernel: GeometryKernel = {
           for (const q of M) if (label[q] === UNSEEN || label[q] === NOISE) queue.push(q);
         }
         g.frame(() => marks(j), core[j] ? 'core point: its neighbours join' : 'border point');
+        yield;
       }
     }
     g.last(() => marks(-1), 'every point labelled');

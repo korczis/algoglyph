@@ -13,7 +13,7 @@ export const kernel: GeometryKernel = {
   n: { min: 2, max: 400, value: 60, step: 2, label: 'Segments' },
   counters: [['visit', 'Tree node visits'], ['pop', 'Events'], ['compare', 'Comparisons'], ['found', 'Intersections']],
   scaling: [16, 32, 64, 128, 256, 512, 1024],
-  run(g) {
+  *run(g) {
     const S = g.input.segments;
     const top = g.input.box.y1; const bottom = g.input.box.y0;
     g.base(segMarks(S, { a: 110, w: 1 }));
@@ -80,6 +80,7 @@ export const kernel: GeometryKernel = {
         query(root, Math.min(s.a.y, s.b.y), Math.max(s.a.y, s.b.y), e.s);
       }
       g.frame(() => show(e.x, e.kind === 1 ? e.s : -1), e.kind === 0 ? 'insert a horizontal' : e.kind === 2 ? 'remove a horizontal' : 'range query for a vertical');
+      yield;
     }
     g.last(() => dots(hits, { c: 0.15, r: 3.5 }), 'sweep complete');
     return { result: found, rows: [{ label: 'Intersections found', value: String(found.length) }] };

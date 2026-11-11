@@ -10,7 +10,7 @@ export const kernel: GeometryKernel = {
   n: { min: 2, max: 200, value: 40, step: 1, label: 'Segments' },
   counters: [['orient', 'Orientation tests'], ['pairs', 'Pairs tested'], ['found', 'Intersecting pairs']],
   scaling: [8, 16, 32, 64, 128, 256],
-  run(g) {
+  *run(g) {
     const S = g.input.segments;
     g.base(segMarks(S, { a: 120, w: 1 }));
     const found: [number, number][] = [];
@@ -18,6 +18,7 @@ export const kernel: GeometryKernel = {
     for (let i = 0; i < S.length; i++) {
       for (let j = i + 1; j < S.length; j++) {
         g.count('pairs');
+        yield;
         const hit = intersects(g, S[i], S[j]);
         if (hit) {
           g.count('found');

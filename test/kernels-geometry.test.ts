@@ -8,6 +8,7 @@ import { PALETTES } from '../src/core/palette';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
 import { engine } from '../src/engines/geometry/index';
+import { buildNow, Scaling, startBuild } from '../src/engines/geometry/build';
 import { encode, fromEncoded, fromTrace } from '../src/engines/geometry/track';
 import { krovak, krovakInverse, krovakSW } from '../src/kernels/geometry/_projections';
 import { fromPoints, makeInput } from '../src/engines/geometry/input';
@@ -601,5 +602,40 @@ describe('Křovák against the EPSG worked example', () => {
     const [la, lo] = krovakInverse(E, N);
     expect(Math.abs(la - lat) * 3600).toBeLessThan(1e-6);
     expect(Math.abs(lo - lon) * 3600).toBeLessThan(1e-6);
+  });
+});
+
+describe('geometry runs built in slices', () => {
+  const norm = (m: object) => Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined && v !== false));
+  for (const e of live) {
+    it(`${e.id}: one step per frame gives the same run as building it at once`, () => {
+      const k = kernelOf(e.id);
+      const params = Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value]));
+      const req = { id: e.id, kernel: k, shape: (k.shapes ?? [])[0] ?? defaultShape(k), n: k.input === 'none' ? 0 : (k.n?.value ?? 50), seed: 13, params };
+      const whole = buildNow(req);
+      const b = startBuild(req, false);
+      let frames = 0;
+      while (!b.track) { b.pump(0); frames++; }
+      expect(frames, `${e.id} is resumable`).toBeGreaterThan(1);
+      const t = b.track;
+      expect(t.length).toBe(whole.length);
+      expect(t.final).toEqual(whole.final);
+      expect(t.rows).toEqual(whole.rows);
+      for (let i = 0; i < t.length; i += Math.max(1, Math.floor(t.length / 20))) {
+        expect(t.marks(i).map(norm)).toEqual(whole.marks(i).map(norm));
+        expect(t.counts(i)).toEqual(whole.counts(i));
+      }
+    });
+  }
+
+  it('scaling points are counted operations, the same however the work is sliced', () => {
+    for (const e of live.filter((x) => kernelOf(x.id).scaling)) {
+      const k = kernelOf(e.id);
+      const sizes = (k.scaling ?? []).slice(0, 3);
+      const s = new Scaling(k, sizes, (k.shapes ?? [])[0] ?? defaultShape(k), 21, {});
+      while (!s.done) s.pump(0);
+      const want = sizes.map((n) => [n, record(k, makeInput(k.input, (k.shapes ?? [])[0] ?? defaultShape(k), n, 21 + n, {}), {}, 21 + n, false).counts[k.counters[0][0]]]);
+      expect(s.points, e.id).toEqual(want);
+    }
   });
 });

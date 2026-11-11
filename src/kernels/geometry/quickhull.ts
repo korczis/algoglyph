@@ -10,7 +10,7 @@ export const kernel: GeometryKernel = {
   n: HULL_N,
   counters: HULL_COUNTERS,
   scaling: HULL_SCALING,
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     g.base(base(pts));
     const small = trivial(pts);
@@ -27,7 +27,7 @@ export const kernel: GeometryKernel = {
     };
     // the counter-clockwise hull chain from P to Q (Q excluded) through the points S right of
     // P→Q, that is outside the hull found so far
-    const side = (P: Pt, Q: Pt, S: Pt[]): Pt[] => {
+    const side = function* (P: Pt, Q: Pt, S: Pt[]): Generator<unknown, Pt[]> {
       if (!S.length) { edges.push([P, Q]); show([], []); return [P]; }
       let C = S[0]; let best = -1;
       for (const p of S) {
@@ -37,13 +37,16 @@ export const kernel: GeometryKernel = {
         if (d > best || (d === best && along(p) > along(C))) { best = d; C = p; }
       }
       show([P, C, Q], S);
+      yield;
       const left: Pt[] = []; const right: Pt[] = [];
       for (const p of S) {
         if (p === C) continue;
         if (g.orient(P, C, p) < 0) left.push(p);
         else if (g.orient(C, Q, p) < 0) right.push(p);
       }
-      return [...side(P, C, left), ...side(C, Q, right)];
+      const a = yield* side(P, C, left);
+      const b = yield* side(C, Q, right);
+      return [...a, ...b];
     };
     const upper: Pt[] = []; const lower: Pt[] = [];
     for (const p of pts) {
@@ -51,7 +54,7 @@ export const kernel: GeometryKernel = {
       const d = g.orient(A, B, p);
       if (d > 0) upper.push(p); else if (d < 0) lower.push(p);
     }
-    const h = A === B ? [A] : [...side(A, B, lower), ...side(B, A, upper)];
+    const h = A === B ? [A] : [...(yield* side(A, B, lower)), ...(yield* side(B, A, upper))];
     g.last(() => finalHull(h), 'hull closed');
     return { result: h, rows: hullRows(h, pts) };
   },

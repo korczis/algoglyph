@@ -18,7 +18,7 @@ export const kernel: GeometryKernel = {
   params: [...RANGE_PARAMS, { kind: 'range', key: 'M', label: 'Entries per node (M)', min: 4, max: 16, step: 1, value: 6 }],
   counters: [['visit', 'Node visits'], ['area', 'Area computations'], ['split', 'Node splits'], ['rangeVisit', 'Range query visits'], ['box', 'Rectangle tests']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     const M = Math.max(4, Number(g.params.M ?? 6));
     const m = Math.max(2, Math.floor(M * 0.4));
@@ -98,7 +98,7 @@ export const kernel: GeometryKernel = {
       if (root) walk(root, 0);
       return out;
     };
-    pts.forEach((p, i) => {
+    for (const [i, p] of pts.entries()) {
       if (!root) { root = { leaf: true, box: pbox(i), kids: [], items: [i] }; g.count('visit'); } else {
         const sib = insert(root, i);
         if (sib) {
@@ -108,21 +108,23 @@ export const kernel: GeometryKernel = {
         }
       }
       g.frame(() => [...marks(), ...dots([p], { c: 0.95, r: 4 })], 'insert where the rectangle grows least');
-    });
+      yield;
+    }
     const R = g.input.rect;
     const inside: number[] = [];
     const hits: Box[] = [];
-    const search = (nd: RNode) => {
+    const search = function* (nd: RNode): Generator<unknown, void> {
       g.count('visit'); g.count('rangeVisit');
       hits.push(nd.box);
       g.frame(() => [...marks(), ...hits.map((b) => rect(b, { fill: true, c: 0.15, a: 22 })), ...queryMarks(R, inside.map((k) => pts[k]))], 'descend into overlapping rectangles');
+      yield;
       if (nd.leaf) {
         for (const k of nd.items) { g.count('box'); if (inBox(pts[k], R)) inside.push(k); }
       } else {
-        for (const k of nd.kids) { g.count('box'); if (meets(k.box, R)) search(k); }
+        for (const k of nd.kids) { g.count('box'); if (meets(k.box, R)) yield* search(k); }
       }
     };
-    if (root) { g.count('box'); if (meets((root as RNode).box, R)) search(root); }
+    if (root) { g.count('box'); if (meets((root as RNode).box, R)) yield* search(root); }
     const result: RangeResult & { root: RNode | null; M: number; m: number } = { inside, root, M, m };
     g.last(() => [...marks(), ...hits.map((b) => rect(b, { fill: true, c: 0.15, a: 22 })), ...queryMarks(R, inside.map((k) => pts[k]))], 'query answered');
     return {

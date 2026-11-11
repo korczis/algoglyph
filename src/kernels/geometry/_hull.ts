@@ -29,7 +29,7 @@ export function angularOrder(g: Geo, o: Pt, pts: Pt[]): Pt[] {
 }
 
 /** Graham's scan over an angular order; drops collinear points, so only corners remain. */
-export function grahamStack(g: Geo, o: Pt, order: Pt[], extra: () => Mark[] = () => []): Pt[] {
+export function* grahamStack(g: Geo, o: Pt, order: Pt[], extra: () => Mark[] = () => []): Generator<unknown, Pt[]> {
   const st: Pt[] = [o];
   for (const p of order) {
     while (st.length >= 2 && g.orient(st[st.length - 2], st[st.length - 1], p) <= 0) {
@@ -38,6 +38,7 @@ export function grahamStack(g: Geo, o: Pt, order: Pt[], extra: () => Mark[] = ()
     }
     st.push(p);
     g.frame(() => [...extra(), poly(st, { c: HULL_C, w: 2 }), ...dots([p], { c: HULL_C, r: 4 })], 'push');
+    yield;
   }
   return st;
 }

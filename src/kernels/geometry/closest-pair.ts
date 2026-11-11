@@ -9,7 +9,7 @@ export const kernel: GeometryKernel = {
   n: { min: 2, max: 2000, value: 160, step: 1 },
   counters: [['dist', 'Distance computations'], ['compare', 'Comparisons']],
   scaling: [64, 128, 256, 512, 1024, 2048, 4096],
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     const B = g.input.box;
     g.base(dots(pts, { a: 150, r: 2 }));
@@ -22,15 +22,15 @@ export const kernel: GeometryKernel = {
     };
     const bestMarks = () => (pair[0] >= 0 ? [line(pts[pair[0]], pts[pair[1]], { c: 0.05, w: 3 }), ...dots([pts[pair[0]], pts[pair[1]]], { c: 0.05, r: 4.5 })] : []);
     // solve idx[lo, hi), returning those indices sorted by y
-    const solve = (lo: number, hi: number): number[] => {
+    const solve = function* (lo: number, hi: number): Generator<unknown, number[]> {
       if (hi - lo <= 3) {
         for (let i = lo; i < hi; i++) for (let j = i + 1; j < hi; j++) consider(idx[i], idx[j]);
         return idx.slice(lo, hi).sort((a, b) => pts[a].y - pts[b].y);
       }
       const mid = (lo + hi) >> 1;
       const cut = pts[idx[mid]].x;
-      const L = solve(lo, mid);
-      const R = solve(mid, hi);
+      const L = yield* solve(lo, mid);
+      const R = yield* solve(mid, hi);
       const merged: number[] = [];
       let i = 0; let j = 0;
       while (i < L.length || j < R.length) {
@@ -46,9 +46,10 @@ export const kernel: GeometryKernel = {
         rect({ x0: cut - w, y0: B.y0, x1: cut + w, y1: B.y1 }, { fill: true, c: 0.3, a: 40 }),
         line({ x: cut, y: B.y0 }, { x: cut, y: B.y1 }, { c: 0.3, w: 1.5 }),
         ...dots(strip.map((k) => pts[k]), { c: 0.3, r: 3 }), ...bestMarks()], `combine ${hi - lo} points across the cut`);
+      yield;
       return merged;
     };
-    if (pts.length >= 2) solve(0, pts.length);
+    if (pts.length >= 2) yield* solve(0, pts.length);
     g.last(bestMarks, 'closest pair');
     return {
       result: { d: best, pair },

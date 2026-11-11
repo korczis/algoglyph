@@ -16,7 +16,7 @@ export const kernel: GeometryKernel = {
   n: { min: 2, max: 300, value: 60, step: 1, label: 'Segments' },
   counters: [['orient', 'Orientation tests'], ['pop', 'Event pops'], ['compare', 'Status comparisons'], ['found', 'Crossings']],
   scaling: [16, 32, 64, 128, 256, 512, 1024],
-  run(g) {
+  *run(g) {
     const S = g.input.segments;
     const top = g.input.box.y1; const bottom = g.input.box.y0;
     g.base(segMarks(S, { a: 110, w: 1 }));
@@ -78,6 +78,7 @@ export const kernel: GeometryKernel = {
       }
       const ex = e.x; const ey = e.y;
       g.frame(() => show(ex, { x: ex, y: ey }), e.kind === 0 ? 'left end: insert, test both neighbours' : e.kind === 2 ? 'right end: remove, test the pair that closes up' : 'crossing: swap, test the new neighbours');
+      yield;
     }
     g.last(() => dots(hits, { c: 0.05, r: 3.5 }), 'sweep complete');
     return { result: found, rows: [{ label: 'Crossings found', value: String(found.length) }] };

@@ -11,7 +11,7 @@ export const kernel: GeometryKernel = {
   n: HULL_N,
   counters: [...HULL_COUNTERS, ['eliminated', 'Points eliminated']],
   scaling: HULL_SCALING,
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     g.base(base(pts));
     const small = trivial(pts);
@@ -30,11 +30,14 @@ export const kernel: GeometryKernel = {
       }
       if (inside) { out.push(p); g.count('eliminated'); } else kept.push(p);
       g.frame(() => [...quad, ...dots(out, { c: 0.1, a: 200, r: 2.5 })], 'eliminate the interior');
+      yield;
     }
     const dropped = out.slice();
     const extra = () => [...quad, ...dots(dropped, { c: 0.1, a: 120, r: 2 })];
     const o = kept[anchorIndex(kept)];
-    const h = grahamStack(g, o, angularOrder(g, o, kept), extra);
+    const order = angularOrder(g, o, kept);
+    yield;
+    const h = yield* grahamStack(g, o, order, extra);
     g.last(() => finalHull(h, extra()), 'hull closed');
     return { result: h, rows: [...hullRows(h, pts), { label: 'Survivors scanned', value: String(kept.length) }] };
   },

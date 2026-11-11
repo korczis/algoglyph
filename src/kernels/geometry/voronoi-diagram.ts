@@ -27,7 +27,7 @@ export const kernel: GeometryKernel = {
   n: { min: 3, max: 800, value: 90, step: 1 },
   counters: [['incircle', 'In-circle tests'], ['orient', 'Orientation tests'], ['flip', 'Edge flips'], ['compare', 'Sort comparisons']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
-  run(g) {
+  *run(g) {
     const P = g.input.points;
     const n = P.length;
     g.base(dots(P, { a: 170, r: 2.2 }));
@@ -43,7 +43,7 @@ export const kernel: GeometryKernel = {
       }
       return out;
     };
-    const legalize = (a: number, b: number, p: number) => {
+    const legalize = function* (a: number, b: number, p: number): Generator<unknown, void> {
       const d = tri.get(b * n + a);
       if (d === undefined) return;
       g.count('incircle');
@@ -52,8 +52,9 @@ export const kernel: GeometryKernel = {
       del(a, b, p); del(b, a, d);
       add(a, d, p); add(d, b, p);
       g.frame(() => [...edges(), line(P[p], P[d], { c: 0.05, w: 2.5 })], 'flip an illegal edge');
-      legalize(a, d, p);
-      legalize(d, b, p);
+      yield;
+      yield* legalize(a, d, p);
+      yield* legalize(d, b, p);
     };
     const next = new Int32Array(n).fill(-1);
     const prev = new Int32Array(n).fill(-1);
@@ -85,9 +86,10 @@ export const kernel: GeometryKernel = {
         const fan: [number, number][] = [];
         for (let e = L; e !== R; e = next[e]) fan.push([e, next[e]]);
         for (const [e, f] of fan) add(f, e, q);
-        for (const [e, f] of fan) legalize(f, e, q);
+        for (const [e, f] of fan) yield* legalize(f, e, q);
         next[L] = q; prev[q] = L; next[q] = R; prev[R] = q;
         g.frame(() => [...edges(), ...dots([P[q]], { c: 0.05, r: 4.5 })], 'insert, join to the visible hull edges');
+        yield;
       }
     }
     const triangles: [number, number, number][] = [];
@@ -119,6 +121,7 @@ export const kernel: GeometryKernel = {
     for (let i = 1; i <= 24; i++) {
       const cut = Math.ceil((vor.length * i) / 24);
       g.frame(() => [...delaunay, ...vor.slice(0, cut)], 'the dual: Voronoi edges between circumcentres');
+      yield;
     }
     g.last(() => [...delaunay, ...vor, ...dots(P, { c: 0.1, r: 2.6 })], 'Delaunay triangulation and Voronoi diagram');
     return {

@@ -11,7 +11,7 @@ export const kernel: GeometryKernel = {
   n: { min: 10, max: 2000, value: 400, step: 10 },
   params: [{ kind: 'range', key: 'k', label: 'Clusters k', min: 2, max: 12, step: 1, value: 5 }],
   counters: [['dist', 'Distance computations'], ['iter', 'Lloyd iterations'], ['moved', 'Reassignments']],
-  run(g) {
+  *run(g) {
     const P = g.input.points;
     const n = P.length;
     const k = Math.max(1, Math.min(n, Number(g.params.k ?? 5)));
@@ -24,6 +24,7 @@ export const kernel: GeometryKernel = {
     // seeding
     centres.push({ ...P[Math.floor(g.rnd() * n)] });
     while (centres.length < k) {
+      yield;
       const c = centres[centres.length - 1];
       let total = 0;
       for (let i = 0; i < n; i++) { d2[i] = Math.min(d2[i], g.dist2(P[i], c)); total += d2[i]; }
@@ -40,6 +41,7 @@ export const kernel: GeometryKernel = {
     const inertia: [number, number][] = [];
     const pointMarks = (): Mark[] => P.map((p, i): Mark => ({ t: 'p', x: p.x, y: p.y, c: colour(label[i]), r: 2.4, a: 220 }));
     for (let it = 1; it <= 100; it++) {
+      yield;
       g.count('iter');
       let moved = 0;
       let sse = 0;

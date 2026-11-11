@@ -19,7 +19,7 @@ export const kernel: GeometryKernel = {
   input: 'firms',
   n: { min: 2, max: 400, value: 60, step: 1, label: 'Competitors' },
   counters: [['haversine', 'Haversine evaluations'], ['bearing', 'Bearings'], ['compare', 'Ring membership tests']],
-  run(g) {
+  *run(g) {
     const F = g.input.firms;
     const C = g.input.centre;
     const R = 66;
@@ -40,6 +40,7 @@ export const kernel: GeometryKernel = {
     const curve: [number, number][] = [];
     const byRing: [number, number, number][] = [];
     for (let s = 1; s <= STEPS; s++) {
+      yield;
       const r = (RINGS[RINGS.length - 1] * s) / STEPS;
       const inside = F.map((_, i) => i).filter((i) => !g.less(r, d[i]));
       const h = hhi(inside.map((i) => F[i].weight));

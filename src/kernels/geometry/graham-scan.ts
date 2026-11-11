@@ -10,14 +10,15 @@ export const kernel: GeometryKernel = {
   n: HULL_N,
   counters: HULL_COUNTERS,
   scaling: HULL_SCALING,
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     g.base(base(pts));
     const small = trivial(pts);
     if (small) return { result: small, rows: hullRows(small, pts) };
     const o = pts[anchorIndex(pts)];
     const order = angularOrder(g, o, pts);
-    const h = grahamStack(g, o, order);
+    yield;
+    const h = yield* grahamStack(g, o, order);
     g.last(() => finalHull(h), 'hull closed');
     return { result: h, rows: hullRows(h, pts) };
   },

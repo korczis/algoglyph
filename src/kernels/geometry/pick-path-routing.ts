@@ -78,7 +78,7 @@ export function largestGap(w: Warehouse, picks: Loc[]): Pt[] {
 
 /** The shortest tour from the depot through every pick and back, by Held and Karp's dynamic
  * programme over subsets of picks; distances are the shortest walks between locations. */
-export function optimal(count: (key: string) => void, w: Warehouse, picks: Loc[]): Pt[] {
+export function* optimal(count: (key: string) => void, w: Warehouse, picks: Loc[]): Generator<unknown, Pt[]> {
   const m = picks.length;
   const D: Loc = { aisle: 0, y: 0 };
   if (!m) return [w.depot];
@@ -89,6 +89,7 @@ export function optimal(count: (key: string) => void, w: Warehouse, picks: Loc[]
   const from = new Int32Array(full * m).fill(-1);
   for (let j = 0; j < m; j++) best[(1 << j) * m + j] = dist[m][j];
   for (let S = 1; S < full; S++) {
+    if ((S & 63) === 0) yield;
     for (let j = 0; j < m; j++) {
       if (!(S & (1 << j))) continue;
       const v = best[S * m + j];
@@ -122,7 +123,7 @@ export const kernel: GeometryKernel = {
   n: { min: 1, max: 12, value: 10, step: 1, label: 'Picks' },
   params: [{ kind: 'range', key: 'aisles', label: 'Aisles', min: 2, max: 12, step: 1, value: 8 }],
   counters: [['state', 'Dynamic-programme states'], ['dist', 'Shortest walks computed']],
-  run(g) {
+  *run(g) {
     const w = g.input.warehouse as Warehouse;
     const picks = w.picks;
     const L = w.length;
@@ -136,7 +137,7 @@ export const kernel: GeometryKernel = {
     const pickPts = picks.map((p) => ({ x: w.aisles[p.aisle], y: p.y }));
     base.push(...dots(pickPts, { r: 4.5 }));
     g.base(base);
-    const routes = [sShape(w, picks), largestGap(w, picks), optimal((k) => g.count(k), w, picks)];
+    const routes = [sShape(w, picks), largestGap(w, picks), yield* optimal((k) => g.count(k), w, picks)];
     const lengths = routes.map(lengthOf);
     const colours = [0.05, 0.4, 0.8];
     const offset = [-7, 0, 7];
@@ -155,21 +156,22 @@ export const kernel: GeometryKernel = {
       return out;
     };
     const done: Mark[] = [];
-    routes.forEach((r, i) => {
+    for (const [i, r] of routes.entries()) {
       const steps = 60;
       for (let s = 1; s <= steps; s++) {
         const t = (lengths[i] * s) / steps;
         g.frame(() => [...done, poly(shifted(partial(r, t), i), { c: colours[i], w: 2.5 })], `${STRATEGIES[i]}: ${t.toFixed(0)} walked`);
       }
       done.push(poly(shifted(r, i), { c: colours[i], w: 2, a: 200 }));
-    });
+      yield;
+    }
     g.last(() => done.slice(), 'three routes through the same list');
     // the same three strategies on the first m picks of this list, m = 1 … n (not counted:
     // the readouts are the work of the full list)
     const series = STRATEGIES.map((name) => ({ name, points: [] as [number, number][] }));
     for (let m = 1; m <= picks.length; m++) {
       const sub = picks.slice(0, m);
-      const rs = [sShape(w, sub), largestGap(w, sub), optimal(() => {}, w, sub)];
+      const rs = [sShape(w, sub), largestGap(w, sub), yield* optimal(() => {}, w, sub)];
       rs.forEach((r, i) => series[i].points.push([m, lengthOf(r)]));
     }
     const opt = lengths[2];

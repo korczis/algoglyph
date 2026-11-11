@@ -2,18 +2,17 @@
 // A plate runs one kernel on a seeded input and shows the counts each frame carries; a lab runs
 // several kernels of one input kind on the same input with the same work budget per frame, and
 // measures how each one's work grows with n (ADR 0004 §4-5).
+import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../core/palette';
-import { bool, num, str, type Chart, type ParamDef, type Params, type PlateCode, type Stat } from '../../core/plate';
+import { bool, num, str, type Chart, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
-import { drawMarks, fit } from './draw';
+import { drawMarks, fit, type View } from './draw';
 import { DEFAULT_SHAPES, makeInput, SHAPE_LABELS } from './input';
-import { buildLater, buildNow, type Request } from './build';
-import { record, type GeometryKernel } from './trace';
+import { buildNow, Scaling, SLICE_MS, startBuild, type Build, type Request } from './build';
+import { record, type Box, type GeometryKernel } from './trace';
 import type { Track } from './track';
 
 const HOLD_FRAMES = 120;
-/** Main-thread time a scaling measurement may take in one frame (config/budgets.yaml is 40). */
-const SCALING_FRAME_MS = 12;
 const fmt = (x: number) => (Number.isInteger(x) ? x.toLocaleString('en-US') : x.toFixed(2));
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
@@ -28,34 +27,6 @@ export function exponent(points: [number, number][]): number {
 }
 
 const shapesOf = (k: GeometryKernel) => k.shapes ?? DEFAULT_SHAPES[k.input];
-
-/**
- * The scaling curve, one size per frame, stopping before a size whose predicted time (the last
- * measured time scaled by the measured growth of the work) would outgrow a frame's share.
- */
-export class Scaling {
-  readonly points: [number, number][] = [];
-  private queue: number[];
-  private lastMs = 0;
-  constructor(private readonly kernel: GeometryKernel, sizes: number[], private readonly shape: string,
-    private readonly seed: number, private readonly params: Params) {
-    this.queue = sizes.slice();
-  }
-  get done(): boolean { return this.queue.length === 0; }
-  step(): void {
-    const n = this.queue[0];
-    if (n === undefined) return;
-    const last = this.points[this.points.length - 1];
-    if (last) {
-      const slope = this.points.length >= 2 ? Math.max(1, exponent(this.points)) : 2;
-      if (this.lastMs * (n / last[0]) ** slope > SCALING_FRAME_MS) { this.queue = []; return; }
-    }
-    this.queue.shift();
-    const t0 = performance.now();
-    this.points.push([n, work(this.kernel, this.shape, n, this.seed, this.params)]);
-    this.lastMs = performance.now() - t0;
-  }
-}
 
 /** The work one run does: its first counter. */
 export function work(kernel: GeometryKernel, shape: string, n: number, seed: number, params: Params): number {
@@ -94,6 +65,15 @@ function request(info: KernelInfo, kernel: GeometryKernel, params: Params, seed:
   return { id: info.id, kernel, shape: shapeOf(params, shapes), n: kernel.input === 'none' ? 0 : num(params, 'n'), seed, params };
 }
 
+/** Draw a build in progress: its base and the latest frame recorded so far. */
+function drawPartial(p: p5, ctx: PlateContext, b: Build, v: (box: Box) => View): number {
+  const part = b.partial();
+  const view = v(part.view);
+  drawMarks(p, ctx, view, part.base);
+  drawMarks(p, ctx, view, part.frame);
+  return part.steps;
+}
+
 function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
   const shapes = shapesOf(kernel);
   return {
@@ -105,36 +85,46 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
     create(p, ctx) {
       let generation = 0;
       const seedOf = () => ctx.seed + generation * 7919;
-      let t: Track = buildNow(request(info, kernel, ctx.params, seedOf(), shapes));
+      // the first run is sliced like every other (a thumbnail builds it at once)
+      let t: Track | null = ctx.thumbnail ? buildNow(request(info, kernel, ctx.params, seedOf(), shapes)) : null;
+      let pending: Build | null = t ? null : startBuild(request(info, kernel, ctx.params, seedOf(), shapes), false);
       let at = 0;
       let hold = 0;
-      let building = false;
       const sizes = kernel.scaling ?? [];
       const scaling = new Scaling(kernel, sizes, shapeOf(ctx.params, shapes), ctx.seed, ctx.params);
       const primary = kernel.counters[0];
       return {
         setup() {
-          if (ctx.thumbnail) at = Math.floor((t.length - 1) * 0.6);
+          if (ctx.thumbnail && t) at = Math.floor((t.length - 1) * 0.6);
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
-          const last = t.length - 1;
-          if (!ctx.thumbnail) {
-            if (at < last) at = Math.min(last, at + num(ctx.params, 'speed'));
-            else if (bool(ctx.params, 'loop') && !building && ++hold > HOLD_FRAMES) {
-              // the next input is built off the main thread; the held frame stays until it lands
-              generation++;
-              building = true;
-              const mine = generation;
-              buildLater(request(info, kernel, ctx.params, seedOf(), shapes), (next) => {
-                if (mine !== generation) return;
-                t = next; at = 0; hold = 0; building = false;
-              });
-            }
-            scaling.step();
-          }
           const pad = Math.round(Math.min(ctx.width, ctx.height) * 0.03);
-          const v = fit(t.view, pad, pad, ctx.width - 2 * pad, ctx.height - 2 * pad);
+          const fitIn = (box: Box) => fit(box, pad, pad, ctx.width - 2 * pad, ctx.height - 2 * pad);
+          if (!ctx.thumbnail) {
+            const deadline = performance.now() + SLICE_MS;
+            if (pending) {
+              pending.pump(deadline);
+              if (pending.track) { t = pending.track; pending = null; at = 0; hold = 0; }
+            }
+            if (t && !pending) {
+              const last = t.length - 1;
+              if (at < last) at = Math.min(last, at + num(ctx.params, 'speed'));
+              else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
+                // the next input builds in the background (a worker when there is one, slices
+                // otherwise); the held frame stays on screen until it is ready
+                generation++;
+                pending = startBuild(request(info, kernel, ctx.params, seedOf(), shapes), true);
+              }
+            }
+            scaling.pump(deadline);
+          }
+          if (!t) {
+            const steps = pending ? drawPartial(p, ctx, pending, fitIn) : 0;
+            ctx.stats([{ label: 'Building', value: `${fmt(steps)} steps recorded so far` }]);
+            return;
+          }
+          const v = fitIn(t.view);
           drawMarks(p, ctx, v, t.base);
           const shown = Math.max(0, Math.min(at, t.length - 1));
           drawMarks(p, ctx, v, t.marks(shown));
@@ -145,6 +135,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
           if (note) rows.push({ label: 'Step', value: note });
           rows.push({ label: 'Progress', value: `${Math.round((100 * shown) / Math.max(1, t.length - 1))}% of ${fmt(t.length)} recorded steps` });
           if (done) rows.push(...t.rows);
+          if (pending) rows.push({ label: 'Next input', value: 'building' });
           ctx.stats(rows);
           let chart: Chart | undefined = t.chart;
           if (!chart && sizes.length) {
@@ -185,10 +176,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
       let generation = 0;
       type Pane = { info: KernelInfo; kernel: GeometryKernel; t: Track; at: number; finished: number };
       let panes: Pane[] = [];
+      let builds: Build[] | null = null;
       let spent = 0;
       let finishedCount = 0;
       let hold = 0;
-      let building = false;
       const shape = shapeOf(ctx.params, shapes);
       const curves = kernels.map((k) => ({ info: k.info, scaling: new Scaling(k.kernel, sizes, shape, ctx.seed, ctx.params) }));
       const req = (k: { info: KernelInfo; kernel: GeometryKernel }) => request(k.info, k.kernel, ctx.params, ctx.seed + generation * 7919, shapes);
@@ -196,8 +187,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
         panes = kernels.map((k, i) => ({ ...k, t: tracks[i], at: 0, finished: 0 }));
         spent = 0;
         finishedCount = 0;
+        hold = 0;
       };
-      start(kernels.map((k) => buildNow(req(k))));
+      if (ctx.thumbnail) start(kernels.map((k) => buildNow(req(k))));
+      else builds = kernels.map((k) => startBuild(req(k), false));
       const key = (k: GeometryKernel) => k.counters[0][0];
       const advance = () => {
         for (const pane of panes) {
@@ -217,31 +210,31 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            const c = curves.find((cv) => !cv.scaling.done);
-            c?.scaling.step();
-            spent += num(ctx.params, 'budget') * Math.max(1, num(ctx.params, 'n'));
-            advance();
-            if (panes.every((x) => x.finished) && bool(ctx.params, 'loop') && !building && ++hold > HOLD_FRAMES) {
-              generation++;
-              building = true;
-              const mine = generation;
-              const got: Track[] = [];
-              let left = kernels.length;
-              kernels.forEach((k, i) => buildLater(req(k), (tr) => {
-                got[i] = tr;
-                if (--left === 0 && mine === generation) { start(got); hold = 0; building = false; }
-              }));
+            const deadline = performance.now() + SLICE_MS;
+            if (builds) {
+              for (const b of builds) if (!b.track) { b.pump(deadline); if (!b.track) break; }
+              if (builds.every((b) => b.track)) { start(builds.map((b) => b.track as Track)); builds = null; }
             }
+            if (panes.length && !builds) {
+              spent += num(ctx.params, 'budget') * Math.max(1, num(ctx.params, 'n'));
+              advance();
+              if (panes.every((x) => x.finished) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
+                generation++;
+                builds = kernels.map((k) => startBuild(req(k), true));
+              }
+            }
+            curves.find((cv) => !cv.scaling.done)?.scaling.pump(deadline);
           }
           const Wd = ctx.width; const Ht = ctx.height;
           const pad = Math.max(6, Math.round(Math.min(Wd, Ht) * 0.02));
-          const m = panes.length;
+          const m = kernels.length;
           const cols = Math.max(1, Math.round(Math.sqrt((m * Wd) / Math.max(1, Ht) / 1.6)));
           const rows = Math.ceil(m / cols);
           const cw = (Wd - pad * (cols + 1)) / cols;
           const ch = (Ht - pad * (rows + 1)) / rows;
           const fs = Math.max(9, Math.min(13, Math.round(ch * 0.07)));
-          panes.forEach((pane, i) => {
+          kernels.forEach((k, i) => {
+            const pane = panes[i];
             const x = pad + (i % cols) * (cw + pad);
             const y = pad + Math.floor(i / cols) * (ch + pad);
             const c = colour(i);
@@ -251,10 +244,13 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
             p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2]);
             p.textSize(fs);
             p.textAlign(p.LEFT, p.TOP);
-            p.text(`${pane.info.title}${pane.finished ? `  #${pane.finished}` : ''}`, x + 8, y);
-            const v = fit(pane.t.view, x, y + fs + 6, cw, ch - fs - 6);
-            drawMarks(p, ctx, v, pane.t.base);
-            drawMarks(p, ctx, v, pane.t.marks(pane.at));
+            p.text(`${k.info.title}${pane?.finished ? `  #${pane.finished}` : ''}`, x + 8, y);
+            const fitIn = (box: Box) => fit(box, x, y + fs + 6, cw, ch - fs - 6);
+            if (pane) {
+              const v = fitIn(pane.t.view);
+              drawMarks(p, ctx, v, pane.t.base);
+              drawMarks(p, ctx, v, pane.t.marks(pane.at));
+            } else if (builds) drawPartial(p, ctx, builds[i], fitIn);
           });
           ctx.chart({
             title: 'Measured work as n grows',
@@ -262,12 +258,16 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
             y: { label: first.counters[0][1].toLowerCase(), log: true },
             series: curves.map((cv) => ({ name: cv.info.title, points: cv.scaling.points.slice() })),
           });
+          if (!panes.length) {
+            ctx.stats([{ label: 'Building', value: `${builds?.filter((b) => b.track).length ?? 0} of ${kernels.length} runs ready` }]);
+            return;
+          }
           ctx.stats(panes.map((pane, i) => {
             const slope = exponent(curves[i].scaling.points);
             const w = pane.t.counts(pane.at)[key(pane.kernel)] ?? 0;
             return {
               label: pane.info.title,
-              value: `${fmt(w)} ${first.counters[0][1].toLowerCase()} · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
+              value: `${fmt(w)} ${first.counters[0][1].toLowerCase()} · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished}` : ''}${builds ? ' · next input building' : ''}`,
             };
           }));
         },

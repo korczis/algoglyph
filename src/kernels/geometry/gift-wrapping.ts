@@ -11,7 +11,7 @@ export const kernel: GeometryKernel = {
   n: HULL_N,
   counters: HULL_COUNTERS,
   scaling: HULL_SCALING,
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     g.base(base(pts));
     const small = trivial(pts);
@@ -33,6 +33,7 @@ export const kernel: GeometryKernel = {
         }
       }
       p = q;
+      yield;
       if (h.length > pts.length) throw new Error('gift wrapping did not close');
     } while (p !== start);
     g.last(() => finalHull(h), 'hull closed');

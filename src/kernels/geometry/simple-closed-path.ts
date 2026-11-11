@@ -10,16 +10,18 @@ export const kernel: GeometryKernel = {
   n: { min: 3, max: 1500, value: 60, step: 1 },
   counters: [['orient', 'Orientation tests'], ['dist', 'Distance computations']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
-  run(g) {
+  *run(g) {
     const pts = g.input.points;
     g.base(dots(pts, { a: 150, r: 2 }));
     if (pts.length < 3) return { result: pts.slice() };
     const o = pts[anchorIndex(pts)];
     const order = angularOrder(g, o, pts);
+    yield;
     let k = order.length - 1;
     while (k > 0 && g.orient(o, order[order.length - 1], order[k - 1]) === 0) k--;
     const path = [o, ...order.slice(0, k), ...order.slice(k).reverse()];
     for (let i = 1; i <= path.length; i++) {
+      yield;
       g.frame(() => [poly(path.slice(0, i), { c: 0.8, w: 2 }), line(o, path[i - 1], { a: 70 }),
         ...dots([path[i - 1]], { c: 0.8, r: 4 })], 'join in angular order');
     }
