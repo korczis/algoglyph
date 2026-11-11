@@ -60,7 +60,7 @@ export const kernel: StochasticKernel<OpinionResult> = {
     { kind: 'range', key: 'eps', label: 'Confidence bound ε', min: 0.02, max: 0.5, step: 0.01, value: 0.12, rebuild: true },
   ],
   chart: { title: 'Opinion groups over time', x: { label: 'step' }, y: { label: 'groups (gaps above 0.001)' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
     const eps = num(cfg, 'eps');
@@ -97,6 +97,7 @@ export const kernel: StochasticKernel<OpinionResult> = {
       history.push(x);
       converged = move < 1e-12;
       frame(HOLD);
+      yield;
     }
     frame(40);
     return { initial, final: x, steps, converged, history };

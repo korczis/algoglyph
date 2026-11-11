@@ -11,17 +11,24 @@ export const POPULATIONS: Record<string, Population> = {
   normal: { label: 'Normal', draw: (s) => s.normal(0, 1), mean: 0 },
 };
 
-/** The sorted means of b resamples of xs, each drawn with replacement. */
-export function bootstrapMeans(s: Sampler, xs: number[], b: number): Float64Array {
+/** The means of b resamples of xs, each drawn with replacement; yields every few thousand
+ * draws so that a large resampling is spread over frames. */
+export function* bootstrapMeans(s: Sampler, xs: number[], b: number): Generator<void, Float64Array, void> {
   const n = xs.length;
   const out = new Float64Array(b);
+  let since = 0;
   for (let k = 0; k < b; k++) {
     let t = 0;
     for (let i = 0; i < n; i++) t += xs[s.int(n)];
     out[k] = t / n;
+    since += n;
+    if (since >= 20000) { since = 0; yield; }
   }
   return out;
 }
+
+/** Draws the repeated experiments may spend in all: beyond it each experiment resamples less. */
+export const COVERAGE_DRAWS = 2e7;
 
 /** The percentile interval at a level from sorted bootstrap statistics. */
 export function percentile(sorted: Float64Array, level: number): [number, number] {
@@ -36,6 +43,8 @@ export interface BootstrapResult {
   truth: number;
   coverage: number[];
   reps: number;
+  /** Resamples per repeated experiment. */
+  resamplesPerExperiment: number;
 }
 
 const FILL = 60;
@@ -58,7 +67,7 @@ export const kernel: StochasticKernel<BootstrapResult> = {
   ],
   chart: coverageChart,
   labSeries: COVERAGE,
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const pop = POPULATIONS[str(cfg, 'population')] ?? POPULATIONS.lognormal;
     const n = num(cfg, 'n');
@@ -73,7 +82,7 @@ export const kernel: StochasticKernel<BootstrapResult> = {
     for (let fr = 1; fr <= FILL; fr++) {
       const from = Math.round(((fr - 1) / FILL) * b);
       const to = Math.round((fr / FILL) * b);
-      boots.set(bootstrapMeans(s, data, to - from), from);
+      boots.set(yield* bootstrapMeans(s, data, to - from), from);
       ops.count(to - from);
       const sorted = ascending(boots.subarray(0, to));
       const [a, z] = percentile(sorted, SHOWN_LEVEL);
@@ -86,6 +95,7 @@ export const kernel: StochasticKernel<BootstrapResult> = {
         { label: 'Bootstrap standard error', value: `${fmt(Math.sqrt(variance(boots.subarray(0, to))), 4)} (s/√n ${fmt(sd / Math.sqrt(n), 4)})` },
         { label: '90% percentile interval', value: `${fmt(a, 4)} – ${fmt(z, 4)}` },
       ]);
+      yield;
     }
     const sorted = ascending(boots);
     const se = Math.sqrt(variance(boots));
@@ -95,10 +105,12 @@ export const kernel: StochasticKernel<BootstrapResult> = {
     let width = 0;
     const span = 3 * Math.sqrt(variance(Array.from({ length: 400 }, () => pop.draw(s)))) / Math.sqrt(n);
     const x: [number, number] = [pop.mean - 1.6 * span, pop.mean + 1.6 * span];
+    // the experiments' resamples are bounded so the whole run stays within COVERAGE_DRAWS
+    const bRep = Math.max(100, Math.min(b, Math.floor(COVERAGE_DRAWS / (reps * n))));
     for (let r = 1; r <= reps; r++) {
       const fresh = Array.from({ length: n }, () => pop.draw(s));
-      const bs = ascending(bootstrapMeans(s, fresh, b));
-      ops.count(b);
+      const bs = ascending(yield* bootstrapMeans(s, fresh, bRep));
+      ops.count(bRep);
       LEVELS.forEach((l, i) => {
         const [a, z] = percentile(bs, l);
         if (a <= pop.mean && pop.mean <= z) hits[i]++;
@@ -111,12 +123,13 @@ export const kernel: StochasticKernel<BootstrapResult> = {
       const k = LEVELS.indexOf(SHOWN_LEVEL);
       const c = hits[k] / r;
       ops.frame([ladder('Latest 90% intervals against the population mean (tick)', shown.slice(), x)], [
-        { label: 'Experiments', value: `${fmt(r)} of ${fmt(reps)}, ${fmt(b)} resamples each` },
+        { label: 'Experiments', value: `${fmt(r)} of ${fmt(reps)}, ${fmt(bRep)} resamples each` },
         { label: '90% intervals covering', value: `${pct(c)} ± ${pct(Math.sqrt(c * (1 - c) / r))}` },
         { label: '50% intervals covering', value: pct(hits[0] / r) },
         { label: 'Mean 90% width', value: fmt(width / r, 4) },
       ]);
+      yield;
     }
-    return { data, boots: sorted, se, interval, truth: pop.mean, coverage: hits.map((h) => h / reps), reps };
+    return { data, boots: sorted, se, interval, truth: pop.mean, coverage: hits.map((h) => h / reps), reps, resamplesPerExperiment: bRep };
   },
 };

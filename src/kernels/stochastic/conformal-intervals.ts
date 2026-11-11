@@ -53,6 +53,8 @@ export interface ConformalResult {
 }
 
 const TEST = 200;
+/** Model predictions per experiment: every calibration case and every test case. */
+export const PREDICTIONS = (nCal: number) => nCal + TEST;
 const LADDER = 20;
 
 function experiment(s: Sampler, nTrain: number, nCal: number, kind: string, degree: number) {
@@ -65,7 +67,9 @@ function experiment(s: Sampler, nTrain: number, nCal: number, kind: string, degr
   const test = draw(TEST);
   const c = polyfit(train.x, train.y, degree);
   const residuals = ascending(cal.x.map((x, i) => Math.abs(cal.y[i] - polyval(c, x))));
-  return { train, cal, test, c, residuals };
+  const testPred = test.x.map((x) => polyval(c, x));
+  const testResiduals = testPred.map((p, i) => Math.abs(test.y[i] - p));
+  return { train, cal, test, c, residuals, testPred, testResiduals };
 }
 
 // Fit any model on one part of the data; on a second part, never used for fitting, measure
@@ -85,7 +89,7 @@ export const kernel: StochasticKernel<ConformalResult> = {
   ],
   chart: coverageChart,
   labSeries: COVERAGE,
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const kind = str(cfg, 'noise');
     const degree = num(cfg, 'degree');
@@ -93,11 +97,12 @@ export const kernel: StochasticKernel<ConformalResult> = {
     const nTrain = 80;
     const reps = num(cfg, 'reps');
     const first = experiment(s, nTrain, nCal, kind, degree);
-    ops.count(nTrain + nCal + TEST);
+    ops.count(PREDICTIONS(nCal));
     const q = conformalRadius(first.residuals, SHOWN_LEVEL);
+    // the fitted curve, sampled for drawing only
     const curve: [number, number][] = Array.from({ length: 61 }, (_, i) => [i / 60, polyval(first.c, i / 60)]);
     const band: [number, number, number][] = curve.map(([x, y]) => [x, y - q, y + q]);
-    const hitsFirst = first.test.x.map((x, i) => Math.abs(first.test.y[i] - polyval(first.c, x)) <= q);
+    const hitsFirst = first.testResiduals.map((r) => r <= q);
     const ylo = -2.6;
     const yhi = 3.4;
     const rmax = Math.max(q * 1.6, first.residuals[first.residuals.length - 1]);
@@ -122,21 +127,20 @@ export const kernel: StochasticKernel<ConformalResult> = {
       { label: 'Test cases covered', value: pct(hitsFirst.filter(Boolean).length / TEST) },
     ];
     for (let h = 0; h < 60; h++) ops.frame(intro, introStats);
+    yield;
     const hits = new Array<number>(LEVELS.length).fill(0);
     const shown: { label: string; lo: number; hi: number; truth: number }[] = [];
     let width = 0;
     for (let r = 1; r <= reps; r++) {
       const e = r === 1 ? first : experiment(s, nTrain, nCal, kind, degree);
-      if (r > 1) ops.count(nTrain + nCal + TEST);
+      if (r > 1) ops.count(PREDICTIONS(nCal));
       LEVELS.forEach((l, i) => {
         const rad = conformalRadius(e.residuals, l);
-        let k = 0;
-        e.test.x.forEach((x, j) => { if (Math.abs(e.test.y[j] - polyval(e.c, x)) <= rad) k++; });
-        hits[i] += k / TEST;
+        hits[i] += e.testResiduals.filter((v) => v <= rad).length / TEST;
       });
       const rad = conformalRadius(e.residuals, SHOWN_LEVEL);
       width += 2 * rad;
-      const pred = polyval(e.c, e.test.x[0]);
+      const pred = e.testPred[0];
       shown.push({ label: `run ${r}`, lo: pred - rad, hi: pred + rad, truth: e.test.y[0] });
       if (shown.length > LADDER) shown.shift();
       publishCoverage(ops, hits, r);
@@ -147,6 +151,7 @@ export const kernel: StochasticKernel<ConformalResult> = {
         { label: '50% intervals covering', value: pct(hits[0] / r) },
         { label: 'Mean 90% width', value: fmt(width / r, 4) },
       ]);
+      yield;
     }
     return { calibration: nCal, coverage: hits.map((h) => h / reps), reps, residuals: first.residuals, radius: q };
   },

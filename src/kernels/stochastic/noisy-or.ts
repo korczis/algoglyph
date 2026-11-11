@@ -33,7 +33,7 @@ export const kernel: StochasticKernel<NoisyOrResult> = {
     { kind: 'range', key: 'n', label: 'Simulated cases', min: 500, max: 50000, step: 500, value: 6000, rebuild: true },
   ],
   chart: { title: 'Simulated frequency against the noisy-OR value', x: { label: 'simulated cases', log: true }, y: { label: 'P(effect)' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const k = num(cfg, 'k');
     const leak = num(cfg, 'leak');
@@ -58,6 +58,7 @@ export const kernel: StochasticKernel<NoisyOrResult> = {
         for (let i = 0; i < k; i++) if (present[i] && s.bernoulli(links[i])) effect = true;
         ops.count(1);
         if (effect) hits++;
+        if (done % 5000 === 4999) yield;
       }
       if (!done) continue;
       const est = hits / done;
@@ -79,6 +80,7 @@ export const kernel: StochasticKernel<NoisyOrResult> = {
         { label: 'Simulated cases', value: fmt(done) },
         { label: 'Present causes', value: `${fmt(present.filter(Boolean).length)} of ${fmt(k)}` },
       ]);
+      yield;
     }
     const est = hits / n;
     return { links, present, leak, exact, estimate: est, se: Math.sqrt(est * (1 - est) / n), samples: n };

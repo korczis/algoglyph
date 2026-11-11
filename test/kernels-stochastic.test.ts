@@ -4,12 +4,16 @@
 // entry without a reference check fails the harness.
 import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
-import type { Params } from '../src/core/plate';
-import { trace, type StochasticKernel } from '../src/engines/stochastic/trace';
+import type p5 from 'p5';
+import type { Params, PlateContext } from '../src/core/plate';
+import { GROUNDS, palette } from '../src/core/palette';
+import { drawPanels, layout } from '../src/engines/stochastic/draw';
+import { engine, Replay, STEP_MS } from '../src/engines/stochastic/index';
+import { config, Runner, trace, type StochasticKernel } from '../src/engines/stochastic/trace';
 import type { BayesResult } from '../src/kernels/stochastic/bayes-update';
 import type { BoxMullerResult } from '../src/kernels/stochastic/box-muller';
 import type { BootstrapResult } from '../src/kernels/stochastic/bootstrap-ci';
-import type { ConformalResult } from '../src/kernels/stochastic/conformal-intervals';
+import { PREDICTIONS, type ConformalResult } from '../src/kernels/stochastic/conformal-intervals';
 import { combine, belief, plausibility, type DempsterResult } from '../src/kernels/stochastic/dempster-shafer';
 import type { DriftResult } from '../src/kernels/stochastic/drift-divergence';
 import { hkStep, type OpinionResult } from '../src/kernels/stochastic/hegselmann-krause';
@@ -22,9 +26,9 @@ import type { RocResult } from '../src/kernels/stochastic/base-rate-roc';
 import type { SearchResult } from '../src/kernels/stochastic/_search';
 import type { ShapleyResult } from '../src/kernels/stochastic/shapley-values';
 import type { SobolResult } from '../src/kernels/stochastic/sobol-indices';
-import { model as tornadoModel, type TornadoResult } from '../src/kernels/stochastic/tornado-sensitivity';
+import { model as tornadoModel, triangular, type TornadoResult } from '../src/kernels/stochastic/tornado-sensitivity';
 import type { RiskResult } from '../src/kernels/stochastic/var-cvar';
-import { Sampler } from '../src/engines/stochastic/sample';
+import { betaCdf, Sampler } from '../src/engines/stochastic/sample';
 import { mulberry32 } from '../src/core/random';
 
 const modules = import.meta.glob<StochasticKernel>('../src/kernels/stochastic/[!_]*.ts', { import: 'kernel', eager: true });
@@ -88,7 +92,11 @@ const CHECKS: Record<string, () => void> = {
     const best: number[] = [];
     const rand: number[] = [];
     for (let seed = 1; seed <= 9; seed++) {
-      const r = run<SearchResult>('simulated-annealing', { landscape: 'rastrigin', budget: 2400 }, seed);
+      const t = trace(kernelOf('simulated-annealing') as StochasticKernel<SearchResult>, { landscape: 'rastrigin', budget: 2400 }, seed);
+      const r = t.result;
+      // the Evaluations readout is the algorithm's own: the random baseline's are not in it
+      expect(t.evals).toBe(r.evals);
+      expect(r.evals).toBe(2400);
       const [x, y] = r.bestAt;
       // the reported best is the objective at the reported point (Rastrigin written out here)
       expect(r.best).toBeCloseTo(20 + x * x - 10 * Math.cos(2 * Math.PI * x) + y * y - 10 * Math.cos(2 * Math.PI * y), 9);
@@ -102,7 +110,9 @@ const CHECKS: Record<string, () => void> = {
     const best: number[] = [];
     const rand: number[] = [];
     for (let seed = 1; seed <= 9; seed++) {
-      const r = run<SearchResult>('particle-swarm', { landscape: 'rastrigin', budget: 2400 }, seed);
+      const t = trace(kernelOf('particle-swarm') as StochasticKernel<SearchResult>, { landscape: 'rastrigin', budget: 2400 }, seed);
+      const r = t.result;
+      expect(t.evals).toBe(r.evals);
       const [x, y] = r.bestAt;
       expect(r.best).toBeCloseTo(20 + x * x - 10 * Math.cos(2 * Math.PI * x) + y * y - 10 * Math.cos(2 * Math.PI * y), 9);
       best.push(r.best);
@@ -155,16 +165,30 @@ const CHECKS: Record<string, () => void> = {
   },
 
   'bayes-update'() {
-    for (const prior of ['flat', 'sceptical', 'hopeful']) {
+    for (const prior of ['flat', 'sceptical', 'hopeful', 'jeffreys']) {
       const r = run<BayesResult>('bayes-update', { prior, truth: 0.3, n: 200 });
       const [a, b] = r.prior;
       const A = a + r.successes;
       const B = b + r.failures;
-      // the grid posterior against the conjugate Beta(a + s, b + f) density
-      const err = Math.max(...r.grid.map((t, i) => Math.abs(r.posterior[i] - betaPdf(t, A, B))));
-      expect(err, prior).toBeLessThan(0.02 * Math.max(...r.posterior));
-      expect(r.mean).toBeCloseTo(A / (A + B), 3);
+      // cell probabilities, as densities, against the conjugate Beta(a + s, b + f) density
+      const dens = r.posterior.map((m) => m * r.grid.length);
+      const err = Math.max(...r.grid.map((t, i) => Math.abs(dens[i] - betaPdf(t, A, B))));
+      expect(err, prior).toBeLessThan(0.02 * Math.max(...dens));
+      expect(r.mean, prior).toBeCloseTo(A / (A + B), 3);
     }
+    // Jeffreys with no events: the density is infinite at 0, the cells' masses are not
+    let checked = 0;
+    for (let seed = 1; seed <= 20 && checked < 3; seed++) {
+      const r = run<BayesResult>('bayes-update', { prior: 'jeffreys', truth: 0.02, n: 10 }, seed);
+      if (r.successes) continue;
+      checked++;
+      const want = 0.5 / (1 + r.failures);
+      expect(Math.abs(r.mean - want), `seed ${seed}`).toBeLessThan(1e-3);
+    }
+    expect(checked).toBeGreaterThan(0);
+    // the Beta distribution function against closed forms
+    expect(betaCdf(0.3, 2, 3)).toBeCloseTo(6 * 0.09 - 8 * 0.027 + 3 * 0.0081, 12);
+    expect(betaCdf(0.25, 0.5, 0.5)).toBeCloseTo((2 / Math.PI) * Math.asin(0.5), 12);
   },
 
   'noisy-or'() {
@@ -182,16 +206,51 @@ const CHECKS: Record<string, () => void> = {
     const m2 = [0, 0, 0.5, 0, 0, 0.3, 0, 0.2];
     const { mass, conflict } = combine(m1, m2);
     expect(conflict).toBeCloseTo(0.3, 12);
-    expect(mass[1]).toBeCloseTo(0.39 / 0.7, 12);
-    expect(mass[2]).toBeCloseTo(0.2 / 0.7, 12);
-    expect(mass[3]).toBeCloseTo(0.06 / 0.7, 12);
-    expect(mass[5]).toBeCloseTo(0.03 / 0.7, 12);
-    expect(mass[7]).toBeCloseTo(0.02 / 0.7, 12);
-    expect(belief(mass, 3)).toBeCloseTo((0.39 + 0.2 + 0.06) / 0.7, 12);
-    expect(plausibility(mass, 4)).toBeCloseTo((0.03 + 0.02) / 0.7, 12);
-    const r = run<DempsterResult>('dempster-shafer', { sources: 6 });
-    expect(r.combined.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
-    for (let x = 1; x < 8; x++) expect(belief(r.combined, x)).toBeLessThanOrEqual(plausibility(r.combined, x) + 1e-12);
+    expect(mass![1]).toBeCloseTo(0.39 / 0.7, 12);
+    expect(mass![2]).toBeCloseTo(0.2 / 0.7, 12);
+    expect(mass![3]).toBeCloseTo(0.06 / 0.7, 12);
+    expect(mass![5]).toBeCloseTo(0.03 / 0.7, 12);
+    expect(mass![7]).toBeCloseTo(0.02 / 0.7, 12);
+    expect(belief(mass!, 3)).toBeCloseTo((0.39 + 0.2 + 0.06) / 0.7, 12);
+    expect(plausibility(mass!, 4)).toBeCloseTo((0.03 + 0.02) / 0.7, 12);
+    // total conflict leaves the rule undefined
+    expect(combine([0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0]).mass).toBeNull();
+    // the kernel against an independent step-by-step combination of its own sources, written
+    // on sets of hypothesis names, across seeds that include near-total and total conflict
+    type SetMass = Map<string, number>;
+    const toSets = (m: number[]): SetMass => new Map(m.flatMap((v, x) => (x && v ? [[['H1', 'H2', 'H3'].filter((_, i) => x & (1 << i)).join(','), v]] : [])) as [string, number][]);
+    const meet = (a: string, b: string) => a.split(',').filter((h) => b.split(',').includes(h)).join(',');
+    const dempster = (a: SetMass, b: SetMass): SetMass | null => {
+      const out: SetMass = new Map();
+      let k = 0;
+      for (const [x, u] of a) for (const [y, v] of b) {
+        const z = meet(x, y);
+        if (z) out.set(z, (out.get(z) ?? 0) + u * v); else k += u * v;
+      }
+      if (k >= 1 - 1e-12) return null;
+      for (const [z, v] of out) out.set(z, v / (1 - k));
+      return out;
+    };
+    let undefinedSeen = 0;
+    let highSeen = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const r = run<DempsterResult>('dempster-shafer', { sources: 8, ignorance: 0 }, seed);
+      let acc: SetMass | null = toSets(r.sources[0]);
+      let at = -1;
+      for (let j = 1; j < r.sources.length && acc; j++) {
+        acc = dempster(acc, toSets(r.sources[j]));
+        if (!acc) at = j;
+      }
+      expect(r.undefinedAt, `seed ${seed}`).toBe(at);
+      if (!acc) { expect(r.combined).toBeNull(); undefinedSeen++; continue; }
+      if (Math.max(...r.conflicts) > 0.9) highSeen++;
+      const want = acc;
+      for (const [z, v] of toSets(r.combined!)) expect(v, `seed ${seed} ${z}`).toBeCloseTo(want.get(z) ?? 0, 10);
+      for (const [z, v] of want) expect(toSets(r.combined!).get(z) ?? 0).toBeCloseTo(v, 10);
+      expect(r.combined!.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+      for (let x = 1; x < 8; x++) expect(belief(r.combined!, x)).toBeLessThanOrEqual(plausibility(r.combined!, x) + 1e-12);
+    }
+    expect(undefinedSeen + highSeen, 'the seeds reach high or total conflict').toBeGreaterThan(0);
   },
 
   'isotonic-calibration'() {
@@ -267,6 +326,14 @@ const CHECKS: Record<string, () => void> = {
       expect(w).toBeLessThanOrEqual(prev);
       prev = w;
     }
+    // the triangular sampler: mean (a + c + b) / 3, variance (a² + b² + c² − ab − ac − bc) / 18,
+    // and the mode's share of the mass (c − a) / (b − a), over a uniform grid of u
+    const [a, c, b] = [2, 3, 7];
+    const us = Array.from({ length: 100000 }, (_, i) => (i + 0.5) / 100000);
+    const tx = us.map((u) => triangular(u, a, c, b));
+    expect(meanOf(tx)).toBeCloseTo((a + b + c) / 3, 4);
+    expect(varOf(tx)).toBeCloseTo((a * a + b * b + c * c - a * b - a * c - b * c) / 18, 3);
+    expect(tx.filter((x) => x <= c).length / tx.length).toBeCloseTo((c - a) / (b - a), 4);
     // fixed cost enters linearly: its swing is exactly its range
     const fixed = r.swings.find((sw) => r.inputs[sw.i].name === 'fixed cost')!;
     expect(Math.abs(fixed.atHigh - fixed.atLow)).toBeCloseTo(r.inputs[4].high - r.inputs[4].low, 9);
@@ -304,7 +371,10 @@ const CHECKS: Record<string, () => void> = {
   },
 
   'conformal-intervals'() {
-    const r = run<ConformalResult>('conformal-intervals', { ncal: 60, reps: 200 }, 3);
+    const t = trace(kernelOf('conformal-intervals') as StochasticKernel<ConformalResult>, { ncal: 60, reps: 200 }, 3);
+    const r = t.result;
+    // evaluations are the model's predictions: every calibration and every test case
+    expect(t.evals).toBe(200 * PREDICTIONS(60));
     const levels = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95];
     // split conformal: at least the nominal level, at most nominal + 1 / (n + 1), on average
     levels.forEach((l, i) => {
@@ -330,6 +400,9 @@ const CHECKS: Record<string, () => void> = {
       }
       expect(Math.abs(r.stability - exact)).toBeLessThan(4 * Math.sqrt(exact * (1 - exact) / r.runs) + 1e-9);
     }
+    // an influence is a difference of two rates: percentage points, not per cent
+    const t = trace(kernelOf('mc-verdict-stability'), {}, 1);
+    expect(t.frames[t.frames.length - 1].stats.find((q) => q.label.startsWith('Most influential'))?.value).toMatch(/percentage points/);
   },
 
   'pert-monte-carlo'() {
@@ -364,6 +437,14 @@ const CHECKS: Record<string, () => void> = {
     expect(Math.abs(r.var - 1.6449)).toBeLessThan(0.03);
     expect(Math.abs(r.cvar - 2.0627)).toBeLessThan(0.03);
     expect(r.cvar).toBeGreaterThanOrEqual(r.var);
+    // the readout's tail is the number of losses actually averaged
+    expect(r.tail).toBe(s.length - k);
+    expect(r.tail).toBe(s.filter((x) => x >= r.var).length);
+    // too few runs per batch: the standard errors are withheld, and the readout says why
+    const thin = trace(kernelOf('var-cvar'), { scenario: 'normal', level: '0.995', n: 1000 }, 3);
+    const last = thin.frames[thin.frames.length - 1].stats;
+    expect(last.find((q) => q.label === 'Standard errors')?.value).toMatch(/^not shown/);
+    expect(last.find((q) => q.label.startsWith('Value at risk'))?.value).not.toMatch(/±/);
   },
 
   'hegselmann-krause'() {
@@ -425,4 +506,100 @@ describe('stochastic kernels', () => {
       });
     });
   }
+});
+
+describe('stochastic engine budgets', () => {
+  /** A piece of a run between two yields (ms): far above what a desktop takes, far below a
+   * blocked frame. */
+  const PIECE_MS = 25;
+  const maxParams = (k: StochasticKernel): Params => {
+    const out: Params = {};
+    for (const d of k.params ?? []) if (d.kind === 'range') out[d.key] = d.max;
+    return out;
+  };
+
+  for (const e of live) {
+    it(`${e.id} is created without work and runs in bounded pieces at its maximum settings`, () => {
+      const k = kernelOf(e.id);
+      // the same seed gives the same pieces, so each piece's time is taken as its fastest of
+      // three runs: a garbage collection or a busy machine slows one run, not all three
+      const times: number[][] = [];
+      for (let rep = 0; rep < 3; rep++) {
+        const t0 = performance.now();
+        const r = new Runner(k, maxParams(k), 5);
+        expect(performance.now() - t0).toBeLessThan(5);
+        expect(r.counts.draws).toBe(0);
+        const t: number[] = [];
+        const stop = performance.now() + 4000;
+        while (!r.done && performance.now() < stop) {
+          const a = performance.now();
+          r.step(0);
+          t.push(performance.now() - a);
+        }
+        times.push(t);
+      }
+      const n = Math.min(...times.map((t) => t.length));
+      let worst = 0;
+      for (let i = 0; i < n; i++) worst = Math.max(worst, Math.min(...times.map((t) => t[i])));
+      expect(worst, `${e.id}: longest piece`).toBeLessThan(PIECE_MS);
+    }, 60000);
+  }
+
+  it('prepares the next seed’s run while the finished one is held, so no frame stalls', () => {
+    const k = kernelOf('bootstrap-ci');
+    const params: Params = { ...config(k), speed: 4, loop: true };
+    const ctx = { params, seed: 11 } as unknown as PlateContext;
+    const r = new Replay(k, ctx);
+    const first = r.run;
+    let worst = 0;
+    let swapped = false;
+    let preparing = 0;
+    for (let i = 0; i < 20000 && !swapped; i++) {
+      const a = performance.now();
+      r.tick();
+      worst = Math.max(worst, performance.now() - a);
+      if (r.next) preparing++;
+      if (r.run !== first) {
+        swapped = true;
+        expect(r.run.frames.length, 'the new run already has frames').toBeGreaterThan(0);
+      }
+    }
+    expect(swapped).toBe(true);
+    expect(preparing, 'ticks that advanced the next run during the hold').toBeGreaterThan(1);
+    // a stalled frame would hold the whole run (about a tenth of a second on a desktop)
+    expect(worst).toBeLessThan(STEP_MS + 2 * PIECE_MS);
+  });
+
+  it('draws a frame with no panels yet (a run that has recorded nothing) without failing', () => {
+    expect(layout(0, { x: 0, y: 0, w: 100, h: 50 }, 4)).toEqual([]);
+    const p = new Proxy({}, { get: () => () => 0 }) as unknown as p5;
+    expect(() => drawPanels(p, {} as PlateContext, [], { x: 0, y: 0, w: 100, h: 50 })).not.toThrow();
+  });
+
+  it('draws a landscape field once into an image, not as a rectangle per cell', () => {
+    const calls: Record<string, number> = {};
+    const img = { pixels: new Uint8ClampedArray(64 * 64 * 4), loadPixels() {}, updatePixels() {} };
+    const p = new Proxy({}, {
+      get: (_, key: string) => {
+        if (key === 'textWidth') return () => 40;
+        if (key === 'createImage') return () => { calls.createImage = (calls.createImage ?? 0) + 1; return img; };
+        if (key.toUpperCase() === key) return key;
+        return () => { calls[key] = (calls[key] ?? 0) + 1; };
+      },
+    }) as unknown as p5;
+    const plate = engine.plate({ id: 'simulated-annealing', title: 't', group: 'g' }, kernelOf('simulated-annealing'));
+    const params: Params = {};
+    for (const d of plate.params) params[d.key] = d.value;
+    const ctx = {
+      width: 1280, height: 720, params, seed: 3, rnd: mulberry32(3), theme: 'dark', bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg,
+      palette: () => palette(String(params.palette)), stats() {}, chart() {}, thumbnail: false,
+    } as unknown as PlateContext;
+    const sim = plate.create(p, ctx);
+    sim.setup();
+    const frames = 12;
+    for (let i = 0; i < frames; i++) sim.draw();
+    expect(calls.createImage).toBe(1);
+    expect(calls.image).toBeGreaterThanOrEqual(frames - 1);
+    expect((calls.rect ?? 0) / frames).toBeLessThan(100);
+  });
 });

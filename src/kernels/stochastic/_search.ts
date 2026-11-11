@@ -18,7 +18,9 @@ export const budgetParam = (): ParamDef => ({
   kind: 'range', key: 'budget', label: 'Evaluation budget', min: 600, max: 6000, step: 200, value: 2400, rebuild: true,
 });
 
-/** Uniform random search, one evaluation at a time, as the baseline every search must beat. */
+/** Uniform random search, one evaluation at a time, as the baseline every search must beat.
+ * Its draws are counted; its evaluations are not, so the Evaluations readout is the
+ * algorithm's own, and the baseline makes as many again. */
 export class RandomSearch {
   best = Infinity;
   at: [number, number] = [0, 0];
@@ -26,7 +28,7 @@ export class RandomSearch {
   step(): void {
     const x = this.l.x[0] + this.ops.rnd() * (this.l.x[1] - this.l.x[0]);
     const y = this.l.y[0] + this.ops.rnd() * (this.l.y[1] - this.l.y[0]);
-    const v = this.ops.evaluate(this.l.f, x, y);
+    const v = this.l.f(x, y);
     if (v < this.best) { this.best = v; this.at = [x, y]; }
   }
 }
@@ -36,7 +38,7 @@ export const clamp = (v: number, r: [number, number]) => Math.max(r[0], Math.min
 export function searchStats(name: string, evals: number, best: number, rs: RandomSearch, l: Landscape) {
   return [
     { label: `${name} best`, value: fmt(best, 4) },
-    { label: 'Random search best', value: `${fmt(rs.best, 4)} (same ${fmt(evals)} evaluations)` },
+    { label: 'Random search best', value: `${fmt(rs.best, 4)} (with as many evaluations of its own, ${fmt(evals)})` },
     { label: 'Gap to the known minimum', value: fmt(best - l.min, 4) },
   ];
 }

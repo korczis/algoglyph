@@ -15,8 +15,9 @@ export function setName(mask: number): string {
 }
 
 /** Dempster's rule: products of masses go to the intersection; the mass on empty
- * intersections is the conflict K, and the rest is renormalised by 1 - K. */
-export function combine(a: Mass, b: Mass): { mass: Mass; conflict: number } {
+ * intersections is the conflict K, and the rest is renormalised by 1 - K. Under total conflict
+ * (K = 1) the rule is undefined and the mass is null. */
+export function combine(a: Mass, b: Mass): { mass: Mass | null; conflict: number } {
   const out = new Array<number>(8).fill(0);
   let conflict = 0;
   for (let x = 1; x <= FULL; x++) {
@@ -28,7 +29,7 @@ export function combine(a: Mass, b: Mass): { mass: Mass; conflict: number } {
       else conflict += w;
     }
   }
-  if (conflict >= 1 - 1e-12) return { mass: a.slice(), conflict };
+  if (conflict >= 1 - 1e-12) return { mass: null, conflict };
   return { mass: out.map((v) => v / (1 - conflict)), conflict };
 }
 
@@ -48,8 +49,11 @@ export function plausibility(m: Mass, x: number): number {
 
 export interface DempsterResult {
   sources: Mass[];
-  combined: Mass;
+  /** The combination of every source, or null when one step met total conflict. */
+  combined: Mass | null;
   conflicts: number[];
+  /** Index of the source whose combination was undefined, or -1. */
+  undefinedAt: number;
 }
 
 const HOLD = 30;
@@ -65,7 +69,7 @@ export const kernel: StochasticKernel<DempsterResult> = {
     { kind: 'range', key: 'ignorance', label: 'Least mass on Θ per source', min: 0, max: 0.8, step: 0.05, value: 0.2, rebuild: true },
   ],
   chart: { title: 'Belief and plausibility of H1', x: { label: 'sources combined' }, y: { label: 'value' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const k = num(cfg, 'sources');
     const ign = num(cfg, 'ignorance');
@@ -106,13 +110,31 @@ export const kernel: StochasticKernel<DempsterResult> = {
       for (let h = 0; h < HOLD; h++) ops.frame(panels, stats);
     };
     show(0, 0);
+    yield;
+    let undefinedAt = -1;
     for (let j = 1; j < k; j++) {
       const r = combine(combined, sources[j]);
       ops.count(49);
       conflicts.push(r.conflict);
+      if (!r.mass) {
+        // total conflict: nothing is left to renormalise, so the rule says nothing
+        undefinedAt = j;
+        const stats = [
+          { label: 'Sources combined', value: `${fmt(j)} of ${fmt(k)}; source ${fmt(j + 1)} could not be` },
+          { label: 'Conflict K of the last combination', value: `${fmt(r.conflict, 4)}: total conflict` },
+          { label: 'Combination', value: "undefined: Dempster's rule cannot renormalise by 1 − K = 0" },
+        ];
+        const panels = [{
+          kind: 'bars' as const, title: `Masses of source ${fmt(j + 1)}, in total conflict with the rest`, x: [0, 1] as [number, number],
+          rows: [...SHOWN, FULL].map((x) => ({ label: setName(x), lo: 0, hi: sources[j][x], tone: 0.05 })),
+        }];
+        for (let h = 0; h < HOLD; h++) ops.frame(panels, stats);
+        break;
+      }
       combined = r.mass;
       show(j, r.conflict);
+      yield;
     }
-    return { sources, combined, conflicts };
+    return { sources, combined: undefinedAt < 0 ? combined : null, conflicts, undefinedAt };
   },
 };

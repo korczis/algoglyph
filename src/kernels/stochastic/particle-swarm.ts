@@ -20,7 +20,7 @@ export const kernel: StochasticKernel<SearchResult> = {
   ],
   chart: { title: 'Best value found', x: { label: 'evaluations' }, y: { label: 'best objective' } },
   labSeries: SERIES,
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const l = landscape(str(cfg, 'landscape'));
     const field = landscapeField(l);
     const s = new Sampler(() => ops.rnd());
@@ -83,6 +83,7 @@ export const kernel: StochasticKernel<SearchResult> = {
         if (f < gval) { gval = f; g = [p[0], p[1]]; }
       }
       record(it);
+      yield;
     }
     return { landscape: l.id, best: gval, bestAt: g, randomBest: rs.best, evals };
   },

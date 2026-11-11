@@ -1,5 +1,5 @@
 import { num } from '../../core/plate';
-import { ascending, fmt, quantile, Sampler } from '../../engines/stochastic/sample';
+import { fmt, Sampler, SortedSample } from '../../engines/stochastic/sample';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
 
 export interface Input { name: string; low: number; base: number; high: number }
@@ -29,7 +29,7 @@ export function inputs(s: Sampler): Input[] {
 }
 
 /** Inverse distribution function of the triangular distribution (low, mode, high). */
-function triangular(u: number, a: number, c: number, b: number): number {
+export function triangular(u: number, a: number, c: number, b: number): number {
   const f = (c - a) / (b - a);
   return u < f ? a + Math.sqrt(u * (b - a) * (c - a)) : b - Math.sqrt((1 - u) * (b - a) * (b - c));
 }
@@ -52,7 +52,7 @@ export const kernel: StochasticKernel<TornadoResult> = {
   palette: 'ember',
   params: [{ kind: 'range', key: 'n', label: 'Joint Monte Carlo runs', min: 500, max: 40000, step: 500, value: 8000, rebuild: true }],
   chart: { title: 'Spider plot: output as each input moves alone', x: { label: 'input position, low (0) to high (1)' }, y: { label: 'output' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const xs = inputs(s);
     const baseX = xs.map((x) => x.base);
@@ -82,18 +82,27 @@ export const kernel: StochasticKernel<TornadoResult> = {
     }));
     for (let k = 1; k <= swings.length; k++) {
       for (let h = 0; h < HOLD; h++) ops.frame([tornado(k)], [{ label: 'Base case output', value: fmt(base, 0) }, ...swingStats(k)]);
+      yield;
     }
+    // the joint runs, kept sorted and binned as they grow
+    const sorted = new SortedSample();
+    const bins = new Array<number>(40).fill(0);
     for (let fr = 1; fr <= FILL; fr++) {
       const end = Math.round(n * (fr / FILL));
-      while (samples.length < end) samples.push(ops.evaluate(model, xs.map((x) => triangular(s.uniform(), x.low, x.base, x.high))));
-      const sorted = ascending(samples);
-      const p10 = quantile(sorted, 0.1);
-      const p50 = quantile(sorted, 0.5);
-      const p90 = quantile(sorted, 0.9);
+      const from = samples.length;
+      while (samples.length < end) {
+        samples.push(ops.evaluate(model, xs.map((x) => triangular(s.uniform(), x.low, x.base, x.high))));
+        if (samples.length % 5000 === 0) yield;
+      }
+      histogram(samples, lo, hi, 40, from, samples.length, bins);
+      sorted.add(samples.slice(from));
+      const p10 = sorted.quantile(0.1);
+      const p50 = sorted.quantile(0.5);
+      const p90 = sorted.quantile(0.9);
       ops.frame([
         tornado(swings.length),
         {
-          kind: 'hist', title: 'Joint Monte Carlo output, P10 to P90 shaded', lo, hi, bins: histogram(samples, lo, hi, 40), shade: [p10, p90],
+          kind: 'hist', title: 'Joint Monte Carlo output, P10 to P90 shaded', lo, hi, bins: bins.slice(), shade: [p10, p90],
           marks: [{ x: base, label: 'base', tone: -1, dash: true }, { x: p50, label: 'P50', tone: -1 }],
         },
       ], [
@@ -102,6 +111,7 @@ export const kernel: StochasticKernel<TornadoResult> = {
         { label: 'Joint runs', value: fmt(samples.length) },
         { label: 'P10 / P50 / P90', value: `${fmt(p10, 0)} / ${fmt(p50, 0)} / ${fmt(p90, 0)}` },
       ]);
+      yield;
     }
     return { inputs: xs, base, swings, samples };
   },

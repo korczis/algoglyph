@@ -66,8 +66,8 @@ export function stream(s: Sampler, n: number, at: number, shift: number, sd = 1)
 }
 
 /** Scores of a miscalibrated classifier: the true probability is a monotone distortion of the
- * score, and each label is drawn from it. */
-export function scoredSet(s: Sampler, n: number, distortion: string): { score: number[]; label: number[]; truth: (x: number) => number } {
+ * score, and each label is drawn from it. Yields as it goes, so a large set spreads over frames. */
+export function* scoredSet(s: Sampler, n: number, distortion: string): Generator<void, { score: number[]; label: number[]; truth: (x: number) => number }, void> {
   // over: scores more extreme than the truth; under: less extreme; skewed: scores too high
   const truth = distortion === 'under'
     ? (x: number) => 1 / (1 + Math.exp(-8 * (x - 0.5)))
@@ -80,20 +80,9 @@ export function scoredSet(s: Sampler, n: number, distortion: string): { score: n
     const x = s.beta(1.3, 1.3);
     score.push(x);
     label.push(s.bernoulli(truth(x)) ? 1 : 0);
+    if (i % 1000 === 999) yield;
   }
   return { score, label, truth };
-}
-
-/** A detector's scores: positives ~ N(d', 1), negatives ~ N(0, 1), positives at the base rate. */
-export function detectorSet(s: Sampler, n: number, baseRate: number, dprime: number): { score: number[]; label: number[] } {
-  const score: number[] = [];
-  const label: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const pos = s.bernoulli(baseRate);
-    label.push(pos ? 1 : 0);
-    score.push(s.normal(pos ? dprime : 0, 1));
-  }
-  return { score, label };
 }
 
 export interface Task {

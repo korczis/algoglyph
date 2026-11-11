@@ -13,7 +13,8 @@ function colour(ctx: PlateContext, tone: number | undefined): RGB {
 
 /** Panels side by side; three as one large and two stacked; four in a grid. */
 export function layout(n: number, b: Box, gap: number): Box[] {
-  if (n <= 1) return [b];
+  if (n <= 0) return [];
+  if (n === 1) return [b];
   const wide = b.w >= b.h * 1.1;
   if (n === 2) {
     return wide
@@ -173,26 +174,37 @@ function drawHist(p: p5, ctx: PlateContext, h: Hist, b: Box) {
   marks(p, ctx, h.marks, a, X, (v) => v);
 }
 
+// A field is drawn once into an image per palette and then only scaled each frame.
+const FIELDS = new WeakMap<object, { palette: string; img: p5.Image }>();
+
+function fieldImage(p: p5, ctx: PlateContext, f: NonNullable<Plot['field']>): p5.Image {
+  const pal = ctx.palette();
+  const cached = FIELDS.get(f.values as object);
+  if (cached && cached.palette === pal.id) return cached.img;
+  const img = p.createImage(f.w, f.h);
+  img.loadPixels();
+  for (let j = 0; j < f.h; j++) {
+    for (let i = 0; i < f.w; i++) {
+      const c = ramp(pal, f.values[j * f.w + i]);
+      const k = 4 * ((f.h - 1 - j) * f.w + i);
+      img.pixels[k] = c[0];
+      img.pixels[k + 1] = c[1];
+      img.pixels[k + 2] = c[2];
+      img.pixels[k + 3] = 150;
+    }
+  }
+  img.updatePixels();
+  FIELDS.set(f.values as object, { palette: pal.id, img });
+  return img;
+}
+
 function drawPlot(p: p5, ctx: PlateContext, q: Plot, b: Box) {
   const a = frame(p, ctx, q.title, b, q.x, q.y);
   const sx = q.x[1] - q.x[0] || 1;
   const sy = q.y[1] - q.y[0] || 1;
   const X = (v: number) => a.x + ((v - q.x[0]) / sx) * a.w;
   const Y = (v: number) => a.y + a.h - ((v - q.y[0]) / sy) * a.h;
-  const pal = ctx.palette();
-  if (q.field) {
-    const { w, h, values } = q.field;
-    const cw = a.w / w;
-    const ch = a.h / h;
-    p.noStroke();
-    for (let j = 0; j < h; j++) {
-      for (let i = 0; i < w; i++) {
-        const c = ramp(pal, values[j * w + i]);
-        p.fill(c[0], c[1], c[2], 150);
-        p.rect(a.x + i * cw, a.y + a.h - (j + 1) * ch, cw + 0.6, ch + 0.6);
-      }
-    }
-  }
+  if (q.field) p.image(fieldImage(p, ctx, q.field), a.x, a.y, a.w, a.h);
   if (q.band && q.band.pts.length > 1) {
     const c = colour(ctx, q.band.tone ?? 0.5);
     p.noStroke();

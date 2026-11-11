@@ -54,7 +54,7 @@ export const kernel: StochasticKernel<SobolResult> = {
     { kind: 'range', key: 'n', label: 'Base samples N', min: 200, max: 20000, step: 200, value: 4000, rebuild: true },
   ],
   chart: { title: 'First-order indices as samples grow', x: { label: 'evaluations', log: true }, y: { label: 'S_i' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const m = str(cfg, 'model') === 'additive'
       ? additive(Array.from({ length: 4 }, () => s.uniform(0.2, 3)))
@@ -88,6 +88,7 @@ export const kernel: StochasticKernel<SobolResult> = {
           sd[i] += fab - fa;
           st[i] += (fa - fab) ** 2;
         }
+        if (k % 1000 === 999) yield;
       }
       const mean = (sumA + sumB) / (2 * k);
       const v = (sumA2 + sumB2) / (2 * k) - mean * mean;
@@ -106,6 +107,7 @@ export const kernel: StochasticKernel<SobolResult> = {
         { label: 'Sum of first-order indices', value: `${fmt(first.reduce((a, b) => a + b, 0), 3)} (1 when additive)` },
         { label: 'Largest error against analytic', value: fmt(Math.max(...first.map((si, i) => Math.abs(si - m.first[i])), ...total.map((ti, i) => Math.abs(ti - m.total[i]))), 4) },
       ]);
+      yield;
     }
     const mean = (sumA + sumB) / (2 * k);
     const v = (sumA2 + sumB2) / (2 * k) - mean * mean;

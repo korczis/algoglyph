@@ -32,7 +32,7 @@ export const kernel: StochasticKernel<VerdictResult> = {
     { kind: 'range', key: 'n', label: 'Perturbed runs', min: 200, max: 40000, step: 200, value: 5000, rebuild: true },
   ],
   chart: { title: 'Verdict stability as runs accumulate', x: { label: 'runs', log: true }, y: { label: 'share of runs agreeing' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const k = num(cfg, 'k');
     const prior = num(cfg, 'prior');
@@ -41,7 +41,8 @@ export const kernel: StochasticKernel<VerdictResult> = {
     const items = evidenceSet(s, k);
     const total = prior + items.reduce((t, e) => t + e.llr, 0);
     const baseline = total > 0;
-    const scores: number[] = [];
+    // the histogram of posterior log-odds grows with the runs instead of being rebuilt
+    const bins = new Array<number>(48).fill(0);
     let agree = 0;
     // flips counted with each item dropped and with it kept, to measure its influence
     const flipDropped = new Array<number>(k).fill(0);
@@ -59,12 +60,13 @@ export const kernel: StochasticKernel<VerdictResult> = {
           if (holds) lo += e.llr + (noise ? s.normal(0, e.sd * noise) : 0);
         }
         ops.count(1);
-        scores.push(lo);
+        histogram([lo], LO, HI, 48, 0, 1, bins);
         const same = lo > 0 === baseline;
         if (same) agree++;
         kept.forEach((h, i) => {
           if (!h) { dropped[i]++; if (!same) flipDropped[i]++; } else if (!same) flipKept[i]++;
         });
+        if (done % 4000 === 3999) yield;
       }
       const st = agree / done;
       const se = Math.sqrt(Math.max(st * (1 - st), 1e-9) / done);
@@ -76,7 +78,7 @@ export const kernel: StochasticKernel<VerdictResult> = {
       ops.frame([
         {
           kind: 'hist', title: 'Posterior log-odds over perturbed runs; verdict flips left of 0', lo: LO, hi: HI,
-          bins: histogram(scores, LO, HI, 48), shade: baseline ? [LO, 0] : [0, HI],
+          bins: bins.slice(), shade: baseline ? [LO, 0] : [0, HI],
           marks: [{ x: 0, label: 'threshold', tone: -1 }, { x: total, label: 'as given', tone: 0.9, dash: true }],
         },
         {
@@ -90,8 +92,9 @@ export const kernel: StochasticKernel<VerdictResult> = {
         { label: 'Verdict as given', value: `${baseline ? 'supported' : 'not supported'} (log-odds ${fmt(total, 2)})` },
         { label: 'Stability', value: `${pct(st)} ± ${pct(se)}` },
         { label: 'Runs', value: `${fmt(done)}; ${fmt(done - agree)} flipped` },
-        { label: `Most influential: ${items[top].label}`, value: `flips ${pct(influence[top])} more often when it fails` },
+        { label: `Most influential: ${items[top].label}`, value: `flips ${fmt(100 * influence[top], 1)} percentage points more often when it fails` },
       ]);
+      yield;
     }
     return { items, prior, baseline, stability: agree / n, runs: n, noise };
   },

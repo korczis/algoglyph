@@ -107,7 +107,9 @@ export interface StochasticKernel<R = unknown> {
   chart: { title: string; x: { label: string; log?: boolean }; y: { label: string; log?: boolean } };
   /** The chart series a lab compares across kernels. */
   labSeries?: string;
-  run(ops: StochasticOps, cfg: Params): R;
+  /** The run as a generator: it yields between bounded pieces of work, so the engine can spread
+   * a run over frames and never block one; its return value is the run's result. */
+  run(ops: StochasticOps, cfg: Params): Generator<void, R, void>;
 }
 
 export interface Run<R = unknown> {
@@ -128,39 +130,71 @@ export function config(kernel: StochasticKernel, params: Params = {}): Params {
   return out;
 }
 
-/** Run `kernel` with a generator seeded from `seed`, counting and recording everything. */
+const now = () => performance.now();
+
+/** One run of a kernel, advanced piece by piece within a time budget. Creating it does no work. */
+export class Runner<R = unknown> {
+  readonly frames: Frame[] = [];
+  result: R | undefined;
+  done = false;
+  private draws = 0;
+  private evals = 0;
+  private readonly it: Generator<void, R, void>;
+  private readonly ops: StochasticOps;
+  constructor(kernel: StochasticKernel<R>, params: Params, seed: number) {
+    const u = mulberry32(seed);
+    const series = new Map<string, [number, number][]>();
+    const frames = this.frames;
+    const self = this;
+    this.ops = {
+      rnd() { self.draws++; return u(); },
+      evaluate(f, ...a) { self.evals++; return f(...a); },
+      count(k) { self.evals += k; },
+      point(name, x, y) {
+        let s = series.get(name);
+        if (!s) { s = []; series.set(name, s); }
+        s.push([x, y]);
+      },
+      setSeries(name, pts) { series.set(name, pts.map((q) => [q[0], q[1]] as [number, number])); },
+      frame(panels, stats) {
+        if (frames.length >= FRAME_CAP) throw new Error(`a kernel recorded more than ${FRAME_CAP} frames`);
+        frames.push({ panels, stats, draws: self.draws, evals: self.evals, series: [...series].map(([n, s]) => [n, s, s.length]) });
+      },
+      get draws() { return self.draws; },
+      get evals() { return self.evals; },
+    };
+    // a generator's body runs only from the first next(): construction stays free
+    this.it = kernel.run(this.ops, config(kernel as StochasticKernel, params));
+  }
+  /** Advance by pieces until the budget (ms) is spent or the run ends; at least one piece. */
+  step(budget: number): boolean {
+    if (this.done) return true;
+    const end = now() + budget;
+    do {
+      const r = this.it.next();
+      if (r.done) {
+        this.result = r.value;
+        this.done = true;
+        if (!this.frames.length) this.ops.frame([], []);
+        break;
+      }
+    } while (now() < end);
+    return this.done;
+  }
+  get counts() { return { draws: this.draws, evals: this.evals }; }
+}
+
+/** Run `kernel` to the end with a generator seeded from `seed`, counting and recording everything. */
 export function trace<R>(kernel: StochasticKernel<R>, params: Params, seed: number): Run<R> {
-  const u = mulberry32(seed);
-  let draws = 0;
-  let evals = 0;
-  const frames: Frame[] = [];
-  const series = new Map<string, [number, number][]>();
-  const ops: StochasticOps = {
-    rnd() { draws++; return u(); },
-    evaluate(f, ...a) { evals++; return f(...a); },
-    count(k) { evals += k; },
-    point(name, x, y) {
-      let s = series.get(name);
-      if (!s) { s = []; series.set(name, s); }
-      s.push([x, y]);
-    },
-    setSeries(name, pts) { series.set(name, pts.map((q) => [q[0], q[1]] as [number, number])); },
-    frame(panels, stats) {
-      if (frames.length >= FRAME_CAP) throw new Error(`a kernel recorded more than ${FRAME_CAP} frames`);
-      frames.push({ panels, stats, draws, evals, series: [...series].map(([n, s]) => [n, s, s.length]) });
-    },
-    get draws() { return draws; },
-    get evals() { return evals; },
-  };
-  const result = kernel.run(ops, config(kernel as StochasticKernel, params));
-  if (!frames.length) ops.frame([], []);
-  return { frames, result, draws, evals };
+  const r = new Runner(kernel, params, seed);
+  r.step(Infinity);
+  return { frames: r.frames, result: r.result as R, ...r.counts };
 }
 
 /** Counts per equal-width bin of [lo, hi]; values outside fall into the end bins. */
 export function histogram(xs: ArrayLike<number>, lo: number, hi: number, k: number, from = 0,
-  to = xs.length): number[] {
-  const bins = new Array<number>(k).fill(0);
+  to = xs.length, into?: number[]): number[] {
+  const bins = into ?? new Array<number>(k).fill(0);
   const w = (hi - lo) / k;
   for (let i = from; i < to; i++) {
     const b = Math.floor((xs[i] - lo) / w);

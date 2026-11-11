@@ -44,7 +44,7 @@ export const kernel: StochasticKernel<ShapleyResult> = {
     { kind: 'range', key: 'm', label: 'Sampled orderings', min: 20, max: 4000, step: 20, value: 600, rebuild: true },
   ],
   chart: { title: 'Error of the sampled values', x: { label: 'orderings sampled', log: true }, y: { label: 'largest |estimate − exact|', log: true } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const d = num(cfg, 'd');
     const m = num(cfg, 'm');
@@ -83,6 +83,7 @@ export const kernel: StochasticKernel<ShapleyResult> = {
           prev = cur;
         }
         done++;
+        if (done % 200 === 0) yield;
       }
       const e = est();
       const se = ses();
@@ -109,6 +110,7 @@ export const kernel: StochasticKernel<ShapleyResult> = {
         { label: 'Largest error', value: fmt(err, 4) },
         { label: `Largest attribution x${top + 1}`, value: Number.isFinite(se[top]) ? pm(e[top], se[top]) : fmt(e[top], 3) },
       ]);
+      yield;
     }
     return { d, values, exact, estimate: est(), se: ses(), permutations: done };
   },

@@ -52,10 +52,11 @@ export const kernel: StochasticKernel<DriftResult> = {
     { kind: 'range', key: 'widen', label: 'Final extra spread', min: 0, max: 1.5, step: 0.1, value: 0.4, rebuild: true },
   ],
   chart: { title: 'Divergence as the distribution drifts', x: { label: 'mean shift' }, y: { label: 'divergence' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
     const ref = Array.from({ length: n }, () => s.normal());
+    yield;
     const pc = histogram(ref, LO, HI, BINS);
     const p = proportions(pc);
     const steps: DriftStep[] = [];
@@ -92,6 +93,7 @@ export const kernel: StochasticKernel<DriftResult> = {
         { label: 'Window drawn from', value: `N(${fmt(shift, 2)}, ${fmt(scale, 2)}²), ${fmt(n)} samples` },
         { label: 'Step', value: `${fmt(k)} of ${fmt(STEPS)}` },
       ]);
+      yield;
     }
     return { steps, bins: BINS, lo: LO, hi: HI };
   },

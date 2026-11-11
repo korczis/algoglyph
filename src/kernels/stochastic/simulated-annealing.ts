@@ -19,7 +19,7 @@ export const kernel: StochasticKernel<SearchResult> = {
   ],
   chart: { title: 'Best value found', x: { label: 'evaluations' }, y: { label: 'best objective' } },
   labSeries: SERIES,
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const l = landscape(str(cfg, 'landscape'));
     const field = landscapeField(l);
     const s = new Sampler(() => ops.rnd());
@@ -79,6 +79,7 @@ export const kernel: StochasticKernel<SearchResult> = {
           { label: 'Temperature', value: `${fmt(T, 4)} (first ${fmt(t0, 3)})` },
           { label: 'Acceptance rate', value: `${pct(accepted / tried)}; uphill moves taken ${fmt(worseTaken)}` },
         ]);
+        yield;
       }
     }
     return { landscape: l.id, best, bestAt, randomBest: rs.best, evals: budget };

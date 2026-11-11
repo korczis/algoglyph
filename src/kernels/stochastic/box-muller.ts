@@ -1,5 +1,5 @@
 import { num } from '../../core/plate';
-import { ascending, fmt, normalCdf, normalPdf, pm } from '../../engines/stochastic/sample';
+import { fmt, normalCdf, normalPdf, pm, SortedSample } from '../../engines/stochastic/sample';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
 
 export interface BoxMullerResult {
@@ -11,9 +11,8 @@ export interface BoxMullerResult {
   pairCorrelation: number;
 }
 
-/** Kolmogorov–Smirnov distance of a sample from the standard normal. */
-function ksDistance(xs: ArrayLike<number>): number {
-  const s = ascending(xs);
+/** Kolmogorov–Smirnov distance of an ascending sample from the standard normal. */
+function ksDistance(s: ArrayLike<number>): number {
   const n = s.length;
   let d = 0;
   for (let i = 0; i < n; i++) {
@@ -37,7 +36,7 @@ export const kernel: StochasticKernel<BoxMullerResult> = {
   palette: 'abyss',
   params: [{ kind: 'range', key: 'n', label: 'Samples', min: 2000, max: 40000, step: 1000, value: 12000, rebuild: true }],
   chart: { title: 'Distance from the normal', x: { label: 'samples', log: true }, y: { label: 'KS distance', log: true } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const pairs = Math.floor(num(cfg, 'n') / 2);
     const z = new Float64Array(2 * pairs);
     const angle: number[] = [];
@@ -47,6 +46,7 @@ export const kernel: StochasticKernel<BoxMullerResult> = {
     let ks = NaN;
     let k = 0;
     let nextCheck = 50;
+    const sorted = new SortedSample();
     for (let f = 1; f <= FRAMES; f++) {
       const end = Math.round((f / FRAMES) * pairs);
       for (; k < end; k++) {
@@ -61,10 +61,12 @@ export const kernel: StochasticKernel<BoxMullerResult> = {
         s += z1 + z2;
         s2 += z1 * z1 + z2 * z2;
         sxy += z1 * z2;
+        if (k % 4000 === 3999) yield;
       }
       const n = 2 * k;
+      sorted.add(z.subarray(sorted.length, n));
       if (n >= nextCheck || f === FRAMES) {
-        ks = ksDistance(z.subarray(0, n));
+        ks = ksDistance(sorted.values);
         ops.point('KS distance D', n, ks);
         ops.point('5% critical value 1.36/√n', n, 1.36 / Math.sqrt(n));
         nextCheck = Math.ceil(n * 1.25);
@@ -88,6 +90,7 @@ export const kernel: StochasticKernel<BoxMullerResult> = {
         { label: 'KS distance D', value: `${fmt(ks, 4)} (5% critical ${fmt(1.36 / Math.sqrt(n), 4)})` },
         { label: 'Mean of z1·z2 (0 when uncorrelated)', value: fmt(sxy / k, 4) },
       ]);
+      yield;
     }
     const n = 2 * pairs;
     const mean = s / n;

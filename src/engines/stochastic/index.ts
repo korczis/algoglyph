@@ -8,10 +8,14 @@ import { bool, num, type ParamDef, type Params, type PlateCode, type PlateContex
 import type { Engine, KernelInfo } from '../types';
 import { drawPanels } from './draw';
 import { fmt } from './sample';
-import { trace, type Frame, type Run, type StochasticKernel } from './trace';
+import { Runner, type Frame, type StochasticKernel } from './trace';
 
 const HOLD_FRAMES = 150;
 const GENERATION = 7919;
+/** Work a replay may do per drawn frame (ms): the run advances in pieces within it. */
+export const STEP_MS = 6;
+/** Work a gallery thumbnail may do before it draws the latest recorded frame (ms). */
+export const THUMBNAIL_MS = 25;
 
 const replayParams = (): ParamDef[] => [
   { kind: 'range', key: 'speed', label: 'Recorded frames per frame', min: 0.05, max: 4, step: 0.05, value: 0.5 },
@@ -28,28 +32,50 @@ function seriesOf(f: Frame) {
   return f.series.map(([name, pts, len]) => ({ name, points: pts.slice(0, len) }));
 }
 
-/** A replay of one run: which frame is shown, and when to start a new seed. */
-class Replay {
+const EMPTY: Frame = { panels: [], stats: [{ label: 'Run', value: 'starting' }], draws: 0, evals: 0, series: [] };
+
+/** The replay of a run that is still being computed: the run advances within a budget per
+ * frame, the replay shows what is recorded, and the next seed's run is prepared in pieces
+ * while the finished one is held, so starting it never stalls a frame. */
+export class Replay {
   at = 0;
   hold = 0;
   generation = 0;
-  run: Run;
-  constructor(private readonly kernel: StochasticKernel, private readonly ctx: PlateContext) {
-    this.run = this.build();
+  run: Runner;
+  next: Runner | null = null;
+  constructor(private readonly kernel: StochasticKernel, private readonly ctx: PlateContext,
+    private readonly budget = STEP_MS) {
+    this.run = this.build(0);
   }
-  private build(): Run {
-    return trace(this.kernel, this.ctx.params as Params, this.ctx.seed + this.generation * GENERATION);
+  private build(generation: number): Runner {
+    return new Runner(this.kernel, this.ctx.params as Params, this.ctx.seed + generation * GENERATION);
   }
-  get last(): number { return this.run.frames.length - 1; }
-  get frame(): Frame { return this.run.frames[Math.min(this.last, Math.floor(this.at))]; }
-  get done(): boolean { return this.at >= this.last; }
+  get last(): number { return Math.max(0, this.run.frames.length - 1); }
+  get frame(): Frame { return this.run.frames[Math.min(this.last, Math.floor(this.at))] ?? EMPTY; }
+  get done(): boolean { return this.run.done && this.at >= this.last; }
+  /** Compute up to `ms` of the run and show its latest frame (thumbnails); if nothing is
+   * recorded yet, keep going, up to four times the budget, so there is a picture to show. */
+  settle(ms: number): void {
+    const end = performance.now() + 4 * ms;
+    this.run.step(ms);
+    while (!this.run.frames.length && !this.run.done && performance.now() < end) this.run.step(STEP_MS);
+    this.at = this.last;
+  }
   tick(): void {
-    if (!this.done) this.at = Math.min(this.last, this.at + num(this.ctx.params, 'speed'));
-    else if (bool(this.ctx.params, 'loop') && ++this.hold > HOLD_FRAMES) {
+    if (!this.run.done) this.run.step(this.budget);
+    if (!this.done) {
+      this.at = Math.min(this.last, this.at + num(this.ctx.params, 'speed'));
+      return;
+    }
+    if (!bool(this.ctx.params, 'loop')) return;
+    this.next ??= this.build(this.generation + 1);
+    this.next.step(this.budget);
+    if (++this.hold > HOLD_FRAMES) {
       this.generation++;
       this.hold = 0;
       this.at = 0;
-      this.run = this.build();
+      this.run = this.next;
+      this.next = null;
     }
   }
 }
@@ -65,7 +91,7 @@ function plate(info: KernelInfo, kernel: StochasticKernel): PlateCode {
       const r = new Replay(kernel, ctx);
       return {
         setup() {
-          if (ctx.thumbnail) r.at = r.last;
+          if (ctx.thumbnail) r.settle(THUMBNAIL_MS);
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
@@ -76,7 +102,7 @@ function plate(info: KernelInfo, kernel: StochasticKernel): PlateCode {
           ctx.stats([
             ...f.stats,
             ...counted(f),
-            { label: 'Replay', value: `frame ${fmt(Math.floor(r.at) + 1)} of ${fmt(r.last + 1)}` },
+            { label: 'Replay', value: `frame ${fmt(Math.floor(r.at) + 1)} of ${fmt(r.last + 1)}${r.run.done ? '' : ' recorded so far'}` },
           ]);
           ctx.chart({ ...kernel.chart, series: seriesOf(f) });
         },
@@ -97,10 +123,12 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StochasticKernel }
     thumbnailFrames: 2,
     params: [...params, ...replayParams(), paletteParam(first?.palette ?? 'abyss')],
     create(p, ctx) {
-      const panes = kernels.map((k) => ({ ...k, r: new Replay(k.kernel, ctx) }));
+      // the frame's work budget is shared between the panes
+      const share = kernels.length ? STEP_MS / kernels.length : STEP_MS;
+      const panes = kernels.map((k) => ({ ...k, r: new Replay(k.kernel, ctx, share) }));
       return {
         setup() {
-          if (ctx.thumbnail) for (const pane of panes) pane.r.at = pane.r.last;
+          if (ctx.thumbnail) for (const pane of panes) pane.r.settle(THUMBNAIL_MS / panes.length);
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);

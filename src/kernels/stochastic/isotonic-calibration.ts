@@ -1,7 +1,7 @@
 import { num, str } from '../../core/plate';
 import { fmt, Sampler } from '../../engines/stochastic/sample';
 import { scoredSet } from '../../engines/stochastic/scenarios';
-import type { StochasticKernel } from '../../engines/stochastic/trace';
+import type { Panel, StochasticKernel } from '../../engines/stochastic/trace';
 
 interface Block { sum: number; w: number; from: number; to: number }
 
@@ -77,11 +77,11 @@ export const kernel: StochasticKernel<IsotonicResult> = {
     { kind: 'range', key: 'n', label: 'Training cases', min: 100, max: 5000, step: 100, value: 1200, rebuild: true },
   ],
   chart: { title: 'Reliability on held-out cases', x: { label: 'predicted probability' }, y: { label: 'observed frequency' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
-    const train = scoredSet(s, n, str(cfg, 'distortion'));
-    const test = scoredSet(s, n, str(cfg, 'distortion'));
+    const train = yield* scoredSet(s, n, str(cfg, 'distortion'));
+    const test = yield* scoredSet(s, n, str(cfg, 'distortion'));
     const order = train.score.map((_, i) => i).sort((a, b) => train.score[a] - train.score[b]);
     const score = order.map((i) => train.score[i]);
     const label = order.map((i) => train.label[i]);
@@ -92,14 +92,15 @@ export const kernel: StochasticKernel<IsotonicResult> = {
     ops.setSeries('before', before.pts);
     let merges = 0;
     const every = Math.max(1, Math.ceil(n / FRAMES));
+    yield;
     const labelDots: [number, number][] = score.map((x, i) => [x, label[i] ? 0.98 : 0.02]);
-    const frame = (blocks: Block[], upto: number, after: { pts: [number, number][]; ece: number; brier: number } | null) => {
+    const frame = (blocks: Block[], upto: number, after: { pts: [number, number][]; ece: number; brier: number } | null, times = 1) => {
       const step: [number, number][] = [];
       for (const b of blocks) {
         const v = b.sum / b.w;
         step.push([score[b.from], v], [score[b.to], v]);
       }
-      ops.frame([
+      const panels: Panel[] = [
         {
           kind: 'plot', title: 'Labels (top, bottom), PAV fit so far, true curve dashed', x: [0, 1], y: [0, 1],
           dots: [{ pts: labelDots.slice(0, upto), tones: label.slice(0, upto).map((l) => (l ? 0.85 : 0.15)), size: 1.5, alpha: 0.5 }],
@@ -114,12 +115,14 @@ export const kernel: StochasticKernel<IsotonicResult> = {
           ],
           dots: [{ pts: before.pts, tone: 0.1, size: 3 }, ...(after ? [{ pts: after.pts, tone: 0.75, size: 3 }] : [])],
         },
-      ], [
+      ];
+      const stats = [
         { label: 'Cases pooled', value: `${fmt(upto)} of ${fmt(n)}` },
         { label: 'Blocks', value: `${fmt(blocks.length)} after ${fmt(merges)} merges` },
         { label: 'Brier score (held out)', value: after ? `${fmt(brierBefore, 4)} → ${fmt(after.brier, 4)}` : fmt(brierBefore, 4) },
         { label: 'Expected calibration error', value: after ? `${fmt(before.ece, 4)} → ${fmt(after.ece, 4)}` : fmt(before.ece, 4) },
-      ]);
+      ];
+      for (let h = 0; h < times; h++) ops.frame(panels, stats);
     };
     // replay the fit case by case so the frames show it growing
     const blocks: Block[] = [];
@@ -134,8 +137,12 @@ export const kernel: StochasticKernel<IsotonicResult> = {
         blocks.splice(blocks.length - 2, 2, { sum: a.sum + b.sum, w: a.w + b.w, from: a.from, to: b.to });
         merges++;
       }
-      if ((i + 1) % every === 0 && i + 1 < n) frame(blocks, i + 1, null);
+      if ((i + 1) % every === 0 && i + 1 < n) {
+        frame(blocks, i + 1, null);
+        yield;
+      }
     }
+    yield;
     const fitted = pav(label);
     const calibrate = (x: number) => {
       let lo = 0;
@@ -150,7 +157,7 @@ export const kernel: StochasticKernel<IsotonicResult> = {
     const pred = test.score.map(calibrate);
     const after = { ...reliability(pred, test.label), brier: brier(pred, test.label) };
     ops.setSeries('after', after.pts);
-    for (let h = 0; h < 40; h++) frame(blocks, n, after);
+    frame(blocks, n, after, 40);
     return { score, label, fitted, brierBefore, brierAfter: after.brier, eceBefore: before.ece, eceAfter: after.ece };
   },
 };

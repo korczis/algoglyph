@@ -43,7 +43,7 @@ export const kernel: StochasticKernel<PageHinkleyResult> = {
     { kind: 'range', key: 'lambda', label: 'Threshold λ', min: 2, max: 60, step: 1, value: 15, rebuild: true },
   ],
   chart: { title: 'Page–Hinkley statistic', x: { label: 'sample' }, y: { label: 'm_t − min m' } },
-  run(ops, cfg) {
+  *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
     const shift = num(cfg, 'shift');
@@ -93,6 +93,7 @@ export const kernel: StochasticKernel<PageHinkleyResult> = {
               : at >= n || alarm < at ? 'false alarm (before any change)' : `delay ${fmt(alarm - at)} samples`,
           },
         ]);
+        yield;
       }
     }
     return { stream: xs, change: at, alarm, statistic, lambda, delta };
