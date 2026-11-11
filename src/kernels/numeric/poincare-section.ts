@@ -3,7 +3,7 @@
 // every upward crossing of the plane x = 0 is located by linear interpolation and kept as a
 // point (y, py). Islands mark regular orbits, the scattered sea chaotic ones.
 import { mulberry32 } from '../../core/random';
-import { fmt, int, type Layer, type NumericKernel, type XY } from '../../engines/numeric/trace';
+import { drain, fmt, int, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
 
 export interface Orbit { section: XY[]; path: XY[]; drift: number }
 
@@ -42,6 +42,58 @@ export function orbit(s0: S, lam: number, crossings: number, h = 0.01, pathSteps
   return { section, path, drift };
 }
 
+function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
+  const rnd = mulberry32(seed);
+  const E = Number(params.energy ?? 0.125);
+  const K = Number(params.orbits ?? 16);
+  const lam = 1;
+  const crossings = 160;
+  const orbits: Orbit[] = [];
+  for (let k = 0; orbits.length < K && k < 50 * K; k++) {
+    const s = start(-0.45 + 1.1 * rnd(), -0.6 + 1.2 * rnd(), E, lam);
+    if (s) { orbits.push(orbit(s, lam, crossings)); yield; }
+  }
+  const all: XY[] = []; const tones: number[] = [];
+  orbits.forEach((o, i) => o.section.forEach((q) => { all.push(q); tones.push(i / Math.max(1, orbits.length - 1)); }));
+  // the boundary of the section: ½ py² + ½ y² − y³/3 = E
+  const edge: XY[] = [];
+  for (let i = 0; i <= 400; i++) {
+    const y = -0.7 + (1.5 * i) / 400;
+    const k = 2 * (E - potential(0, y, lam));
+    if (k >= 0) { edge.push([y, Math.sqrt(k)]); }
+  }
+  const boundary = [...edge, ...edge.slice().reverse().map(([y, p]) => [y, -p] as XY)];
+  const drift = Math.max(...orbits.map((o) => o.drift));
+  const per = 10;
+  const steps = [];
+  for (let n = per; n <= all.length + per; n += per) {
+    const upto = Math.min(n, all.length);
+    const which = Math.min(orbits.length - 1, Math.floor((upto - 1) / crossings));
+    const layers: Layer[] = [
+      { kind: 'curve', pts: boundary, alpha: 0.4, weight: 1 },
+      { kind: 'points', pts: all, tones, n: upto, size: 2 },
+      { kind: 'curve', panel: 1, pts: orbits[which].path, tone: tones[which * crossings], weight: 1, alpha: 0.8 },
+    ];
+    steps.push({
+      layers,
+      stats: [
+        { label: 'Energy', value: fmt(E) },
+        { label: 'Section points', value: `${int(upto)} (orbit ${which + 1} of ${orbits.length})` },
+        { label: 'Largest relative energy drift', value: fmt(drift) },
+        { label: 'Integrator', value: 'leapfrog (velocity Verlet), h 0.01' },
+      ],
+    });
+    if (upto === all.length) break;
+  }
+  return {
+    panels: [
+      { title: 'Section x = 0, px > 0: (y, py)', x: [-0.75, 0.95], y: [-0.65, 0.65], equal: true, axes: true, weight: 1.3 },
+      { title: 'The current orbit in (x, y)', x: [-0.95, 0.95], y: [-0.75, 1.05], equal: true, axes: true },
+    ],
+    steps,
+  };
+}
+
 export const kernel: NumericKernel = {
   params: [
     { kind: 'range', key: 'energy', label: 'Energy E (escape at 1/6)', min: 0.04, max: 0.165, step: 0.005, value: 0.125, rebuild: true },
@@ -50,55 +102,6 @@ export const kernel: NumericKernel = {
   rate: 8,
   aspect: 16 / 9,
   palette: 'spectral',
-  run({ seed, params }) {
-    const rnd = mulberry32(seed);
-    const E = Number(params.energy ?? 0.125);
-    const K = Number(params.orbits ?? 16);
-    const lam = 1;
-    const crossings = 160;
-    const orbits: Orbit[] = [];
-    for (let k = 0; orbits.length < K && k < 50 * K; k++) {
-      const s = start(-0.45 + 1.1 * rnd(), -0.6 + 1.2 * rnd(), E, lam);
-      if (s) orbits.push(orbit(s, lam, crossings));
-    }
-    const all: XY[] = []; const tones: number[] = [];
-    orbits.forEach((o, i) => o.section.forEach((q) => { all.push(q); tones.push(i / Math.max(1, orbits.length - 1)); }));
-    // the boundary of the section: ½ py² + ½ y² − y³/3 = E
-    const edge: XY[] = [];
-    for (let i = 0; i <= 400; i++) {
-      const y = -0.7 + (1.5 * i) / 400;
-      const k = 2 * (E - potential(0, y, lam));
-      if (k >= 0) { edge.push([y, Math.sqrt(k)]); }
-    }
-    const boundary = [...edge, ...edge.slice().reverse().map(([y, p]) => [y, -p] as XY)];
-    const drift = Math.max(...orbits.map((o) => o.drift));
-    const per = 10;
-    const steps = [];
-    for (let n = per; n <= all.length + per; n += per) {
-      const upto = Math.min(n, all.length);
-      const which = Math.min(orbits.length - 1, Math.floor((upto - 1) / crossings));
-      const layers: Layer[] = [
-        { kind: 'curve', pts: boundary, alpha: 0.4, weight: 1 },
-        { kind: 'points', pts: all, tones, n: upto, size: 2 },
-        { kind: 'curve', panel: 1, pts: orbits[which].path, tone: tones[which * crossings], weight: 1, alpha: 0.8 },
-      ];
-      steps.push({
-        layers,
-        stats: [
-          { label: 'Energy', value: fmt(E) },
-          { label: 'Section points', value: `${int(upto)} (orbit ${which + 1} of ${orbits.length})` },
-          { label: 'Largest relative energy drift', value: fmt(drift) },
-          { label: 'Integrator', value: 'leapfrog (velocity Verlet), h 0.01' },
-        ],
-      });
-      if (upto === all.length) break;
-    }
-    return {
-      panels: [
-        { title: 'Section x = 0, px > 0: (y, py)', x: [-0.75, 0.95], y: [-0.65, 0.65], equal: true, axes: true, weight: 1.3 },
-        { title: 'The current orbit in (x, y)', x: [-0.95, 0.95], y: [-0.75, 1.05], equal: true, axes: true },
-      ],
-      steps,
-    };
-  },
+  build,
+  run: (inp) => drain(build(inp)),
 };

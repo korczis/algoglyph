@@ -34,6 +34,10 @@ export const PRODUCTS: [string[], string[], string][] = [
 /** C = A B for square matrices whose size is a power of two. `top` sees the seven top products. */
 export function strassen(A: Mat, B: Mat, m = new Meter(), top?: (k: number, M: Mat) => void): Mat {
   const n = A.length;
+  // halving needs a power of two at every level; pad the operands with zeros for other sizes
+  if (n < 1 || (n & (n - 1)) !== 0 || B.length !== n || A.some((r) => r.length !== n) || B.some((r) => r.length !== n)) {
+    throw new RangeError(`strassen: square n × n operands with n a power of two expected, got ${A.length} × ${A[0]?.length ?? 0} and ${B.length} × ${B[0]?.length ?? 0}`);
+  }
   if (n === 1) return [[m.mul(A[0][0], B[0][0])]];
   const h = n / 2;
   const [a11, a12, a21, a22] = [quad(A, 0, 0, h), quad(A, 0, h, h), quad(A, h, 0, h), quad(A, h, h, h)];

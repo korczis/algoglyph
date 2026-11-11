@@ -3,7 +3,7 @@
 // that remains, F(n); the slope of log F against log n is α. Rescaled range measures R/S per
 // window instead and gives the Hurst exponent H. White noise: α ≈ H ≈ ½.
 import { gaussian, mulberry32 } from '../../core/random';
-import { fitLine, fmt, int, logSlope, span, type Layer, type NumericKernel, type XY } from '../../engines/numeric/trace';
+import { drain, fitLine, fmt, int, logSlope, span, type Layer, type NumericKernel, type RunInput, type NumericRun, type XY } from '../../engines/numeric/trace';
 
 export function profile(x: number[]): number[] {
   const mean = x.reduce((a, b) => a + b, 0) / x.length;
@@ -46,10 +46,18 @@ export function boxSizes(N: number): number[] {
   return out;
 }
 
-/** Fractional Gaussian noise with Hurst exponent H, exactly, by Hosking's recursion (Durbin–Levinson). */
-export function fgn(N: number, H: number, seed: number): number[] {
+/**
+ * Fractional Gaussian noise with Hurst exponent H, exactly, by Hosking's recursion
+ * (Durbin–Levinson), resumable: it yields every few hundred samples so a rebuild can be spread
+ * over frames. The autocovariance γ(k) is tabulated once, so the O(N²) recursion does only
+ * multiply-adds; each γ(k) is computed by the same expression as before, so the output is
+ * bit-identical to evaluating it in the loop.
+ */
+export function* fgnSteps(N: number, H: number, seed: number): Generator<void, number[], void> {
   const rnd = mulberry32(seed);
-  const g = (k: number) => 0.5 * (Math.abs(k + 1) ** (2 * H) - 2 * Math.abs(k) ** (2 * H) + Math.abs(k - 1) ** (2 * H));
+  const e = 2 * H;
+  const g = new Float64Array(N + 1);
+  for (let k = 0; k <= N; k++) g[k] = 0.5 * (Math.abs(k + 1) ** e - 2 * Math.abs(k) ** e + Math.abs(k - 1) ** e);
   const x = new Array<number>(N).fill(0);
   let phi = new Float64Array(N); // phi[j] holds the coefficient of x_{t-1-j}
   let next = new Float64Array(N);
@@ -57,8 +65,8 @@ export function fgn(N: number, H: number, seed: number): number[] {
   let v = 1;
   x[0] = gaussian(rnd);
   for (let t = 1; t < N; t++) {
-    let num = g(t);
-    for (let j = 0; j < len; j++) num -= phi[j] * g(t - 1 - j);
+    let num = g[t];
+    for (let j = 0; j < len; j++) num -= phi[j] * g[t - 1 - j];
     const k = num / v;
     for (let j = 0; j < len; j++) next[j] = phi[j] - k * phi[len - 1 - j];
     next[len] = k;
@@ -68,15 +76,72 @@ export function fgn(N: number, H: number, seed: number): number[] {
     let mean = 0;
     for (let j = 0; j < len; j++) mean += phi[j] * x[t - 1 - j];
     x[t] = mean + Math.sqrt(v) * gaussian(rnd);
+    if ((t & 255) === 0) yield;
   }
   return x;
 }
 
-export function seriesFor(kind: string, N: number, seed: number): { x: number[]; expect: string } {
+export function fgn(N: number, H: number, seed: number): number[] {
+  return drain(fgnSteps(N, H, seed));
+}
+
+export function* seriesSteps(kind: string, N: number, seed: number): Generator<void, { x: number[]; expect: string }, void> {
   if (kind === 'walk') { const rnd = mulberry32(seed); let s = 0; return { x: Array.from({ length: N }, () => (s += gaussian(rnd))), expect: 'α ≈ 1.5 (a random walk: the profile of a profile)' }; }
-  if (kind.startsWith('fgn-')) { const H = Number(kind.slice(4)); return { x: fgn(N, H, seed), expect: `α ≈ ${H} (fractional Gaussian noise, H = ${H})` }; }
+  if (kind.startsWith('fgn-')) { const H = Number(kind.slice(4)); return { x: yield* fgnSteps(N, H, seed), expect: `α ≈ ${H} (fractional Gaussian noise, H = ${H})` }; }
   const rnd = mulberry32(seed);
   return { x: Array.from({ length: N }, () => gaussian(rnd)), expect: 'α ≈ 0.5 (independent samples)' };
+}
+
+export function seriesFor(kind: string, N: number, seed: number): { x: number[]; expect: string } {
+  return drain(seriesSteps(kind, N, seed));
+}
+
+function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
+  const N = 2048;
+  const { x, expect } = yield* seriesSteps(String(params.series ?? 'fgn-0.8'), N, seed);
+  const y = profile(x);
+  const sizes = boxSizes(N);
+  const dfa: XY[] = []; const rs: XY[] = [];
+  const runs: ReturnType<typeof fluctuation>[] = [];
+  for (const n of sizes) {
+    const r = fluctuation(y, n);
+    dfa.push([n, r.F]); rs.push([n, rescaledRange(x, n)]); runs.push(r);
+    yield;
+  }
+  const ly = span(y, 0.08);
+  const lx = dfa.map(([n, F]) => [Math.log10(n), Math.log10(F)] as XY);
+  const lr = span(lx.map((q) => q[1]), 0.15);
+  const steps = sizes.map((n, k) => {
+    const alpha = k ? logSlope(dfa.slice(0, k + 1)) : NaN;
+    const [b, c] = k ? fitLine(lx.slice(0, k + 1)) : [NaN, NaN];
+    const layers: Layer[] = [
+      { kind: 'curve', pts: y.map((v, i) => [i, v] as XY), tone: 0.25, weight: 1, alpha: 0.9 },
+      { kind: 'segments', segs: runs[k].fits, tone: 0.9, weight: 2 },
+      { kind: 'points', panel: 1, pts: lx, n: k + 1, size: 7, tone: 0.9 },
+    ];
+    if (k) layers.push({ kind: 'segments', panel: 1, segs: [[lx[0][0], b * lx[0][0] + c, lx[k][0], b * lx[k][0] + c]], alpha: 0.6 });
+    return {
+      layers,
+      stats: [
+        { label: 'Box size n', value: `${int(n)} samples, ${int(Math.floor(N / n))} boxes` },
+        { label: 'F(n)', value: fmt(runs[k].F) },
+        { label: 'DFA exponent α so far', value: k ? fmt(alpha, 3) : 'after two sizes' },
+        { label: 'Rescaled range H so far', value: k ? fmt(logSlope(rs.slice(0, k + 1)), 3) : 'after two sizes' },
+        { label: 'Expected', value: expect },
+      ],
+      chart: {
+        title: 'Fluctuation against window size', x: { label: 'window n', log: true }, y: { label: 'F(n) and R/S', log: true },
+        series: [{ name: 'DFA F(n)', points: dfa.slice(0, k + 1) }, { name: 'Rescaled range R/S', points: rs.slice(0, k + 1) }],
+      },
+    };
+  });
+  return {
+    panels: [
+      { title: 'Profile (cumulative sum) and each box’s trend line', x: [0, N], y: ly, weight: 1.6 },
+      { title: 'log₁₀ F against log₁₀ n', x: span(lx.map((q) => q[0]), 0.08), y: lr },
+    ],
+    steps,
+  };
 }
 
 export const kernel: NumericKernel = {
@@ -87,46 +152,6 @@ export const kernel: NumericKernel = {
   ],
   rate: 1.5,
   thumb: 0.5,
-  run({ seed, params }) {
-    const N = 2048;
-    const { x, expect } = seriesFor(String(params.series ?? 'fgn-0.8'), N, seed);
-    const y = profile(x);
-    const sizes = boxSizes(N);
-    const dfa: XY[] = []; const rs: XY[] = [];
-    const runs = sizes.map((n) => { const r = fluctuation(y, n); dfa.push([n, r.F]); rs.push([n, rescaledRange(x, n)]); return r; });
-    const ly = span(y, 0.08);
-    const lx = dfa.map(([n, F]) => [Math.log10(n), Math.log10(F)] as XY);
-    const lr = span(lx.map((q) => q[1]), 0.15);
-    const steps = sizes.map((n, k) => {
-      const alpha = k ? logSlope(dfa.slice(0, k + 1)) : NaN;
-      const [b, c] = k ? fitLine(lx.slice(0, k + 1)) : [NaN, NaN];
-      const layers: Layer[] = [
-        { kind: 'curve', pts: y.map((v, i) => [i, v] as XY), tone: 0.25, weight: 1, alpha: 0.9 },
-        { kind: 'segments', segs: runs[k].fits, tone: 0.9, weight: 2 },
-        { kind: 'points', panel: 1, pts: lx, n: k + 1, size: 7, tone: 0.9 },
-      ];
-      if (k) layers.push({ kind: 'segments', panel: 1, segs: [[lx[0][0], b * lx[0][0] + c, lx[k][0], b * lx[k][0] + c]], alpha: 0.6 });
-      return {
-        layers,
-        stats: [
-          { label: 'Box size n', value: `${int(n)} samples, ${int(Math.floor(N / n))} boxes` },
-          { label: 'F(n)', value: fmt(runs[k].F) },
-          { label: 'DFA exponent α so far', value: k ? fmt(alpha, 3) : 'after two sizes' },
-          { label: 'Rescaled range H so far', value: k ? fmt(logSlope(rs.slice(0, k + 1)), 3) : 'after two sizes' },
-          { label: 'Expected', value: expect },
-        ],
-        chart: {
-          title: 'Fluctuation against window size', x: { label: 'window n', log: true }, y: { label: 'F(n) and R/S', log: true },
-          series: [{ name: 'DFA F(n)', points: dfa.slice(0, k + 1) }, { name: 'Rescaled range R/S', points: rs.slice(0, k + 1) }],
-        },
-      };
-    });
-    return {
-      panels: [
-        { title: 'Profile (cumulative sum) and each box’s trend line', x: [0, N], y: ly, weight: 1.6 },
-        { title: 'log₁₀ F against log₁₀ n', x: span(lx.map((q) => q[0]), 0.08), y: lr },
-      ],
-      steps,
-    };
-  },
+  build,
+  run: (inp) => drain(build(inp)),
 };

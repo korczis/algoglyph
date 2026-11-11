@@ -29,6 +29,25 @@ export function extended(a: number, b: number): [number, number, number] {
   return [r0, x0, y0];
 }
 
+/** Strips drawn with the cuts between their squares; past this they are solid. */
+export const MAX_CUTS = 64;
+
+/**
+ * One rectangle per division step [x, y, w, h, tone]: the q squares of side b it cuts from the
+ * a × b rectangle, laid along the long side of what remains, alternating direction.
+ */
+export function tiling(divs: Division[]): [number, number, number, number, number][] {
+  const out: [number, number, number, number, number][] = [];
+  let rx = 0; let ry = 0; let horizontal = true;
+  divs.forEach((d, k) => {
+    const len = d.q * d.b;
+    const tone = (k % 6) / 6 + 0.08;
+    if (horizontal) { out.push([rx, ry, len, d.b, tone]); rx += len; } else { out.push([rx, ry, d.b, len, tone]); ry += len; }
+    horizontal = !horizontal;
+  });
+  return out;
+}
+
 export const fibonacci = (k: number) => { let [a, b] = [1, 1]; for (let i = 2; i < k; i++) [a, b] = [b, a + b]; return k < 2 ? 1 : b; };
 
 export const kernel: NumericKernel = {
@@ -60,17 +79,20 @@ export const kernel: NumericKernel = {
     }
     const divs = divisions(a, b);
     const [g, x, y] = extended(a, b);
-    // the tiling: squares cut along the long side of what remains
-    const squares: [number, number, number, number, number][] = [];
-    const after: number[] = [];
-    let rx = 0; let ry = 0; let w = a; let h = b; let horizontal = true;
-    divs.forEach((d, k) => {
-      for (let i = 0; i < d.q; i++) {
-        const s = d.b;
-        if (horizontal) { squares.push([rx, ry, s, s, (k % 6) / 6 + 0.08]); rx += s; w -= s; } else { squares.push([rx, ry, s, s, (k % 6) / 6 + 0.08]); ry += s; h -= s; }
+    // the tiling: each division cuts a strip of q squares of side b along the long side of what
+    // remains, drawn as one rectangle; the cuts between its squares are drawn while they are few
+    // enough to see (a quotient in the thousands is a solid strip at any canvas size)
+    const strips = tiling(divs);
+    const after: number[] = []; const cuts: [number, number, number, number][] = [];
+    strips.forEach(([x0, y0, w, h], k) => {
+      const { q, b: side } = divs[k];
+      if (q <= MAX_CUTS) {
+        for (let i = 1; i < q; i++) {
+          if (w > h) cuts.push([x0 + i * side, y0, x0 + i * side, y0 + h]);
+          else cuts.push([x0, y0 + i * side, x0 + w, y0 + i * side]);
+        }
       }
-      after.push(squares.length);
-      horizontal = !horizontal;
+      after.push(cuts.length);
     });
     const avg: XY[] = []; const fib: XY[] = []; const lame: XY[] = [];
     const r2 = mulberry32(seed ^ 0x5bd1e995);
@@ -92,11 +114,12 @@ export const kernel: NumericKernel = {
     };
     const qmax = Math.max(...divs.map((d) => d.q));
     const steps = divs.map((d, k) => {
-      const shown = squares.slice(0, after[k]);
+      const shown = strips.slice(0, k + 1);
       const layers: Layer[] = [
         { kind: 'rects', rects: [[0, 0, a, b, -1]], alpha: 0.08 },
         { kind: 'rects', rects: shown, alpha: 0.85 },
         { kind: 'rects', rects: shown.map((s) => [s[0], s[1], s[2], s[3], -1] as [number, number, number, number, number]), outline: true, alpha: 0.35 },
+        { kind: 'segments', segs: cuts.slice(0, after[k]), alpha: 0.35 },
         { kind: 'rects', panel: 1, rects: divs.slice(0, k + 1).map((t, i) => [i + 0.1, 0, 0.8, Math.log2(1 + t.q), i === k ? 0.85 : 0.3] as [number, number, number, number, number]) },
       ];
       return {

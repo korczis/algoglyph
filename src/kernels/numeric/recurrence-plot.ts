@@ -2,7 +2,7 @@
 // so that a chosen share of all pairs recur. Recurrence quantification reads its texture:
 // diagonal lines are stretches where the trajectory runs parallel to its past (determinism),
 // vertical ones where it lingers (laminarity).
-import { fmt, int, type Layer, type NumericKernel, type XY } from '../../engines/numeric/trace';
+import { drain, fmt, int, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
 import { embed } from './_embed';
 import { logisticSeries, lorenzOrbit, noise } from './_systems';
 
@@ -22,13 +22,16 @@ export function recurrence(states: number[][], eps: number): Uint8Array {
 
 /** The threshold under which a share `rate` of the off-diagonal pairs fall. */
 export function thresholdFor(states: number[][], rate: number): number {
-  const d: number[] = [];
-  for (let i = 0; i < states.length; i++) for (let j = i + 1; j < states.length; j++) {
+  const n = states.length;
+  // a typed array sorts numerically without a comparator call per pair
+  const d = new Float64Array((n * (n - 1)) / 2);
+  let at = 0;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     let s = 0;
     for (let c = 0; c < states[i].length; c++) s += (states[i][c] - states[j][c]) ** 2;
-    d.push(Math.sqrt(s));
+    d[at++] = Math.sqrt(s);
   }
-  d.sort((a, b) => a - b);
+  d.sort();
   return d[Math.min(d.length - 1, Math.max(0, Math.floor(rate * d.length) - 1))] ?? 0;
 }
 
@@ -80,6 +83,53 @@ export function series(kind: string, n: number, seed: number): { s: number[]; m:
   }
 }
 
+function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
+  const len = Number(params.length ?? 300);
+  const { s, m, tau } = series(String(params.series ?? 'regime'), len + 4 * 3, seed);
+  const states = embed(s, m, tau).slice(0, len);
+  const n = states.length;
+  const eps = thresholdFor(states, Number(params.rate ?? 8) / 100);
+  yield;
+  const R = recurrence(states, eps);
+  yield;
+  // recurrent states in a mid tone of the palette, which reads on both grounds
+  const values = Float64Array.from(R, (r) => 0.3 * r);
+  const lo = Math.min(...s); const hi = Math.max(...s);
+  const ticks = Array.from({ length: 60 }, (_, i) => Math.max(8, Math.round(((i + 1) * n) / 60)));
+  const steps: NumericRun['steps'] = [];
+  for (const k of ticks) {
+    const q = rqa(R, n, k);
+    const layers: Layer[] = [
+      { kind: 'grid', rows: n, cols: n, values, lo: 0, hi: 1, clear: 0, rowsShown: k },
+      { kind: 'segments', segs: [[0, n - k, k, n - k], [k, n - k, k, n]], alpha: 0.5 },
+      { kind: 'curve', panel: 1, pts: s.slice(0, n).map((v, i) => [v, n - i] as XY), tone: 0.6, weight: 1.2 },
+      { kind: 'segments', panel: 1, segs: [[lo, n - k, hi, n - k]], alpha: 0.5 },
+    ];
+    steps.push({
+      layers,
+      stats: [
+        { label: 'States', value: `${int(k)} of ${int(n)} (m ${m}, τ ${tau}, ε ${fmt(eps)})` },
+        { label: 'Recurrence rate', value: `${fmt(100 * q.rr, 3)}%` },
+        { label: 'Determinism (diagonal lines ≥ 2)', value: `${fmt(100 * q.det, 3)}%` },
+        { label: 'Laminarity (vertical lines ≥ 2)', value: `${fmt(100 * q.lam, 3)}%` },
+        { label: 'Diagonal lines', value: `mean ${fmt(q.meanDiag, 3)}, longest ${int(q.maxDiag)}, entropy ${fmt(q.entropy, 3)}` },
+      ],
+      chart: {
+        title: 'Diagonal line lengths', x: { label: 'line length' }, y: { label: 'lines', log: true },
+        series: [{ name: 'Measured', points: q.diagHist.map((c, l) => [l, c] as XY).filter(([l, c]) => l >= 2 && c > 0) }],
+      },
+    });
+    yield;
+  }
+  return {
+    panels: [
+      { title: 'Recurrence plot (time runs down and right)', x: [0, n], y: [0, n], equal: true, weight: 1.6 },
+      { title: 'The series, time downwards', x: [lo - 0.05 * (hi - lo), hi + 0.05 * (hi - lo)], y: [0, n], weight: 0.6 },
+    ],
+    steps,
+  };
+}
+
 export const kernel: NumericKernel = {
   params: [
     { kind: 'select', key: 'series', label: 'Series', value: 'regime', rebuild: true,
@@ -91,46 +141,6 @@ export const kernel: NumericKernel = {
   rate: 6,
   aspect: 1.5,
   palette: 'ember',
-  run({ seed, params }) {
-    const len = Number(params.length ?? 300);
-    const { s, m, tau } = series(String(params.series ?? 'regime'), len + 4 * 3, seed);
-    const states = embed(s, m, tau).slice(0, len);
-    const n = states.length;
-    const eps = thresholdFor(states, Number(params.rate ?? 8) / 100);
-    const R = recurrence(states, eps);
-    // recurrent states in a mid tone of the palette, which reads on both grounds
-    const values = Float64Array.from(R, (r) => 0.3 * r);
-    const lo = Math.min(...s); const hi = Math.max(...s);
-    const ticks = Array.from({ length: 60 }, (_, i) => Math.max(8, Math.round(((i + 1) * n) / 60)));
-    const steps = ticks.map((k) => {
-      const q = rqa(R, n, k);
-      const layers: Layer[] = [
-        { kind: 'grid', rows: n, cols: n, values, lo: 0, hi: 1, clear: 0, rowsShown: k },
-        { kind: 'segments', segs: [[0, n - k, k, n - k], [k, n - k, k, n]], alpha: 0.5 },
-        { kind: 'curve', panel: 1, pts: s.slice(0, n).map((v, i) => [v, n - i] as XY), tone: 0.6, weight: 1.2 },
-        { kind: 'segments', panel: 1, segs: [[lo, n - k, hi, n - k]], alpha: 0.5 },
-      ];
-      return {
-        layers,
-        stats: [
-          { label: 'States', value: `${int(k)} of ${int(n)} (m ${m}, τ ${tau}, ε ${fmt(eps)})` },
-          { label: 'Recurrence rate', value: `${fmt(100 * q.rr, 3)}%` },
-          { label: 'Determinism (diagonal lines ≥ 2)', value: `${fmt(100 * q.det, 3)}%` },
-          { label: 'Laminarity (vertical lines ≥ 2)', value: `${fmt(100 * q.lam, 3)}%` },
-          { label: 'Diagonal lines', value: `mean ${fmt(q.meanDiag, 3)}, longest ${int(q.maxDiag)}, entropy ${fmt(q.entropy, 3)}` },
-        ],
-        chart: {
-          title: 'Diagonal line lengths', x: { label: 'line length' }, y: { label: 'lines', log: true },
-          series: [{ name: 'Measured', points: q.diagHist.map((c, l) => [l, c] as XY).filter(([l, c]) => l >= 2 && c > 0) }],
-        },
-      };
-    });
-    return {
-      panels: [
-        { title: 'Recurrence plot (time runs down and right)', x: [0, n], y: [0, n], equal: true, weight: 1.6 },
-        { title: 'The series, time downwards', x: [lo - 0.05 * (hi - lo), hi + 0.05 * (hi - lo)], y: [0, n], weight: 0.6 },
-      ],
-      steps,
-    };
-  },
+  build,
+  run: (inp) => drain(build(inp)),
 };

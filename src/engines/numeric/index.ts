@@ -7,9 +7,11 @@ import { paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import type { Engine, KernelInfo } from '../types';
-import type { Layer, NumericKernel, NumericRun, Panel, XY } from './trace';
+import { building, drain, resume, type Layer, type NumericKernel, type NumericRun, type Panel, type XY } from './trace';
 
 const HOLD_FRAMES = 150;
+/** Main-thread milliseconds a frame may spend building the next input while the last one holds. */
+const SLICE_MS = 6;
 
 const controls = (): ParamDef[] => [
   { kind: 'range', key: 'speed', label: 'Speed', min: 0.25, max: 8, step: 0.25, value: 1 },
@@ -105,16 +107,25 @@ function drawRun(p: p5, ctx: PlateContext, run: NumericRun, at: number, r: Box):
         break;
       }
       case 'points': {
+        // one path and one fill per colour: thousands of points drawn as separate p5 shapes
+        // cost a canvas fill each, several milliseconds a frame
         const n = Math.min(L.pts.length, L.n ?? L.pts.length);
         const s = L.size ?? 3;
-        p.noStroke();
+        const paths = new Map<number, Path2D>();
         for (let k = 0; k < n; k++) {
           const [x, y] = L.pts[k];
           if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-          const ck = L.tones ? colour(L.tones[k]) : c;
-          p.fill(ck[0], ck[1], ck[2], a);
-          if (s <= 1.5) p.rect(X(x), Y(y), s, s);
-          else p.circle(X(x), Y(y), s);
+          const key = L.tones ? L.tones[k] : -1;
+          let path = paths.get(key);
+          if (!path) { path = new Path2D(); paths.set(key, path); }
+          const px = X(x); const py = Y(y);
+          if (s <= 1.5) path.rect(px, py, s, s);
+          else { path.moveTo(px + s / 2, py); path.arc(px, py, s / 2, 0, 2 * Math.PI); }
+        }
+        for (const [key, path] of paths) {
+          const ck = L.tones ? colour(key) : c;
+          ctx2d.fillStyle = `rgba(${ck[0]}, ${ck[1]}, ${ck[2]}, ${a / 255})`;
+          ctx2d.fill(path);
         }
         break;
       }
@@ -185,12 +196,9 @@ function fit(p: p5, text: string, w: number): string {
 
 /** One kernel's run as the plate replays it. */
 class Replay {
-  run: NumericRun;
   at = 0;
   private acc = 0;
-  constructor(kernel: NumericKernel, seed: number, params: Params) {
-    this.run = kernel.run({ seed, params });
-  }
+  constructor(readonly run: NumericRun) {}
   get last(): number { return this.run.steps.length - 1; }
   get done(): boolean { return this.at >= this.last; }
   advance(perFrame: number): void {
@@ -214,7 +222,13 @@ function plate(info: KernelInfo, kernel: NumericKernel): PlateCode {
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
-      let r = new Replay(kernel, ctx.seed, merged(kernel, ctx));
+      let r = new Replay(kernel.run({ seed: ctx.seed, params: merged(kernel, ctx) }));
+      // the next input, built a slice per frame while the finished run stays on screen
+      let next: Generator<void, NumericRun, void> | null = null;
+      const advanceBuild = () => {
+        const run = next && resume(next, SLICE_MS);
+        if (run) { r = new Replay(run); next = null; }
+      };
       return {
         setup() {
           if (ctx.thumbnail) r.at = Math.round(r.last * (kernel.thumb ?? 1));
@@ -222,11 +236,13 @@ function plate(info: KernelInfo, kernel: NumericKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            if (!r.done) r.advance(((kernel.rate ?? 2) * num(ctx.params, 'speed')) / 60);
+            if (next) advanceBuild();
+            else if (!r.done) r.advance(((kernel.rate ?? 2) * num(ctx.params, 'speed')) / 60);
             else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
               hold = 0;
-              r = new Replay(kernel, ctx.seed + generation * 7919, merged(kernel, ctx));
+              next = building(kernel, { seed: ctx.seed + generation * 7919, params: merged(kernel, ctx) });
+              advanceBuild();
             }
           }
           const pad = Math.round(Math.min(ctx.width, ctx.height) * 0.04);
@@ -254,15 +270,28 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: NumericKernel }[])
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
-      let panes: { info: KernelInfo; kernel: NumericKernel; r: Replay }[] = [];
-      let series: { name: string; points: XY[] }[] = [];
-      const build = () => {
+      type Pane = { info: KernelInfo; kernel: NumericKernel; r: Replay };
+      type Built = { panes: Pane[]; series: { name: string; points: XY[] }[] };
+      // every kernel's run and probe on one input, resumable so a rebuild spreads over frames
+      function* build(): Generator<void, Built, void> {
         const seed = ctx.seed + generation * 7919;
-        panes = kernels.map((k) => ({ ...k, r: new Replay(k.kernel, seed, merged(k.kernel, ctx)) }));
-        series = kernels.flatMap((k) => (k.kernel.probe?.measure({ seed, params: merged(k.kernel, ctx) }) ?? [])
-          .map((s) => ({ name: `${k.info.title}: ${s.name}`, points: s.points })));
+        const out: Built = { panes: [], series: [] };
+        for (const k of kernels) {
+          const params = merged(k.kernel, ctx);
+          out.panes.push({ ...k, r: new Replay(yield* building(k.kernel, { seed, params })) });
+          for (const s of k.kernel.probe?.measure({ seed, params }) ?? []) {
+            out.series.push({ name: `${k.info.title}: ${s.name}`, points: s.points });
+          }
+          yield;
+        }
+        return out;
+      }
+      let { panes, series } = drain(build());
+      let next: Generator<void, Built, void> | null = null;
+      const advanceBuild = () => {
+        const b = next && resume(next, SLICE_MS);
+        if (b) { ({ panes, series } = b); next = null; }
       };
-      build();
       const probe = kernels.find((k) => k.kernel.probe)?.kernel.probe;
       return {
         setup() {
@@ -271,11 +300,15 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: NumericKernel }[])
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            for (const q of panes) if (!q.r.done) q.r.advance(((q.kernel.rate ?? 2) * num(ctx.params, 'speed')) / 60);
-            if (panes.every((q) => q.r.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
-              generation++;
-              hold = 0;
-              build();
+            if (next) advanceBuild();
+            else {
+              for (const q of panes) if (!q.r.done) q.r.advance(((q.kernel.rate ?? 2) * num(ctx.params, 'speed')) / 60);
+              if (panes.every((q) => q.r.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
+                generation++;
+                hold = 0;
+                next = build();
+                advanceBuild();
+              }
             }
           }
           const W = ctx.width; const H = ctx.height;

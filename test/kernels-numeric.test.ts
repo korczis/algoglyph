@@ -102,6 +102,18 @@ describe('numeric kernels', () => {
       it('agrees with an independent reference', () => {
         REFERENCES[e.id]?.();
       });
+
+      // a kernel heavy enough to build in slices gives the same run in slices as in one go, and
+      // actually yields at its heaviest settings, so a rebuild in draw() spreads over frames
+      it.runIf(Boolean(kernel.build))('builds the same run in slices', () => {
+        const heavy: Params = defaults(kernel.params);
+        for (const d of kernel.params ?? []) if (d.kind === 'range') heavy[d.key] = d.max;
+        const g = kernel.build!({ seed: 5, params: heavy });
+        let slices = 0; let s = g.next();
+        while (!s.done) { slices++; s = g.next(); }
+        expect(slices, e.id).toBeGreaterThan(3);
+        expect(JSON.stringify(s.value)).toBe(JSON.stringify(kernel.run({ seed: 5, params: heavy })));
+      });
     });
   }
 });
@@ -296,6 +308,12 @@ const REFERENCES: Record<string, () => void> = {
       expect(strassen.strassen(A, B, m)).toEqual(matmul(A, B));
       expect(m.get('mul')).toBe(7 ** Math.log2(n));
     }
+    // halving needs a power of two: other sizes are refused, not silently truncated
+    for (const n of [3, 5, 6, 12]) {
+      const A = Array.from({ length: n }, () => new Array(n).fill(1));
+      expect(() => strassen.strassen(A, A), `n ${n}`).toThrow(RangeError);
+    }
+    expect(() => strassen.strassen([[1, 2], [3, 4]], [[1]]), 'mismatched sizes').toThrow(RangeError);
   },
 
   'gaussian-elimination': () => {
@@ -364,6 +382,12 @@ const REFERENCES: Record<string, () => void> = {
     // RANDU's triples lie on planes 9x − 6y + z = const (since a = 2^16 + 3)
     const r = lcg.spectral3(lcg.GENERATORS.randu);
     close(r.nu, Math.sqrt(118), 1e-12);
+    // Knuth's tabulated spectral test (TAOCP vol. 2, §3.3.4, Table 1): RANDU is tested with
+    // m/4 = 2^29, since c = 0 and m is a power of two, giving ν₂² = 536936458 and ν₃² = 118;
+    // the minimal standard generator, m prime, keeps m: ν₂² = 16807² + 1
+    expect(lcg.spectral2(lcg.GENERATORS.randu) ** 2).toBe(536936458);
+    expect(Math.round(r.nu ** 2)).toBe(118);
+    expect(Math.round(lcg.spectral2(lcg.GENERATORS.minstd) ** 2)).toBe(16807 ** 2 + 1);
     const randu = lcg.stream(lcg.GENERATORS.randu, 1, 300);
     for (let k = 0; k + 2 < randu.length; k++) expect(((9 * randu[k] - 6 * randu[k + 1] + randu[k + 2]) % 2 ** 31 + 2 ** 31) % 2 ** 31).toBe(0);
   },
@@ -397,6 +421,26 @@ const REFERENCES: Record<string, () => void> = {
       expect(euclid.divisions(Math.max(a, b), Math.min(a, b)).length).toBeLessThanOrEqual(5 * String(Math.min(a, b)).length);
     }
     for (let k = 3; k < 30; k++) expect(euclid.divisions(euclid.fibonacci(k), euclid.fibonacci(k - 1)).length).toBe(k - 2);
+    // the tiling: one strip per division, together exactly covering the a × b rectangle
+    for (let t = 0; t < 100; t++) {
+      const a = 2 + Math.floor(rnd() * 100000); const b = 1 + Math.floor(rnd() * (a - 1));
+      const divs = euclid.divisions(a, b);
+      const strips = euclid.tiling(divs);
+      expect(strips.length).toBe(divs.length);
+      expect(strips.reduce((s, [, , w, h]) => s + w * h, 0)).toBe(a * b);
+      for (const [x, y, w, h] of strips) expect(x >= 0 && y >= 0 && x + w <= a && y + h <= b).toBe(true);
+      strips.forEach(([x, y, w, h], i) => strips.slice(i + 1).forEach(([x2, y2, w2, h2]) => {
+        expect(x + w <= x2 || x2 + w2 <= x || y + h <= y2 || y2 + h2 <= y, `strips ${i} overlap`).toBe(true);
+      }));
+    }
+    // drawing cost follows the division steps, not the quotients: seven digits with seed 2619
+    // cut tens of thousands of squares, still one rectangle and a bounded set of cuts per step
+    const run = euclid.kernel.run({ seed: 2619, params: { pair: 'random', digits: 7 } });
+    const last = run.steps[run.steps.length - 1].layers;
+    const rects = last.filter((L) => L.kind === 'rects' && (L.panel ?? 0) === 0).reduce((s, L) => s + (L.kind === 'rects' ? L.rects.length : 0), 0);
+    const cuts = last.reduce((s, L) => s + (L.kind === 'segments' ? L.segs.length : 0), 0);
+    expect(rects).toBeLessThanOrEqual(1 + 2 * run.steps.length);
+    expect(cuts).toBeLessThanOrEqual(euclid.MAX_CUTS * run.steps.length);
   },
 
   'simplex-method': () => {
@@ -428,6 +472,29 @@ const REFERENCES: Record<string, () => void> = {
       }
     }
     expect(simplex.simplex([[-1, 1]], [1], [1, 0]).status).toBe('unbounded');
+    // Beale's example (1955): degenerate at the origin, so Dantzig's rule with this tie-break
+    // returns to a basis it has visited; Bland's rule cannot cycle and reaches the optimum 5/4
+    // at x = (1, 0, 1, 0)
+    const A = [[0.25, -8, -1, 9], [0.5, -12, -0.5, 3], [0, 0, 1, 0]]; const bb = [0, 0, 1]; const cc = [0.75, -20, 0.5, -6];
+    const cycling = simplex.simplex(A, bb, cc, 'dantzig');
+    expect(cycling.status).toBe('cycling');
+    expect(simplex.outcome(cycling)).toMatch(/^cycling/);
+    const bland = simplex.simplex(A, bb, cc, 'bland');
+    expect(bland.status).toBe('optimal');
+    close(bland.value, 1.25, 1e-12);
+    close(cc.reduce((s, v, j) => s + v * bland.x[j], 0), 1.25, 1e-12);
+    expect(A.every((r, i) => r.reduce((s, v, j) => s + v * bland.x[j], 0) <= bb[i] + 1e-12)).toBe(true);
+    expect(simplex.simplex(A, bb, cc, 'dantzig', 3).status).toBe('pivot-limit');
+    // the note's comparison, on the plate's own problems: Bland's ties Dantzig's more often than
+    // not, needs more pivots most of the other times, and fewer only rarely
+    let slower = 0; let equal = 0; let faster = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const q = simplex.problem(seed, 3 + (seed % 22));
+      const d = simplex.simplex(q.A, q.b, q.c, 'bland').pivots.length - simplex.simplex(q.A, q.b, q.c, 'dantzig').pivots.length;
+      if (d > 0) slower++; else if (d === 0) equal++; else faster++;
+    }
+    expect(equal).toBeGreaterThan(slower + faster);
+    expect(slower).toBeGreaterThan(5 * faster);
   },
 
   'pareto-front': () => {
@@ -554,5 +621,24 @@ const REFERENCES: Record<string, () => void> = {
     close(alpha(f), H, 0.12);
     // and the rescaled range of white noise grows like √n
     close(logSlope(hurst.boxSizes(4096).map((n) => [n, hurst.rescaledRange(white, n)] as [number, number])), 0.5, 0.12);
+    // the tabulated recursion is bit-identical to Hosking's, written out with γ(k) evaluated in
+    // the loop as the kernel first did
+    const direct = (N: number, h: number, seed: number) => {
+      const r = mulberry32(seed);
+      const g = (k: number) => 0.5 * (Math.abs(k + 1) ** (2 * h) - 2 * Math.abs(k) ** (2 * h) + Math.abs(k - 1) ** (2 * h));
+      const x = [gaussian(r)]; let phi: number[] = []; let v = 1;
+      for (let t = 1; t < N; t++) {
+        let num = g(t);
+        for (let j = 0; j < phi.length; j++) num -= phi[j] * g(t - 1 - j);
+        const k = num / v;
+        phi = [...phi.map((p, j) => p - k * phi[phi.length - 1 - j]), k];
+        v *= 1 - k * k;
+        let mean = 0;
+        for (let j = 0; j < phi.length; j++) mean += phi[j] * x[t - 1 - j];
+        x.push(mean + Math.sqrt(v) * gaussian(r));
+      }
+      return x;
+    };
+    for (const [N, h, seed] of [[600, 0.8, 1], [600, 0.3, 7], [2048, 0.8, 4242]]) expect(hurst.fgn(N, h, seed)).toEqual(direct(N, h, seed));
   },
 };

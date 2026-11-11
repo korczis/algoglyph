@@ -7,7 +7,13 @@ import type { Mat } from './_linalg';
 
 export interface Pivot { enter: number; leave: number; T: Mat; basis: number[]; x: number[]; value: number }
 
-export interface LP { status: 'optimal' | 'unbounded'; x: number[]; value: number; pivots: Pivot[] }
+/**
+ * How the method stopped: at an optimum, along an unbounded edge, on a basis it had already
+ * visited (the rule is deterministic, so it would cycle for ever), or at the pivot limit.
+ */
+export type Status = 'optimal' | 'unbounded' | 'cycling' | 'pivot-limit';
+
+export interface LP { status: Status; x: number[]; value: number; pivots: Pivot[] }
 
 const EPS = 1e-12;
 
@@ -23,6 +29,7 @@ export function simplex(A: Mat, b: number[], c: number[], rule: 'dantzig' | 'bla
     return x;
   };
   const pivots: Pivot[] = [{ enter: -1, leave: -1, T: T.map((r) => r.slice()), basis: basis.slice(), x: point(), value: T[m][n + m] }];
+  const seen = new Set<string>([basis.slice().sort((p, q) => p - q).join(',')]);
   for (let it = 0; it < maxPivots; it++) {
     const z = T[m];
     let e = -1;
@@ -47,8 +54,11 @@ export function simplex(A: Mat, b: number[], c: number[], rule: 'dantzig' | 'bla
     }
     basis[l] = e;
     pivots.push({ enter: e, leave: l, T: T.map((r) => r.slice()), basis: basis.slice(), x: point(), value: T[m][n + m] });
+    const key = basis.slice().sort((p, q) => p - q).join(',');
+    if (seen.has(key)) return { status: 'cycling', x: point(), value: T[m][n + m], pivots };
+    seen.add(key);
   }
-  return { status: 'optimal', x: point(), value: T[m][n + m], pivots };
+  return { status: 'pivot-limit', x: point(), value: T[m][n + m], pivots };
 }
 
 /** Vertices of { x >= 0, A x <= b } in the plane, in order around the region. */
@@ -77,6 +87,17 @@ export function problem(seed: number, m: number): { A: Mat; b: number[]; c: numb
   }
   const ph = 0.15 + rnd() * (Math.PI / 2 - 0.3);
   return { A, b, c: [Math.cos(ph), Math.sin(ph)] };
+}
+
+/** What a reader is told about how the method stopped. */
+export function outcome(lp: LP): string {
+  const k = int(lp.pivots.length - 1);
+  switch (lp.status) {
+    case 'optimal': return `optimal after ${k} pivots: no reduced cost improves`;
+    case 'unbounded': return `unbounded after ${k} pivots: the entering column has no positive entry`;
+    case 'cycling': return `cycling: pivot ${k} returned to a basis already visited, with no optimum`;
+    default: return `stopped at the pivot limit (${k}) without an optimum`;
+  }
 }
 
 export const kernel: NumericKernel = {
@@ -127,6 +148,7 @@ export const kernel: NumericKernel = {
           { label: 'Basis', value: q.basis.map(names).join(', ') },
           { label: 'Best vertex by enumeration', value: `${fmt(enumerated, 8)} over ${int(poly.length)} vertices` },
           { label: 'Pivots, this rule / the other', value: `${int(lp.pivots.length - 1)} / ${int(other.pivots.length - 1)}` },
+          { label: 'Outcome', value: k === lp.pivots.length - 1 ? outcome(lp) : 'pivoting' },
         ],
       };
     });

@@ -30,7 +30,7 @@ export function firstMinimum(values: number[]): number {
 
 /**
  * Fraction of nearest neighbours in dimension m that fly apart when the (m+1)-th delay is added
- * (Kennel, Brown and Abarbanel's two tests, with thresholds rtol and atol).
+ * (both tests of Kennel, Brown and Abarbanel, with thresholds rtol and atol).
  */
 export function falseNeighbours(s: number[], m: number, tau: number, rtol = 15, atol = 2): number {
   const v = embed(s, m + 1, tau);

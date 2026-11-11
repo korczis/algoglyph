@@ -37,10 +37,21 @@ export function period(g: LCG, x0: number, cap = 2 ** 20): number {
   return lam;
 }
 
+/**
+ * The modulus the spectral test works with. A multiplicative generator (c = 0) with m = 2^e
+ * visits only the odd numbers of one residue class and has period m/4 at best; Knuth applies
+ * the test to it with m/4 in place of m (TAOCP vol. 2, §3.3.4), and so does this.
+ */
+export function testModulus(g: LCG): number {
+  const pow2 = Number.isInteger(Math.log2(g.m));
+  return g.c === 0 && pow2 && g.m >= 8 ? g.m / 4 : g.m;
+}
+
 /** ν₂: length of the shortest nonzero (u1, u2) with u1 + a u2 ≡ 0 (mod m), by Gauss reduction. */
 export function spectral2(g: LCG): number {
-  let u: [number, number] = [g.m, 0];
-  let v: [number, number] = [-(g.a % g.m), 1];
+  const m = testModulus(g);
+  let u: [number, number] = [m, 0];
+  let v: [number, number] = [-(g.a % m), 1];
   const n2 = (w: [number, number]) => w[0] * w[0] + w[1] * w[1];
   if (n2(u) < n2(v)) [u, v] = [v, u];
   for (;;) {
@@ -53,14 +64,15 @@ export function spectral2(g: LCG): number {
 
 /** ν₃ and its vector, searching |ui| <= bound; NaN when every such vector is longer. */
 export function spectral3(g: LCG, bound = 40): { nu: number; u: [number, number, number] } {
-  const a2 = (g.a * g.a) % g.m;
+  const m = testModulus(g);
+  const a2 = (g.a * g.a) % m;
   let best = Infinity; let u: [number, number, number] = [0, 0, 1];
   for (let u3 = 0; u3 <= bound; u3++) {
     for (let u2 = -bound; u2 <= bound; u2++) {
       if (u3 === 0 && u2 < 0) continue;
-      const r = (((g.a * u2 + a2 * u3) % g.m) + g.m) % g.m;
+      const r = (((g.a * u2 + a2 * u3) % m) + m) % m;
       // u1 must be ≡ -r (mod m) and within the bound
-      for (const u1 of [-r, g.m - r]) {
+      for (const u1 of [-r, m - r]) {
         if (Math.abs(u1) > bound || (u1 === 0 && u2 === 0 && u3 === 0)) continue;
         const n = Math.hypot(u1, u2, u3);
         if (n < best) { best = n; u = [u1, u2, u3]; }

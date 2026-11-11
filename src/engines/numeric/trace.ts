@@ -77,7 +77,36 @@ export interface NumericKernel {
   thumb?: number;
   palette?: string;
   run(inp: RunInput): NumericRun;
+  /**
+   * The same run built in slices: a generator that yields between pieces of work of a few
+   * milliseconds each, so the engine can spread a rebuild over frames instead of freezing one.
+   * A kernel whose run is heavy provides it and defines `run` as `drain(build(inp))`.
+   */
+  build?(inp: RunInput): Generator<void, NumericRun, void>;
   probe?: Probe;
+}
+
+/** A resumable computation run to its end in one go. */
+export function drain<T>(g: Generator<void, T, void>): T {
+  for (;;) {
+    const s = g.next();
+    if (s.done) return s.value;
+  }
+}
+
+/** Resume a computation for up to `ms` milliseconds; its value when it finished, else undefined. */
+export function resume<T>(g: Generator<void, T, void>, ms: number): T | undefined {
+  const t0 = performance.now();
+  for (;;) {
+    const s = g.next();
+    if (s.done) return s.value;
+    if (performance.now() - t0 >= ms) return undefined;
+  }
+}
+
+/** A kernel's run as a resumable computation: its own slices, or the whole run as one. */
+export function building(k: NumericKernel, inp: RunInput): Generator<void, NumericRun, void> {
+  return k.build ? k.build(inp) : (function* () { return k.run(inp); })();
 }
 
 /** Counts the operations a kernel performs, by name. */
