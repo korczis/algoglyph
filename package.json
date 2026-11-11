@@ -17,7 +17,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "node scripts/audit-ui.mjs",
-    "verify": "scripts/verify-all.sh"
+    "verify": "scripts/verify-all.sh",
+    "deploy": "scripts/deploy.sh deploy",
+    "deploy:validate": "scripts/deploy.sh validate",
+    "deploy:verify": "scripts/deploy.sh verify"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",

@@ -1,0 +1,59 @@
+name: Verify production
+
+# Proves that GitHub Pages serves a given commit and that the site answers. Called by
+# pages.yml after every deploy; run by hand to check production at any time:
+#   gh workflow run verify.yml --ref main      (scripts/deploy.sh verify)
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit production must serve (default the head of the ref)
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      sha:
+        type: string
+        required: true
+      base_url:
+        type: string
+        required: true
+      runner:
+        type: string
+        default: ubuntu-latest
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify production
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    env:
+      EXPECTED: ${{ inputs.sha || github.sha }}
+      BASE_URL: ${{ inputs.base_url || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+    steps:
+      - name: Production serves the commit
+        run: |
+          for attempt in $(seq 1 40); do
+            if curl -fsS "${BASE_URL}revision.txt?nocache=${EXPECTED}" | grep -qx "$EXPECTED"; then
+              echo "production serves $EXPECTED (attempt $attempt)"
+              break
+            fi
+            [ "$attempt" = 40 ] && { echo "production does not serve $EXPECTED after 10 minutes" >&2; exit 1; }
+            sleep 15
+          done
+      - name: Smoke test
+        run: |
+          set -e
+          for path in "" favicon.svg revision.txt; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}${path}")"
+            echo "$code ${BASE_URL}${path}"
+            test "$code" = 200
+          done
+          curl -fsS "${BASE_URL}" | grep -q '<title>algoglyph</title>'
+          asset="$(curl -fsS "${BASE_URL}" | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1)"
+          test -n "$asset"
+          code="$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}${asset}")"
+          echo "$code ${BASE_URL}${asset}"
+          test "$code" = 200

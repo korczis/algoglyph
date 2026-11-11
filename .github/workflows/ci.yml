@@ -7,7 +7,19 @@ on:
   pull_request:
   push:
     branches-ignore: [main]
+  # manual "validate": gh workflow run ci.yml --ref <branch>  (scripts/deploy.sh validate)
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label for every job
+        type: string
+        default: ubuntu-latest
   workflow_call:
+    inputs:
+      runner:
+        description: Runner label for every job; pages.yml passes the dedicated self-hosted runner
+        type: string
+        default: ubuntu-latest
 
 permissions:
   contents: read
@@ -15,7 +27,7 @@ permissions:
 jobs:
   commits:
     name: Conventional commits
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,7 +50,7 @@ jobs:
 
   supervision:
     name: Majordomus supervision
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     env:
       MAJORDOMUS_VERSION: v1.0.1
     steps:
@@ -57,7 +69,7 @@ jobs:
 
   validate:
     name: Validate and build
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     # Not yet measured in CI: the default 6 h would hold a stuck browser gate far too long.
     # Replace with the measured duration plus margin after the first green runs.
     timeout-minutes: 30
@@ -70,11 +82,17 @@ jobs:
         run: npx vitest run
       - name: Build (stamps dist/revision.txt with the commit)
         run: npx vite build
+      # Hosted runners install Playwright's Chromium with its system dependencies; the
+      # self-hosted lundra runner uses the Google Chrome already installed there and installs
+      # nothing system-wide (ADR 0003).
       - name: Browser gate (axe WCAG 2.2 AA, console errors, overflow, every plate renders)
-        env:
-          AUDIT_CHANNEL: ''
         run: |
-          npx playwright-core install --with-deps chromium
+          if [ "$RUNNER_ENVIRONMENT" = github-hosted ]; then
+            npx playwright-core install --with-deps chromium
+            export AUDIT_CHANNEL=''
+          else
+            export AUDIT_CHANNEL=chrome
+          fi
           node scripts/audit-ui.mjs --screenshots "$RUNNER_TEMP/screenshots"
       - name: Upload the browser gate screenshots (gallery and every plate, both themes)
         if: always()

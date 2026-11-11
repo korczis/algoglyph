@@ -1,6 +1,9 @@
 name: Pages
 
 # main: validate -> deploy -> verify production. Each stage runs only if the previous one passed.
+# Automated on every push to main; by hand with: gh workflow run pages.yml --ref main
+# (scripts/deploy.sh deploy). Runs on the dedicated self-hosted runner lundra-algoglyph
+# (ADR 0003); pull-request CI stays on GitHub-hosted runners, so no fork reaches lundra.
 on:
   push:
     branches: [main]
@@ -17,13 +20,15 @@ jobs:
   ci:
     name: CI
     uses: ./.github/workflows/ci.yml
+    with:
+      runner: lundra-algoglyph
     permissions:
       contents: read
 
   deploy:
     name: Deploy
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on: lundra-algoglyph
     permissions:
       contents: read
       pages: write
@@ -50,28 +55,10 @@ jobs:
         uses: actions/deploy-pages@v5
 
   verify:
-    name: Verify production
+    name: Verify
     needs: deploy
-    runs-on: ubuntu-latest
-    env:
-      BASE_URL: ${{ needs.deploy.outputs.page_url }}
-    steps:
-      - name: Production serves this commit
-        run: |
-          for attempt in $(seq 1 40); do
-            if curl -fsS "${BASE_URL}revision.txt?nocache=${GITHUB_SHA}" | grep -qx "$GITHUB_SHA"; then
-              echo "production serves $GITHUB_SHA (attempt $attempt)"
-              break
-            fi
-            [ "$attempt" = 40 ] && { echo "production does not serve $GITHUB_SHA after 10 minutes" >&2; exit 1; }
-            sleep 15
-          done
-      - name: Smoke test
-        run: |
-          set -e
-          for path in "" favicon.svg revision.txt; do
-            code="$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}${path}")"
-            echo "$code ${BASE_URL}${path}"
-            test "$code" = 200
-          done
-          curl -fsS "${BASE_URL}" | grep -q '<title>algoglyph</title>'
+    uses: ./.github/workflows/verify.yml
+    with:
+      sha: ${{ github.sha }}
+      base_url: ${{ needs.deploy.outputs.page_url }}
+      runner: lundra-algoglyph

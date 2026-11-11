@@ -26,6 +26,18 @@ npm run dev       # http://localhost:5173
 npm run verify    # the CI gate, locally; --fast skips the browser
 ```
 
+Delivery is automated: every push to `main` runs `pages.yml` (CI, deploy to GitHub Pages,
+verify that production serves the commit) on the self-hosted runner `lundra-algoglyph`
+(ADR 0003). The same steps by hand, through the gh CLI:
+
+```sh
+npm run deploy:validate   # ci.yml on the current branch
+npm run deploy            # pages.yml on main: validate, deploy, verify
+npm run deploy:verify     # production serves origin/main and answers
+```
+
+Site: https://korczis.github.io/algoglyph/
+
 | Layer        | Where |
 |--------------|-------|
 | Plate contract, stage, palettes, RNG | `src/core/` |
