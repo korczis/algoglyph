@@ -97,12 +97,14 @@ function plate(info: KernelInfo, kernel: StringKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            next?.pump(RECORD_EVENTS);
-            if (!b) { if (next?.done) take(); }
+            // a run finished on an earlier frame is taken on a frame that records nothing
+            const ready = next?.done ?? false;
+            if (!ready) next?.pump(RECORD_EVENTS);
+            if (!b) { if (ready) take(); }
             else if (!b.done) b.advance(num(ctx.params, 'speed'), false, REPLAY_EVENTS);
             else if (bool(ctx.params, 'loop')) {
               if (!next && hold === 0) next = record(kernel, ctx, ++generation);
-              if (++hold > HOLD_FRAMES && next?.done) take();
+              if (++hold > HOLD_FRAMES && ready) take();
             }
           }
           if (!b) { ctx.stats([{ label: 'Progress', value: 'recording the run' }]); return; }
@@ -195,7 +197,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
             }
             if (panes.every((x) => x.b.done) && bool(ctx.params, 'loop')) {
               if (!incoming && hold === 0) { generation++; record(); }
-              const ready = pumpIncoming(RECORD_EVENTS / 2);
+              // taken on a frame after the last run finished, never on the one that finishes it
+              const ready = incoming!.every((r) => r.done);
+              if (!ready) pumpIncoming(RECORD_EVENTS / 2);
               if (++hold > HOLD_FRAMES && ready) take();
             }
           }
