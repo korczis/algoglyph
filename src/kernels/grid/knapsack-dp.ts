@@ -17,19 +17,24 @@ export interface KnapsackResult {
 // 0/1 knapsack. Row i, column w holds the best value of the first i items within capacity w:
 // either item i is left out (the cell above) or it is taken (the cell above, w_i to the left,
 // plus its value). The traceback walks up from the corner, stepping left whenever an item was
-// taken.
+// taken. The capacity is the items' count times the capacity-per-item control (default 2.5, the
+// largest table), never below 4.
 export const kernel: GridKernel<KnapsackData, KnapsackResult> = {
   size: { label: 'Items', min: 2, max: 14, step: 1, value: 7 },
+  params: [{
+    kind: 'range', key: 'capacityPerItem', label: 'Capacity per item', min: 0.5, max: 2.5, step: 0.25,
+    value: 2.5, rebuild: true, hint: 'Capacity W = round(c n), at least 4: the table has (n + 1)(W + 1) cells.',
+  }],
   colour: 'linear',
   path: true,
   readouts: DP_READOUTS,
   chart: { kind: 'scaling', ns: [2, 4, 6, 8, 10, 12, 14, 16], x: 'items n (capacity grows with n)',
     y: 'operations', logX: true, logY: true, series: DP_SERIES },
-  instance(n, seed) {
+  instance(n, seed, opts = {}) {
     const rnd = mulberry32(seed);
     const weights = range(n).map(() => between(rnd, 1, 8));
     const values = range(n).map(() => between(rnd, 1, 20));
-    const capacity = Math.max(4, Math.round(n * 2.5));
+    const capacity = Math.max(4, Math.round(n * (opts.capacityPerItem ?? 2.5)));
     return {
       rows: n + 1,
       cols: capacity + 1,
