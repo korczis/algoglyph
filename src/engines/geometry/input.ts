@@ -229,8 +229,10 @@ export function warehouse(picks: number, aisles: number, rnd: () => number): War
   return { aisles: xs, length, rack: 45, depot: { x: xs[0], y: 0 }, picks: p };
 }
 
-/** Synthetic competitors around a centre: seeded bearings, distances and sizes. */
-export function firms(n: number, centre: { lat: number; lon: number }, rnd: () => number): Firm[] {
+/** Synthetic competitors around a centre: seeded bearings, distances and sizes. A size is
+ * exp(spread · g) for a standard normal g, drawn at every spread (so σ = 0, all sizes 1, draws
+ * the same numbers as any other σ). */
+export function firms(n: number, centre: { lat: number; lon: number }, rnd: () => number, spread = 1.1): Firm[] {
   const R = 6371.0088;
   const out: Firm[] = [];
   for (let i = 0; i < n; i++) {
@@ -243,7 +245,7 @@ export function firms(n: number, centre: { lat: number; lon: number }, rnd: () =
     const dr = d / R;
     const p2 = Math.asin(Math.sin(p1) * Math.cos(dr) + Math.cos(p1) * Math.sin(dr) * Math.cos(t));
     const l2 = l1 + Math.atan2(Math.sin(t) * Math.sin(dr) * Math.cos(p1), Math.cos(dr) - Math.sin(p1) * Math.sin(p2));
-    out.push({ lat: (p2 * 180) / Math.PI, lon: (l2 * 180) / Math.PI, weight: Math.exp(1.1 * gaussian(rnd)) });
+    out.push({ lat: (p2 * 180) / Math.PI, lon: (l2 * 180) / Math.PI, weight: Math.exp(spread * gaussian(rnd)) });
   }
   return out;
 }
@@ -256,7 +258,7 @@ const empty = (kind: InputKind, shape: string, n: number): Input => ({
 });
 
 /** The seeded input of a kind and shape; `params` may carry `q` (query size, % of the box),
- * `m` (polygon vertices) and `aisles`. */
+ * `m` (polygon vertices), `aisles` and `spread` (firm size spread σ). */
 export function makeInput(kind: InputKind, shape: string, n: number, seed: number, params: Params = {}): Input {
   const rnd = mulberry32(seed);
   const inp = empty(kind, shape, n);
@@ -270,7 +272,7 @@ export function makeInput(kind: InputKind, shape: string, n: number, seed: numbe
     const w = warehouse(n, Number(params.aisles ?? 8), rnd);
     inp.warehouse = w;
     inp.box = { x0: w.aisles[0] - 100, y0: -60, x1: w.aisles[w.aisles.length - 1] + 100, y1: w.length + 60 };
-  } else if (kind === 'firms') inp.firms = firms(n, CENTRE, rnd);
+  } else if (kind === 'firms') inp.firms = firms(n, CENTRE, rnd, Number(params.spread ?? 1.1));
   const q = Number(params.q ?? 30) / 100;
   const qw = W * q * (0.7 + 0.6 * rnd());
   const qh = H * q * (0.7 + 0.6 * rnd());

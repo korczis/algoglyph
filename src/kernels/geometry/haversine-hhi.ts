@@ -18,6 +18,9 @@ export const kernel: GeometryKernel = {
   task: 'rings',
   input: 'firms',
   n: { min: 2, max: 400, value: 60, step: 1, label: 'Competitors' },
+  // a competitor's size is exp(σ · g), g standard normal (src/engines/geometry/input.ts): at
+  // σ = 0 every firm has the same size, so a ring of k firms has HHI exactly 10000 / k
+  params: [{ kind: 'range', key: 'spread', label: 'Firm size spread σ', min: 0, max: 2, step: 0.1, value: 1.1 }],
   counters: [['haversine', 'Haversine evaluations'], ['bearing', 'Bearings'], ['compare', 'Ring membership tests']],
   *run(g) {
     const F = g.input.firms;
