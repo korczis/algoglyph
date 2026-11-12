@@ -69,9 +69,21 @@ fn main() {
         println!("cargo:rerun-if-changed={}", p.display());
         h = fnv(h, &fs::read(&p).unwrap_or_default());
     }
+    // a kernel's own source hash: its plugin and the shared code it runs on (prelude, kit),
+    // which a measured cost (the sidecar's max_n) is tied to
+    let mut shared_h: u64 = 0xCBF2_9CE4_8422_2325;
+    for shared in ["prelude.rs", "kit.rs"] {
+        shared_h = fnv(
+            shared_h,
+            &fs::read(sorting.join(shared)).unwrap_or_default(),
+        );
+    }
+    let mut sources: Vec<u64> = Vec::new();
     for (stem, path) in &plugins {
+        let text = fs::read(path).unwrap_or_default();
         h = fnv(h, stem.as_bytes());
-        h = fnv(h, &fs::read(path).unwrap_or_default());
+        h = fnv(h, &text);
+        sources.push(fnv(shared_h, &text));
     }
 
     let mut s = String::new();
@@ -89,13 +101,14 @@ fn main() {
     s.push_str("}\n\n");
     s.push_str("/// Every plugin, sorted by file stem.\n");
     s.push_str("pub static REGISTRY: &[crate::sorting::prelude::Entry] = &[\n");
-    for (stem, _) in &plugins {
+    for ((stem, _), source) in plugins.iter().zip(&sources) {
         s.push_str(&format!(
             concat!(
                 "    crate::sorting::prelude::Entry {{ stem: {0:?}, ",
-                "meta: &algorithms::{0}::META, sort: algorithms::{0}::sort }},\n"
+                "meta: &algorithms::{0}::META, sort: algorithms::{0}::sort, ",
+                "source: 0x{1:016x} }},\n"
             ),
-            stem
+            stem, source
         ));
     }
     s.push_str("];\n\n");

@@ -70,19 +70,20 @@ pub fn run(id: &str, input: Vec<Item>, opt: &Options) -> Result<Run, String> {
 }
 
 /// The kernel manifest (`src/sorting/kernels.json`, checked in): every kernel id with its
-/// declared stability, in-place flag and kind, as the registry holds them. The catalogue gate
-/// reads it to refuse a sidecar record that names no kernel; the native tests refuse a stale
-/// copy.
+/// declared stability, in-place flag, kind and source hash, as the registry holds them. The gate
+/// reads it to refuse a sidecar record that names no kernel, or a max_n measured on another
+/// source; the native tests refuse a stale copy.
 pub fn manifest() -> String {
     let rows: Vec<String> = REGISTRY
         .iter()
         .map(|e| {
             format!(
-                "    {{ \"id\": \"{}\", \"stable\": \"{}\", \"in_place\": {}, \"kind\": \"{}\" }}",
+                "    {{ \"id\": \"{}\", \"stable\": \"{}\", \"in_place\": {}, \"kind\": \"{}\", \"source\": \"{:016x}\" }}",
                 e.meta.id,
                 e.meta.stable.as_str(),
                 e.meta.in_place,
-                e.meta.kind.as_str()
+                e.meta.kind.as_str(),
+                e.source
             )
         })
         .collect();

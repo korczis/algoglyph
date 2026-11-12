@@ -28,7 +28,7 @@
 import { EVENT_CAP, type ArrayKernel, type ArrayOps } from '../../engines/array/trace';
 import { loadSorting, SOP, STRIDE, type KernelMeta, type RunOptions, type Sorting, type WasmRun } from './_abi';
 import { hashWords, TraceCache } from './_cache';
-import { kernelOf } from './_sidecar';
+import { kernelOf, maxNOf } from './_sidecar';
 
 const sizeOf = (r: WasmRun) => r.steps.byteLength + r.output.byteLength + r.tags.byteLength
   + r.strings.reduce((s, x) => s + 2 * x.length, 0) + 256;
@@ -195,14 +195,18 @@ export interface WasmArrayKernel extends ArrayKernel {
   last?: WasmRun;
 }
 
-/** Kernel `id` of a loaded module as an array-engine kernel. */
-export function wasmKernel(s: Sorting, id: string): WasmArrayKernel {
+/**
+ * Kernel `id` of a loaded module as an array-engine kernel, playing at most `maxN` keys when its
+ * measured rebuild cost bounds it (the sidecar's max_n, through the catalogue model).
+ */
+export function wasmKernel(s: Sorting, id: string, maxN?: number): WasmArrayKernel {
   const meta = s.meta(id);
   if (!meta) throw new Error(`sorting-wasm: the module has no kernel ${id}`);
   const k: WasmArrayKernel = {
     goal: 'sort',
     kernelId: id,
     meta,
+    ...(maxN ? { maxN } : {}),
     run(a: ArrayOps) {
       const keys = new Int32Array(a.n);
       for (let i = 0; i < a.n; i++) keys[i] = a.get(i);
@@ -221,7 +225,7 @@ export async function sidecarKernel(entryId: string): Promise<WasmArrayKernel> {
   const id = kernelOf(entryId);
   if (!id) throw new Error(`sorting-wasm: no sidecar maps a kernel to ${entryId}`);
   const s = await loadSorting();
-  const k = wasmKernel(s, id);
+  const k = wasmKernel(s, id, maxNOf(entryId));
   await traceCache(s).prefetch(`${id}|`);
   return k;
 }

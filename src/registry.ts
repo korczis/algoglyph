@@ -18,6 +18,7 @@ export interface Backing {
   sidecar: string;
   adapter: string;
   kernel: string;
+  maxN?: number;
 }
 type Load<T> = () => Promise<T>;
 /** What kernel resolution reads; the defaults are this tree's files and catalogue. */

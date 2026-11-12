@@ -135,6 +135,7 @@ export function readSidecars(root, errors = []) {
       }
       records.push({ id: r.id, kernel: r.kernel, engine: r.engine, existing: r.existing === true,
         inPlace: typeof r.in_place === 'boolean' ? r.in_place : undefined,
+        maxN: r.max_n, maxNOf: r.max_n_of,
         meta: kernels.get(r.kernel), manifest, sidecar: file, adapter });
     }
   }
@@ -284,6 +285,17 @@ export function loadCatalogue(root, { code = true } = {}) {
         errors.push(`${what}: ${r.manifest} lists no kernel ${r.kernel}`);
         continue;
       }
+      // max_n: the largest n the kernel plays at, measured (test/sorting-max-n.test.ts --write)
+      // on the kernel's source; a changed kernel needs a new measurement
+      if (r.maxN !== undefined || r.maxNOf !== undefined) {
+        if (!Number.isInteger(r.maxN) || r.maxN < 8 || r.maxN % 8 !== 0) {
+          errors.push(`${what}: max_n must be a multiple of 8 from 8 up, measured with max_n_of`);
+        } else if (r.maxNOf !== r.meta.source) {
+          errors.push(`${what}: max_n ${r.maxN} was measured on source ${r.maxNOf}, the kernel is now `
+            + `${r.meta.source} (${r.manifest}); re-measure: ALGOGLYPH_MAX_N=<out> ALGOGLYPH_MAX_N_WRITE=1 `
+            + 'npx vitest run test/sorting-max-n.test.ts');
+        }
+      }
       if (r.inPlace !== undefined && r.inPlace !== r.meta.in_place) {
         errors.push(`${what}: in_place ${r.inPlace}, but the kernel declares in_place ${r.meta.in_place}`);
       }
@@ -320,7 +332,10 @@ export function loadCatalogue(root, { code = true } = {}) {
       if (prev && prev.sidecar !== r.sidecar) {
         errors.push(`${e.file}: mapped by both ${prev.sidecar} and ${r.sidecar}; `
           + 'one implementation per entry');
-      } else if (!prev) backed.set(e.id, { sidecar: r.sidecar, adapter: r.adapter, kernel: r.kernel });
+      } else if (!prev) {
+        backed.set(e.id, { sidecar: r.sidecar, adapter: r.adapter, kernel: r.kernel,
+          ...(Number.isInteger(r.maxN) ? { maxN: r.maxN } : {}) });
+      }
     }
     for (const e of entries) {
       const plate = found.plates.includes(e.id);
