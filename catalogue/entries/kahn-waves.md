@@ -16,6 +16,13 @@ related:
   - topological-sort
   - critical-path
   - sugiyama-layout
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Remove every vertex without incoming edges at once, so each round is a wave whose tasks can run in parallel.
+    - Read the width of each wave as the most tasks that could run at once if every task took one step.
+    - Relate the number of waves to the dependencies, one more than the number of edges on the longest dependency chain.
 ---
 
 Remove every vertex without incoming edges at once: each round is a wave that can run in parallel.

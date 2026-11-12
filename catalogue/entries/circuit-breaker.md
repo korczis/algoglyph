@@ -14,6 +14,28 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: O(1) per call
 related:
   - backoff-jitter
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Trace the three states, closed counting consecutive failures, open refusing calls at once, half-open letting a single trial through after the cooldown.
+    - Explain why so little reaches a failing dependency, a trial per cooldown instead of every call.
+    - Explain how the breaker closes again, since a successful trial closes it and a failed one opens it for another cooldown.
+claims:
+  - id: a-trip-per-cooldown
+    statement: >-
+      While the dependency is degraded, from 1,500 to 4,200 ms, the breaker trips at most once
+      per cooldown, because every trip keeps it open for the 500 ms cooldown before a trial: at
+      least the first trip and at most 1 + ⌊(4,200 + 50 − 1,500) / 500⌋ = 6, the 50 ms being the
+      longest a forwarded call takes to come back.
+    readout: Trips (to open)
+    expect: { range: [1, 6] }
+  - id: closes-after-recovery
+    statement: >-
+      After the dependency recovers at 4,200 ms a trial succeeds and closes the breaker again
+      before the run ends at 7,000 ms: at least one recovery.
+    readout: Recoveries (to closed)
+    expect: { above: 0 }
 ---
 
 Closed, open and half-open: stop calling what keeps failing, and test it again later.
