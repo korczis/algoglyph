@@ -19,6 +19,33 @@ tags:
 complexity: n best, unbounded average and worst; extra space 1
 related:
   - bogosort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites: [bogosort]
+  objectives:
+  - 'Read comparisons in the last check: the position of the first descent, the same at every check.'
+  - 'Read writes and swaps to the array: 0, after any number of checks.'
+  - 'Choose Already sorted: one check of n − 1 comparisons, and the run is over.'
+  misconceptions:
+  - 'Waiting long enough sorts the array; every check finds the same descent, because nothing ever writes to it.'
+algorithm:
+  properties:
+    stable: true
+  postconditions:
+    - The array equals its input after every check.
+bounds:
+  model: 'checks, comparisons per check and in all, and writes and swaps to the array'
+  best: 'Already sorted: one check, n − 1 comparisons and no write'
+  worst: 'every unsorted input: each check compares up to the first descent and writes nothing, and no number of checks ends the run (test/plate-miracle-sort.test.ts)'
+claims:
+  - id: nothing-is-ever-written
+    statement: >-
+      On Random permutation at 24 keys, with 240 frames between checks, miracle sort has written nothing to the array when its first check ends: 0 writes and swaps.
+    readout: writes and swaps to the array
+    expect: { value: 0 }
+    setup:
+      params: { shape: random, n: 24, wait: 240 }
 ---
 
 Test whether the array is sorted; if not, wait for a miracle and test again, forever, without ever writing to the array.
