@@ -65,15 +65,20 @@ export function stream(s: Sampler, n: number, at: number, shift: number, sd = 1)
   return Array.from({ length: n }, (_, i) => s.normal(i >= at ? shift * sd : 0, sd));
 }
 
+/** How steeply the true probability rises with an overconfident score, unless the kernel's own
+ * control sets it: below 1, so the scores are more extreme than the truth. */
+export const OVER_SLOPE = 0.55;
+
 /** Scores of a miscalibrated classifier: the true probability is a monotone distortion of the
- * score, and each label is drawn from it. Yields as it goes, so a large set spreads over frames. */
-export function* scoredSet(s: Sampler, n: number, distortion: string): Generator<void, { score: number[]; label: number[]; truth: (x: number) => number }, void> {
+ * score, and each label is drawn from it. Yields as it goes, so a large set spreads over frames.
+ * `slope` sets the overconfident truth only; the draws are the same at every value. */
+export function* scoredSet(s: Sampler, n: number, distortion: string, slope = OVER_SLOPE): Generator<void, { score: number[]; label: number[]; truth: (x: number) => number }, void> {
   // over: scores more extreme than the truth; under: less extreme; skewed: scores too high
   const truth = distortion === 'under'
     ? (x: number) => 1 / (1 + Math.exp(-8 * (x - 0.5)))
     : distortion === 'skewed'
       ? (x: number) => x ** 2.2
-      : (x: number) => 0.5 + 0.55 * (x - 0.5);
+      : (x: number) => 0.5 + slope * (x - 0.5);
   const score: number[] = [];
   const label: number[] = [];
   for (let i = 0; i < n; i++) {
