@@ -413,3 +413,35 @@ describe('soft body: forces against independent references', () => {
     }
   });
 });
+
+describe('soft body: no subnormal floats', () => {
+  const MIN_NORMAL = 2.2250738585072014e-308;
+  const normalOrZero = (a: Float64Array) => a.every((x) => x === 0 || Math.abs(x) >= MIN_NORMAL);
+
+  it('a damped body decaying to rest keeps its velocities and forces 0 or normal', () => {
+    for (const [name, build] of [['spring', () => {
+      const b = lattice(2, 1, 1, 0.5, 1);
+      b.x[3] += 0.05;
+      return b;
+    }], ['cube', () => {
+      // deformed at rest: no momentum and no angular momentum, so it can come fully to rest
+      const b = lattice(3, 3, 3, 0.2, 1);
+      deform(b, 41, 0.05);
+      return b;
+    }]] as const) {
+      const b = build();
+      const w: World = { ...FREE, damping: 0.5 };
+      forces(b, w);
+      const dt = stableStep(b, w);
+      let smallest = Infinity;
+      for (let s = 0; s < 40000; s++) {
+        step(b, w, dt);
+        for (const x of b.v) if (x !== 0) smallest = Math.min(smallest, Math.abs(x));
+      }
+      expect(normalOrZero(b.v), name).toBe(true);
+      expect(normalOrZero(b.f), name).toBe(true);
+      expect(energy(b, w).kinetic, name).toBeLessThan(1e-20);
+      expect(smallest, name).toBeGreaterThanOrEqual(MIN_NORMAL);
+    }
+  });
+});

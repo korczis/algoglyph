@@ -3,6 +3,7 @@
 // along -y and a ground plane at y = 0 with restitution and Coulomb friction. Integrated by
 // velocity Verlet (kick-drift-kick): symplectic for the conservative forces, second order.
 // Positions, velocities and forces are packed xyz arrays; y points up.
+import { flush } from '../../core/budget';
 
 export const STRUCTURAL = 0;
 export const SHEAR = 1;
@@ -288,7 +289,8 @@ export function forces(b: SoftBody, w: World): void {
       + (v[ja + 2] - v[ia + 2]) * uz;
     // critical damping of two masses on one spring: c = 2·sqrt(k·μ), μ the reduced mass
     const c = w.damping * 2 * Math.sqrt((k * m[i] * m[j]) / (m[i] + m[j]));
-    const t = k * (d - b.rest[s]) + c * closing;
+    // a damped body at rest decays its tension and velocities geometrically: keep them normal
+    const t = flush(k * (d - b.rest[s]) + c * closing);
     f[ia] += t * ux;
     f[ia + 1] += t * uy;
     f[ia + 2] += t * uz;
@@ -373,7 +375,7 @@ export function step(b: SoftBody, w: World, dt: number): number {
     if (pinned[i]) continue;
     const k = h / m[i];
     for (let d = i * 3; d < i * 3 + 3; d++) {
-      v[d] += f[d] * k;
+      v[d] = flush(v[d] + f[d] * k);
       x[d] += v[d] * dt;
     }
   }
@@ -383,7 +385,7 @@ export function step(b: SoftBody, w: World, dt: number): number {
   for (let i = 0; i < n; i++) {
     if (pinned[i]) continue;
     const k = h / m[i];
-    for (let d = i * 3; d < i * 3 + 3; d++) v[d] += f[d] * k;
+    for (let d = i * 3; d < i * 3 + 3; d++) v[d] = flush(v[d] + f[d] * k);
   }
   // the floor also stops, without a bounce, a mass the second half kick drives into it: a mass
   // at rest on it would otherwise carry that half kick as a velocity it never moves with
