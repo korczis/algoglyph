@@ -30,13 +30,14 @@ export const kernel: SystemsKernel<BreakerResult> = {
   params: [
     { kind: 'range', key: 'threshold', label: 'Failures to trip', min: 1, max: 12, step: 1, value: 4, rebuild: true },
     { kind: 'range', key: 'cooldown', label: 'Cooldown (ms)', min: 100, max: 2000, step: 50, value: 500, rebuild: true },
+    { kind: 'range', key: 'recover', label: 'Dependency recovers at (ms)', min: 2000, max: 6000, step: 100, value: 4200, rebuild: true },
   ],
   setup: () => ({ lanes: ['client', 'breaker', 'dependency'], horizon: 7000, net: { delay: [2, 10] } }),
   machine: { states: ['closed', 'open', 'half-open'], lanes: [1] },
   install(net, p) {
     const threshold = num(p, 'threshold'); const cooldown = num(p, 'cooldown');
     const res: BreakerResult = { transitions: [], threshold };
-    const degraded: [number, number] = [1500, 4200];
+    const degraded: [number, number] = [1500, num(p, 'recover')];
     let state: BreakerState = 'closed';
     let failures = 0;
     let trialOut = false;
