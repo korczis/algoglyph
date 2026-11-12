@@ -21,6 +21,27 @@ complexity: n^(log n / (2+ε)) in every case; extra space n
 related:
   - mergesort-top-down
   - stooge-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [mergesort-top-down]
+  objectives:
+  - 'Read comparisons, counted live at the end of a run at 16 keys: 406 of 406, C(n) = C(⌈n/2⌉) + C(⌊n/2⌋) + 1 + C(n − 1), whatever the input shape.'
+  - 'Choose Already sorted: every comparison is still made, and no swap.'
+  - 'Read swaps, counted live on Random permutation: never more than the inversions of the input, since every swap removes at least one.'
+  misconceptions:
+  - 'A recurrence shaped like mergesort''s grows polynomially; the local exponent of slowsort''s exact count keeps rising as n doubles, so no fixed power of n bounds it.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+  invariants:
+    - The number of inversions never increases.
+bounds:
+  model: 'comparisons (one per compare-and-swap of two halves'' maxima) and swaps, counted live'
+  best: 'no swap on Already sorted'
+  average: 'exactly C(n) = C(⌈n/2⌉) + C(⌊n/2⌋) + 1 + C(n − 1) comparisons on every input (test/plate-slowsort.test.ts, against the kernel); at most as many swaps as the input has inversions'
+  worst: 'between n^(log n/(2+ε)) and n^(log n/2) (Broder and Stolfi): faster than any fixed power'
 ---
 
 Multiply and surrender: to sort a range, slowsort both halves, move the larger of their two maxima to the end, then slowsort everything except the last key.

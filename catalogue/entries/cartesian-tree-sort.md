@@ -23,6 +23,34 @@ related:
   - heapsort
   - mergesort-natural
   - smoothsort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [binary-heap, heapsort]
+  objectives:
+  - 'Run Already sorted or Reversed at 64 keys: 63 comparisons, n − 1, and 127 auxiliary writes, since the tree is one path.'
+  - 'Run Organ pipe at 64 keys: 125 comparisons, 2n − 3, for an input that is neither ascending nor descending.'
+  - 'Read the Comparisons readout when the Phase readout turns to the output: the build has made between n − 1 and 2n − 3 comparisons on every input; the rest belongs to the candidate heap.'
+  misconceptions:
+  - 'A sort that outputs through a binary heap pays n log n on every input; on Already sorted, Reversed and keys all equal this one makes n − 1 comparisons.'
+algorithm:
+  properties:
+    stable: false
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons (the build''s stack, then the candidate heap), array writes (one per key output) and auxiliary writes (the copied nodes and every change of the drawn candidate heap)'
+  best: 'n − 1 comparisons and 2n − 1 auxiliary writes on Already sorted, Reversed and keys all equal; 2n − 3 comparisons on Organ pipe'
+  average: 'the build between n − 1 and 2n − 3 comparisons on every input of n ≥ 2 keys; n array writes'
+  worst: 'O(n log n); O(n log(Osc/n)) for an input of oscillation Osc (Levcopoulos and Petersson)'
+claims:
+  - id: organ-pipe-is-linear
+    statement: >-
+      On Organ pipe at 64 keys Cartesian tree sort makes 125 comparisons, 2n − 3: linear, although the input first rises and then falls.
+    readout: Comparisons
+    expect: { value: 125 }
+    setup:
+      params: { shape: organ-pipe, n: 64 }
 ---
 
 Build the Cartesian tree of the input, whose root is the smallest key with the trees of the left and right parts below it, then output keys with a small binary heap that holds only the roots of the subtrees not yet output.

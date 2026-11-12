@@ -21,6 +21,32 @@ related:
   - counting-sort
   - heapsort
   - spaghetti-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [binary-heap]
+  objectives:
+  - 'Read Rounds and Lanes: 2 rounds, every thread spawned and every thread woken, and one lane per key, 64 at 64 keys.'
+  - 'Run Few distinct keys at 64 keys: the Phase readout ends at t = 3 after 5 phases, the spawn and one deadline per distinct key.'
+  - 'Read Comparisons: the timer heap''s, never more than Σ (⌊lg(i + 1)⌋ + 2⌊lg i⌋) over i = 1..n − 1.'
+  misconceptions:
+  - 'Sleep sort sorts without comparing; the plate''s timer queue makes 592 comparisons on Random permutation at 64 keys, and a real scheduler''s queue does the same work.'
+algorithm:
+  paradigm: simulation
+  properties:
+    in_place: false
+bounds:
+  model: 'comparisons (the timer heap''s pushes and removals), array writes (one per thread waking), rounds, lanes (one thread per key) and phases (the spawn, then each deadline of the virtual clock)'
+  average: 'n array writes, 2 rounds, n lanes and 1 + d phases for d distinct keys on every input, the last at t = max − min'
+  worst: 'at most Σ (⌊lg(i + 1)⌋ + 2⌊lg i⌋) comparisons over i = 1..n − 1; real time grows with the largest key, which the virtual clock replaces'
+claims:
+  - id: the-clock-ends-at-the-largest-key
+    statement: >-
+      On Few distinct keys at 64 keys the virtual clock of sleep sort ends at t = 3: the keys run from 1 to 4, and the last thread sleeps max − min ticks.
+    readout: Phase
+    expect: { value: 3 }
+    setup:
+      params: { shape: few-unique, n: 64 }
 ---
 
 Start one thread per key; each sleeps for a time proportional to its key and then appends the key to the output, so the keys appear in the order their threads wake.

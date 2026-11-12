@@ -49,7 +49,7 @@ claims:
     readout: Rounds
     expect: { value: 6123 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Goodrich's deterministic, data-oblivious Shellsort variant: at each of log n levels the subarrays halve in size, and a zig pass left to right and a zag pass right to left apply a Reduce step to every pair of neighbouring subarrays.

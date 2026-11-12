@@ -24,6 +24,14 @@ on:
 permissions:
   contents: read
 
+# Every runner gets the locale a GitHub-hosted runner has. Bash's EPOCHREALTIME takes the
+# locale's decimal separator, and majordomus doctor's millisecond clock strips only ".": on the
+# self-hosted runner it read "1794506805,927" and its arithmetic failed (run 43276351631).
+# LC_ALL, because it overrides LC_NUMERIC.
+env:
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
 jobs:
   commits:
     name: Conventional commits

@@ -49,7 +49,7 @@ claims:
     readout: Rounds
     expect: { value: 45 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Parberry's network turns Batcher's order around: first sort neighbouring pairs, then pairs of pairs and so on, and only then repair the result with comparators at shrinking distances.

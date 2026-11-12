@@ -51,7 +51,7 @@ claims:
     readout: Array writes
     expect: { above: 10870 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Fluxsort without the big buffer: a stable quicksort that makes do with a small fixed buffer and solves everything that does not fit with rotations of adjacent blocks.

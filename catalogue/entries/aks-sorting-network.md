@@ -53,7 +53,7 @@ claims:
     readout: Rounds
     expect: { value: 72 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 The network of Ajtai, Komlós and Szemerédi: depth on the order of log n and on the order of n log n comparators, both asymptotically optimal, built from approximate halvers applied over a tree of intervals.

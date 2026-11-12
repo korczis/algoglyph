@@ -24,6 +24,33 @@ related:
   - external-merge-sort
   - lsd-radix-sort
   - msd-radix-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [lsd-radix-sort]
+  objectives:
+  - 'Read the Passes readout at 512 keys: 3, one per base-16 digit of max − min = 511, each writing every key to a bucket file and back, 1,536 array writes.'
+  - 'Run Few distinct keys at 512 keys: one pass, since the keys 1 to 4 differ only in their last digit.'
+  - 'Read the Comparisons readout: 0 on every input.'
+  misconceptions:
+  - 'An external sort needs more passes for more keys; this one needs one pass per digit of the key range, 3 on Random permutation at 512 keys and 1 on Few distinct keys at the same size.'
+algorithm:
+  paradigm: iterative-refinement
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: false
+bounds:
+  model: 'array writes (the bucket files concatenated back into the file every pass), auxiliary writes (keys appended to the bucket files) and passes (one per digit); no comparison'
+  average: 'on every input of n ≥ 2 keys d passes for the d base-16 digits of max − min (at least 1), exactly d·n array writes and d·n auxiliary writes, and no comparison; the 2N/B block transfers per pass are the I/O model''s'
+claims:
+  - id: passes-follow-the-key-range
+    statement: >-
+      On Few distinct keys at 512 keys external radix sort takes 1 pass, against 3 on Random permutation at the same size: its passes follow the base-16 digits of the key range, 1 to 4 here, not the number of keys.
+    readout: Passes
+    expect: { value: 1 }
+    setup:
+      params: { shape: few-unique, n: 512 }
 ---
 
 LSD radix sort on files: every pass reads the whole file and appends each record to the bucket file of its current digit, least significant first; the bucket files, concatenated in digit order, are the input of the next pass.

@@ -306,7 +306,7 @@ Build the Cartesian tree of the input, whose root is the smallest key with the t
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/patience-sorting">039 · Patience sorting</a></b><br>
-Deal the keys like cards onto piles, each onto the leftmost pile whose top card is at least as large, or onto a new pile at the right; every pile is then a sorted run, and a multiway merge of the piles gives the sorted output.<br>
+Deal the keys like cards onto piles, each onto the leftmost pile whose top card is larger, or onto a new pile at the right; every pile is then a sorted run, and a multiway merge of the piles gives the sorted output.<br>
 <sub>Tree and pile sorts · n best, n log n average and worst; extra space n · sorting, piles, merging, adaptive</sub>
 </td>
 <td width="50%" valign="top">
@@ -779,7 +779,7 @@ Comparison counting: the final position of a key is the number of keys smaller t
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/ips4o">118 · In-place parallel super scalar samplesort (IPS⁴o)</a></b><br>
-A recursive samplesort that splits the input into k buckets per level, in place and in parallel: elements go into small per-bucket buffers, full buffers are written back over slots already read, and whole blocks are then permuted into their buckets.<br>
+A recursive samplesort that splits the input into k buckets per level, in place and in parallel. In the authors' algorithm elements go into small per-bucket buffers, full buffers are written back over slots already read, and whole blocks are then permuted into their buckets; the plate's kernel moves single keys instead, by a cycle-leader permutation.<br>
 <sub>Parallel and distributed sorts · n log n in every case (with high probability); extra space log n · sorting, parallel, in-place, samplesort, branchless</sub>
 </td>
 </tr>
@@ -791,7 +791,7 @@ Two phases: every block of threads sorts its tile in fast on-chip memory, then s
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/parallel-merge-sort">120 · Mergesort, parallel</a></b><br>
-Mergesort with the merging itself split among workers: every worker sorts its share, then pairs of runs are merged in rounds, each merge cut into equal output pieces whose start points a binary search finds in both inputs at once.<br>
+Mergesort in rounds: every worker sorts its share, then pairs of runs are merged, round after round, until one run is left. The parallel formulations of the sources also split each merge among the workers, cutting it into equal output pieces whose start points a binary search finds in both inputs at once; the plate gives every pairwise merge to one lane.<br>
 <sub>Parallel and distributed sorts · n log n in every case; extra space n · sorting, parallel, merging</sub>
 </td>
 </tr>
@@ -810,7 +810,7 @@ Samplesort with a branchless classifier: the splitters sit in an implicit search
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/parallel-quicksort">123 · Quicksort, parallel</a></b><br>
-Quicksort with the partitioning shared among workers: the group agrees on a random pivot, every worker partitions its own share, the counts of the two sides decide how many workers take each side, and both subgroups recurse.<br>
+Quicksort with the partitioning shared among workers. In the formulations of the sources the group agrees on a random pivot, every worker partitions its own share, the counts of the two sides decide how many workers take each side, and both subgroups recurse; the plate's kernel hands every segment of a recursion level to a lane of its own and partitions it there in three ways around a random pivot, so the lanes multiply as the segments shrink.<br>
 <sub>Parallel and distributed sorts · n log n best, n log n average, n² worst; extra space log n · sorting, parallel, in-place, quicksort</sub>
 </td>
 <td width="50%" valign="top">
