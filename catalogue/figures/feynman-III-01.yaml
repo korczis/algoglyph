@@ -1,0 +1,93 @@
+# The Feynman Lectures on Physics, Volume III, chapter 1 (ADR 0009). Figure numbers, sections and
+# classes are to be confirmed against the online edition by the source review below; until the
+# review is recorded no page of this chapter is routed. Figure 1-2 (water waves) is recorded once
+# its plate, the ripple tank, carries the detector line it needs.
+schema: algoglyph.figures/v1
+collection: feynman
+volume: III
+chapter: 1
+title: Quantum Behavior
+url: https://www.feynmanlectures.caltech.edu/III_01.html
+same_as:
+  - { volume: I, chapter: 37, url: 'https://www.feynmanlectures.caltech.edu/I_37.html' }
+figures:
+  - id: 1-1
+    section: 1-2
+    class: thought-experiment
+    title: Bullets through two holes
+    paraphrase: >-
+      A gun that sprays bullets at a wall with two holes, a backstop with a movable counter, and the
+      arrival curves with either hole shut and with both open, the last the sum of the first two.
+    plate: two-slit-classical
+    pedagogy:
+      objectives:
+        - Predict the both-holes curve from the two one-hole curves before running it.
+        - Judge the prediction with a χ² band and a power check, not by eye.
+      questions:
+        - Why do the bullets' curves simply add, and what would it take for them not to?
+  - id: 1-3
+    section: 1-4
+    class: thought-experiment
+    title: Electrons through two slits
+    paraphrase: >-
+      An electron gun, a wall with two slits and a movable counter: electrons arrive one at a time,
+      yet with both slits open their arrival curve shows interference, unlike the sum of the curves
+      with one slit shut.
+    plate: two-slit-amplitudes
+    setup: { scenario: electrons }
+    pedagogy:
+      objectives:
+        - Add the two amplitudes, then square, and compare the centre with what adding probabilities gives.
+        - Watch single arrivals build up a distribution and test it against |ψ₁ + ψ₂|².
+      questions:
+        - Each electron arrives whole at one place; what then interferes?
+  - id: 1-4
+    section: 1-6
+    class: thought-experiment
+    title: Watching the electrons with light
+    paraphrase: >-
+      The electron apparatus with a light source behind the wall, so that a flash near one slit or
+      the other shows which way each electron went; with the light on, the interference is lost.
+    plate: two-slit-amplitudes
+    setup: { scenario: watched, eta: 1, photon: 2.3, scatter: sphere }
+    pedagogy:
+      objectives:
+        - Relate the contrast left by the light to the overlap of the photon states the two paths leave.
+        - Find the wavelengths at which the light stops telling the slits apart, and the reversal between.
+      misconceptions:
+        - Longer light does not bring the fringes back steadily; between the zeros of J₀ they return reversed.
+      questions:
+        - Why do the electrons that scatter no photon keep their fringes in dim light?
+  - id: 1-5
+    section: 1-6
+    class: schematic
+    title: Fringes too fine for any detector
+    paraphrase: >-
+      Two curves for bullets treated as waves: the true distribution, with fringes far too close to
+      resolve, and the smooth curve a detector of finite size actually records.
+    plate: two-slit-amplitudes
+    setup: { scenario: resolution }
+    pedagogy:
+      objectives:
+        - Compute how far apart a bullet's fringes would be, and how many a detector averages over.
+        - Tell fringes hidden by the detector from fringes removed by marking the path.
+      misconceptions:
+        - Smoothing by a coarse detector is not decoherence; the particles still arrive in fringes.
+      questions:
+        - What changes in the reading, and what in the arrivals, when the detector gets finer?
+  - id: 1-6
+    section: 1-8
+    class: thought-experiment
+    title: A slit wall free to recoil
+    paraphrase: >-
+      A wall with two holes mounted so that it can move up and down, its recoil meant to show which
+      hole each particle passed; the uncertainty principle forbids knowing the recoil well enough
+      without blurring the wall's position and the fringes with it.
+    plate: two-slit-amplitudes
+    setup: { scenario: recoil }
+    pedagogy:
+      objectives:
+        - Trade the wall's momentum spread against its position spread and watch distinguishability and visibility trade.
+        - Check D² + V² ≤ 1 and see why a momentum reading stays below it.
+      questions:
+        - How sharp must the wall's momentum be to tell the paths apart, and what does that do to its position?

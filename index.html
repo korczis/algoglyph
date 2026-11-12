@@ -140,6 +140,19 @@
             </template>
           </ul>
         </div>
+        <div class="pt-3" x-show="collections.length" x-cloak>
+          <p class="px-2 mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Figures of cited works</p>
+          <ul class="space-y-0.5 font-medium">
+            <template x-for="c in collections" :key="c.id">
+              <li>
+                <a :href="'#/' + c.id" class="flex items-center p-2 text-sm text-gray-900 rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700" :class="figureKey.split('/')[0] === c.id ? 'bg-gray-100 dark:bg-gray-700' : ''" :aria-current="view === 'figures' && figureKey === c.id ? 'page' : null">
+                  <svg class="w-5 h-5 mr-2 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6a2 2 0 012 2v12a2 2 0 00-2-2H4zM20 5h-6a2 2 0 00-2 2v12a2 2 0 012-2h6z"></path></svg>
+                  <span class="flex-1 truncate" x-text="c.title"></span>
+                </a>
+              </li>
+            </template>
+          </ul>
+        </div>
         <div class="pt-4">
           <p class="px-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Every plate is seeded: the URL reproduces the picture. Readouts are measured from the running simulation.</p>
         </div>
@@ -360,7 +373,34 @@
       </section>
 
       <!-- A plate, a planned entry or a lab -->
-      <section x-show="view !== 'browse'" x-cloak aria-labelledby="plate-title">
+      <!-- A figure collection (ADR 0009): its chapters and their routed figure pages, derived from catalogue/figures -->
+      <section x-show="view === 'figures'" x-cloak aria-labelledby="figures-title">
+        <template x-if="currentCollection">
+          <div>
+            <h1 id="figures-title" class="mb-2 text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white" x-text="currentCollection.title"></h1>
+            <p class="max-w-3xl mb-6 text-base text-gray-500 dark:text-gray-400" x-text="currentCollection.summary"></p>
+            <template x-for="ch in figureChapters()" :key="ch.collection + ch.key">
+              <div class="p-4 mb-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
+                <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+                  <h2 class="text-lg font-bold text-gray-900 dark:text-white"><span x-text="'Volume ' + ch.volume + ', chapter ' + ch.chapter + ': '"></span><a :href="'#/' + ch.collection + '/' + ch.key" class="hover:underline" x-text="ch.title"></a></h2>
+                  <a :href="ch.url" target="_blank" rel="noopener" class="text-sm font-medium underline text-primary-700 hover:no-underline dark:text-primary-400">Read the chapter in the online edition</a>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <template x-for="f in ch.figures" :key="f.id">
+                    <a :href="f.route" class="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
+                      <p class="mb-1 font-mono text-xs text-gray-500 dark:text-gray-400"><span x-text="'Fig. ' + f.id"></span> · <span x-text="figureClass(f)"></span></p>
+                      <h3 class="mb-2 text-base font-semibold text-gray-900 dark:text-white" x-text="f.title"></h3>
+                      <p class="text-sm text-gray-500 dark:text-gray-400" x-text="f.paraphrase"></p>
+                    </a>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </section>
+
+      <section x-show="view === 'plate' || view === 'lab' || view === 'figure'" x-cloak aria-labelledby="plate-title">
         <div class="mb-4">
           <nav class="flex mb-5 overflow-x-auto" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 md:space-x-2 whitespace-nowrap">
@@ -370,7 +410,17 @@
                   algoglyph
                 </a>
               </li>
-              <template x-for="t in currentTrail" :key="'pt-' + t.key">
+              <template x-if="currentFigure">
+                <li>
+                  <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
+                    <a :href="'#/' + currentFigure.chapter.collection" class="ml-1 text-sm font-medium text-gray-700 hover:text-gray-900 md:ml-2 dark:text-gray-300 dark:hover:text-white" x-text="currentCollection ? currentCollection.title : ''"></a>
+                    <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
+                    <a :href="'#/' + currentFigure.chapter.collection + '/' + currentFigure.chapter.key" class="ml-1 text-sm font-medium text-gray-700 hover:text-gray-900 md:ml-2 dark:text-gray-300 dark:hover:text-white" x-text="currentFigure.chapter.volume + '/' + currentFigure.chapter.chapter + ' ' + currentFigure.chapter.title"></a>
+                  </div>
+                </li>
+              </template>
+              <template x-for="t in (currentFigure ? [] : currentTrail)" :key="'pt-' + t.key">
                 <li>
                   <div class="flex items-center">
                     <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
@@ -387,14 +437,14 @@
               <li aria-current="page">
                 <div class="flex items-center">
                   <svg class="w-6 h-6 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"></path></svg>
-                  <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400" x-text="current ? current.title : (currentLab ? currentLab.title : '')"></span>
+                  <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400" x-text="currentFigure ? 'Fig. ' + currentFigure.figure.id : (current ? current.title : (currentLab ? currentLab.title : ''))"></span>
                 </div>
               </li>
             </ol>
           </nav>
           <div class="items-center justify-between gap-4 xl:flex">
             <h1 id="plate-title" class="text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white">
-              <span x-show="current" class="mr-2 font-mono text-gray-500 plate-no dark:text-gray-400" x-text="current ? 'PL. ' + current.no : ''"></span><span x-text="current ? current.title : (currentLab ? currentLab.title : '')"></span>
+              <span x-show="current && !currentFigure" class="mr-2 font-mono text-gray-500 plate-no dark:text-gray-400" x-text="current ? 'PL. ' + current.no : ''"></span><span x-show="currentFigure" class="mr-2 font-mono text-gray-500 dark:text-gray-400" x-text="currentFigure ? 'Fig. ' + currentFigure.figure.id : ''"></span><span x-text="currentFigure ? currentFigure.figure.title : (current ? current.title : (currentLab ? currentLab.title : ''))"></span>
               <span x-show="current && current.status === 'planned'" class="ml-2 align-middle bg-gray-200 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-200">Planned</span>
             </h1>
             <div x-show="!(current && current.status === 'planned')" class="flex flex-wrap items-center gap-2 mt-4 xl:mt-0">
@@ -463,6 +513,44 @@
                 </div>
               </dl>
             </div>
+          </div>
+        </template>
+
+        <!-- A figure page (ADR 0009): provenance and the model, above the plate that runs it -->
+        <template x-if="currentFigure">
+          <div class="p-4 mb-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-primary-900 dark:text-primary-300" x-text="figureClass(currentFigure.figure)"></span>
+              <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="'Vol. ' + currentFigure.chapter.volume + ', ch. ' + currentFigure.chapter.chapter + ', §' + currentFigure.figure.section + ', Fig. ' + currentFigure.figure.id"></span>
+            </div>
+            <p class="mb-4 text-base text-gray-900 dark:text-white" x-text="currentFigure.figure.paraphrase"></p>
+            <div class="flex flex-wrap gap-2">
+              <a :href="currentFigure.figure.source" target="_blank" rel="noopener" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-400 dark:hover:bg-gray-600">Read the figure in the online edition</a>
+              <a :href="'#/p/' + currentFigure.figure.plate" class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700" x-text="'The model: ' + (entryOf(currentFigure.figure.plate) ? entryOf(currentFigure.figure.plate).title : '')"></a>
+              <template x-if="currentFigure.figure.prev"><a :href="'#/' + currentFigure.chapter.collection + '/' + currentFigure.chapter.key + '/' + currentFigure.figure.prev" class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700" x-text="'Previous: Fig. ' + currentFigure.figure.prev"></a></template>
+              <template x-if="currentFigure.figure.next"><a :href="'#/' + currentFigure.chapter.collection + '/' + currentFigure.chapter.key + '/' + currentFigure.figure.next" class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700" x-text="'Next: Fig. ' + currentFigure.figure.next"></a></template>
+            </div>
+            <template x-if="currentFigure.figure.pedagogy">
+              <div class="grid gap-4 mt-5 md:grid-cols-2">
+                <div x-show="(currentFigure.figure.pedagogy.objectives || []).length">
+                  <h2 class="mb-2 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">On this page</h2>
+                  <ul class="space-y-1 text-sm text-gray-500 list-disc list-inside dark:text-gray-400">
+                    <template x-for="(o, i) in (currentFigure.figure.pedagogy.objectives || [])" :key="'fo' + i"><li x-text="o"></li></template>
+                  </ul>
+                </div>
+                <div x-show="(currentFigure.figure.pedagogy.questions || []).length">
+                  <h2 class="mb-2 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Questions</h2>
+                  <ul class="space-y-1 text-sm text-gray-500 list-disc list-inside dark:text-gray-400">
+                    <template x-for="(q, i) in (currentFigure.figure.pedagogy.questions || [])" :key="'fq' + i"><li x-text="q"></li></template>
+                  </ul>
+                </div>
+              </div>
+            </template>
+            <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+              <span x-text="'Figure numbers and sections compared with the online edition by ' + (currentFigure.chapter.review ? currentFigure.chapter.review.by + ' on ' + currentFigure.chapter.review.date : '') + '.'"></span>
+              <template x-for="s in currentFigure.chapter.sameAs" :key="s.url"><span> The source gives <a :href="s.url" target="_blank" rel="noopener" class="underline" x-text="'Vol. ' + s.volume + ', ch. ' + s.chapter"></a> as almost the same chapter.</span></template>
+              The text, captions and drawings of the lectures are not reproduced here; the picture is this site's own model.
+            </p>
           </div>
         </template>
 
@@ -583,6 +671,11 @@
                   <h2 class="mb-4 text-xl font-bold leading-none text-gray-900 dark:text-white">How to read it</h2>
                   <div class="space-y-3 text-base text-gray-500 dark:text-gray-400">
                     <template x-for="(n, i) in current.notes" :key="'n' + i"><p><template x-for="(s, j) in prose(n)" :key="j"><span><template x-if="s.href"><a :href="s.href" x-text="s.text" class="font-medium underline text-primary-700 hover:no-underline dark:text-primary-400"></a></template><template x-if="!s.href"><span x-text="s.text"></span></template></span></template></p></template>
+                  </div>
+                  <div x-show="current.figures.some((f) => f.routed)" class="flex flex-wrap gap-2 mt-5">
+                    <template x-for="f in current.figures.filter((x) => x.routed)" :key="'cf' + f.route">
+                      <a :href="f.route" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-400 dark:hover:bg-gray-600" x-text="'Fig. ' + f.id + ': ' + f.title"></a>
+                    </template>
                   </div>
                   <div x-show="current.labs.length" class="flex flex-wrap gap-2 mt-5">
                     <template x-for="l in current.labs" :key="'cl' + l">

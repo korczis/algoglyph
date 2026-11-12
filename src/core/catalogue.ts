@@ -41,7 +41,47 @@ export interface Entry {
   /** Derived from code and tests; never authored (ADR 0005 §3). */
   evidence: { implemented: boolean; tested: 'harness' | 'unit' | null };
   maturity: { reached: string[]; next: string | null };
+  /** Figure occurrences this entry's plate models (ADR 0009), derived from catalogue/figures. */
+  figures: FigureRef[];
 }
+
+export interface FigureRef { collection: string; chapter: string; id: string; title: string; route: string; routed: boolean }
+
+/** A figure occurrence of a cited work (ADR 0009); everything but the authored record is derived. */
+export interface Figure {
+  id: string;
+  section: string;
+  anchor: string | null;
+  class: 'experiment' | 'thought-experiment' | 'schematic' | 'plot';
+  title: string;
+  paraphrase: string;
+  plate: string;
+  setup: Record<string, string | number | boolean>;
+  pedagogy: Pedagogy | null;
+  route: string;
+  /** The chapter's canonical URL, with the figure's anchor once the review recorded it. */
+  source: string;
+  /** Whether the page exists: a source review on the chapter, and a live, tested plate. */
+  routed: boolean;
+  prev: string | null;
+  next: string | null;
+}
+
+export interface Chapter {
+  /** `<volume>/<two-digit chapter>`, e.g. III/01. */
+  key: string;
+  collection: string;
+  work: string;
+  volume: string;
+  chapter: number;
+  title: string;
+  url: string;
+  sameAs: { volume: string; chapter: number; url: string }[];
+  review: { by: string; date: string; method: string; note?: string } | null;
+  figures: Figure[];
+}
+
+export interface Collection { id: string; title: string; work: string; summary: string; chapters: string[] }
 
 export interface Link { to: string; type: string; title: string; reason: string; derived: boolean }
 export interface Pedagogy {
@@ -102,6 +142,9 @@ export interface Catalogue {
    * measured rebuild cost bounds it (ArrayKernel.maxN).
    */
   sidecar?: Record<string, { sidecar: string; adapter: string; kernel: string; maxN?: number }>;
+  /** Figure collections and their chapters (ADR 0009). */
+  collections: Collection[];
+  chapters: Chapter[];
 }
 
 export const CATALOGUE = model as Catalogue;
@@ -112,6 +155,29 @@ const LABS = new Map(CATALOGUE.labs.map((l) => [l.id, l]));
 const SOURCES = new Map(CATALOGUE.sources.map((s) => [s.id, s]));
 
 export const entry = (id: string): Entry | undefined => BY_ID.get(id);
+
+/** A figure page, if routed: the chapter and the figure at `<collection>/<volume>/<chapter>/<id>`. */
+export function figureAt(chapters: Chapter[], key: string): { chapter: Chapter; figure: Figure } | undefined {
+  const [collection, volume, ch, id] = key.split('/');
+  const chapter = chapters.find((c) => c.collection === collection && c.key === `${volume}/${ch}`);
+  const figure = chapter?.figures.find((f) => f.id === id && f.routed);
+  return chapter && figure ? { chapter, figure } : undefined;
+}
+
+/** The routed figures of a collection, chapter by chapter, optionally of one chapter key. */
+export function routedChapters(chapters: Chapter[], collection: string, key = ''): Chapter[] {
+  return chapters
+    .filter((c) => c.collection === collection && (!key || c.key === key))
+    .map((c) => ({ ...c, figures: c.figures.filter((f) => f.routed) }))
+    .filter((c) => c.figures.length > 0);
+}
+
+export const collection = (id: string): Collection | undefined =>
+  CATALOGUE.collections.find((c) => c.id === id);
+/** Collections with at least one routed figure: the ones the navigation shows. */
+export const liveCollections = (): Collection[] =>
+  CATALOGUE.collections.filter((c) => routedChapters(CATALOGUE.chapters, c.id).length > 0);
+export const figure = (key: string) => figureAt(CATALOGUE.chapters, key);
 export const node = (key: string): TaxNode | undefined => NODES.get(key);
 export const lab = (id: string): Lab | undefined => LABS.get(id);
 export const source = (id: string): Source | undefined => SOURCES.get(id);

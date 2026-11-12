@@ -8,10 +8,12 @@
 //   catalogue/entries/<id>.md      one algorithm: YAML front matter + body (summary, notes)
 //   catalogue/<family>-sidecar.yaml  optional: entry id -> kernel of a compiled module, played
 //                                  by the adapter src/kernels/<family>-wasm/index.ts
+//   catalogue/figures/             figure occurrences of cited works (ADR 0009, ./figures.mjs)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { loadFigures } from './figures.mjs';
 import { check, loadSchema } from './schema.mjs';
 
 export const STATUSES = ['live', 'planned'];
@@ -537,6 +539,9 @@ export function loadCatalogue(root, { code = true } = {}) {
     }
   }
   const nodes = [...byPath.entries()].map(([key, n]) => ({ key, ...n, ...count.get(key) }));
+  // figure occurrences (ADR 0009): derived after the evidence, which decides what is routed
+  for (const e of entries) e.figures = [];
+  const figures = loadFigures(root, { entries, sources, errors });
   return {
     errors,
     model: {
@@ -548,8 +553,11 @@ export function loadCatalogue(root, { code = true } = {}) {
       labs: [...labs.values()],
       sources: [...sources.values()],
       sidecar: Object.fromEntries(backed),
+      collections: figures.collections,
+      chapters: figures.chapters,
     },
     files: [join(dir, 'taxonomy.yaml'), join(dir, 'labs.yaml'), join(dir, 'sources.yaml'),
-      ...files.map((f) => join(dir, 'entries', f)), ...sidecarFiles.map((f) => join(root, f))],
+      ...files.map((f) => join(dir, 'entries', f)), ...sidecarFiles.map((f) => join(root, f)),
+      ...figures.files],
   };
 }
