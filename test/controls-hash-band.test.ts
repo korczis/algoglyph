@@ -59,7 +59,7 @@ describe('hash plates: adversarial shared bits', () => {
   it('is one range control on every hash plate, the old six bits its default, shown with its stream', async () => {
     for (const id of PLATES) {
       const d = plateOf(id).params.find((x) => x.key === KEY);
-      expect(d, id).toMatchObject({ kind: 'range', label: 'Adversarial shared bits', min: 1, max: 6, step: 1, value: 6,
+      expect(d, id).toMatchObject({ kind: 'range', label: 'Adversarial shared bits', min: 1, max: 12, step: 1, value: 6,
         rebuild: true, when: { key: 'stream', values: ['adversarial'] } });
       expect(d, `${id} gets it as the others do`).toEqual(plateOf(PLATES[0]).params.find((x) => x.key === KEY));
     }

@@ -20,14 +20,12 @@ export const ADVERSARIAL_BITS = 6;
 
 /**
  * The control every hash plate shares, so they stay in step: the adversarial keys' h1 values
- * share their leading b bits, a band of 2^(32 − b) hash values. It stops at the old 6, the
- * heaviest the plates were: one bit more and the chained table at its top load and n (n/4
- * chains, a power of two) crowds every key into one chain instead of two, twice the counted
- * work; the probing tables already hold about one cluster at 6, and extendible hashing would
- * meet its depth cap sooner.
+ * share their leading b bits, a band of 2^(32 − b) hash values. Past 6 the chained table at its
+ * top load crowds every key into one chain and extendible hashing meets its depth cap; the range
+ * ends where the main-thread budget does (test/budget/searching.test.ts measures its maximum).
  */
 export const adversarialParam = (): ParamDef => ({
-  kind: 'range', key: 'band', label: 'Adversarial shared bits', min: 1, max: ADVERSARIAL_BITS,
+  kind: 'range', key: 'band', label: 'Adversarial shared bits', min: 1, max: 12,
   step: 1, value: ADVERSARIAL_BITS, rebuild: true, when: { key: 'stream', values: ['adversarial'] },
   hint: 'Every adversarial key hashes into one band of 2^(32 − b) values: 1/2^b of the table.',
 });
