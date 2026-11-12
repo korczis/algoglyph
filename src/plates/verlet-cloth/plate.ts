@@ -16,7 +16,7 @@ export const verletCloth: PlateCode = {
         { value: 'corners', label: 'Hammock (two corners)' },
       ],
     },
-    { kind: 'range', key: 'res', label: 'Particles per side', min: 12, max: 56, step: 2, value: 40,
+    { kind: 'range', key: 'res', label: 'Particles per side', min: 12, max: 44, step: 2, value: 36,
       rebuild: true },
     { kind: 'range', key: 'iterations', label: 'Constraint iterations', min: 1, max: 24, step: 1,
       value: 8 },
