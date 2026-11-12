@@ -20,3 +20,4 @@ horizon_cpu_ms: 3000  # ...or this much CPU, whichever comes first
 drag_steps: 8         # steps of a slider swept from its minimum to its maximum, one per frame
 reference_cpu_ms: 2.9   # referenceCpuMs() in test/budget.test.ts on the reference machine (an M-series Mac,
                         # best of seven at 2026-11-12T00:21Z); budgets scale by measured / this, never below 1
+local_headroom: 0.6     # outside CI (no CI env var) the budgets are this fraction: local green predicts CI green

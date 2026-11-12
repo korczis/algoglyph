@@ -14,7 +14,7 @@ const BUCKETS = 24;
  * single step is n² of them, so a step's force pass is spread over frames (SlicedStep) and the
  * steps per frame are what this budget allows, at least one pass slice per frame.
  */
-export const INTERACTIONS_PER_FRAME = 240_000;
+export const INTERACTIONS_PER_FRAME = 140_000;
 
 /**
  * A disc of `n` bodies (one heavy core, the rest light) in near-circular orbits. Circular speed
