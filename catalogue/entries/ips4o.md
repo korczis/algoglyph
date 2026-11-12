@@ -26,12 +26,40 @@ related:
   - parallel-samplesort
   - pdqsort
   - samplesort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [ps4o]
+  objectives:
+  - 'Read the Rounds readout at 512 keys: 16, two per bucketing, classification and distribution, for 8 bucketings: the whole input and the parts larger than 32 keys below it.'
+  - 'Read the Lanes readout: 15, since the distribution works as one lane per bucket, 8 between splitters and 7 for keys equal to one, while the classification uses the first 4.'
+  - 'Run Already sorted at 512 keys: no array write at all, since every key already lies in its bucket''s region.'
+  misconceptions:
+  - 'An in-place distribution moves a key by looking it up once; the plate''s cycle leader classifies every key again when it moves it, so each level costs the distribution exactly the classification''s comparisons.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons (sample insertion sort, classification down the tree with one equality test, the same again in the distribution, insertion sorts of buckets of at most 32), array writes (exchanges, two each), auxiliary writes (splitters), rounds and lanes'
+  best: 'on Already sorted no array write'
+  average: 'up to 32 keys insertion sort alone; above, 2 rounds per bucketing and 15 lanes, 3 to 4 comparisons per key in the classification of the whole input and as many again in its distribution; n log n with high probability is the authors'' bound'
+claims:
+  - id: sorted-input-stays-put
+    statement: >-
+      On Already sorted at 512 keys IPS⁴o makes no array write: the cycle-leader distribution finds every key already in its bucket's region at every level, and the buckets' insertion sorts find them in order.
+    readout: Array writes
+    expect: { value: 0 }
+    setup:
+      params: { shape: sorted, n: 512, speed: 2000 }
 ---
 
-A recursive samplesort that splits the input into k buckets per level, in place and in parallel: elements go into small per-bucket buffers, full buffers are written back over slots already read, and whole blocks are then permuted into their buckets.
+A recursive samplesort that splits the input into k buckets per level, in place and in parallel. In the authors' algorithm elements go into small per-bucket buffers, full buffers are written back over slots already read, and whole blocks are then permuted into their buckets; the plate's kernel moves single keys instead, by a cycle-leader permutation.
 
-Each level has four phases. A sample gives the splitters and a classification tree; every worker classifies its stretch into k buffers of b elements and flushes each full buffer back into the array; the blocks are permuted to the bucket regions whose sizes are now known; a cleanup fixes the partial blocks at bucket boundaries. Buckets recurse, and small ones finish by insertion sort. The tree that assigns an element to its bucket is computed without conditional branches, an idea taken from super scalar samplesort.
+In the authors' algorithm each level has four phases. A sample gives the splitters and a classification tree; every worker classifies its stretch into k buffers of b elements and flushes each full buffer back into the array; the blocks are permuted to the bucket regions whose sizes are now known; a cleanup fixes the partial blocks at bucket boundaries. Buckets recurse, and small ones finish by insertion sort. The tree that assigns an element to its bucket is computed without conditional branches, an idea taken from super scalar samplesort.
 
-The plate runs the workers' steps one after another and counts their total work; the parallel speed-up is described by the authors, not shown. Start with Random permutation at n = 256 and watch the array fill with blocks in bucket order before the recursion tidies each bucket. Already sorted is worth a run too: the authors' implementation detects it and stops after one pass, a heuristic rather than adaptivity.
+The plate runs the workers' steps one after another and counts their total work; the parallel speed-up is described by the authors, not shown. Its kernel keeps the branch-free classification tree and the equality buckets but simplifies the rest: 8 buckets instead of up to 256, and an element-wise cycle-leader distribution that classifies every key again as it moves it, in place of buffers, block permutation and cleanup. Start with Random permutation at n = 256 and watch the keys move one exchange at a time into their buckets' regions before the recursion sorts each bucket. Already sorted is worth a run too: the authors' implementation detects it and stops after one pass, a heuristic rather than adaptivity; the plate's kernel has no such check, but finds every key already in its bucket and makes no array write at all.
 
 The n log n bound holds with high probability for any input, not deterministically. Extra space is a few buffers and k blocks per worker, which the authors count as in place because they define in place as at most logarithmic extra memory. It is not stable; its out-of-place sibling PS⁴o is. In the authors' experiments it beat the other comparison sorts they measured on multicore machines and stayed competitive with the best quicksorts when run on a single thread.
