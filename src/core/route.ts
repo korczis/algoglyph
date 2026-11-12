@@ -1,6 +1,7 @@
 // The site's routes, parsed in one place:
+//   #/?status=live|planned  the collection, filtered by lifecycle (the KPI cards link here)
 //   #/                     the collection
-//   #/c/<taxonomy path>    a node of the taxonomy (?status=live|planned|all filters it)
+//   #/c/<taxonomy path>    a node of the taxonomy
 //   #/p/<id>?seed=…&…      a plate; the query carries its seed and changed parameters
 //   #/lab/<id>?seed=…&…    a lab, the same query format
 // Anything that does not resolve (an unknown id, a malformed percent-encoding) is the collection.
@@ -15,7 +16,7 @@ export interface Route {
   id: string;
   seed?: number;
   query: string;
-  /** The browse view's status filter, when the URL names one. */
+  /** The collection's status filter, on the browse views. */
   status?: Status | 'all';
 }
 

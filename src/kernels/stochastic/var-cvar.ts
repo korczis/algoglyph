@@ -53,7 +53,7 @@ export const kernel: StochasticKernel<RiskResult> = {
       kind: 'select', key: 'level', label: 'Level', value: '0.99', rebuild: true,
       options: ['0.9', '0.95', '0.99', '0.995'].map((v) => ({ value: v, label: `${fmt(Number(v) * 100, 1)}%` })),
     },
-    { kind: 'range', key: 'n', label: 'Simulated losses', min: 1000, max: 100000, step: 1000, value: 20000, rebuild: true },
+    { kind: 'range', key: 'n', label: 'Simulated losses', min: 1000, max: 50000, step: 1000, value: 20000, rebuild: true },
   ],
   chart: { title: 'Tail estimates as runs accumulate', x: { label: 'simulated losses', log: true }, y: { label: 'loss' } },
   *run(ops, cfg) {

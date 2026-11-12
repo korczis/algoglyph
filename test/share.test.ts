@@ -237,8 +237,14 @@ describe('review round 2: seed range, canonical order, length, float noise', () 
     }
   });
 
-  it('the browse status filter is read by the one route parser', () => {
+});
+
+describe('the collection status filter in the route', () => {
+  it('reads ?status= on the collection and on a taxonomy node, and ignores anything else', () => {
     expect(parseRoute('#/?status=live').status).toBe('live');
+    expect(parseRoute('#/?status=planned').view).toBe('browse');
+    expect(parseRoute('#/?status=planned').status).toBe('planned');
     expect(parseRoute('#/?status=bogus').status).toBeUndefined();
+    expect(parseRoute('#/').status).toBeUndefined();
   });
 });
