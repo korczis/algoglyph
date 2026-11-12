@@ -119,6 +119,23 @@ describe('strings: exact bounds against counted runs', () => {
     }
   });
 
+  it('bpe-tokenisation: the merged pair\'s count never rises, and a merge removes at most that many', () => {
+    for (const x of inputs('text', [96, 160, 400])) {
+      const ev = run('bpe-tokenisation', x, { merges: 30 }).events.toArray();
+      // the merge chips carry each merged pair's count (×N); the chart the tokens left after it
+      const occurs = ev.filter((e) => e.o === OP.push && /×\d+$/.test(e.s ?? '')).map((e) => Number(/×(\d+)$/.exec(e.s ?? '')?.[1]));
+      const left = ev.filter((e) => e.o === OP.plot && e.s === 'Tokens').map((e) => Number(e.ss?.[0]));
+      const removed = left.slice(1).map((v, i) => left[i] - v);
+      expect(removed.length).toBe(occurs.length);
+      for (let i = 0; i < removed.length; i++) {
+        expect(removed[i]).toBeGreaterThanOrEqual(1);
+        // overlapping occurrences (aaa holds aa twice) are replaced once, left to right
+        expect(removed[i]).toBeLessThanOrEqual(occurs[i]);
+        if (i > 0) expect(occurs[i], `merge ${i + 1}`).toBeLessThanOrEqual(occurs[i - 1]);
+      }
+    }
+  });
+
   it('crc-division: n division steps and at most (w + 1) n bit XORs for n message bits', () => {
     const width: Record<string, number> = { crc8: 8, crc16: 16, crc24: 24, crc32: 32 };
     for (const x of inputs('message', [1, 4, 32])) {
