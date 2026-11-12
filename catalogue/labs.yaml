@@ -67,3 +67,11 @@ labs:
     title: Centrality lab
     summary: "Who is central by PageRank, by betweenness and by degree, closeness and eigenvector, on the same graph."
     engine: graph
+  - id: string-search
+    title: String search lab
+    summary: Brute force, Knuth–Morris–Pratt, Boyer–Moore and Rabin–Karp on the same text and pattern with the same budget of counted operations per frame, ranked by when they finish, with each one's work measured as the text grows.
+    engine: string
+  - id: name-similarity
+    title: Name similarity lab
+    summary: Levenshtein distance, Jaro–Winkler and trigram similarity on the same noisy name pair with the same budget of counted operations per frame, with each one's work measured as the names grow longer.
+    engine: string
