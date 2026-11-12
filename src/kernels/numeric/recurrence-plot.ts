@@ -10,29 +10,56 @@ export interface RQA { rr: number; det: number; lam: number; meanDiag: number; m
 
 /** The recurrence matrix of states under the Euclidean distance and threshold eps. */
 export function recurrence(states: number[][], eps: number): Uint8Array {
+  return drain(recurrenceSteps(states, eps));
+}
+
+/** recurrence(), resumable: it yields after every 64 rows. */
+export function* recurrenceSteps(states: number[][], eps: number): Generator<void, Uint8Array, void> {
   const n = states.length;
   const R = new Uint8Array(n * n);
   for (let i = 0; i < n; i++) for (let j = i; j < n; j++) {
     let d = 0;
     for (let c = 0; c < states[i].length; c++) d += (states[i][c] - states[j][c]) ** 2;
     if (d <= eps * eps) { R[i * n + j] = 1; R[j * n + i] = 1; }
+    if (j === n - 1 && (i & 63) === 63) yield;
   }
   return R;
 }
 
+/** The k-th smallest value of d (0-based), as sorting would place it; d is reordered. Hoare's selection. */
+export function select(d: Float64Array, k: number): number {
+  let lo = 0; let hi = d.length - 1;
+  while (lo < hi) {
+    const x = d[(lo + hi) >> 1];
+    let i = lo; let j = hi;
+    while (i <= j) {
+      while (d[i] < x) i++;
+      while (d[j] > x) j--;
+      if (i <= j) { const t = d[i]; d[i] = d[j]; d[j] = t; i++; j--; }
+    }
+    if (k <= j) hi = j; else if (k >= i) lo = i; else return d[k];
+  }
+  return d[k];
+}
+
 /** The threshold under which a share `rate` of the off-diagonal pairs fall. */
 export function thresholdFor(states: number[][], rate: number): number {
+  return drain(thresholdSteps(states, rate));
+}
+
+/** thresholdFor(), resumable: it yields after every 64 rows of distances. */
+export function* thresholdSteps(states: number[][], rate: number): Generator<void, number, void> {
   const n = states.length;
-  // a typed array sorts numerically without a comparator call per pair
   const d = new Float64Array((n * (n - 1)) / 2);
   let at = 0;
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     let s = 0;
     for (let c = 0; c < states[i].length; c++) s += (states[i][c] - states[j][c]) ** 2;
     d[at++] = Math.sqrt(s);
+    if (j === n - 1 && (i & 63) === 63) yield;
   }
-  d.sort();
-  return d[Math.min(d.length - 1, Math.max(0, Math.floor(rate * d.length) - 1))] ?? 0;
+  const k = Math.min(d.length - 1, Math.max(0, Math.floor(rate * d.length) - 1));
+  return k >= 0 ? select(d, k) : 0;
 }
 
 /** Quantification of the leading k × k block, the main diagonal excluded; lines of length >= lmin. */
@@ -88,12 +115,14 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const { s, m, tau } = series(String(params.series ?? 'regime'), len + 4 * 3, seed);
   const states = embed(s, m, tau).slice(0, len);
   const n = states.length;
-  const eps = thresholdFor(states, Number(params.rate ?? 8) / 100);
+  const eps = yield* thresholdSteps(states, Number(params.rate ?? 8) / 100);
   yield;
-  const R = recurrence(states, eps);
+  const R = yield* recurrenceSteps(states, eps);
   yield;
   // recurrent states in a mid tone of the palette, which reads on both grounds
-  const values = Float64Array.from(R, (r) => 0.3 * r);
+  const values = new Float64Array(R.length);
+  for (let i = 0; i < R.length; i++) values[i] = 0.3 * R[i];
+  yield;
   const lo = Math.min(...s); const hi = Math.max(...s);
   const ticks = Array.from({ length: 60 }, (_, i) => Math.max(8, Math.round(((i + 1) * n) / 60)));
   const steps: NumericRun['steps'] = [];

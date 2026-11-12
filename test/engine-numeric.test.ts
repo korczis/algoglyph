@@ -10,8 +10,11 @@ import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 installBrowserStubs();
 
-/** The kernels a reviewer measured rebuilding for tens of milliseconds in one frame. */
-const HEAVY = ['hurst-dfa', 'poincare-section', 'recurrence-plot', 'pca-svd'];
+/** The kernels reviewers measured rebuilding for tens of milliseconds in one frame. */
+const HEAVY = [
+  'hurst-dfa', 'poincare-section', 'recurrence-plot', 'pca-svd',
+  'linear-congruential', 'takens-embedding', 'lyapunov-exponent',
+];
 
 function heaviest(plate: Plate): Params {
   const out: Params = {};

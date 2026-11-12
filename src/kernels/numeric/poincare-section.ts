@@ -21,6 +21,11 @@ export function start(y: number, py: number, E: number, lam: number): S | null {
 }
 
 export function orbit(s0: S, lam: number, crossings: number, h = 0.01, pathSteps = 3000): Orbit {
+  return drain(orbitSteps(s0, lam, crossings, h, pathSteps));
+}
+
+/** orbit(), resumable: it yields every 2^14 integration steps. */
+export function* orbitSteps(s0: S, lam: number, crossings: number, h = 0.01, pathSteps = 3000): Generator<void, Orbit, void> {
   let s = s0.slice() as S;
   const E0 = energy(s, lam);
   const section: XY[] = []; const path: XY[] = [];
@@ -38,6 +43,7 @@ export function orbit(s0: S, lam: number, crossings: number, h = 0.01, pathSteps
       section.push([prev[1] + t * (s[1] - prev[1]), prev[3] + t * (s[3] - prev[3])]);
     }
     if (i % 64 === 0) drift = Math.max(drift, Math.abs(energy(s, lam) - E0) / Math.abs(E0));
+    if ((i & 0x3fff) === 0x3fff) yield;
   }
   return { section, path, drift };
 }
@@ -51,7 +57,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const orbits: Orbit[] = [];
   for (let k = 0; orbits.length < K && k < 50 * K; k++) {
     const s = start(-0.45 + 1.1 * rnd(), -0.6 + 1.2 * rnd(), E, lam);
-    if (s) { orbits.push(orbit(s, lam, crossings)); yield; }
+    if (s) { orbits.push(yield* orbitSteps(s, lam, crossings)); yield; }
   }
   const all: XY[] = []; const tones: number[] = [];
   orbits.forEach((o, i) => o.section.forEach((q) => { all.push(q); tones.push(i / Math.max(1, orbits.length - 1)); }));
@@ -84,6 +90,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
       ],
     });
     if (upto === all.length) break;
+    if (steps.length % 32 === 0) yield;
   }
   return {
     panels: [

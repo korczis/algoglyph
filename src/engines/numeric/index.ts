@@ -11,7 +11,7 @@ import { building, drain, resume, type Layer, type NumericKernel, type NumericRu
 
 const HOLD_FRAMES = 150;
 /** Main-thread milliseconds a frame may spend building the next input while the last one holds. */
-const SLICE_MS = 6;
+const SLICE_MS = 4;
 
 const controls = (): ParamDef[] => [
   { kind: 'range', key: 'speed', label: 'Speed', min: 0.25, max: 8, step: 0.25, value: 1 },

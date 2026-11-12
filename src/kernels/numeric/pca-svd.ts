@@ -2,7 +2,7 @@
 // until every pair is orthogonal. The column norms are then the singular values, the rotations
 // the principal axes, and each step of the plate is one rotation.
 import { gaussian, mulberry32 } from '../../core/random';
-import { drain, fmt, int, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
+import { drain, fmt, int, mapSliced, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
 import type { Mat } from './_linalg';
 
 export interface Rotation { i: number; j: number; V: Mat; U: Mat; off: number }
@@ -91,7 +91,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const first: Rotation = { i: 0, j: 0, V: Array.from({ length: d }, (_, i) => Array.from({ length: d }, (_, j) => (i === j ? 1 : 0))), U: X, off: offOrthogonality(X) };
   const rots = [first, ...svd.rotations];
   const offs: XY[] = rots.map((r, k) => [k, Math.max(r.off, 1e-17)]);
-  const steps = rots.map((r, k) => {
+  const steps = yield* mapSliced(rots, (r, k) => {
     const norms = Array.from({ length: d }, (_, j) => Math.sqrt(r.U.reduce((s, row) => s + row[j] ** 2, 0)));
     const order = norms.map((_, j) => j).sort((p, q) => norms[q] - norms[p]);
     const [p, q] = order;
@@ -116,7 +116,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
         { label: 'Sweeps to converge', value: int(svd.sweeps) },
       ],
     };
-  });
+  }, 4);
   return {
     panels: [
       { title: 'First two coordinates, current axes', x: [-lim, lim], y: [-lim, lim], equal: true, axes: true },

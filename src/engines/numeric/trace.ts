@@ -104,6 +104,16 @@ export function resume<T>(g: Generator<void, T, void>, ms: number): T | undefine
   }
 }
 
+/** xs.map(f) as a resumable computation, yielding after every `every` items. */
+export function* mapSliced<T, U>(xs: readonly T[], f: (x: T, i: number) => U, every = 8): Generator<void, U[], void> {
+  const out: U[] = [];
+  for (let i = 0; i < xs.length; i++) {
+    out.push(f(xs[i], i));
+    if ((i + 1) % every === 0) yield;
+  }
+  return out;
+}
+
 /** A kernel's run as a resumable computation: its own slices, or the whole run as one. */
 export function building(k: NumericKernel, inp: RunInput): Generator<void, NumericRun, void> {
   return k.build ? k.build(inp) : (function* () { return k.run(inp); })();

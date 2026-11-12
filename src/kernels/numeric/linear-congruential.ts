@@ -1,7 +1,7 @@
 // Linear congruential generators x <- (a x + c) mod m. Consecutive tuples lie on a lattice; the
 // spectral test measures how far apart its lines (pairs) and planes (triples) are, from the
 // shortest vector of the dual lattice. The period is measured by cycle detection.
-import { fmt, int, type Layer, type NumericKernel, type XY } from '../../engines/numeric/trace';
+import { drain, fmt, int, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
 import { chiSquare, serialCorrelation } from './_random';
 
 export interface LCG { a: number; c: number; m: number; label: string }
@@ -25,6 +25,11 @@ export function stream(g: LCG, x0: number, n: number): number[] {
 
 /** The period of the cycle x0 falls into, by Brent's method; NaN past `cap` steps. */
 export function period(g: LCG, x0: number, cap = 2 ** 20): number {
+  return drain(periodSteps(g, x0, cap));
+}
+
+/** period(), resumable: it yields every 2^15 steps of the search. */
+export function* periodSteps(g: LCG, x0: number, cap = 2 ** 20): Generator<void, number, void> {
   let power = 1; let lam = 1;
   let tortoise = x0; let hare = step(g, x0);
   let steps = 0;
@@ -33,6 +38,7 @@ export function period(g: LCG, x0: number, cap = 2 ** 20): number {
     hare = step(g, hare);
     lam++;
     if (++steps > cap) return NaN;
+    if ((steps & 0x7fff) === 0) yield;
   }
   return lam;
 }
@@ -84,63 +90,68 @@ export function spectral3(g: LCG, bound = 40): { nu: number; u: [number, number,
 
 const TOTAL = 4096;
 
+function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
+  const g = GENERATORS[String(params.generator)] ?? GENERATORS.randu;
+  let x0 = seed % g.m;
+  if (g.c === 0) x0 = x0 | 1 || 1;
+  const xs = stream(g, x0, TOTAL + 2);
+  const u = xs.map((x) => x / g.m);
+  const pairs: XY[] = u.slice(0, TOTAL).map((v, i) => [v, u[i + 1]]);
+  const nu2 = spectral2(g);
+  const s3 = spectral3(g);
+  yield;
+  const per = yield* periodSteps(g, x0);
+  // triples seen edge-on to the plane family of the shortest dual vector
+  const [a, b, c] = s3.u;
+  const un = Math.hypot(a, b, c);
+  const e = Math.abs(a) <= Math.abs(b) && Math.abs(a) <= Math.abs(c) ? [1, 0, 0] : Math.abs(b) <= Math.abs(c) ? [0, 1, 0] : [0, 0, 1];
+  let w = [b * e[2] - c * e[1], c * e[0] - a * e[2], a * e[1] - b * e[0]];
+  const wn = Math.hypot(w[0], w[1], w[2]) || 1;
+  w = w.map((t) => t / wn);
+  const edge: XY[] = u.slice(0, TOTAL).map((v, i) => [w[0] * v + w[1] * u[i + 1] + w[2] * u[i + 2], (a * v + b * u[i + 1] + c * u[i + 2]) / un]);
+  const ex = edge.map((q) => q[0]); const ey = edge.map((q) => q[1]);
+  const corr: XY[] = [];
+  const steps = [];
+  for (let k = 64; k <= TOTAL; k *= 1.25) {
+    const n = Math.round(k);
+    const head = u.slice(0, n);
+    const sc = serialCorrelation(head);
+    corr.push([n, Math.abs(sc)]);
+    const layers: Layer[] = [
+      { kind: 'points', pts: pairs, n, size: 2.5, tone: 0.15 },
+      { kind: 'points', panel: 1, pts: edge, n, size: 2.5, tone: 0.8 },
+    ];
+    steps.push({
+      layers,
+      stats: [
+        { label: 'Numbers drawn', value: int(n) },
+        { label: 'Period from the seed', value: Number.isFinite(per) ? int(per) : `longer than ${int(2 ** 20)} steps (not exhausted)` },
+        { label: 'Spectral test, pairs', value: `ν₂ = ${fmt(nu2)}: lines ${fmt(1 / nu2)} apart` },
+        { label: 'Spectral test, triples', value: Number.isFinite(s3.nu) ? `ν₃ = ${fmt(s3.nu)}: planes ${fmt(1 / s3.nu)} apart, normal (${s3.u.join(', ')})` : 'ν₃ > 40 (search bound)' },
+        { label: 'χ² over 16 bins (15 dof)', value: fmt(chiSquare(head)) },
+        { label: 'Serial correlation', value: fmt(sc) },
+      ],
+      chart: {
+        title: 'Serial correlation as numbers are drawn', x: { label: 'numbers drawn', log: true }, y: { label: '|lag-one correlation|', log: true },
+        series: [{ name: 'Measured', points: corr.slice() }, { name: '1 / √n', points: corr.map(([q]) => [q, 1 / Math.sqrt(q)] as XY) }],
+      },
+    });
+    yield;
+  }
+  const ext = (v: number[]) => [Math.min(...v), Math.max(...v)] as [number, number];
+  return {
+    panels: [
+      { title: 'Each number against the next', x: [0, 1], y: [0, 1], equal: true },
+      { title: Number.isFinite(s3.nu) ? 'Triples, viewed along the planes' : 'Triples, projected', x: ext(ex), y: ext(ey), equal: true },
+    ],
+    steps,
+  };
+}
+
 export const kernel: NumericKernel = {
   params: [{ kind: 'select', key: 'generator', label: 'Generator', value: 'randu', rebuild: true,
     options: Object.entries(GENERATORS).map(([value, g]) => ({ value, label: g.label })) }],
   rate: 6,
-  run({ seed, params }) {
-    const g = GENERATORS[String(params.generator)] ?? GENERATORS.randu;
-    let x0 = seed % g.m;
-    if (g.c === 0) x0 = x0 | 1 || 1;
-    const xs = stream(g, x0, TOTAL + 2);
-    const u = xs.map((x) => x / g.m);
-    const pairs: XY[] = u.slice(0, TOTAL).map((v, i) => [v, u[i + 1]]);
-    const nu2 = spectral2(g);
-    const s3 = spectral3(g);
-    const per = period(g, x0);
-    // triples seen edge-on to the plane family of the shortest dual vector
-    const [a, b, c] = s3.u;
-    const un = Math.hypot(a, b, c);
-    const e = Math.abs(a) <= Math.abs(b) && Math.abs(a) <= Math.abs(c) ? [1, 0, 0] : Math.abs(b) <= Math.abs(c) ? [0, 1, 0] : [0, 0, 1];
-    let w = [b * e[2] - c * e[1], c * e[0] - a * e[2], a * e[1] - b * e[0]];
-    const wn = Math.hypot(w[0], w[1], w[2]) || 1;
-    w = w.map((t) => t / wn);
-    const edge: XY[] = u.slice(0, TOTAL).map((v, i) => [w[0] * v + w[1] * u[i + 1] + w[2] * u[i + 2], (a * v + b * u[i + 1] + c * u[i + 2]) / un]);
-    const ex = edge.map((q) => q[0]); const ey = edge.map((q) => q[1]);
-    const corr: XY[] = [];
-    const steps = [];
-    for (let k = 64; k <= TOTAL; k *= 1.25) {
-      const n = Math.round(k);
-      const head = u.slice(0, n);
-      const sc = serialCorrelation(head);
-      corr.push([n, Math.abs(sc)]);
-      const layers: Layer[] = [
-        { kind: 'points', pts: pairs, n, size: 2.5, tone: 0.15 },
-        { kind: 'points', panel: 1, pts: edge, n, size: 2.5, tone: 0.8 },
-      ];
-      steps.push({
-        layers,
-        stats: [
-          { label: 'Numbers drawn', value: int(n) },
-          { label: 'Period from the seed', value: Number.isFinite(per) ? int(per) : `longer than ${int(2 ** 20)} steps (not exhausted)` },
-          { label: 'Spectral test, pairs', value: `ν₂ = ${fmt(nu2)}: lines ${fmt(1 / nu2)} apart` },
-          { label: 'Spectral test, triples', value: Number.isFinite(s3.nu) ? `ν₃ = ${fmt(s3.nu)}: planes ${fmt(1 / s3.nu)} apart, normal (${s3.u.join(', ')})` : 'ν₃ > 40 (search bound)' },
-          { label: 'χ² over 16 bins (15 dof)', value: fmt(chiSquare(head)) },
-          { label: 'Serial correlation', value: fmt(sc) },
-        ],
-        chart: {
-          title: 'Serial correlation as numbers are drawn', x: { label: 'numbers drawn', log: true }, y: { label: '|lag-one correlation|', log: true },
-          series: [{ name: 'Measured', points: corr.slice() }, { name: '1 / √n', points: corr.map(([q]) => [q, 1 / Math.sqrt(q)] as XY) }],
-        },
-      });
-    }
-    const ext = (v: number[]) => [Math.min(...v), Math.max(...v)] as [number, number];
-    return {
-      panels: [
-        { title: 'Each number against the next', x: [0, 1], y: [0, 1], equal: true },
-        { title: Number.isFinite(s3.nu) ? 'Triples, viewed along the planes' : 'Triples, projected', x: ext(ex), y: ext(ey), equal: true },
-      ],
-      steps,
-    };
-  },
+  build,
+  run: (inp) => drain(build(inp)),
 };

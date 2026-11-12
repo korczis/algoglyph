@@ -1,5 +1,6 @@
 // Delay embedding and the measurements built on it: average mutual information for the delay,
 // false nearest neighbours for the dimension.
+import { drain } from '../../engines/numeric/trace';
 
 /** Vectors (s_i, s_{i+τ}, ..., s_{i+(m-1)τ}). */
 export function embed(s: number[], m: number, tau: number): number[][] {
@@ -33,6 +34,11 @@ export function firstMinimum(values: number[]): number {
  * (both tests of Kennel, Brown and Abarbanel, with thresholds rtol and atol).
  */
 export function falseNeighbours(s: number[], m: number, tau: number, rtol = 15, atol = 2): number {
+  return drain(falseNeighbourSteps(s, m, tau, rtol, atol));
+}
+
+/** falseNeighbours(), resumable: it yields after every 64 points searched. */
+export function* falseNeighbourSteps(s: number[], m: number, tau: number, rtol = 15, atol = 2): Generator<void, number, void> {
   const v = embed(s, m + 1, tau);
   const n = v.length;
   const mean = s.reduce((a, b) => a + b, 0) / s.length;
@@ -52,6 +58,7 @@ export function falseNeighbours(s: number[], m: number, tau: number, rtol = 15, 
     const rd = Math.sqrt(best);
     const r1 = Math.sqrt(best + extra * extra);
     if (extra / rd > rtol || r1 / ra > atol) falses++;
+    if ((i & 63) === 63) yield;
   }
   return total ? falses / total : 0;
 }
