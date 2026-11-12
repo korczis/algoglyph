@@ -2,7 +2,7 @@
 id: american-flag-sort
 title: American flag sort
 taxonomy: sorting/radix
-status: planned
+status: live
 engine: array
 labs:
   - sorting

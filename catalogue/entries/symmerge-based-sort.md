@@ -2,7 +2,7 @@
 id: symmerge-based-sort
 title: SymMerge sort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

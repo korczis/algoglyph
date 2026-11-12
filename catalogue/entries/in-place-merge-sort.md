@@ -2,7 +2,7 @@
 id: in-place-merge-sort
 title: Mergesort, in place
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

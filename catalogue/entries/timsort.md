@@ -2,7 +2,7 @@
 id: timsort
 title: Timsort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

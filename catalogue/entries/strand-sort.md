@@ -2,7 +2,7 @@
 id: strand-sort
 title: Strand sort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

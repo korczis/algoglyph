@@ -2,7 +2,7 @@
 id: wikisort
 title: WikiSort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

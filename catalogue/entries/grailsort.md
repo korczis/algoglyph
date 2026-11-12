@@ -2,7 +2,7 @@
 id: grailsort
 title: GrailSort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

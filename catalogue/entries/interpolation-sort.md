@@ -2,7 +2,7 @@
 id: interpolation-sort
 title: Interpolation sort
 taxonomy: sorting/distribution
-status: planned
+status: live
 engine: array
 labs:
   - sorting
