@@ -1,20 +1,30 @@
 import { dots, line, type GeometryKernel, type Mark, type Pt } from '../../engines/geometry/trace';
 
+/** Lloyd iterations a run may make before it stops unconverged. */
+const MAX_ITER = 100;
+
 // k-means++ seeding: the first centre is a point drawn uniformly, each further centre a point
 // drawn with probability proportional to its squared distance from the nearest centre so far.
 // Then Lloyd's iterations: assign every point to its nearest centre, move every centre to the
-// mean of its points, until no assignment changes.
+// mean of its points, until no assignment changes or the iteration cap is reached.
 export const kernel: GeometryKernel = {
   task: 'kmeans',
   input: 'points',
   shapes: ['clustered', 'uniform', 'disk'],
   n: { min: 10, max: 2000, value: 400, step: 10 },
-  params: [{ kind: 'range', key: 'k', label: 'Clusters k', min: 2, max: 12, step: 1, value: 5 }],
+  params: [
+    { kind: 'range', key: 'k', label: 'Clusters k', min: 2, max: 12, step: 1, value: 5 },
+    {
+      kind: 'range', key: 'maxIter', label: 'Lloyd iteration cap', min: 1, max: 100, step: 1, value: MAX_ITER,
+      hint: 'the run stops here if points still change cluster',
+    },
+  ],
   counters: [['dist', 'Distance computations'], ['iter', 'Lloyd iterations'], ['moved', 'Reassignments']],
   *run(g) {
     const P = g.input.points;
     const n = P.length;
     const k = Math.max(1, Math.min(n, Number(g.params.k ?? 5)));
+    const maxIter = Math.max(1, Number(g.params.maxIter ?? MAX_ITER));
     g.base([]);
     const centres: Pt[] = [];
     const d2 = new Float64Array(n).fill(Infinity);
@@ -40,7 +50,8 @@ export const kernel: GeometryKernel = {
     const label = new Int32Array(n).fill(-1);
     const inertia: [number, number][] = [];
     const pointMarks = (): Mark[] => P.map((p, i): Mark => ({ t: 'p', x: p.x, y: p.y, c: colour(label[i]), r: 2.4, a: 220 }));
-    for (let it = 1; it <= 100; it++) {
+    let converged = false;
+    for (let it = 1; it <= maxIter; it++) {
       yield;
       g.count('iter');
       let moved = 0;
@@ -57,7 +68,7 @@ export const kernel: GeometryKernel = {
       g.count('moved', moved);
       inertia.push([it, sse]);
       g.frame(() => [...pointMarks(), ...centreMarks(centres)], `iteration ${it}: assign to the nearest centre`);
-      if (moved === 0) break;
+      if (moved === 0) { converged = true; break; }
       const old = centres.map((c) => ({ ...c }));
       const sx = new Float64Array(centres.length); const sy = new Float64Array(centres.length); const cnt = new Int32Array(centres.length);
       for (let i = 0; i < n; i++) { sx[label[i]] += P[i].x; sy[label[i]] += P[i].y; cnt[label[i]]++; }
@@ -65,12 +76,13 @@ export const kernel: GeometryKernel = {
       g.frame(() => [...pointMarks(), ...old.map((o, j) => line(o, centres[j], { w: 2 })), ...centreMarks(centres)], `iteration ${it}: move each centre to its mean`);
     }
     const last = inertia[inertia.length - 1]?.[1] ?? 0;
-    g.last(() => [...pointMarks(), ...centreMarks(centres)], 'converged: no point changes cluster');
+    g.last(() => [...pointMarks(), ...centreMarks(centres)],
+      converged ? 'converged: no point changes cluster' : `stopped at the cap of ${maxIter} iterations: points still change cluster`);
     return {
       result: { centres, labels: Array.from(label), inertia: inertia.map((q) => q[1]) },
       rows: [
         { label: 'Inertia (sum of squared distances)', value: last.toExponential(4) },
-        { label: 'Iterations to converge', value: String(inertia.length) },
+        { label: 'Iterations to converge', value: converged ? String(inertia.length) : `${inertia.length}, stopped at the cap` },
       ],
       chart: {
         title: 'Inertia per Lloyd iteration',

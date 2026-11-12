@@ -30,10 +30,29 @@ claims:
   - id: two-events-per-horizontal-one-per-vertical
     statement: >-
       A horizontal segment is an event at its left end and another at its right end, a vertical
-      one is a single range query; the 60 segments of the input alternate, 30 horizontal and 30
-      vertical, so the sweep handles exactly 2 · 30 + 30 = 90 events.
+      one is a single range query; at the default horizontal share of 50 % the 60 segments of
+      the input alternate, 30 horizontal and 30 vertical, so the sweep handles exactly
+      2 · 30 + 30 = 90 events.
     readout: Events
     expect: { value: 90 }
+  - id: events-at-a-tenth-horizontal
+    statement: >-
+      At a horizontal share of 10 % segment i is horizontal when ⌈i · 0.1⌉ steps up, so the first
+      60 segments hold ⌈60 · 0.1⌉ = 6 horizontals and 54 verticals, and the sweep handles exactly
+      2 · 6 + 54 = 66 events, an exact count with no margin.
+    readout: Events
+    expect: { value: 66 }
+    setup:
+      params: { horiz: 10 }
+  - id: events-at-thirty-percent-horizontal
+    statement: >-
+      At a horizontal share of 30 % the 60 segments hold ⌈60 · 0.3⌉ = 18 horizontals and 42
+      verticals, so the sweep handles exactly 2 · 18 + 42 = 78 events, an exact count with no
+      margin.
+    readout: Events
+    expect: { value: 78 }
+    setup:
+      params: { horiz: 30 }
 ---
 
 A vertical line sweeps across, holding the horizontal segments it crosses in a search tree.
