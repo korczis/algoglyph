@@ -2,7 +2,7 @@
 id: odd-even-sort
 title: Odd-even transposition sort
 taxonomy: sorting/elementary
-status: planned
+status: live
 engine: array
 labs:
   - sorting
