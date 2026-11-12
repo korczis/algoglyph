@@ -6,3 +6,5 @@ dist/
 *.log
 src/wasm/
 crates/*/target/
+# the Cargo workspace build output (Cargo.toml at the root)
+/target/
