@@ -33,10 +33,11 @@ interface Exports {
 }
 
 /** The ABI layout this file reads (abi.rs ABI_VERSION); a module of another layout is refused. */
-export const ABI = 2;
+export const ABI = 3;
 /** Step op codes: the low four bits of a step's first word (prelude.rs `op`). */
 export const SOP = {
   cmp: 0, cmpv: 1, swap: 2, set: 3, read: 4, mark: 5, auxWrite: 6, phase: 7, lane: 8, round: 9,
+  auxClear: 10,
 } as const;
 /** Words per step. */
 export const STRIDE = 3;
@@ -146,8 +147,10 @@ async function instantiate(): Promise<Sorting> {
     }
     // every call may grow (and so detach) the memory: a view is made after the call it follows
     const ip = x.ag_sort_input(n);
+    if (!ip) throw new RangeError(`sorting-wasm: the module refused room for ${n} keys`);
     new Int32Array(x.memory.buffer, ip, n).set(keys);
     const ep = x.ag_sort_edges(edges.length);
+    if (!ep) throw new RangeError(`sorting-wasm: the module refused room for ${edges.length} arcs`);
     const ev = new Uint32Array(x.memory.buffer, ep, 2 * edges.length);
     edges.forEach(([a, b], i) => { ev[2 * i] = a; ev[2 * i + 1] = b; });
     const seed = opt.seed ?? 0x5eed1234;
