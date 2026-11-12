@@ -10,7 +10,7 @@ import { ENTRIES } from '../src/core/catalogue';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Params, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
-import { engine, SETTLE_FRAMES } from '../src/engines/signal';
+import { engine, SETTLE_FRAMES, STEPS_PER_FRAME } from '../src/engines/signal';
 import type { Run, SignalKernel } from '../src/engines/signal/trace';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
@@ -63,7 +63,14 @@ describe('signal engine: recording off the frame path', () => {
       const sim = code.create(p5Stub(), context(code.aspect, params, rows));
       sim.setup();
       expect(c.steps, 'no step of the run inside create()').toBe(0);
-      for (let f = 0; f < 5000 && (c.steps === 0 || recording(rows.stats)); f++) sim.draw();
+      // counted work: no frame resumes more than STEPS_PER_FRAME steps of the run
+      let most = 0;
+      for (let f = 0; f < 5000 && (c.steps === 0 || recording(rows.stats)); f++) {
+        const before = c.steps;
+        sim.draw();
+        most = Math.max(most, c.steps - before);
+      }
+      expect(most, 'steps resumed in one frame').toBeLessThanOrEqual(STEPS_PER_FRAME);
       expect(recording(rows.stats), 'the first run finishes').toBe(false);
       for (const d of ranges) {
         if (d.kind !== 'range') continue;
@@ -86,9 +93,10 @@ describe('signal engine: recording off the frame path', () => {
         // the controls settle: one re-record, spread over frames, the old run shown until it is done
         let frames = 0;
         for (; frames < 5000 && (c.runs === runs || rows.stats.some((r) => r.label === 'New settings')); frames++) {
-          const t = cpuMs();
+          const t = cpuMs(); const before = c.steps;
           sim.draw();
           worst = Math.max(worst, cpuMs() - t);
+          expect(c.steps - before, 'steps resumed in one frame').toBeLessThanOrEqual(STEPS_PER_FRAME);
           expect(rows.stats.some((r) => r.label === 'Recorded view' && r.value === 'recording'), 'never blank').toBe(false);
         }
         expect(c.runs - runs, `${d.key}: one re-record after the drag`).toBe(1);

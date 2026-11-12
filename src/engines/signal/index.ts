@@ -14,6 +14,8 @@ const HOLD_FRAMES = 120;
 /** Milliseconds of recording resumed per live frame, and per thumbnail frame (run 15 at a time). */
 export const SLICE_MS = 6;
 export const THUMB_SLICE_MS = 1.5;
+/** Steps of a run (views and pauses) a live frame resumes at most; each kernel keeps its steps small. */
+export const STEPS_PER_FRAME = 2;
 /** Frames the parameters must stay unchanged before a re-record starts (a slider being dragged). */
 export const SETTLE_FRAMES = 8;
 const THUMB_FRAMES = 90;
@@ -30,7 +32,7 @@ function countRows(v: View): Stat[] {
 
 /**
  * A kernel as a plate. Recording never runs on the frame path in one piece: the run is resumed
- * for SLICE_MS per frame. The first run and each new signal are replayed as they are recorded; a
+ * for at most STEPS_PER_FRAME steps and SLICE_MS per frame. The first run and each new signal are replayed as they are recorded; a
  * change of parameters waits until the controls settle, records in the background, and the last
  * finished run stays on screen until the new one is complete. Structural parameters
  * (`rebuild: true`) remount the plate instead.
@@ -69,20 +71,21 @@ function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
         setup() {},
         draw() {
           const slice = ctx.thumbnail ? THUMB_SLICE_MS : SLICE_MS;
+          const steps = ctx.thumbnail ? Infinity : STEPS_PER_FRAME;
           if (!ctx.thumbnail) {
             const now = signature(ctx.params, keys);
             if (now !== sig) { sig = now; next = null; settle = SETTLE_FRAMES; }
             else if (settle > 0 && --settle === 0) next = record();
           }
           if (next) {
-            if (next.pump(slice)) {
+            if (next.pump(slice, steps)) {
               const keep = at >= live.views.length - 1;
               live = next;
               next = null;
               at = keep ? live.views.length - 1 : Math.min(at, live.views.length - 1);
               hold = 0;
             }
-          } else if (!live.done) live.pump(slice);
+          } else if (!live.done) live.pump(slice, steps);
           const last = Math.max(0, live.views.length - 1);
           if (ctx.thumbnail) at = last;
           else if (at < last) at = Math.min(last, at + num(ctx.params, 'speed') / 60);
