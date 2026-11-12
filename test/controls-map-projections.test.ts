@@ -4,7 +4,7 @@
 // closed forms predict (Mercator's scale sec φ, the central differences' truncation error).
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { defaults, type ParamDef, type RangeParam } from '../src/core/plate';
+import { defaults, type ParamDef, type RangeParam, type SelectParam } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
 import { makeInput } from '../src/engines/geometry/input';
 import { record } from '../src/engines/geometry/trace';
@@ -83,5 +83,41 @@ describe('map-projections lat0 (southern edge)', () => {
     expect(r.reason).toBeUndefined();
     expect(r.value).toBe(Number(sec(58).toFixed(4)));
     expect(nthNumber(r.text!, 2)).toBe(Number(sec(61).toFixed(4)));
+  }, 120_000);
+});
+
+/** The central differences' truncation in h/k − 1 for Mercator at φ (degrees), step H (rad):
+ * H²/6 · sec''(φ)/sec φ = H²/6 · (tan²φ + sec²φ), the first term of a series whose terms are all
+ * positive, so a lower bound; the upper bound takes sec'' at φ + H (Lagrange remainder). */
+const truncation = (phi: number, H: number) => (H * H) / 6 * (Math.tan(phi * D) ** 2 + sec(phi) ** 2);
+const truncationUpper = (phi: number, H: number) => {
+  const p = phi * D + H;
+  return (H * H) / 6 * (Math.tan(p) ** 2 + 1 / Math.cos(p) ** 2) * (1 / Math.cos(p)) / sec(phi);
+};
+
+describe('map-projections h (difference step)', () => {
+  it('is a select of 1e-6, 1e-5, 1e-4, 1e-3 rad whose default is the old constant 1e-5', async () => {
+    const d = (await def('h')) as SelectParam | undefined;
+    expect(d).toBeDefined();
+    expect({ kind: d!.kind, label: d!.label, value: d!.value, options: d!.options.map((o) => o.value) })
+      .toEqual({ kind: 'select', label: 'Difference step H (rad)', value: '1e-5', options: ['1e-6', '1e-5', '1e-4', '1e-3'] });
+  });
+
+  it('round-trips through a shared link', async () => {
+    expect(await roundTrip('h', '1e-3')).toBe('1e-3');
+  });
+
+  it('drives Mercator\'s |h/k − 1| to the truncation bound H²/6 · (tan²φ + sec²φ) at 51.5° N', async () => {
+    for (const h of ['1e-4', '1e-3']) {
+      const H = Number(h);
+      const r = run({ h }).outcome.result as Result;
+      // rounding adds about eps/H, under 1e-11 at these steps
+      expect(r.mercator.conformal, `H=${H}`).toBeGreaterThanOrEqual(truncation(51.5, H) - 1e-11);
+      expect(r.mercator.conformal, `H=${H}`).toBeLessThanOrEqual(truncationUpper(51.5, H) + 1e-11);
+      expect(r.mercator.angle, `H=${H}`).toBe(0);
+    }
+    const r = await read('map-projections', claim('Largest |h/k − 1|, Mercator / Křovák', { h: '1e-3' }));
+    expect(r.reason).toBeUndefined();
+    expect(r.value! >= 6.9e-7 && r.value! <= 7.0e-7, r.text).toBe(true);
   }, 120_000);
 });
