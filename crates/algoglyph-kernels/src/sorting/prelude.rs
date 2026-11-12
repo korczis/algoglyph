@@ -184,6 +184,10 @@ pub struct Entry {
     /// FNV-1a of the plugin's source and the shared code it runs on (prelude, kit): what a
     /// measured cost of the kernel (the sidecar's max_n) belongs to.
     pub source: u64,
+    /// The `Options` fields the plugin's source reads (`opt.<field>` outside its tests), found
+    /// by `build.rs`: the tunable ones among them ([`Options::TUNABLE`]) are the kernel's
+    /// options in the manifest, the only ones a sidecar may offer as plate controls.
+    pub reads: &'static [&'static str],
 }
 
 /// Default step limit when the trace is recorded.
@@ -191,8 +195,9 @@ pub const DEFAULT_MAX_STEPS_TRACE: u32 = 200_000;
 /// Default step limit in count-only mode (`trace = false`).
 pub const DEFAULT_MAX_STEPS_COUNT: u32 = 50_000_000;
 
-/// Request options. Every field has a default; `0` in `base`, `k` and `max_steps` means
-/// "the algorithm's (or engine's) own default".
+/// Request options. Every field has a default; `0` in `base`, `k`, `memory` and `max_steps`
+/// means "the algorithm's (or engine's) own default", so a run that sets none of them is the
+/// run the shared fixture records.
 #[derive(Clone, Debug)]
 pub struct Options {
     /// Seed of the deterministic generator returned by `Tracer::rng`.
@@ -201,6 +206,8 @@ pub struct Options {
     pub base: u32,
     /// A size parameter: k of k-way merges, d of d-ary heaps, buckets, … (0 = default).
     pub k: u32,
+    /// The memory M of an external sort's simulated machine, in keys (0 = default).
+    pub memory: u32,
     /// Edges of a DAG for topological sort, as pairs of input indices.
     pub edges: Vec<(u32, u32)>,
     /// Step limit (0 = 200 000 with a trace, 50 000 000 count-only).
@@ -215,6 +222,7 @@ impl Default for Options {
             seed: 0x5EED_1234,
             base: 0,
             k: 0,
+            memory: 0,
             edges: Vec::new(),
             max_steps: 0,
             trace: true,
@@ -223,6 +231,31 @@ impl Default for Options {
 }
 
 impl Options {
+    /// The tunable fields, in the order of the C ABI's option words (`ag_sort_options`): the
+    /// constants a plate may set. A word of 0 leaves the algorithm's own default.
+    pub const TUNABLE: [&'static str; 3] = ["base", "k", "memory"];
+
+    /// Sets tunable field `name` ([`Options::TUNABLE`]); false for any other name.
+    pub fn set_tunable(&mut self, name: &str, value: u32) -> bool {
+        match name {
+            "base" => self.base = value,
+            "k" => self.k = value,
+            "memory" => self.memory = value,
+            _ => return false,
+        }
+        true
+    }
+
+    /// Tunable field `name`, or `None` for any other name.
+    pub fn tunable(&self, name: &str) -> Option<u32> {
+        match name {
+            "base" => Some(self.base),
+            "k" => Some(self.k),
+            "memory" => Some(self.memory),
+            _ => None,
+        }
+    }
+
     /// The step limit this run uses.
     pub fn step_limit(&self) -> u64 {
         if self.max_steps > 0 {

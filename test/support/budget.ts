@@ -54,7 +54,7 @@ function base(defs: ParamDef[]): Params {
  * at its minimum (for a cell size or a step the light end is the maximum). Linear in the number
  * of controls, so the gate stays affordable as plates grow.
  */
-function corners(defs: ParamDef[]): Params[] {
+export function corners(defs: ParamDef[]): Params[] {
   const b = base(defs);
   const out = [b];
   for (const d of defs) {

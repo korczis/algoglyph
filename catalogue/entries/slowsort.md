@@ -37,6 +37,16 @@ algorithm:
     stable: false
   invariants:
     - The number of inversions never increases.
+claims:
+  - id: comparisons-equal-the-recurrence
+    statement: >-
+      A completed run on 16 keys makes exactly 406 comparisons, C(16) of C(n) = C(⌈n/2⌉) +
+      C(⌊n/2⌋) + 1 + C(n − 1), whatever the keys; read on the third completed run of Random
+      permutations.
+    readout: last completed run
+    expect: { value: 406 }
+    setup:
+      params: { n: 16, shape: random, runs: 3 }
 bounds:
   model: 'comparisons (one per compare-and-swap of two halves'' maxima) and swaps, counted live'
   best: 'no swap on Already sorted'

@@ -35,6 +35,16 @@ pedagogy:
 algorithm:
   properties:
     stable: true
+claims:
+  - id: sorted-input-costs-n-factorial-minus-one
+    statement: >-
+      On Already sorted keys at n = 4 and one level, a completed run makes n! − 1 = 23
+      lexicographic comparisons: the 24 permutations are listed in order, so the bubble sort's
+      first pass finds nothing to swap and stops.
+    readout: last completed run
+    expect: { value: 23 }
+    setup:
+      params: { n: 4, shape: sorted, levels: '1', runs: 3 }
 bounds:
   model: 'lexicographic comparisons and swaps of the bubble sort over the permutation list, and the key comparisons inside them, counted live'
   best: 'Already sorted: n! − 1 lexicographic comparisons and no swap, at the kernel''s level for 3 to 5 keys'

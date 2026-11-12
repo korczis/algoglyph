@@ -71,15 +71,15 @@ describe('burnt pancake plate', () => {
   it('runs headless at every extreme setting', () => {
     for (const params of extremes(plate)) {
       const h = headless(plate, { pace: steps(16384), ...params });
-      for (let f = 0; f < 20000 && (h.stats()['last stack'] ?? '–') === '–'; f++) h.frames(1);
-      expect(h.stats()['last stack'], JSON.stringify(params)).toBe('in order, every burnt side down (checked)');
+      for (let f = 0; f < 20000 && (h.stats()['last completed run'] ?? '–') === '–'; f++) h.frames(1);
+      expect(h.stats()['last completed run'], JSON.stringify(params)).toMatch(/^\d+ flips, in order, every burnt side down \(checked\)$/);
     }
   });
 
   it('charts each stack\'s flips, equal to the same stacks sorted independently', () => {
     const h = headless(plate, { pace: steps(256) });
     h.frames(600);
-    const stacks = lead(h.stats()['stacks sorted']);
+    const stacks = lead(h.stats()['completed runs']);
     expect(stacks).toBeGreaterThan(3);
     const flips = h.chart()!.series[0].points;
     for (let k = 0; k < stacks; k++) {

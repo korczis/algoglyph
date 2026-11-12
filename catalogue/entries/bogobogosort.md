@@ -33,6 +33,18 @@ algorithm:
   paradigm: randomized
   properties:
     stable: false
+claims:
+  - id: mean-shuffles-meet-the-factorial-sum
+    statement: >-
+      Over 400 completed runs on Random permutations of 5 keys, the mean shuffles per run lies
+      within 21.9 of Σ m! over each input's failing prefixes, n! − 1 = 119 averaged over the
+      inputs: four standard errors, 4·√(11,859/400) = 21.8, with the variance of a call on m keys
+      from V_m = m·V_{m−1} + (1 − 1/m)·m!² averaged over the inputs, plus 0.1 for the two
+      readouts' rounding.
+    readout: mean shuffles per run
+    expect: { against: 'expected Σ m! over failing prefixes', tolerance: 21.9 }
+    setup:
+      params: { n: 5, shape: random, runs: 400 }
 bounds:
   model: 'per run: shuffles (by prefix length), comparisons (one check of a prefix''s last key per attempt) and swaps (a shuffle of a prefix of m keys is m − 1 swaps)'
   best: 'Already sorted: n − 1 comparisons and no shuffle on the plate''s kernel, which skips the copies; quadratic in Morgan-Mar''s definition'

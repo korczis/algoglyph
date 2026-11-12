@@ -36,6 +36,16 @@ algorithm:
     stable: false
   postconditions:
     - The stack is in order and every burnt side faces down.
+claims:
+  - id: burnt-side-up-stack-takes-3n-minus-2
+    statement: >-
+      Already sorted with every burnt side up at 12 pancakes, a completed stack takes 3n − 2 = 34
+      flips, the most the simple method needs for any stack: three flips for each size and one
+      for the last pancake.
+    readout: last completed run
+    expect: { value: 34 }
+    setup:
+      params: { n: 12, shape: sorted, orient: up, runs: 3 }
 bounds:
   model: 'flips (the plate''s flips readout) and comparisons (the search for the largest pancake left)'
   best: 'no flip on Already sorted with every burnt side down'

@@ -29,10 +29,18 @@
 //
 // A run truncated at the step limit is passed on as the array engine's own truncation (its
 // event cap reached), so it never becomes a point of a growth fit.
-import { AUX_CAP, EVENT_CAP, type ArrayKernel, type ArrayOps } from '../../engines/array/trace';
+//
+// Options: an entry's sidecar record may name constants of its kernel the plate tunes
+// (`options`, each one the kernel's manifest says it reads). They become the kernel's
+// ArrayKernel.options, which the array engine offers as controls; a run sends each option's
+// value, the plate's or its default, as the module's option word of that name, and the trace
+// cache keys the run by them, so a changed option re-traces and a default one is the run the
+// kernel always made.
+import { AUX_CAP, EVENT_CAP, type ArrayKernel, type ArrayOps, type KernelOption,
+  type OptionValues } from '../../engines/array/trace';
 import { loadSorting, SOP, STRIDE, type KernelMeta, type RunOptions, type Sorting, type WasmRun } from './_abi';
 import { hashWords, TraceCache } from './_cache';
-import { kernelOf, maxNOf } from './_sidecar';
+import { kernelOf, maxNOf, optionsOf } from './_sidecar';
 
 const sizeOf = (r: WasmRun) => r.steps.byteLength + r.output.byteLength + r.tags.byteLength
   + r.strings.reduce((s, x) => s + 2 * x.length, 0) + 256;
@@ -54,13 +62,38 @@ export function seedOf(keys: ArrayLike<number>): number {
 /** Everything a trace depends on, as its cache key (the cache itself is per module build). */
 export function traceKey(id: string, keys: ArrayLike<number>, opt: RunOptions): string {
   const edges = hashWords((opt.edges ?? []).flat());
-  return `${id}|cap${opt.maxSteps ?? 0}|seed${opt.seed ?? ''}|b${opt.base ?? 0}|k${opt.k ?? 0}`
+  // every option by name, in name order, 0 left out: an option at 0 is the kernel's default
+  const options = Object.entries(opt.options ?? {}).filter(([, v]) => v !== 0)
+    .sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join(',');
+  return `${id}|cap${opt.maxSteps ?? 0}|seed${opt.seed ?? ''}|o${options}`
     + `|t${opt.trace === false ? 0 : 1}|e${edges}|${hashWords(keys)}`;
 }
 
-/** Run (or recall) kernel `id` on `keys` with the array engine's event cap as its step limit. */
-export function traceOf(s: Sorting, id: string, keys: Int32Array): WasmRun {
-  const opt: RunOptions = { seed: seedOf(keys), maxSteps: EVENT_CAP };
+/**
+ * The option words of one run: every declared option at the value `values` gives it, else at its
+ * default. A value is snapped onto the option's slider (clamped into its range, on its step),
+ * the grid the catalogue gate checked, so the kernel never gets a constant the sidecar does
+ * not offer. A value for an option the kernel does not declare is refused.
+ */
+export function optionWords(options: readonly KernelOption[], values: OptionValues = {}):
+  Record<string, number> {
+  for (const name of Object.keys(values)) {
+    if (!options.some((o) => o.name === name)) throw new RangeError(`sorting-wasm: no option ${name}`);
+  }
+  return Object.fromEntries(options.map((o) => {
+    const v = values[o.name];
+    if (v === undefined || !Number.isFinite(v)) return [o.name, o.default];
+    const on = o.min + Math.round((Math.min(o.max, Math.max(o.min, v)) - o.min) / o.step) * o.step;
+    return [o.name, Math.min(o.max, on)];
+  }));
+}
+
+/**
+ * Run (or recall) kernel `id` on `keys` with the array engine's event cap as its step limit and
+ * the given option words (optionWords).
+ */
+export function traceOf(s: Sorting, id: string, keys: Int32Array, options: Record<string, number> = {}): WasmRun {
+  const opt: RunOptions = { seed: seedOf(keys), maxSteps: EVENT_CAP, options };
   const key = traceKey(id, keys, opt);
   const c = traceCache(s);
   let r = c.get(key);
@@ -206,21 +239,29 @@ export interface WasmArrayKernel extends ArrayKernel {
 
 /**
  * Kernel `id` of a loaded module as an array-engine kernel, playing at most `maxN` keys when its
- * measured rebuild cost bounds it (the sidecar's max_n, through the catalogue model).
+ * measured rebuild cost bounds it (the sidecar's max_n, through the catalogue model), with the
+ * constants `options` the plate tunes (the sidecar's options: each must be one the module says
+ * the kernel reads).
  */
-export function wasmKernel(s: Sorting, id: string, maxN?: number): WasmArrayKernel {
+export function wasmKernel(s: Sorting, id: string, maxN?: number,
+  options: readonly KernelOption[] = []): WasmArrayKernel {
   const meta = s.meta(id);
   if (!meta) throw new Error(`sorting-wasm: the module has no kernel ${id}`);
+  const unread = options.filter((o) => !meta.options.includes(o.name)).map((o) => o.name);
+  if (unread.length) {
+    throw new Error(`sorting-wasm: ${id} does not read ${unread.join(', ')} (it reads ${meta.options.join(', ') || 'none'})`);
+  }
   const k: WasmArrayKernel = {
     goal: 'sort',
     kernelId: id,
     meta,
     roundUnit: ROUND_UNIT[meta.kind],
     ...(maxN ? { maxN } : {}),
-    run(a: ArrayOps) {
+    ...(options.length ? { options } : {}),
+    run(a: ArrayOps, _k: number, values?: OptionValues) {
       const keys = new Int32Array(a.n);
       for (let i = 0; i < a.n; i++) keys[i] = a.get(i);
-      const r = traceOf(s, id, keys);
+      const r = traceOf(s, id, keys, optionWords(options, values));
       // what the run reported, without its steps: a lab of many kernels keeps every kernel's
       // last run, and the steps are already in the array engine's own trace
       k.last = { ...r, steps: NO_STEPS };
@@ -238,7 +279,7 @@ export async function sidecarKernel(entryId: string): Promise<WasmArrayKernel> {
   const id = kernelOf(entryId);
   if (!id) throw new Error(`sorting-wasm: no sidecar maps a kernel to ${entryId}`);
   const s = await loadSorting();
-  const k = wasmKernel(s, id, maxNOf(entryId));
+  const k = wasmKernel(s, id, maxNOf(entryId), optionsOf(entryId));
   await traceCache(s).prefetch(`${id}|`);
   return k;
 }

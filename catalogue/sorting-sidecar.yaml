@@ -18,6 +18,10 @@
 # manifest. family: the atlas family, an English id. time_* and space use the atlas notation
 # (n^2, log^2 n, "unknown"); stable may be "variant" where only some formulations are stable.
 # custom_plate: why an entry cannot be an array-engine plate and needs a bespoke one.
+# options: constants of the kernel its plate tunes, each a slider { name, label, min, max, step,
+# default, unit? }: the name is one the manifest says the kernel reads (its `options`), the
+# default the kernel's own value, so the plate's default run is the kernel's default run. The
+# catalogue gate checks every one; the array engine shows them as controls and a link carries them.
 version: 1
 
 entries:
@@ -109,8 +113,8 @@ entries:
     broader: "bubble-sort"
   - id: "gnome-sort"
     kernel: "gnome-sort"
-    max_n: 432
-    max_n_of: "5300439f16504fdb"
+    max_n: 400
+    max_n_of: "15a62778db43be8e"
     atlas_id: "TA-01.05"
     existing: false
     engine: "array"
@@ -132,8 +136,8 @@ entries:
     broader: null
   - id: "odd-even-sort"
     kernel: "odd-even-sort"
-    max_n: 360
-    max_n_of: "c1d7b3ed41da5cab"
+    max_n: 344
+    max_n_of: "e6314eb2af69cd94"
     atlas_id: "TA-01.06"
     existing: false
     engine: "array"
@@ -155,6 +159,8 @@ entries:
     broader: "bubble-sort"
   - id: "exchange-sort"
     kernel: "exchange-sort"
+    max_n: 496
+    max_n_of: "4971ca427a10516d"
     atlas_id: "TA-01.07"
     existing: false
     engine: "array"
@@ -555,8 +561,8 @@ entries:
     broader: null
   - id: "cycle-sort"
     kernel: "cycle-sort"
-    max_n: 432
-    max_n_of: "75707ed164735800"
+    max_n: 392
+    max_n_of: "2de849a64927baad"
     atlas_id: "TA-02.09"
     existing: false
     engine: "array"
@@ -599,6 +605,8 @@ entries:
     broader: null
   - id: "d-ary-heapsort"
     kernel: "d-ary-heapsort"
+    options:
+      - { name: "k", label: "Arity d (children per node)", min: 2, max: 16, step: 1, default: 3 }
     atlas_id: "TA-02.11"
     existing: false
     engine: "array"
@@ -937,6 +945,8 @@ entries:
     broader: "merge-sort"
   - id: "k-way-merge-sort"
     kernel: "k-way-merge-sort"
+    options:
+      - { name: "k", label: "Ways k", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-04.06"
     existing: false
     engine: "array"
@@ -1042,8 +1052,8 @@ entries:
     broader: "in-place-merge-sort"
   - id: "strand-sort"
     kernel: "strand-sort"
-    max_n: 328
-    max_n_of: "1cde788743ec93f9"
+    max_n: 304
+    max_n_of: "1d7ea5dfa6d2517c"
     atlas_id: "TA-04.11"
     existing: false
     engine: "array"
@@ -1972,7 +1982,7 @@ entries:
   - id: "enumeration-sort"
     kernel: "enumeration-sort"
     max_n: 472
-    max_n_of: "c7d68926558ec795"
+    max_n_of: "8cd3fce562a4ab14"
     atlas_id: "TA-07.08"
     existing: false
     engine: "array"
@@ -2015,6 +2025,8 @@ entries:
     broader: "quicksort"
   - id: "parallel-samplesort"
     kernel: "parallel-samplesort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.10"
     existing: false
     engine: "array"
@@ -2036,6 +2048,8 @@ entries:
     broader: "samplesort"
   - id: "psrs"
     kernel: "psrs"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.11"
     existing: false
     engine: "array"
@@ -2078,6 +2092,8 @@ entries:
     broader: "samplesort"
   - id: "ps4o"
     kernel: "ps4o"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.13"
     existing: false
     engine: "array"
@@ -2099,6 +2115,8 @@ entries:
     broader: "samplesort"
   - id: "parallel-merge-sort"
     kernel: "parallel-merge-sort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.14"
     existing: false
     engine: "array"
@@ -2141,6 +2159,9 @@ entries:
     broader: "quicksort"
   - id: "parallel-radix-sort"
     kernel: "parallel-radix-sort"
+    options:
+      - { name: "base", label: "Radix b", min: 2, max: 64, step: 1, default: 16 }
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.16"
     existing: false
     engine: "array"
@@ -2162,6 +2183,8 @@ entries:
     broader: "radix-sort"
   - id: "parallel-counting-sort"
     kernel: "parallel-counting-sort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.17"
     existing: false
     engine: "array"
@@ -2267,6 +2290,8 @@ entries:
     broader: "parallel-merge-sort"
   - id: "terasort"
     kernel: "terasort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.22"
     existing: false
     engine: "array"
@@ -2288,6 +2313,8 @@ entries:
     broader: "mapreduce-sort"
   - id: "mapreduce-sort"
     kernel: "mapreduce-sort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.23"
     existing: false
     engine: "array"
@@ -2309,6 +2336,9 @@ entries:
     broader: null
   - id: "external-merge-sort"
     kernel: "external-merge-sort"
+    options:
+      - { name: "k", label: "Fan-in k", min: 2, max: 16, step: 1, default: 4 }
+      - { name: "memory", label: "Memory M (0: ⌈√n⌉, at least 4)", min: 0, max: 64, step: 4, default: 0, unit: "keys" }
     atlas_id: "TA-08.01"
     existing: false
     engine: "array"
@@ -2435,6 +2465,8 @@ entries:
     broader: "tape-merge-sort"
   - id: "external-radix-sort"
     kernel: "external-radix-sort"
+    options:
+      - { name: "base", label: "Radix b", min: 2, max: 64, step: 1, default: 16 }
     atlas_id: "TA-08.07"
     existing: false
     engine: "array"
@@ -2561,6 +2593,8 @@ entries:
     broader: "tree-sort"
   - id: "tape-merge-sort"
     kernel: "tape-merge-sort"
+    options:
+      - { name: "memory", label: "Memory M (0: ⌈√n⌉, at least 4)", min: 0, max: 64, step: 4, default: 0, unit: "keys" }
     atlas_id: "TA-08.13"
     existing: false
     engine: "array"
@@ -2667,8 +2701,8 @@ entries:
     broader: null
   - id: "spaghetti-sort"
     kernel: "spaghetti-sort"
-    max_n: 456
-    max_n_of: "7e9c351908212f83"
+    max_n: 448
+    max_n_of: "47595dd68dd37cb8"
     atlas_id: "TA-09.04"
     existing: false
     engine: "array"

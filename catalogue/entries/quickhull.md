@@ -48,8 +48,8 @@ data:
     columns:
       - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
       - { key: y, unit: '1', min: -1.0e12, max: 1.0e12 }
-    rows: { min: 3, max: 1000 }
-    bytes: 48000
+    rows: { min: 3, max: 2000 }
+    bytes: 96000
     replaces: shape
     ignores: [n]
     url_bytes: 1800

@@ -1,15 +1,17 @@
 // Incremental Delaunay triangulation (Bowyer–Watson) on an integer lattice.
 //
-// Robustness: every vertex lies on the lattice [0, LATTICE)², so coordinate differences stay
-// below 2^12. The orientation determinant is then below 2^25 and every term of the in-circle
-// determinant below 2^50, so both are evaluated exactly in double precision: a tie (collinear or
-// cocircular points) comes out as exactly zero and is decided by a fixed rule, never by rounding.
+// Robustness: every vertex lies on the lattice [0, side)², side at most LATTICE, so coordinate
+// differences stay below 2^12. The orientation determinant is then below 2^25 and every term of
+// the in-circle determinant below 2^50, so both are evaluated exactly in double precision: a tie
+// (collinear or cocircular points) comes out as exactly zero and is decided by a fixed rule, never
+// by rounding. A smaller side only makes the numbers smaller; a larger one would lose exactness.
 //
 // The super-triangle is pushed to infinity: one symbolic vertex INF closes every hull edge
 // into a ghost triangle whose "circumcircle" is the open half-plane beyond that edge (plus the
 // open edge itself). That is the limit of a finite super-triangle whose corners recede, without
 // the classic failure of a finite one, whose circles bulge across hull edges and lose them.
 
+/** The largest lattice side on which both predicates stay exact, and the default. */
 export const LATTICE = 4096;
 export const INF = -1;
 
@@ -92,15 +94,23 @@ export class Delaunay {
   visited = 0;
   duplicates = 0;
 
+  /** `side`: the lattice is [0, side)², an integer from 1 to LATTICE. */
+  constructor(readonly side: number = LATTICE) {
+    if (!Number.isInteger(side) || side < 1 || side > LATTICE) {
+      throw new RangeError(
+        `Delaunay: a lattice side of ${side} is not an integer from 1 to ${LATTICE}`);
+    }
+  }
+
   get vertices(): number {
     return this.xs.length;
   }
 
   /** Insert a lattice point; returns null for a duplicate. Throws outside the lattice. */
   insert(x: number, y: number): Insertion | null {
-    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= LATTICE
-      || y >= LATTICE) {
-      throw new RangeError(`Delaunay: (${x}, ${y}) is not a point of the ${LATTICE}² lattice`);
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= this.side
+      || y >= this.side) {
+      throw new RangeError(`Delaunay: (${x}, ${y}) is not a point of the ${this.side}² lattice`);
     }
     if (!this.ready) return this.insertFlat(x, y);
     return this.insertVertex(x, y);
