@@ -411,6 +411,7 @@ describe('sorting/mergesort: exact bounds against counted runs', () => {
       expect([p.length, p[1]], `n=${n}`).toEqual([2, 'not enough distinct keys: lazy stable sort']);
     }
     expect(counts('grailsort', input('sorted', 512, 1))).toEqual([1669, 5504, 0]);
+    expect(counts('grailsort', input('random', 512, 4242))).toEqual([4813, 18196, 0]);
   });
 
   it('wikisort: insertion alone up to 16 keys; n − 1 comparisons and no write on Already sorted to 1,025 keys; Reversed no auxiliary write', () => {
