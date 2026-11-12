@@ -9,7 +9,8 @@ import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/p
 import { mulberry32 } from '../src/core/random';
 import { engine } from '../src/engines/geometry/index';
 import { buildNow, Scaling, startBuild } from '../src/engines/geometry/build';
-import { encode, fromEncoded, fromTrace } from '../src/engines/geometry/track';
+import { drawPacked, fit } from '../src/engines/geometry/draw';
+import { encode, fromEncoded, fromTrace, pack } from '../src/engines/geometry/track';
 import { krovak, krovakInverse, krovakSW } from '../src/kernels/geometry/_projections';
 import { fromPoints, makeInput } from '../src/engines/geometry/input';
 import { record, type GeometryKernel, type Input, type Pt, type Seg, type Task, type Warehouse } from '../src/engines/geometry/trace';
@@ -636,6 +637,42 @@ describe('geometry runs built in slices', () => {
       while (!s.done) s.pump(0);
       const want = sizes.map((n) => [n, record(k, makeInput(k.input, (k.shapes ?? [])[0] ?? defaultShape(k), n, 21 + n, {}), {}, 21 + n, false).counts[k.counters[0][0]]]);
       expect(s.points, e.id).toEqual(want);
+    }
+  });
+});
+
+describe('packed drawing', () => {
+  /** A p5 that records every call by name with its arguments. */
+  function recorder() {
+    const calls: [string, unknown[]][] = [];
+    const p = new Proxy({}, { get: (_t, k) => (k === 'CLOSE' || k === 'LEFT' || k === 'RIGHT' || k === 'CENTER' ? String(k) : (...args: unknown[]) => { calls.push([String(k), args]); }) });
+    return { p: p as unknown as p5, calls };
+  }
+  const ctx = { palette: () => PALETTES[0], fg: [255, 255, 255] } as unknown as PlateContext;
+  const v = fit({ x0: 0, y0: 0, x1: 100, y1: 100 }, 0, 0, 100, 100);
+
+  it('sets the fill again when colour and alpha change together (no shared cache key)', () => {
+    // (c, a) = (1/32, 72) then (0, 200): a combined key c * 4096 + a gives 200 for both
+    const { p, calls } = recorder();
+    drawPacked(p, ctx, v, pack([{ t: 'p', x: 10, y: 10, c: 1 / 32, a: 72 }, { t: 'p', x: 20, y: 20, c: 0, a: 200 }]));
+    const fills = calls.filter(([k]) => k === 'fill').map(([, a]) => a);
+    expect(fills).toHaveLength(2);
+    expect(fills[0][3]).toBe(72);
+    expect(fills[1][3]).toBe(200);
+    expect(fills[1].slice(0, 3)).toEqual(PALETTES[0].stops[0]);
+  });
+
+  it('draws every kernel frame with the same calls as the object path, minus repeated styles', () => {
+    for (const e of live) {
+      const k = kernelOf(e.id);
+      const params = Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value]));
+      const t = record(k, makeInput(k.input, (k.shapes ?? [])[0] ?? defaultShape(k), k.input === 'none' ? 0 : (k.n?.value ?? 50), 3, params), params, 3);
+      const marks = t.frames[t.frames.length - 1].marks;
+      const { p, calls } = recorder();
+      drawPacked(p, ctx, v, pack(marks));
+      const shapes = calls.filter(([k2]) => ['circle', 'line', 'rect', 'vertex', 'text'].includes(k2)).length;
+      const want = marks.reduce((n, m) => n + (m.t === 'g' ? m.pts.length / 2 : 1), 0);
+      expect(shapes, e.id).toBe(want);
     }
   });
 });

@@ -49,11 +49,13 @@ export function finalHull(h: Pt[], extra: Mark[] = []): Mark[] {
 }
 
 /** Uncounted check: every point is on or left of every hull edge. */
-export function hullRows(h: Pt[], pts: Pt[]): Stat[] {
+/** A generator: it yields per hull edge, since the check costs n per edge. */
+export function* hullRows(h: Pt[], pts: Pt[]): Generator<unknown, Stat[]> {
   let ok = h.length >= Math.min(3, pts.length);
   for (let i = 0; i < h.length && ok && h.length >= 3; i++) {
     const a = h[i]; const b = h[(i + 1) % h.length];
     for (const c of pts) if ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) < 0) { ok = false; break; }
+    yield;
   }
   return [
     { label: 'Hull vertices', value: String(h.length) },

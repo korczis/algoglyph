@@ -93,21 +93,22 @@ export function drawPacked(p: p5, ctx: PlateContext, v: View, pk: Packed): void 
     if (!rgb) { rgb = ramp(pal, c); memo.set(c, rgb); }
     return rgb;
   };
-  let fillKey = NaN; let strokeKey = NaN; let weight = NaN;
-  let filling = true; let stroking = true;
+  // the colour last set, held as its own fields: one combined key would let two different
+  // (colour, alpha) pairs collide and skip a needed call
+  const same = (x: number, y: number) => x === y || (Number.isNaN(x) && Number.isNaN(y));
+  let fillC = NaN; let fillA = NaN; let strokeC = NaN; let strokeA = NaN; let weight = NaN;
+  let filling = true; let stroking = true; let fillSet = false; let strokeSet = false;
   const fill = (c: number, a: number) => {
-    const key = (Number.isNaN(c) ? -1 : c) * 4096 + a;
-    if (filling && key === fillKey) return;
+    if (filling && fillSet && same(c, fillC) && a === fillA) return;
     const rgb = rgbOf(c);
     p.fill(rgb[0], rgb[1], rgb[2], a);
-    fillKey = key; filling = true;
+    fillC = c; fillA = a; filling = true; fillSet = true;
   };
   const stroke = (c: number, a: number, w: number) => {
-    const key = (Number.isNaN(c) ? -1 : c) * 4096 + a;
-    if (!stroking || key !== strokeKey) {
+    if (!stroking || !strokeSet || !same(c, strokeC) || a !== strokeA) {
       const rgb = rgbOf(c);
       p.stroke(rgb[0], rgb[1], rgb[2], a);
-      strokeKey = key; stroking = true;
+      strokeC = c; strokeA = a; stroking = true; strokeSet = true;
     }
     if (w !== weight) { p.strokeWeight(w); weight = w; }
   };

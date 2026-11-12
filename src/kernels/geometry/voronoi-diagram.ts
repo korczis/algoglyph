@@ -24,7 +24,7 @@ export const kernel: GeometryKernel = {
   task: 'delaunay',
   input: 'points',
   shapes: ['uniform', 'clustered', 'disk', 'lattice'],
-  n: { min: 3, max: 500, value: 90, step: 1 },
+  n: { min: 3, max: 350, value: 90, step: 1 },
   counters: [['incircle', 'In-circle tests'], ['orient', 'Orientation tests'], ['flip', 'Edge flips'], ['compare', 'Sort comparisons']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
   *run(g) {
@@ -93,6 +93,11 @@ export const kernel: GeometryKernel = {
       }
     }
     const triangles: [number, number, number][] = [];
+    if (!g.recording) {
+      // a measuring run: the triangulation is the work; its drawing would be waste
+      for (const [k, c] of tri) { const a = Math.floor(k / n); const b = k % n; if (a < b && a < c) triangles.push([a, b, c]); }
+      return { result: { triangles } };
+    }
     for (const [k, c] of tri) {
       const a = Math.floor(k / n); const b = k % n;
       if (a < b && a < c) triangles.push([a, b, c]);
@@ -107,7 +112,9 @@ export const kernel: GeometryKernel = {
     };
     const vor: Mark[] = [];
     const far = 4 * (g.input.box.x1 - g.input.box.x0);
+    let done = 0;
     for (const [k, c] of tri) {
+      if (++done % 256 === 0) yield;
       const a = Math.floor(k / n); const b = k % n;
       const d = tri.get(b * n + a);
       const o = centre(a, b, c);
@@ -123,7 +130,7 @@ export const kernel: GeometryKernel = {
       g.frame(() => [...delaunay, ...vor.slice(0, cut)], 'the dual: Voronoi edges between circumcentres');
       yield;
     }
-    g.last(() => [...delaunay, ...vor], 'Delaunay triangulation and Voronoi diagram');
+    g.last(() => [...delaunay, ...vor, ...dots(P, { c: 0.1, r: 2.6 })], 'Delaunay triangulation and Voronoi diagram');
     return {
       result: { triangles },
       rows: [{ label: 'Triangles', value: String(triangles.length) }, { label: 'Voronoi vertices', value: String(cc.size) }],

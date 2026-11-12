@@ -10,7 +10,7 @@ import { fromEncoded, fromPacked, fromTrace, type Encoded, type Packed, type Tra
 import type { Job } from './worker';
 
 /** Main-thread time a frame spends on background work (builds, then scaling runs). */
-export const SLICE_MS = 4;
+export const SLICE_MS = 2;
 const NONE: Packed = { data: new Float64Array(0), strings: [] };
 /** A worker reply later than this is treated as lost. */
 const WORKER_TIMEOUT_MS = 15_000;
@@ -39,7 +39,7 @@ const recordingOf = (r: Request, recording = true) =>
 
 /** The whole run at once (thumbnails and tests). */
 export function buildNow(r: Request): Track {
-  return fromTrace(record(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params), r.params, r.seed));
+  return fromTrace(record(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params), r.params, r.seed, true, r.stride));
 }
 
 class Sliced implements Build {
@@ -97,12 +97,13 @@ class Remote implements Build {
     const timer = setTimeout(() => { if (waiting.delete(job)) this.fail(); }, WORKER_TIMEOUT_MS);
     waiting.set(job, (enc) => {
       clearTimeout(timer);
-      if (enc) this.track = fromEncoded(enc); else this.fail();
+      if (enc) { this.track = fromEncoded(enc); this.ended = enc.stride; } else this.fail();
     });
-    const msg: Job = { job, id: r.id, kind: r.kernel.input, shape: r.shape, n: r.n, seed: r.seed, params: { ...r.params } };
+    const msg: Job = { job, id: r.id, kind: r.kernel.input, shape: r.shape, n: r.n, seed: r.seed, params: { ...r.params }, stride: r.stride ?? 1 };
     try { w.postMessage(msg); } catch { waiting.delete(job); clearTimeout(timer); this.fail(); }
   }
-  get stride(): number { return this.fallback?.stride ?? this.r.stride ?? 1; }
+  private ended = 0;
+  get stride(): number { return this.fallback?.stride ?? (this.ended || this.r.stride || 1); }
   private fail(): void { if (!this.track && !this.fallback) this.fallback = new Sliced(this.r); }
   pump(deadline: number): void {
     if (this.fallback && !this.track) {

@@ -15,7 +15,7 @@ export const kernel: GeometryKernel = {
     const pts = g.input.points;
     g.base(base(pts));
     const small = trivial(pts);
-    if (small) return { result: small, rows: hullRows(small, pts) };
+    if (small) return { result: small, rows: yield* hullRows(small, pts) };
     const start = pts[anchorIndex(pts)];
     const h: Pt[] = [];
     let p = start;
@@ -37,6 +37,6 @@ export const kernel: GeometryKernel = {
       if (h.length > pts.length) throw new Error('gift wrapping did not close');
     } while (p !== start);
     g.last(() => finalHull(h), 'hull closed');
-    return { result: h, rows: hullRows(h, pts) };
+    return { result: h, rows: g.recording ? yield* hullRows(h, pts) : [] };
   },
 };

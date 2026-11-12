@@ -117,6 +117,8 @@ export interface GeometryKernel {
 }
 
 export interface Trace {
+  /** The frame stride the run ended with. */
+  stride?: number;
   input: Input;
   base: Mark[];
   frames: Frame[];
@@ -251,10 +253,10 @@ export class Recording {
 
 /** Run `kernel` on `input` to the end at once. */
 export function record(kernel: GeometryKernel, input: Input, params: Params, seed: number,
-  recording = true): Trace {
-  const r = new Recording(kernel, input, params, seed, recording);
+  recording = true, stride = 1): Trace {
+  const r = new Recording(kernel, input, params, seed, recording, false, stride);
   while (!r.step());
-  return r.trace();
+  return { ...r.trace(), stride: r.stride };
 }
 
 // Small helpers kernels share for building marks.

@@ -56,6 +56,8 @@ export interface Encoded {
   final: Counts;
   rows: Stat[];
   chart: Chart | undefined;
+  /** The frame stride the run ended with. */
+  stride: number;
 }
 
 const KIND = { p: 0, l: 1, g: 2, r: 3, o: 4, x: 5 } as const;
@@ -100,6 +102,7 @@ export function encode(t: Trace): { enc: Encoded; transfer: ArrayBuffer[] } {
     enc: {
       keys, data, starts, counts, notes: t.frames.map((f) => f.note), strings,
       base: t.base, view: t.view, final: t.counts, rows: t.outcome.rows ?? [], chart: t.outcome.chart,
+      stride: t.stride ?? 1,
     },
     transfer: [data.buffer as ArrayBuffer, starts.buffer as ArrayBuffer, counts.buffer as ArrayBuffer],
   };

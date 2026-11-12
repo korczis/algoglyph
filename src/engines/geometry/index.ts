@@ -118,7 +118,8 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
                 pending = startBuild({ ...request(info, kernel, ctx.params, seedOf(), shapes), stride }, true);
               }
             }
-            scaling.pump(deadline);
+            // scaling runs only in time the build left over
+            if (performance.now() < deadline) scaling.pump(deadline);
           }
           if (!t) {
             const steps = pending ? drawPartial(p, ctx, pending, fitIn) : 0;
@@ -159,7 +160,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
   const first = kernels[0].kernel;
   const shapes = shapesOf(first);
   const n = first.n ?? { min: 3, max: 1000, value: 120 };
-  const nMax = Math.min(n.max, 800);
+  const nMax = Math.min(n.max, 500);
   // the lab measures only sizes its own control can reach
   const sizes = (first.scaling ?? [32, 64, 128, 256, 512, 1024]).filter((s) => s <= nMax);
   return {
@@ -225,7 +226,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
                 builds = kernels.map((k, i) => startBuild({ ...req(k), stride: strides[i] }, true));
               }
             }
-            curves.find((cv) => !cv.scaling.done)?.scaling.pump(deadline);
+            if (performance.now() < deadline) curves.find((cv) => !cv.scaling.done)?.scaling.pump(deadline);
           }
           const Wd = ctx.width; const Ht = ctx.height;
           const pad = Math.max(6, Math.round(Math.min(Wd, Ht) * 0.02));

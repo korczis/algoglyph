@@ -14,7 +14,7 @@ export const kernel: GeometryKernel = {
     const pts = g.input.points;
     g.base(base(pts));
     const small = trivial(pts);
-    if (small) return { result: small, rows: hullRows(small, pts) };
+    if (small) return { result: small, rows: yield* hullRows(small, pts) };
     const lx = (p: Pt, q: Pt) => p.x < q.x || (p.x === q.x && p.y < q.y);
     let A = pts[0]; let B = pts[0];
     for (const p of pts) { if (lx(p, A)) A = p; if (lx(B, p)) B = p; }
@@ -56,6 +56,6 @@ export const kernel: GeometryKernel = {
     }
     const h = A === B ? [A] : [...(yield* side(A, B, lower)), ...(yield* side(B, A, upper))];
     g.last(() => finalHull(h), 'hull closed');
-    return { result: h, rows: hullRows(h, pts) };
+    return { result: h, rows: g.recording ? yield* hullRows(h, pts) : [] };
   },
 };

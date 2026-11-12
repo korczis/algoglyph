@@ -15,7 +15,7 @@ export const kernel: GeometryKernel = {
     const pts = g.input.points;
     g.base(base(pts));
     const small = trivial(pts);
-    if (small) return { result: small, rows: hullRows(small, pts) };
+    if (small) return { result: small, rows: yield* hullRows(small, pts) };
     const pick = (f: (p: Pt) => number) => pts.reduce((b, p) => (f(p) > f(b) ? p : b));
     // counter-clockwise: lowest x + y, highest x - y, highest x + y, lowest x - y
     const corners = [pick((p) => -(p.x + p.y)), pick((p) => p.x - p.y), pick((p) => p.x + p.y), pick((p) => p.y - p.x)]
@@ -39,6 +39,6 @@ export const kernel: GeometryKernel = {
     yield;
     const h = yield* grahamStack(g, o, order, extra);
     g.last(() => finalHull(h, extra()), 'hull closed');
-    return { result: h, rows: [...hullRows(h, pts), { label: 'Survivors scanned', value: String(kept.length) }] };
+    return { result: h, rows: [...(g.recording ? yield* hullRows(h, pts) : []), { label: 'Survivors scanned', value: String(kept.length) }] };
   },
 };
