@@ -180,11 +180,13 @@ export function replay(a: ArrayOps, r: WasmRun, emitted = 0): void {
   }
 }
 
+const NO_STEPS = new Int32Array(0);
+
 export interface WasmArrayKernel extends ArrayKernel {
   /** The atlas kernel id. */
   readonly kernelId: string;
   readonly meta: KernelMeta;
-  /** The last run's Rust result (outcome, note, the Rust counts), for readouts and tests. */
+  /** The last run's Rust result (outcome, note, counts, output; not its steps), for readouts and tests. */
   last?: WasmRun;
 }
 
@@ -203,8 +205,11 @@ export function wasmKernel(s: Sorting, id: string, maxN?: number): WasmArrayKern
     run(a: ArrayOps) {
       const keys = new Int32Array(a.n);
       for (let i = 0; i < a.n; i++) keys[i] = a.get(i);
-      k.last = traceOf(s, id, keys);
-      replay(a, k.last, a.n);
+      const r = traceOf(s, id, keys);
+      // what the run reported, without its steps: a lab of many kernels keeps every kernel's
+      // last run, and the steps are already in the array engine's own trace
+      k.last = { ...r, steps: NO_STEPS };
+      replay(a, r, a.n);
     },
   };
   return k;
