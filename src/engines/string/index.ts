@@ -44,7 +44,7 @@ function inputParams(kind: InputKind, k: StringKernel, labMax?: number): ParamDe
     out.push({ kind: 'select', key: 'shape', label: 'Input', value: k.shape ?? def.shapes[0].value, rebuild: true, options: def.shapes });
   }
   const s = def.size;
-  out.push({ kind: 'range', key: 'n', label: s.label, min: s.min, max: labMax ? Math.min(labMax, s.max) : s.max,
+  out.push({ kind: 'range', key: 'n', label: s.label, min: s.min, max: labMax ? Math.min(labMax, s.max) : k.sizeMax ?? s.max,
     step: s.step, value: k.size ?? s.value, rebuild: true });
   return out;
 }

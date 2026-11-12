@@ -1,7 +1,5 @@
 import { S, type StringKernel } from '../../engines/string/trace';
 
-const MAX_CODES = 4096;
-
 /** A phrase of bytes as it is shown: ASCII as itself (space as ␣), any other byte in hex. */
 const shown = (bytes: string) => [...bytes].map((c) => {
   const b = c.charCodeAt(0);
@@ -11,13 +9,20 @@ const shown = (bytes: string) => [...bytes].map((c) => {
 // The dictionary starts with every single byte (codes 0-255) and the text is read as its UTF-8
 // bytes, so every character has a code to start from. Extend the current phrase while phrase +
 // next byte is known; when it is not, emit the phrase's code, add phrase + byte as the next code
-// (until 12-bit codes run out) and restart from that byte.
+// (until the codes of the chosen width, 12 bits by default, run out) and restart from that byte.
 export const kernel: StringKernel<'text', number[]> = {
   input: 'text',
   shape: 'repetitive',
   counters: { lookup: 'Dictionary lookups', emit: 'Codes emitted' },
   chart: { title: 'Compressed size as the text is read', x: 'bytes read', y: 'percent of the input bits' },
-  *run(ops, { text }) {
+  // English prose fills 12-bit codes, 3840 phrases past the 256 bytes, by about 15 900 characters
+  sizeMax: 16384,
+  params: [{
+    kind: 'select', key: 'width', label: 'Code width', value: '12', rebuild: true,
+    options: [9, 10, 11, 12].map((w) => ({ value: String(w), label: `${w} bits, ${2 ** w} codes` })),
+  }],
+  *run(ops, { text }, params) {
+    const MAX_CODES = 2 ** (Number(params.width ?? 12) || 12);
     // one symbol per UTF-8 byte; for ASCII text a byte is a character
     const bytes = new TextEncoder().encode(text);
     const ascii = bytes.length === text.length;
@@ -62,6 +67,7 @@ export const kernel: StringKernel<'text', number[]> = {
     if (w) emit(dict.get(w) as number, input.length);
     ops.stat('Codes', String(out.length));
     ops.stat('Output / input', `${bits} / ${8 * input.length} bits`);
+    ops.stat('Dictionary entries', `${dict.size} of ${MAX_CODES}`);
     return out;
   },
 };
