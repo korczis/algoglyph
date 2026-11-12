@@ -81,6 +81,13 @@ sources:
   - id: practice-logistics
     title: Warehouse logistics
     kind: practice
+  - id: feynman-lectures
+    title: The Feynman Lectures on Physics (New Millennium Edition), Volumes I–III
+    author: Richard P. Feynman, Robert B. Leighton, Matthew Sands
+    publisher: Basic Books
+    year: 2010
+    kind: book
+    url: https://www.feynmanlectures.caltech.edu/
   - id: griffiths-qm
     title: Introduction to Quantum Mechanics (second edition)
     author: David J. Griffiths
