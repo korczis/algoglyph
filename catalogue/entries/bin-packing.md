@@ -44,7 +44,8 @@ claims:
   - id: first-fit-decreasing-pairs-the-halves
     statement: >-
       For the same 48 items, first fit decreasing pairs the 24 halves into 12 full bins and puts
-      the 24 crumbs, at most 3 each and so at most 72 together, into one more: exactly
+      the 24 crumbs, at most 3 each (the default largest crumb) and so at most 72 together, into
+      one more: exactly
       n / 4 + 1 = 13, nearly half of next fit's.
     readout: First fit decreasing
     expect: { value: 13 }
@@ -72,6 +73,43 @@ claims:
     expect: { against: Optimum (exact search), above: -1 }
     setup:
       params: { n: 12 }
+  - id: halves-cost-next-fit-a-bin-each-at-the-largest-crumb
+    statement: >-
+      With crumbs up to 49, a half and a crumb still fit one bin (50 + 49 = 99) and the next half
+      still never does (50 + 1 + 50 = 101), so next fit opens one bin per half at every crumb
+      setting: exactly n / 2 = 24 for 48 items.
+    readout: Next fit
+    expect: { value: 24 }
+    setup:
+      params: { shape: halves, crumb: 49 }
+  - id: halves-cost-next-fit-a-bin-each-at-the-smallest-crumb
+    statement: >-
+      With every crumb 1 the same holds: each half takes one crumb (51) and refuses the next half
+      (101), so next fit opens exactly n / 2 = 24 bins for 48 items.
+    readout: Next fit
+    expect: { value: 24 }
+    setup:
+      params: { shape: halves, crumb: 1 }
+  - id: first-fit-decreasing-one-crumb-bin-while-the-crumbs-fit
+    statement: >-
+      First fit decreasing pairs the 24 halves into 12 full bins no crumb can enter, then packs
+      the crumbs alone; at a largest crumb of 4 the 24 crumbs weigh at most 96, which fits one
+      bin, so it uses exactly n / 4 + 1 = 13. The largest crumb for which this holds at 48 items
+      is ⌊100 / 24⌋ = 4.
+    readout: First fit decreasing
+    expect: { value: 13 }
+    setup:
+      params: { shape: halves, crumb: 4 }
+  - id: first-fit-decreasing-at-the-largest-crumb
+    statement: >-
+      At a largest crumb of 49 the crumbs may need several bins, but never fewer than
+      ⌈Σ crumbs / 100⌉ beside the 12 bins of halves; since the halves weigh exactly 12 bins, that
+      count is the lower bound ⌈Σ size / capacity⌉ itself: first fit decreasing minus the lower
+      bound is at least 0 (whole bins, so above −1).
+    readout: First fit decreasing
+    expect: { against: 'Lower bound ⌈Σ size / capacity⌉', above: -1 }
+    setup:
+      params: { shape: halves, crumb: 49 }
 ---
 
 Next fit, first fit and first fit decreasing filling the same bins, and how many each needs.

@@ -6,7 +6,8 @@ export const CAPACITY = 100;
 
 /** Size ranges of the item streams, as integers in 1..CAPACITY. */
 const SMALL_MAX = 30;
-const CRUMB_MAX = 3;
+/** The largest crumb of the halves stream by default; the plate's control sets it, 1 to 49. */
+export const CRUMB_MAX = 3;
 const THIRDS: [number, number] = [26, 40];
 const pct = (x: number) => `${Math.round((100 * x) / CAPACITY)}%`;
 
@@ -15,19 +16,19 @@ export type Shape = (typeof SHAPES)[number];
 export const SHAPE_LABELS: Record<Shape, string> = {
   uniform: `Uniform sizes, 1 to ${CAPACITY}`,
   small: `Small items, up to ${pct(SMALL_MAX)} of a bin`,
-  halves: `Halves and crumbs (up to ${CRUMB_MAX}), alternating`,
+  halves: `Halves and crumbs (up to ${CRUMB_MAX} by default), alternating`,
   thirds: `Near thirds, ${pct(THIRDS[0])} to ${pct(THIRDS[1])} of a bin`,
 };
 
-/** n seeded integer sizes in 1..CAPACITY, in arrival order. */
-export function items(shape: Shape, n: number, seed: number): number[] {
+/** n seeded integer sizes in 1..CAPACITY, in arrival order; the halves' crumbs are 1..crumb. */
+export function items(shape: Shape, n: number, seed: number, crumb = CRUMB_MAX): number[] {
   const rnd = mulberry32(seed);
   const int = (lo: number, hi: number) => lo + Math.floor(rnd() * (hi - lo + 1));
   return Array.from({ length: n }, (_, i) => {
     switch (shape) {
       case 'uniform': return int(1, CAPACITY);
       case 'small': return int(1, SMALL_MAX);
-      case 'halves': return i % 2 === 0 ? CAPACITY / 2 : int(1, CRUMB_MAX);
+      case 'halves': return i % 2 === 0 ? CAPACITY / 2 : int(1, crumb);
       case 'thirds': return int(THIRDS[0], THIRDS[1]);
     }
   });
