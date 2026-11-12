@@ -13,8 +13,14 @@ const HOLD_FRAMES = 90;
 const SCALING_N = [16, 32, 64, 128];
 const RECENT = 6;
 const W = 5;
-/** Milliseconds per frame an incremental run may compute, so a rebuild never blocks a frame. */
-const SLICE_MS = 6;
+/**
+ * Work units (recorded events plus the uncounted work kernels declare) a run may compute per
+ * frame: counted, not timed, so a frame's share is bounded on every machine.
+ */
+const FRAME_UNITS = 8_000;
+/** Readouts and the chart are rebuilt every few frames; the stage shows them throttled anyway. */
+const STATS_EVERY = 6;
+const CHART_EVERY = 18;
 
 const fmt = (x: number) => (Number.isInteger(x) ? x.toLocaleString('en-US')
   : Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 1 ? x.toFixed(2) : x.toPrecision(3));
@@ -287,9 +293,11 @@ function drawGraph(p: p5, ctx: PlateContext, r: Replay, X0: number, Y0: number, 
   // edges, in layers so the interesting ones sit on top
   const order = [E.drop, E.none, E.seen, E.back, E.tree, E.cut, E.mark];
   const arrows = g.directed && rad >= 3 && g.m <= 500;
+  // one pass sorts the edges into their layers
+  const layers: number[][] = [[], [], [], [], [], [], []];
+  for (let e = 0; e < g.m; e++) if (!(r.es[e] === E.none && view.hidden)) layers[r.es[e]].push(e);
   for (const st of order) {
-    for (let e = 0; e < g.m; e++) {
-      if (r.es[e] !== st || (st === E.none && view.hidden)) continue;
+    for (const e of layers[st]) {
       const u = g.eu[e]; const v = g.ev[e];
       let c: RGB = fg; let a = 255; let wgt = 1;
       if (view.flow && r.fl[e] > 0 && st !== E.cut && st !== E.mark) {
@@ -470,13 +478,14 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
       const run = () => {
         running = start(kernel, g, options(kernel, g, ctx, pick), ctx.seed + generation, kernel.cap);
         // a thumbnail needs the whole run; the live plate computes a slice per frame
-        running.step(ctx.thumbnail ? Infinity : SLICE_MS);
+        running.step(ctx.thumbnail ? Infinity : FRAME_UNITS);
         return new Replay(running.t, kernel);
       };
       let r = run();
       let hold = 0;
       let angle = 0.6;
       let proj: Projection | null = null;
+      let frame = 0;
       return {
         setup() {
           if (ctx.thumbnail) r.advance(Math.floor(r.t.length * 0.45));
@@ -484,7 +493,7 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            if (!r.t.finished) running.step(SLICE_MS);
+            if (!r.t.finished) running.step(FRAME_UNITS);
             if (!r.done) r.advance(num(ctx.params, 'speed'));
             else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
@@ -502,6 +511,7 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
             proj = drawGraph(p, ctx, r, pad, pad, half, H - 2 * pad, angle);
             drawMatrix(p, ctx, r, 2 * pad + half, pad, half, H - 2 * pad);
           } else proj = drawGraph(p, ctx, r, pad, pad, W - 2 * pad, H - 2 * pad, angle);
+          if (frame++ % STATS_EVERY) return;
           const keys = kernel.readouts ?? ['scans', 'done', 'frontier'];
           const rows: Stat[] = [
             { label: 'Graph', value: `${fmt(g.n)} vertices, ${fmt(g.m)} edges` },
@@ -515,7 +525,7 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
           ];
           if (r.done && r.t.result !== undefined && kernel.report) rows.push(...kernel.report(r.t.result, g, r.t.opts));
           ctx.stats(rows);
-          if (kernel.chart) {
+          if (kernel.chart && (frame - 1) % CHART_EVERY === 0) {
             const ch = kernel.chart;
             ctx.chart({
               title: ch.title,
@@ -576,6 +586,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
       let pending = curves.flatMap((_, ci) => SCALING_N.map((n) => [ci, n] as [number, number]));
       let finishedCount = 0;
       let hold = 0;
+      let frame = 0;
       const build = () => {
         const shape = shapeOf(ctx);
         const g = makeGraph(shape, num(ctx.params, 'n'), ctx.seed + generation * 7919, 4 / 3);
@@ -583,7 +594,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
         panes = kernels.map((k) => {
           const opts: Options = { s: g.s, t: g.t, p: defaultParams(k.kernel) };
           const run = start(k.kernel, g, opts, ctx.seed + generation);
-          run.step(ctx.thumbnail ? Infinity : SLICE_MS / kernels.length);
+          run.step(ctx.thumbnail ? Infinity : FRAME_UNITS / kernels.length);
           return { ...k, run, r: new Replay(run.t, k.kernel), finished: 0 };
         });
       };
@@ -598,7 +609,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
           const g = makeGraph(shapeOf(ctx), Math.max(k.n?.min ?? 2, n), ctx.seed + n, 4 / 3);
           measuring = { ci, n: g.n, run: start(k, g, { s: g.s, t: g.t, p: defaultParams(k) }, ctx.seed, 2_000_000, false) };
         }
-        measuring.run.step(SLICE_MS);
+        measuring.run.step(FRAME_UNITS / 2);
         const t = measuring.run.t;
         if (!t.finished) return;
         const cv = curves[measuring.ci];
@@ -615,9 +626,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            measure();
+            // the scaling runs wait until the panes' own runs are computed, so the two never
+            // share a frame
+            if (panes.every((x) => x.run.t.finished)) measure();
             for (const pane of panes) {
-              if (!pane.run.t.finished) pane.run.step(SLICE_MS / panes.length);
+              if (!pane.run.t.finished) pane.run.step(FRAME_UNITS / panes.length);
               if (!pane.r.done) {
                 pane.r.advance(num(ctx.params, 'speed'));
                 if (pane.r.done) pane.finished = ++finishedCount;
@@ -649,6 +662,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
             p.text(`${pane.info.title}${pane.finished ? `  #${pane.finished}` : ''}`, x + 4, y + 3);
             drawGraph(p, ctx, pane.r, x + 4, y + fs + 8, cw - 8, ch - fs - 12, 0.6);
           });
+          if (frame++ % STATS_EVERY) return;
           ctx.chart({
             title: 'Measured work as the graph grows',
             x: { label: 'vertices n', log: true },
