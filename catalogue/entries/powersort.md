@@ -27,6 +27,35 @@ related:
   - mergesort-natural
   - shiverssort
 motivation: CPython's list.sort uses its merge policy, and so does the merge phase of Rust's stable sort.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [timsort]
+  objectives:
+  - 'Count Organ pipe at 512 keys: two runs and one merge, 2(n − 1) = 1,022 comparisons and 255 auxiliary writes.'
+  - 'Count Already sorted and Reversed: n − 1 comparisons and no auxiliary write; Reversed adds 2⌊n/2⌋ writes.'
+  - 'Compute H for an input of long runs and check the comparisons against n − 1 + n(H + 2).'
+  misconceptions:
+  - 'A nearly optimal merge order needs every run in advance; powersort decides each merge as the runs arrive, from the power of one boundary, and stays within n(H + 2) of merge cost.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes, a copy one) and auxiliary writes (the shorter run, copied for each merge)'
+  best: 'n − 1 comparisons and no writes (Already sorted, keys all equal); n − 1 comparisons and 2⌊n/2⌋ array writes on Reversed, one strictly descending run reversed in place; no auxiliary write on either'
+  average: 'with every run at least minrun long, comparisons ≤ n − 1 + n(H + 2), H the entropy of the run lengths (merge cost between nH and n(H + 2), Munro and Wild); Organ pipe from 64 keys on 2(n − 1) comparisons and ⌊(n − 1)/2⌋ auxiliary writes'
+  worst: 'O(n log n) comparisons, since H ≤ lg n'
+claims:
+  - id: organ-pipe-is-one-merge
+    statement: >-
+      On Organ pipe at 512 keys powersort finds two runs and merges them once: 2(n − 1) = 1,022 comparisons.
+    readout: Comparisons
+    expect: { value: 1022 }
+    setup:
+      params: { shape: organ-pipe, n: 512, speed: 2000 }
 ---
 
 A natural mergesort that finds a nearly optimal merge order almost for free: every boundary between neighbouring runs gets an integer power, the depth at which a perfectly balanced merge tree would join those two runs, and runs are merged so that powers on the stack decrease strictly from the top down.

@@ -29,6 +29,35 @@ related:
   - powersort
   - timsort
 motivation: Rust's slice::sort has been driftsort since Rust 1.81.0.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [glidesort]
+  objectives:
+  - 'Count Already sorted from 21 keys on: n − 1 comparisons and no write; Reversed adds 2⌊n/2⌋ writes.'
+  - 'Up to 20 keys count insertion sort alone: the Array writes are twice the inversions.'
+  - 'Compare Few distinct keys with Random permutation at 512 keys: fewer than half the comparisons, the pivot record at work.'
+  misconceptions:
+  - 'A stable mergesort cannot profit from repeated keys; on Few distinct keys at 512 keys driftsort makes fewer than ½ n lg n comparisons, fewer than top-down mergesort on any input of that size.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes, a copy one) and auxiliary writes (the shorter run, copied for each merge)'
+  best: 'from 21 keys on, n − 1 comparisons and no writes (Already sorted, keys all equal); n − 1 comparisons and 2⌊n/2⌋ array writes on Reversed, no auxiliary write'
+  average: 'up to 20 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1; an expected N log K for K distinct keys (the authors'' claim)'
+  worst: 'N log N comparisons (the authors'' claim)'
+claims:
+  - id: few-keys-below-mergesort
+    statement: >-
+      On Few distinct keys at 512 keys driftsort makes fewer than ½ n lg n = 2,304 comparisons, the fewest top-down mergesort makes on any input of 512 keys.
+    readout: Comparisons
+    expect: { below: 2304 }
+    setup:
+      params: { shape: few-unique, n: 512, speed: 2000 }
 ---
 
 Rust's stable sort since 1.81.0: a derivative of glidesort that finds sorted runs lazily, sorts the stretches between them with a stable quicksort, and merges the resulting runs in powersort's order.

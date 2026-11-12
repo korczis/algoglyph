@@ -492,6 +492,13 @@ sources:
     year: 1992
     kind: "paper"
     url: "https://doi.org/10.1093/comjnl/35.6.643"
+  - id: katajainen-1996
+    title: "Practical In-Place Mergesort"
+    author: "J. Katajainen, T. Pasanen and J. Teuhola"
+    publisher: "Nordic Journal of Computing, 3(1), 27–40"
+    year: 1996
+    kind: "paper"
+    url: "https://www.cs.helsinki.fi/njc/References/katajainenpt1996:27.html"
   - id: kim-2004
     title: "Stable Minimum Storage Merging by Symmetric Comparisons"
     author: "P.-S. Kim and A. Kutzner"
