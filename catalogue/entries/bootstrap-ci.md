@@ -16,6 +16,22 @@ complexity: "B n draws for B resamples of n points"
 related:
   - conformal-intervals
 motivation: Coordinating many workers and machines without a shared clock depends on it.
+schema: algoglyph.entry/v2
+claims:
+  - id: skewed-small-sample-under-covers
+    statement: >-
+      For a sample of 30 from the skewed log-normal population, the 90% percentile interval
+      covers the population mean less often than its nominal 90%.
+    readout: 90% intervals covering
+    expect: { below: 90 }
+  - id: shortfall-closes-as-the-sample-grows
+    statement: >-
+      For a sample of 200 from the normal population, the 90% percentile interval covers the
+      population mean within three standard errors of 150 experiments (about 7.4 points) of 90%.
+    readout: 90% intervals covering
+    expect: { value: 90, tolerance: 7.4 }
+    setup:
+      params: { population: normal, n: 200 }
 ---
 
 Resample the data with replacement and read the interval off the resampled statistic.
