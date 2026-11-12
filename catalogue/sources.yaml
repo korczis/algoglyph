@@ -33,6 +33,18 @@ sources:
     year: 2026
     kind: paper
     url: https://www.rfc-editor.org/rfc/rfc9923.html
+  - id: lloyd-1982-quantization
+    title: 'Least squares quantization in PCM (IEEE Transactions on Information Theory 28(2), 129–137)'
+    author: S. Lloyd
+    year: 1982
+    kind: paper
+    url: https://doi.org/10.1109/TIT.1982.1056489
+  - id: du-faber-gunzburger-1999-cvt
+    title: 'Centroidal Voronoi Tessellations: Applications and Algorithms (SIAM Review 41(4), 637–676)'
+    author: Qiang Du, Vance Faber, Max Gunzburger
+    year: 1999
+    kind: paper
+    url: https://doi.org/10.1137/S0036144599352836
   - id: stam-stable-fluids
     title: Stable Fluids (SIGGRAPH 1999)
     author: Jos Stam

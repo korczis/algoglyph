@@ -14,6 +14,25 @@ motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(nk) per Lloyd iteration and O(nk) for the seeding"
 related:
   - dbscan
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Seed each further centre with probability proportional to its squared distance from the nearest centre chosen so far, and see why far-off groups very likely receive a centre of their own.
+    - Explain why assigning every point to its nearest centre and moving every centre to the mean of its points can each only lower the sum of squared distances.
+    - Read the inertia per iteration, which never rises, and stop when no point changes cluster.
+algorithm:
+  paradigm: iterative-refinement
+bounds:
+  model: distance computations
+  worst: "O(nk) for the seeding and O(nk) per Lloyd iteration: (k − 1)n and nk exactly"
+claims:
+  - id: stops-when-nothing-moves
+    statement: >-
+      The run stops when no point changes cluster, not at the plate's cap of 100 Lloyd
+      iterations: for 400 clustered points and k = 5 it converges in fewer than 100.
+    readout: Iterations to converge
+    expect: { below: 100 }
 ---
 
 Seed centres far apart, then alternate assignment and averaging until nothing moves.

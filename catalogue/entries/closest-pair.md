@@ -14,6 +14,30 @@ complexity: "O(n log n)"
 related:
   - voronoi-diagram
   - kd-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+    - mergesort-top-down
+  objectives:
+    - Find the closest pair by splitting at the median, solving each half recursively and handing each half back sorted by y, by a merge.
+    - Explain why only points closer to the dividing line than the best distance so far can improve it, and why in y order each strip point is compared only with those above it still within that distance.
+    - Use the packing argument to bound the combine step as linear, and set the distance computations made against the n(n − 1)/2 a brute-force search needs.
+algorithm:
+  paradigm: divide-and-conquer
+bounds:
+  model: distance computations
+  worst: O(n log n)
+claims:
+  - id: fewer-distances-than-brute-force
+    statement: >-
+      For the default 160 uniform points the divide and conquer makes fewer distance computations
+      than the n(n − 1)/2 = 12720 of a brute-force search. The margin is a hard bound, not a sample:
+      the leaves of at most three points make at most n distance computations between them, and by
+      the packing argument each strip point is compared with at most seven others, so each of the
+      six combine levels adds at most 7n: at most 160 + 6 · 7 · 160 = 6880, below 12720.
+    readout: Distance computations
+    expect: { against: Brute force would compute, below: 0 }
 ---
 
 Split at the median, solve each half, and check only a strip around the cut.

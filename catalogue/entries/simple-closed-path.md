@@ -14,6 +14,16 @@ complexity: "O(n log n), the angular sort"
 related:
   - graham-scan
   - point-in-polygon
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Order the points by angle around the lowest one with one orientation test per pair, breaking ties by distance.
+    - Explain why joining them in that order gives a polygon star-shaped from the anchor, which cannot cross itself.
+    - Take the points on the last ray farther first, so the closing edge back to the anchor does not run over them.
+bounds:
+  model: orientation tests
+  worst: O(n log n), the angular sort
 ---
 
 Sort points by angle around an anchor and connect them into a polygon that never crosses itself.

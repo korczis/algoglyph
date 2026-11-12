@@ -15,6 +15,18 @@ complexity: "O(n²) with the linear-scan neighbourhoods used here; a spatial ind
 related:
   - k-means-plus-plus
   - grid-method
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Classify points as core (at least minPts points within eps, itself included), border (reached by a cluster but not core) and noise (reached by none).
+    - Grow a cluster from an unlabelled core point through every point within eps of one of its core points, stopping at border points.
+    - Explain why the number of clusters is not given but follows from eps and minPts, and why a cluster may have any shape.
+bounds:
+  model: distance computations, with neighbourhoods found by a linear scan
+  best: 'n²: every point is queried once (n neighbourhood queries), each a scan of all n points'
+  average: 'n²'
+  worst: 'n²'
 ---
 
 Clusters grow from points with enough neighbours; whatever is reached by none is noise.

@@ -15,6 +15,17 @@ complexity: "O(log n) expected per insertion and per nearest-neighbour query on 
 related:
   - grid-method
   - r-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Build a 2D tree by insertion in input order, splitting on x at the root and alternating with y level by level.
+    - Prune a rectangle query, which descends into a side only when the rectangle reaches it.
+    - Prune a nearest-neighbour query, which visits the far side of a line only while the line is closer than the best point found so far.
+bounds:
+  model: node visits
+  average: O(log n) expected per insertion and per nearest-neighbour query on random points
+  worst: O(√n + k) per rectangle query reporting k points, when the tree is balanced
 ---
 
 Split alternately on x and y: rectangle and nearest-neighbour queries prune whole halves.

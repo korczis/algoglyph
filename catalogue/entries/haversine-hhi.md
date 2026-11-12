@@ -15,6 +15,13 @@ complexity: "O(n) haversine evaluations, then O(n) per ring"
 related:
   - map-projections
   - h3-hex-binning
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Compute the great-circle distance between two latitudes and longitudes with the haversine formula, and explain why it stays accurate for short distances, where the spherical law of cosines loses precision.
+    - Compute a ring's Herfindahl–Hirschman index as the sum of its competitors' squared percentage shares, 10000 for a single firm and 10000 / N for N firms of equal size.
+    - Read a ring's index as the number of equal-size equivalents it stands for.
 ---
 
 Great-circle distances bin competitors into rings, and the Herfindahl index measures their concentration.

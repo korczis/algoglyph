@@ -14,10 +14,34 @@ tags:
   - Delaunay
   - Voronoi
   - Bowyer–Watson
-complexity: O(1) expected cavity; walks of about √n triangles in random order
+complexity: 'O(1) expected cavity; walks of about √n triangles in random order (the visited / insertion readout counts walk steps and cavity tests together)'
 interaction: Click to insert a point.
 related:
   - voronoi-diagram
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+    - Build a Delaunay triangulation one point at a time, tearing out every triangle whose circumcircle strictly contains the new point and joining the point to the cavity's rim.
+    - Explain why exact lattice predicates let ties between collinear or cocircular points be decided by rule, not by rounding.
+    - Check the mesh against its counts, 2n − 2 − h triangles and 3n − 3 − h edges for n points with h on the hull, so that V − E + F = 2 with the outer face counted.
+algorithm:
+  paradigm: incremental
+claims:
+  - id: euler-characteristic
+    statement: >-
+      Counted from the finished mesh of the default clustered points, vertices minus edges plus
+      faces, the outer face included, is exactly 2: Euler's formula for a connected planar graph,
+      an identity with no margin.
+    readout: V − E + F
+    expect: { value: 2, tolerance: 0 }
+  - id: triangles-two-n-minus-two-minus-h
+    statement: >-
+      The finished mesh of the default clustered points has exactly 2n − 2 − h triangles, h the
+      hull vertices: the triangles the readout counts from the mesh equal the formula it prints
+      beside them (its fourth number), an identity with no margin.
+    readout: triangles
+    expect: { against: triangles, against_number: 4, tolerance: 0 }
 ---
 
 Bowyer–Watson insertion builds a Delaunay triangulation one point at a time, on exact lattice predicates: each point tears out every triangle whose circumcircle it falls inside and stitches the hole shut.
