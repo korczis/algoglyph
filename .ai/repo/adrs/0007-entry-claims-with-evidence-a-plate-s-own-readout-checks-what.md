@@ -31,6 +31,14 @@ with an optional `tolerance`, an inclusive `range`, or a strict `below` or `abov
 claim, in the readout's displayed units, exponents read), an
 optional `setup` (`params` on the plate, `seed`) and an optional `source`.
 
+A claim may instead compare: `expect.against` names another readout (or the same one), and
+`expect.against_number` which of its numbers (from 1, default 1). The claim then judges the
+difference, this readout's first number minus that number, by `tolerance` (its absolute value),
+`below` or `above`; a value or a range is refused. So an identity (estimates adding up to
+v(all) − v(none)), a convergence (a simulation within its standard errors of the exact value) and
+an improvement (calibration error before minus after, above 0) are claims too, read by the same
+instrument. A comparison whose other readout is missing, or lacks the number named, fails.
+
 The evidence is never authored. One instrument, `test/support/claims.ts`, serves every entry:
 it runs the plate headless with the claim's setup and seed (loop off, 4242 by default) until
 every readout has stayed the same for 120 frames, reads the first number of the named

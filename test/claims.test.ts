@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 // @ts-expect-error -- plain ESM shared with the node tooling
 import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
-import { expected, firstNumber, holds, read, type Claim } from './support/claims';
+import { expected, firstNumber, holds, nthNumber, read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
@@ -52,6 +52,9 @@ describe('the claims instrument', () => {
     // no engine prints a power of ten in this form; it is refused rather than read as 1.5
     expect(firstNumber('1.5×10⁻³')).toBeNull();
     expect(firstNumber('starting')).toBeNull();
+    expect(nthNumber('1.657392 = v(all) − v(none) 1.657392', 2)).toBe(1.657392);
+    expect(nthNumber('0.1220 → 0.0324', 2)).toBe(0.0324);
+    expect(nthNumber('0.1220 → 0.0324', 3)).toBeNull();
   });
 
   it('refuses a readout the plate does not publish, naming the ones it does', async () => {
@@ -72,6 +75,18 @@ describe('the claims instrument', () => {
     // one-sided claims are strict
     expect(holds({ ...base, expect: { below: r.value as number } }, r.value as number)).toBe(false);
     expect(holds({ ...base, expect: { above: (r.value as number) - 1 } }, r.value as number)).toBe(true);
+  }, 120_000);
+
+  it('compares two readouts, or two numbers of one readout, and refuses a missing side', async () => {
+    const vs: Claim = { ...base, readout: 'Posterior mean', expect: { against: 'Closed form Beta mean', tolerance: 0.0025 } };
+    const r = await read('bayes-update', vs);
+    expect(r.reason).toBeUndefined();
+    expect(holds(vs, r.value as number)).toBe(true);
+    expect(holds({ ...vs, expect: { against: 'Closed form Beta mean', tolerance: 0 } }, 1e-3)).toBe(false);
+    const gone = await read('bayes-update', { ...vs, expect: { against: 'No such readout', tolerance: 1 } });
+    expect(gone.reason).toMatch(/publishes no readout "No such readout" to compare with/);
+    const third = await read('bayes-update', { ...vs, expect: { against: 'Closed form Beta mean', against_number: 9, tolerance: 1 } });
+    expect(third.reason).toMatch(/has no number 9/);
   }, 120_000);
 
   it('reads the same value twice for the same seed', async () => {
@@ -112,6 +127,15 @@ describe('the claims schema', () => {
     expect(errorsWith(ok.replace('{ range: [0, 1] }', '{ below: 1, above: 0 }')).join('\n'))
       .toMatch(/expect needs exactly one of value, range, below and above/);
     expect(errorsWith(ok.replace('{ range: [0, 1] }', '{ below: 1 }'))).toEqual([]);
+  });
+
+  it('refuses a comparison with a value or range, or with no judgement, and a stray against_number', () => {
+    const vs = (x: string) => errorsWith(ok.replace('{ range: [0, 1] }', x)).join('\n');
+    expect(vs('{ against: Other, tolerance: 0.1 }')).toBe('');
+    expect(vs('{ against: Other, value: 1, tolerance: 0.1 }')).toMatch(/expect\.against needs exactly one of tolerance, below and above, and no value or range/);
+    expect(vs('{ against: Other }')).toMatch(/expect\.against needs exactly one of tolerance, below and above/);
+    expect(vs('{ against: Other, above: 0, against_number: 0 }')).toMatch(/expect\.against_number counts from 1/);
+    expect(vs('{ range: [0, 1], against_number: 2 }')).toMatch(/expect\.against_number needs expect\.against/);
   });
 
   it('refuses a reversed range and a tolerance without a value', () => {

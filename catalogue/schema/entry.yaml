@@ -108,6 +108,8 @@ fields:
             range: { type: list, of: { type: number }, doc: '[lo, hi], inclusive.' }
             below: { type: number, doc: A strict upper bound, for a one-sided claim. }
             above: { type: number, doc: A strict lower bound, for a one-sided claim. }
+            against: { type: string, doc: 'Another readout of the plate: the claim then judges this readout minus that one, by tolerance (|difference|), below or above.' }
+            against_number: { type: integer, doc: Which number of the against readout (from 1; default 1); the same readout when against names it. }
         setup:
           type: map
           doc: The run the claim is about; the plate's defaults otherwise, with loop off.

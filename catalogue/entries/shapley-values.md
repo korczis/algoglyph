@@ -43,6 +43,12 @@ claims:
     expect: { below: 0.00756 }
     setup:
       params: { m: 4000 }
+  - id: estimates-add-up-exactly
+    statement: >-
+      The sampled contributions telescope, so the estimates add up to v(all) − v(none) exactly at
+      every step: the two agree to the six decimals the readout prints.
+    readout: Sum of estimates
+    expect: { against: Sum of estimates, against_number: 2, tolerance: 0.000001 }
 ---
 
 Each input's average marginal contribution over random orderings.
