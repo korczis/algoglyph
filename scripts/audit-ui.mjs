@@ -10,7 +10,7 @@
 //     readout
 //   - every documented field an entry declares is on its page (dark desktop pass, every plate):
 //     its objectives, prerequisites, paradigm, bounds model and difficulty, and one card per
-//     claim (ADR 0007) whose readout the running plate actually publishes
+//     claim (ADR 0007; that a claim's readout exists is test/claims.test.ts's to prove)
 //   - no gallery thumbnail starts rendering behind the first plate opened after the wings
 //     (src/core/thumbs.ts; counted, not timed)
 // What exists is read from the catalogue (scripts/lib/catalogue.mjs), the source the site is
@@ -157,7 +157,6 @@ async function documented(p, where, e) {
       model: document.querySelector('[data-doc="bounds-model"]')?.textContent?.trim() ?? '',
       difficulty: document.querySelector('[data-doc="difficulty"]')?.textContent?.trim() ?? '',
       claims: all('[data-doc="claim"]').length,
-      readouts: all('[data-readout]').map((r) => r.getAttribute('data-readout')),
     };
   });
   const want = (n, what) => fail(where, `the entry declares ${what}, the page shows ${n}`);
@@ -170,11 +169,8 @@ async function documented(p, where, e) {
   if (e.algorithm?.paradigm && seen.paradigm !== e.algorithm.paradigm) want(`"${seen.paradigm}"`, `paradigm ${e.algorithm.paradigm}`);
   if (e.bounds?.model && !seen.model.includes(e.bounds.model)) want(`"${seen.model}"`, `bounds counting ${e.bounds.model}`);
   if (seen.claims !== e.claims.length) want(seen.claims, `${e.claims.length} claim(s)`);
-  // a claim with a setup reads a run with other parameters, whose labels may differ (a level in a
-  // label); the defaults' readouts can only vouch for claims about the default run
-  for (const c of e.claims.filter((x) => !Object.keys(x.setup?.params ?? {}).length)) {
-    if (!seen.readouts.includes(c.readout)) fail(where, `claim ${c.id} reads "${c.readout}", which the running plate does not publish`);
-  }
+  // that each claim's readout exists is test/claims.test.ts's to prove: it runs the plate until its
+  // readouts settle, where this page is read at its first readout, before a run's later phases
 }
 
 async function readout(p, where, url) {
