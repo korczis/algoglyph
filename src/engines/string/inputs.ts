@@ -33,8 +33,12 @@ interface KindDef {
   /** Sizes a lab measures the growth of work over. */
   scale: number[];
   shapes: { value: string; label: string }[];
-  make(rnd: () => number, n: number, shape: string): unknown;
+  /** opts: the kernel's own params, its defaults filled in; an absent key is the old constant. */
+  make(rnd: () => number, n: number, shape: string, opts: InputOpts): unknown;
 }
+
+/** A kernel's params that shape its input (src/engines/string/index.ts optsOf). */
+export type InputOpts = Readonly<Record<string, string | number | boolean>>;
 
 type Rnd = () => number;
 const pick = <T>(rnd: Rnd, a: ArrayLike<T>): T => a[Math.floor(rnd() * a.length)];
@@ -501,9 +505,10 @@ export const KINDS: Record<InputKind, KindDef> = {
   },
 };
 
-/** The seeded input of a kind. */
-export function input<K extends InputKind>(kind: K, n: number, shape: string, seed: number): Inputs[K] {
+/** The seeded input of a kind, shaped by the kernel's params (none: every old constant). */
+export function input<K extends InputKind>(kind: K, n: number, shape: string, seed: number,
+  opts: InputOpts = {}): Inputs[K] {
   const def = KINDS[kind];
   const s = def.shapes.some((x) => x.value === shape) ? shape : def.shapes[0]?.value ?? '';
-  return def.make(mulberry32(seed), n, s) as Inputs[K];
+  return def.make(mulberry32(seed), n, s, opts) as Inputs[K];
 }

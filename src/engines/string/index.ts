@@ -4,7 +4,8 @@
 // operations per frame and measures how each one's work grows with the input (ADR 0004 §4-5).
 import type p5 from 'p5';
 import { paletteParam } from '../../core/palette';
-import { bool, num, str, type Chart, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
+import { bool, num, str, type Chart, type ParamDef, type ParamValue, type Params, type PlateCode, type PlateContext,
+  type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { Board, drawBoard, type StepUnit } from './board';
 import { input, KINDS, type InputKind } from './inputs';
@@ -54,8 +55,13 @@ const tail = (): ParamDef[] => [
   paletteParam('spectral'),
 ];
 
+/** The kernel's own params, its defaults filled in: what shapes its input (as the grid engine's). */
+const optsOf = (k: StringKernel, params: Params): Record<string, ParamValue> =>
+  Object.fromEntries((k.params ?? []).map((d) => [d.key, d.key in params ? params[d.key] : d.value]));
+
 function record(kernel: StringKernel, ctx: PlateContext, generation: number): Recording {
-  const x = input(kernel.input, num(ctx.params, 'n'), str(ctx.params, 'shape'), ctx.seed + generation * 7919);
+  const x = input(kernel.input, num(ctx.params, 'n'), str(ctx.params, 'shape'), ctx.seed + generation * 7919,
+    optsOf(kernel, ctx.params));
   return new Recording(traceSteps(kernel, x as never, { ...ctx.params }));
 }
 
