@@ -1,7 +1,6 @@
 # The Feynman Lectures on Physics, Volume III, chapter 1 (ADR 0009). Figure numbers, sections and
 # classes are to be confirmed against the online edition by the source review below; until the
-# review is recorded no page of this chapter is routed. Figure 1-2 (water waves) is recorded once
-# its plate, the ripple tank, carries the detector line it needs.
+# review is recorded no page of this chapter is routed.
 schema: algoglyph.figures/v1
 collection: feynman
 volume: III
@@ -51,6 +50,35 @@ figures:
         expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
         setup:
           params: { n: 40000 }
+  - id: 1-2
+    section: 1-3
+    class: thought-experiment
+    title: Water waves through two holes
+    paraphrase: >-
+      A source making waves on water, a wall with two holes and a detector that measures the
+      intensity of the waves arriving behind it: with both holes open the intensity curve shows
+      interference, unlike the sum of the curves with one hole shut.
+    plate: water-waves-two-slit
+    setup: { scenario: slits }
+    pedagogy:
+      objectives:
+        - Measure the intensity with both openings and with each alone, and see that they do not add.
+        - Predict the fringe spacing from the path difference and compare it with what the tank measures.
+      questions:
+        - Why can the wave's intensity take any value, when the bullets and electrons arrive in lumps?
+    claims:
+      - id: both-open-is-not-the-sum
+        statement: >-
+          On this page's tank, the centre of the detector line with both openings holds twice the sum
+          of the intensities with one open each, within 0.1, not the sum itself.
+        readout: centre, both open over I₁ + I₂
+        expect: { range: [1.9, 2.1] }
+      - id: fringes-where-the-paths-say
+        statement: >-
+          The bright fringes are spaced as the exact paths from the two openings and the grid's own
+          wavenumber predict, within 1 cell; the far-field λ₀L/d misses by about a tenth here.
+        readout: fringe spacing, measured
+        expect: { against: 'fringe spacing, the grid’s dispersion and the exact paths', tolerance: 1 }
   - id: 1-3
     section: 1-4
     class: thought-experiment
