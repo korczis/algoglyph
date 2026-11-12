@@ -224,8 +224,7 @@ describe('split-step Schrödinger integrator', () => {
     const fine = absorbed(0.0125);
     expect(fine).toBeGreaterThan(0.999);
     expect(Math.abs(fine - coarse)).toBeLessThan(1e-6);
-  }, 20000);
-
+  });
   it('takes whole steps only, so a fractional count never ends on a full potential step', () => {
     // a slider dragged without a remount can hand the plate a fractional steps-per-frame
     const make = () => {
@@ -319,6 +318,6 @@ describe('the plate\'s scattering run', () => {
       // what is still inside the structure when the run ends may yet go either way
       expect(end.transmitted).toBeLessThan(run.packetT + 0.01);
       expect(end.transmitted + end.inside).toBeGreaterThan(run.packetT - 0.01);
-    }, 30000);
+    });
   }
 });
