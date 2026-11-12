@@ -1,7 +1,9 @@
+import { bounded } from '../../core/budget';
 import { mix, paletteParam, ramp, scale, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import {
-  EnergyBaseline, STRUCTURAL, centroid, energy, forces, preset, stableStep, step, strain, volume,
+  EnergyBaseline, STRUCTURAL, centroid, energy, forces, framePlan, preset, stableStep, step,
+  strain, volume, worldKey,
   type Preset, type SoftBody, type World,
 } from './softbody';
 
@@ -10,6 +12,11 @@ export const FRAME_TIME = 1 / 90;
 /** A body slower than this (J of kinetic energy) for SETTLE_TIME seconds is dropped again. */
 export const SETTLE_KE = 2e-3;
 const SETTLE_TIME = 1.2;
+/**
+ * Spring evaluations one frame may spend. Every default experiment fits it at full speed, at
+ * every resolution; a fine lattice at high stiffness, damping or steps runs in slow motion.
+ */
+export const WORK_PER_FRAME = 200_000;
 /** Strain that saturates the colour ramp at either end. */
 const STRAIN_COLOUR = 0.06;
 const LIGHT = (() => {
@@ -67,6 +74,8 @@ export const softBody: PlateCode = {
     let angle = 0;
     let contacts = 0;
     let history: [number, number, number, number, number][] = [];
+    // the stable step depends only on the body and the world: recompute it when either changes
+    let stable = { key: '', dt: 0 };
 
     const world = (): World => ({
       gravity: num(params, 'gravity'),
@@ -92,6 +101,7 @@ export const softBody: PlateCode = {
       const w = world();
       forces(b, w);
       baseline.reset(w, energy(b, w).total, t);
+      stable = { key: '', dt: 0 };
       history = [];
       quiet = 0;
       drops++;
@@ -130,11 +140,15 @@ export const softBody: PlateCode = {
         const nx = uy * vz - uz * vy;
         const ny = uz * vx - ux * vz;
         const nz = ux * vy - uy * vx;
-        for (const o of [a, c, d]) {
-          normals[o] += nx;
-          normals[o + 1] += ny;
-          normals[o + 2] += nz;
-        }
+        normals[a] += nx;
+        normals[a + 1] += ny;
+        normals[a + 2] += nz;
+        normals[c] += nx;
+        normals[c + 1] += ny;
+        normals[c + 2] += nz;
+        normals[d] += nx;
+        normals[d + 1] += ny;
+        normals[d + 2] += nz;
       }
     };
 
@@ -242,16 +256,21 @@ export const softBody: PlateCode = {
       },
       draw() {
         const w = world();
-        // the controls may have changed since the last frame
-        forces(b, w);
+        // step keeps the forces current; only a changed control makes them stale
+        const key = worldKey(w);
+        if (stable.key !== key) {
+          forces(b, w);
+          stable = { key, dt: stableStep(b, w) };
+        }
         if (baseline.track(w, () => energy(b, w).total, t)) history = [];
-        const steps = Math.max(num(params, 'substeps'), Math.ceil(FRAME_TIME / stableStep(b, w)));
-        const dt = FRAME_TIME / steps;
+        const plan = framePlan(b, w, FRAME_TIME, num(params, 'substeps'), WORK_PER_FRAME,
+          stable.dt);
+        const { steps, dt } = plan;
         for (let s = 0; s < steps; s++) contacts = step(b, w, dt);
-        t += FRAME_TIME;
+        t += plan.simulated;
         const e = energy(b, w);
         if (!Number.isFinite(e.total)) launch();
-        quiet = e.kinetic < SETTLE_KE ? quiet + FRAME_TIME : 0;
+        quiet = e.kinetic < SETTLE_KE ? quiet + plan.simulated : 0;
         if (quiet > SETTLE_TIME && !ctx.thumbnail) launch();
         const st = measureStrain();
 
@@ -276,7 +295,11 @@ export const softBody: PlateCode = {
             + `${(st.max * 100).toFixed(1)} %` },
           { label: 'ground contacts', value: `${contacts} of ${b.n} masses` },
           { label: 'simulated time', value: `${t.toFixed(2)} s (drop ${drops})` },
-          { label: 'steps per frame', value: `${steps} (dt ${(dt * 1000).toFixed(2)} ms)` },
+          { label: 'steps per frame', value: `${bounded(steps, plan.need)}, dt `
+            + `${(dt * 1000).toFixed(3)} ms` },
+          { label: 'simulated per frame', value: `${(plan.simulated * 1000).toFixed(2)} ms`
+            + (steps < plan.need ? `: slow motion, ${(100 * steps / plan.need).toFixed(0)} % `
+              + 'of full speed (frame budget)' : '') },
         ];
         if (name === 'ball') {
           const ratio = volume(b) / b.restVolume;

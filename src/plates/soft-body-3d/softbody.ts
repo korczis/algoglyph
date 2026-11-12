@@ -3,7 +3,7 @@
 // along -y and a ground plane at y = 0 with restitution and Coulomb friction. Integrated by
 // velocity Verlet (kick-drift-kick): symplectic for the conservative forces, second order.
 // Positions, velocities and forces are packed xyz arrays; y points up.
-import { flush } from '../../core/budget';
+import { flush, stepsWithin } from '../../core/budget';
 
 export const STRUCTURAL = 0;
 export const SHEAR = 1;
@@ -317,11 +317,15 @@ export function forces(b: SoftBody, w: World): void {
       const fx = (uy * vz - uz * vy) * q;
       const fy = (uz * vx - ux * vz) * q;
       const fz = (ux * vy - uy * vx) * q;
-      for (const o of [a, c, d]) {
-        f[o] += fx;
-        f[o + 1] += fy;
-        f[o + 2] += fz;
-      }
+      f[a] += fx;
+      f[a + 1] += fy;
+      f[a + 2] += fz;
+      f[c] += fx;
+      f[c + 1] += fy;
+      f[c + 2] += fz;
+      f[d] += fx;
+      f[d + 1] += fy;
+      f[d + 2] += fz;
     }
   }
 }
@@ -478,6 +482,35 @@ export function stableStep(b: SoftBody, w: World): number {
   return 1.6 / (omega + gamma / 2 || 1);
 }
 
+/** Work of one step in spring evaluations: every spring, every mass, every face the gas pushes. */
+export function stepCost(b: SoftBody, w: World): number {
+  return b.springs + b.n + (gas(b, w) ? b.faces.length / 3 : 0);
+}
+
+export interface FramePlan {
+  /** Steps the frame needs: the minimum asked, or more when the stability bound demands it. */
+  need: number;
+  /** Steps taken: `need`, or fewer when they would exceed the work budget. */
+  steps: number;
+  /** The step size: frame / need, so never longer than the stable step. */
+  dt: number;
+  /** Simulated seconds this frame covers: less than the frame when steps < need. */
+  simulated: number;
+}
+
+/**
+ * The steps of one frame of `frame` simulated seconds, at most `work` spring evaluations. Over
+ * the budget the step keeps its stable size and the frame covers less time: slow motion, never a
+ * longer step that would blow up.
+ */
+export function framePlan(b: SoftBody, w: World, frame: number, asked: number, work: number,
+  stable = stableStep(b, w)): FramePlan {
+  const need = Math.max(asked, Math.ceil(frame / stable));
+  const steps = stepsWithin(need, stepCost(b, w), work);
+  const dt = frame / need;
+  return { need, steps, dt, simulated: steps * dt };
+}
+
 export type Preset = 'cube' | 'ball' | 'column';
 
 /** Mass per unit volume of the lattice presets, kg/m³: light, so the jelly is soft and slow. */
@@ -577,7 +610,7 @@ export function preset(name: Preset, res: number, rnd: () => number): SoftBody {
   return b;
 }
 
-function worldKey(w: World): string {
+export function worldKey(w: World): string {
   return [w.gravity, w.ground, w.restitution, w.friction, w.stiffness, w.damping, w.pressure]
     .join(' ');
 }

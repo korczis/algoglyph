@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { FRAME_TIME, SETTLE_KE } from '../src/plates/soft-body-3d/plate';
+import { FRAME_TIME, SETTLE_KE, WORK_PER_FRAME } from '../src/plates/soft-body-3d/plate';
 import {
-  BEND, EnergyBaseline, SHEAR, STRUCTURAL, energy, forces, icosphere, lattice, momentum, preset,
-  rates, stableStep, step, volume, type SoftBody, type World,
+  BEND, EnergyBaseline, SHEAR, STRUCTURAL, energy, forces, framePlan, icosphere, lattice, momentum,
+  preset, rates, stableStep, step, stepCost, volume, type SoftBody, type World,
 } from '../src/plates/soft-body-3d/softbody';
 
 const FREE: World = {
@@ -443,5 +443,37 @@ describe('soft body: no subnormal floats', () => {
       expect(energy(b, w).kinetic, name).toBeLessThan(1e-20);
       expect(smallest, name).toBeGreaterThanOrEqual(MIN_NORMAL);
     }
+  });
+});
+
+describe('soft body: work per frame', () => {
+  const DEFAULTS: World = { gravity: 9.8, ground: true, restitution: 0.3, friction: 0.6,
+    stiffness: 100, damping: 0.1, pressure: 0 };
+
+  it('runs every default experiment at full speed at every resolution', () => {
+    for (const name of ['cube', 'ball', 'column'] as const) {
+      for (let res = 3; res <= 10; res++) {
+        const w = { ...DEFAULTS, pressure: name === 'ball' ? 20 : 0 };
+        const b = preset(name, res, mulberry32(1));
+        const plan = framePlan(b, w, FRAME_TIME, 8, WORK_PER_FRAME);
+        expect(plan.steps, `${name} ${res}`).toBe(plan.need);
+        expect(plan.simulated).toBeCloseTo(FRAME_TIME, 12);
+      }
+    }
+  });
+
+  it('over the budget takes fewer steps of the stable size: slow motion, not a longer step', () => {
+    const w: World = { ...DEFAULTS, stiffness: 400, damping: 0.5, gravity: 20 };
+    const b = preset('cube', 10, mulberry32(1));
+    const plan = framePlan(b, w, FRAME_TIME, 40, WORK_PER_FRAME);
+    expect(plan.steps).toBeLessThan(plan.need);
+    expect(plan.steps * stepCost(b, w)).toBeLessThanOrEqual(WORK_PER_FRAME);
+    expect(plan.dt).toBeLessThanOrEqual(stableStep(b, w));
+    expect(plan.simulated).toBeLessThan(FRAME_TIME);
+    expect(plan.simulated).toBeCloseTo(plan.steps * plan.dt, 12);
+    // and the slowed run stays stable
+    forces(b, w);
+    for (let f = 0; f < 90; f++) for (let s = 0; s < plan.steps; s++) step(b, w, plan.dt);
+    expect(Number.isFinite(energy(b, w).total)).toBe(true);
   });
 });
