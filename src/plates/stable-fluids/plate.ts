@@ -26,7 +26,7 @@ export const stableFluids: PlateCode = {
   thumbnailFrames: 2,
   params: [
     { kind: 'range', key: 'n', label: 'Grid cells per side', min: 32, max: 128, step: 8, value: 96, rebuild: true },
-    { kind: 'range', key: 'iters', label: 'Solver sweeps per step', min: 2, max: 30, step: 1, value: 20,
+    { kind: 'range', key: 'iters', label: 'Solver sweeps per step', min: 2, max: 20, step: 1, value: 14,
       hint: 'Fewer sweeps leave more divergence after projection: watch the readout.' },
     { kind: 'range', key: 'visc', label: 'Viscosity (×10⁻⁵)', min: 0, max: 50, step: 1, value: 1 },
     { kind: 'range', key: 'diff', label: 'Dye diffusion (×10⁻⁵)', min: 0, max: 50, step: 1, value: 1 },

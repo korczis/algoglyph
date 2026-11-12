@@ -1,7 +1,8 @@
 // Bowyer-Watson Delaunay triangulation: insert points one at a time, remove every triangle
 // whose circumcircle holds the new point, and fan the hole's boundary to it. O(n^2) here,
-// which is plenty for a plate. Returns the triangulation's edges as point pairs i < j.
-export function delaunayEdges(x: number[], y: number[]): [number, number][] {
+// which is plenty for a plate. Returns the triangulation's edges as point pairs i < j; yields
+// after each insertion with the number of triangles it tested.
+export function* delaunayEdges(x: number[], y: number[]): Generator<number, [number, number][], void> {
   const n = x.length;
   if (n < 2) return [];
   if (n === 2) return [[0, 1]];
@@ -36,6 +37,8 @@ export function delaunayEdges(x: number[], y: number[]): [number, number][] {
     }
     for (const [a, b, c] of count.values()) if (c === 1) keep.push(circum(a, b, i));
     tris = keep;
+    // one insertion tests every triangle's circumcircle
+    yield tris.length;
   }
   const seen = new Set<string>();
   const out: [number, number][] = [];

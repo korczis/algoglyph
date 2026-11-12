@@ -14,6 +14,8 @@ const HOLD_FRAMES = 150;
 const GENERATION = 7919;
 /** Work a replay may do per drawn frame (ms): the run advances in pieces within it. */
 export const STEP_MS = 6;
+/** Pieces a live frame resumes at most (a counted bound beside the wall-clock slice). */
+export const PIECES_PER_FRAME = 2;
 /** Work a gallery thumbnail may do before it draws the latest recorded frame (ms). */
 export const THUMBNAIL_MS = 25;
 
@@ -62,14 +64,14 @@ export class Replay {
     this.at = this.last;
   }
   tick(): void {
-    if (!this.run.done) this.run.step(this.budget);
+    if (!this.run.done) this.run.step(this.budget, PIECES_PER_FRAME);
     if (!this.done) {
       this.at = Math.min(this.last, this.at + num(this.ctx.params, 'speed'));
       return;
     }
     if (!bool(this.ctx.params, 'loop')) return;
     this.next ??= this.build(this.generation + 1);
-    this.next.step(this.budget);
+    this.next.step(this.budget, PIECES_PER_FRAME);
     if (++this.hold > HOLD_FRAMES) {
       this.generation++;
       this.hold = 0;

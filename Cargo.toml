@@ -1,0 +1,18 @@
+# The Cargo workspace: the kernels the site ships as wasm32 (ADR 0004 §6) and the algoglyph CLI,
+# the tooling the scripts are ported to slice by slice (ADR 0005 §6). One lockfile, one profile.
+[workspace]
+resolver = "2"
+members = ["crates/algoglyph-kernels", "crates/algoglyph-cli"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+publish = false
+
+# The wasm32 module scripts/wasm.sh builds: small, whole-program optimised, no unwinding. A
+# workspace reads profiles from its root only.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

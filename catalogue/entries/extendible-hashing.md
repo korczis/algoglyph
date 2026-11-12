@@ -28,4 +28,4 @@ Inserting into a full page splits it on its next bit: the keys with that bit set
 
 For uniform keys the pages fill to about ln 2 of their space, roughly n/(b ln 2) pages, while the directory grows like (e/(b ln 2)) n^(1 + 1/b); the chart draws both, Sedgewick's estimates for uniform keys, as references beside the measured counts. Adversarial for h1 gives every key the same leading bits, so the directory must double many times before any split separates them.
 
-Deletion removes the key from its page; in this version pages are never merged and the directory never shrinks. A run whose directory would need more than 2^18 entries stops there and is marked truncated, which keeps the plate light enough for a phone.
+Deletion removes the key from its page; in this version pages are never merged and the directory never shrinks. A run whose directory would outgrow the plate's depth limit stops there and is marked truncated, which keeps the plate light enough for a phone; the readouts say so.

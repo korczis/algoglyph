@@ -33,9 +33,9 @@ export const kernel: GraphKernel<ClosureResult> = {
         for (let j = 0; j < n; j++) if (reach[k * n + j]) set(i, j);
       }
       ops.settle(k);
-      yield;
       ops.round();
-      yield;
+      // the round's n^2 tests, most of which record nothing
+      yield n * n;
     }
     return { reach };
   },

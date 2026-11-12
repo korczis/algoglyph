@@ -27,6 +27,58 @@ export interface Ev {
 
 export type PartKind = 'row' | 'heat' | 'table' | 'list';
 
+/**
+ * The recorded events, column by column. A quadratic run records several hundred thousand events;
+ * as one object each they were that many objects for the garbage collector to mark while the next
+ * run recorded (brute force on Repetitive input, n = 2048: 10-18 ms pauses inside a frame). The
+ * numbers live in typed arrays and only the few string fields are kept per event.
+ */
+export class EventLog {
+  length = 0;
+  private o = new Uint8Array(1024);
+  private p = new Int32Array(1024);
+  private i = new Int32Array(1024);
+  private j = new Int32Array(1024);
+  private v = new Float64Array(1024);
+  private s: (string | undefined)[] = [];
+  private ss: (string[] | undefined)[] = [];
+
+  push(o: number, p: number, i: number, j: number, v: number, s?: string, ss?: string[]): void {
+    const n = this.length;
+    if (n === this.o.length) {
+      const grow = <T extends Uint8Array | Int32Array | Float64Array>(a: T): T => {
+        const b = new (a.constructor as new (k: number) => T)(2 * a.length);
+        b.set(a);
+        return b;
+      };
+      this.o = grow(this.o); this.p = grow(this.p); this.i = grow(this.i); this.j = grow(this.j); this.v = grow(this.v);
+    }
+    this.o[n] = o; this.p[n] = p; this.i[n] = i; this.j[n] = j; this.v[n] = v;
+    if (s !== undefined) this.s[n] = s;
+    if (ss !== undefined) this.ss[n] = ss;
+    this.length = n + 1;
+  }
+
+  /** Event k, written into `into` (a cursor reused by the replay, so reading allocates nothing). */
+  get(k: number, into: Ev = { o: 0, p: 0, i: 0, j: 0, v: 0 }): Ev {
+    into.o = this.o[k]; into.p = this.p[k]; into.i = this.i[k]; into.j = this.j[k]; into.v = this.v[k];
+    into.s = this.s[k]; into.ss = this.ss[k];
+    return into;
+  }
+
+  /** Events from..to as plain objects (tests and tools). */
+  toArray(from = 0, to = this.length): Ev[] {
+    const out: Ev[] = [];
+    for (let k = from; k < to; k++) {
+      const e = this.get(k, { o: 0, p: 0, i: 0, j: 0, v: 0 });
+      if (e.s === undefined) delete e.s;
+      if (e.ss === undefined) delete e.ss;
+      out.push(e);
+    }
+    return out;
+  }
+}
+
 export interface PartOpts {
   label?: string;
   /** Another row whose cells this row lines up with (a pattern under its text). */
@@ -95,7 +147,7 @@ export interface StringKernel<K extends InputKind = InputKind, R = unknown> {
 }
 
 export interface Trace<R = unknown> {
-  events: Ev[];
+  events: EventLog;
   counters: string[];
   labels: string[];
   counts: number[];
@@ -132,11 +184,11 @@ export function* traceSteps<K extends InputKind, R>(kernel: StringKernel<K, R>, 
   params: Params = {}, cap = EVENT_CAP): Generator<number, Trace<R | undefined>> {
   const names = Object.keys(kernel.counters);
   const counts = names.map(() => 0);
-  const events: Ev[] = [];
+  const events = new EventLog();
   const parts = new Map<string, { n: number; kind: PartKind; cols: number }>();
   const ev = (o: number, p: number, i = 0, j = 0, v = 0, s?: string, ss?: string[]) => {
     if (events.length >= cap) throw new Stop();
-    events.push({ o, p, i, j, v, s, ss });
+    events.push(o, p, i, j, v, s, ss);
   };
   const pid = (id: string) => {
     const q = parts.get(id);

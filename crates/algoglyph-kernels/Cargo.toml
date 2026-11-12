@@ -15,8 +15,4 @@ crate-type = ["rlib"]
 
 [dependencies]
 
-[profile.release]
-opt-level = "s"
-lto = true
-codegen-units = 1
-panic = "abort"
+# [profile.release] lives in the workspace root (Cargo.toml): a member's profile is ignored.

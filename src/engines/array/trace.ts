@@ -38,6 +38,12 @@ export interface ArrayOps {
 export interface ArrayKernel {
   /** 'sort' leaves the array ascending; 'select' places the k-th smallest at index k. */
   goal?: 'sort' | 'select';
+  /**
+   * The largest n this kernel plays at, when its whole run is too costly to trace inside one
+   * frame at the engine's own maximum (a quadratic or worse kernel); the plate's n slider stops
+   * here. Derived from measured cost by whoever provides the kernel, never typed by guess.
+   */
+  maxN?: number;
   run(a: ArrayOps, k: number): void;
 }
 

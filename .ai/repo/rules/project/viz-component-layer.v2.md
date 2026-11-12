@@ -41,7 +41,11 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   `config/budgets.yaml`, proven by `test/budget.test.ts` for every live plate and lab, in three
   checks derived from its own controls: creation and the first frames at every width and every
   heavy corner (each range at its maximum and, in turn, at its minimum; each select option); the
-  frames past the end of a run, where a loop rebuilds; and a slider dragged without a remount.
+  frames past the end of a run, where a loop rebuilds, for every option of each select that
+  changes the work (a parameter that only changes the look is marked `cosmetic`, as palettes
+  are); and a slider dragged without a remount. An array kernel too costly to trace in one frame
+  at the engine's largest input declares `maxN`, derived from its measured cost, and its slider
+  (and every lab it races in) stops there.
   The gate counts CPU time, calibrated against a fixed reference workload, so it judges the
   plate's work and not the machine's speed or load; each repeat takes a new seed, so a cache
   never answers for the work; outside CI the budgets carry `local_headroom`, so a plate that
