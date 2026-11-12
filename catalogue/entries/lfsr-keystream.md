@@ -29,6 +29,20 @@ bounds:
   best: 'one shift and t − 1 tap XORs per keystream bit, for t taps'
   worst: 'one shift and t − 1 tap XORs per keystream bit, for t taps'
   space: w bits of register
+claims:
+  - id: period-of-eight-bit-register
+    statement: >-
+      With the 8-bit register's primitive taps every non-zero state appears once before the
+      starting state returns, so the measured period is exactly 2^8 − 1 = 255.
+    readout: Period
+    expect: { value: 255 }
+  - id: period-of-five-bit-register
+    statement: >-
+      With the 5-bit register's primitive taps the measured period is exactly 2^5 − 1 = 31.
+    readout: Period
+    expect: { value: 31 }
+    setup:
+      params: { width: 5 }
 ---
 
 A shift register whose feedback taps are a polynomial over GF(2), period up to 2ⁿ − 1.

@@ -24,6 +24,21 @@ pedagogy:
 bounds:
   model: histogram updates
   worst: 'at most 2n for n bytes, whatever the window: each byte enters the window once and leaves it at most once'
+claims:
+  - id: random-at-most-seven-bits-in-128
+    statement: >-
+      A window of 128 bytes can show at most log2 128 = 7 bits per byte, so the mean entropy of
+      the random section is at most 7.
+    readout: Mean entropy, random
+    expect: { range: [0, 7] }
+  - id: random-at-most-eight-bits-in-256
+    statement: >-
+      A window of 256 bytes can show at most log2 256 = 8 bits per byte, so the mean entropy of
+      the random section is at most 8.
+    readout: Mean entropy, random
+    expect: { range: [0, 8] }
+    setup:
+      params: { window: '256' }
 ---
 
 Shannon entropy in a sliding window over a file's bytes: code, text, tables and compressed data separate.
