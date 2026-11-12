@@ -15,6 +15,7 @@ import type { Chart, Params, Plate, PlateContext, Stat } from '../src/core/plate
 import { mulberry32 } from '../src/core/random';
 import { labRunnable, loadLab } from '../src/registry';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
+import { drawRecorder } from './support/draw-recorder';
 
 installBrowserStubs();
 
@@ -88,6 +89,36 @@ describe('array lab: one kernel traced per frame', () => {
       expect(shown).toBeGreaterThan(0);
       expect(calls[shown].traces).toBe(0);
       expect(calls[shown - 1].traces).toBe(1);
+    });
+    it(`${l.id}: a frame that traces leaves the picture as it was`, async () => {
+      // the canvas keeps the last frame; redrawing every finished pane beside the trace was the
+      // second heavy piece of a rebuild frame. The readouts are still published on such a frame.
+      const plate = (await loadLab(l.id))!;
+      const params: Params = {};
+      for (const d of plate.params) params[d.key] = d.value;
+      params.group = 'all';
+      const { p, calls } = drawRecorder();
+      let shown = 0;
+      const ctx: PlateContext = {
+        width: 640, height: 480, params, seed: 7, rnd: mulberry32(7), theme: 'dark',
+        bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg, thumbnail: false,
+        palette: () => lookupPalette('ember'), stats(rows) { shown = rows.length; }, chart() {},
+      };
+      const sim = plate.create(p, ctx);
+      sim.setup();
+      const kernels = l.entries.length;
+      let checked = 0;
+      for (let f = 0; f < kernels + 40; f++) {
+        const before = counter.traces;
+        calls.length = 0;
+        sim.draw();
+        // once panes are on screen, a frame that traced a kernel draws nothing at all
+        if (counter.traces > before && shown > 0) {
+          expect(calls, `frame ${f}: draw calls on a tracing frame`).toEqual([]);
+          checked++;
+        }
+      }
+      expect(checked).toBeGreaterThan(0);
     });
     it(`${l.id}: a thumbnail traces every kernel at once`, async () => {
       const plate = (await loadLab(l.id))!;

@@ -17,6 +17,21 @@ related:
   - quicksort-three-way
   - msd-radix-sort
   - ternary-search-trie
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [quicksort-three-way, msd-radix-sort]
+  objectives:
+  - 'Count a partition: m strings cost exactly m − 1 character comparisons, one for every string after the first, whatever the characters are.'
+  - 'Read the Swaps against the Character comparisons: never more swaps, since a comparison triggers at most one.'
+  - 'Explain why the equal band moves on to the next character without comparing the shared prefix again.'
+  misconceptions:
+  - 'Strings with long shared prefixes make each partition dearer; every partition of m strings costs m − 1 character comparisons, and the shared prefixes cost more partitions, not dearer ones.'
+algorithm:
+  paradigm: divide-and-conquer
+bounds:
+  model: 'character comparisons and swaps (the plate''s two counters)'
+  average: 'every partition of m strings exactly m − 1 character comparisons and at most m − 1 swaps, the first one n − 1; so the Character comparisons are the sum of m − 1 over the partitions, and the Swaps never exceed them'
 ---
 
 Partition strings into less, equal and greater on one character, then recurse on the next.

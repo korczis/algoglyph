@@ -58,8 +58,9 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   engine's flat unit declares it (a graph kernel yields the uncounted work it did, a grid kernel
   whose events resume a deep recursion sets `eventCost`).
 - A lab never puts two heavy pieces of work in one frame: it traces at most one kernel a frame,
-  shows a new generation's panes on a frame that traces nothing, and measures no size larger than
-  the input its slider allows (`test/engine-array-lab.test.ts` counts the traces per frame).
+  draws nothing on a frame that traces (the canvas keeps its last picture; readouts are still
+  published), shows a new generation's panes on a frame that traces nothing, and measures no size
+  larger than the input its slider allows (`test/engine-array-lab.test.ts` counts the traces per frame).
   Readout counts go through `src/core/format.ts` (`count`), one `Intl.NumberFormat` made once.
 - Correctness tests are not judged on wall-clock time: no test sets a limit shorter than the
   suite's `testTimeout`, and a Rust test's time bound is only a hang guard of at least 30 s
