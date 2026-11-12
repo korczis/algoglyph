@@ -126,7 +126,7 @@ export interface GraphKernel<R = unknown> {
    * done): the engine resumes it a few milliseconds per frame, so no run blocks a frame
    * whatever its size, and runs it to the end in one go for tests and thumbnails.
    */
-  steps(ops: GraphOps, opts: Options): Generator<void, R, void>;
+  steps(ops: GraphOps, opts: Options): Generator<Work, R, void>;
   /**
    * True for an exponential search that may stop at the event cap on large inputs (the plate
    * says so); every other kernel must finish at its maximum size.
@@ -156,10 +156,21 @@ const W = 5;
 
 class Stop extends Error {}
 
-/** A run in progress: `step` computes for about `ms` milliseconds (Infinity: to the end). */
+/**
+ * What a kernel yields: nothing, when the events it recorded since its last yield are its work,
+ * or a count of work units it did without recording them (all-pairs forces, the comparisons of
+ * a matrix round), which the engine adds to those events.
+ */
+export type Work = number | void;
+
+/**
+ * A run in progress: `step` computes until the work units spent reach `units` (Infinity: to
+ * the end). Work is counted, not timed, so a frame's share is the same on every machine; a
+ * step never splits a kernel's own step, so kernels yield often.
+ */
 export interface Running<R = unknown> {
   readonly t: Trace<R>;
-  step(ms: number): void;
+  step(units: number): void;
 }
 
 /**
@@ -215,7 +226,7 @@ export function start<R>(kernel: GraphKernel<R>, g: Graph, opts: Options, seed =
     place(v, x, y, z = 0) { vi(v); counts.places++; push(OP.place, v, z, x, y); },
     round() { counts.rounds++; push(OP.round, 0, 0, 0, 0); },
   };
-  let gen: Generator<void, R, void> | null = null;
+  let gen: Generator<Work, R, void> | null = null;
   const finish = (result: R | undefined, truncated: boolean) => {
     t.result = result;
     t.truncated = truncated;
@@ -225,15 +236,17 @@ export function start<R>(kernel: GraphKernel<R>, g: Graph, opts: Options, seed =
   };
   return {
     t,
-    step(ms: number) {
+    step(units: number) {
       if (t.finished) return;
-      const until = performance.now() + ms;
+      let spent = 0;
       try {
         gen ??= kernel.steps(ops, opts);
         for (;;) {
+          const before = t.length;
           const r = gen.next();
           if (r.done) { finish(r.value, false); return; }
-          if (performance.now() >= until) return;
+          spent += Math.max(1, t.length - before + (typeof r.value === 'number' ? r.value : 0));
+          if (spent >= units) return;
         }
       } catch (e) {
         if (!(e instanceof Stop)) throw e;

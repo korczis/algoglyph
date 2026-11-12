@@ -66,7 +66,8 @@ export const kernel: GraphKernel<GeoResult> = {
       }
       temp *= 0.98;
       ops.round();
-      yield;
+      // the iteration’s all-pairs repulsion, which records nothing
+      yield (n * (n - 1)) / 2;
     }
     return { x, y, offset };
   },

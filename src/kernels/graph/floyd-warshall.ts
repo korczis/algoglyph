@@ -39,9 +39,9 @@ export const kernel: GraphKernel<ApspResult> = {
         }
       }
       ops.settle(k);
-      yield;
       ops.round();
-      yield;
+      // the round's n^2 tests, most of which record nothing
+      yield n * n;
     }
     let negative = false;
     for (let v = 0; v < n; v++) if (d[v * n + v] < 0) { negative = true; ops.vertex(v, V.mark); }
