@@ -86,7 +86,7 @@ describe('bogobogosort plate', () => {
   it('finishes runs at its defaults, the chart\'s mean equals the same runs replayed', () => {
     const h = headless(plate);
     h.frames(2400);
-    const runs = lead(h.stats()['finished runs']);
+    const runs = lead(h.stats()['completed runs']);
     expect(runs).toBeGreaterThan(5);
     const [m, e] = h.chart()!.series;
     let sum = 0;

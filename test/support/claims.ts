@@ -6,6 +6,7 @@ import { GROUNDS, palette as lookupPalette } from '../../src/core/palette';
 import { defaults, type Params, type PlateContext, type Stat } from '../../src/core/plate';
 import { type Claim, DEFAULT_SEED, expectationText } from '../../src/core/claims';
 import { mulberry32 } from '../../src/core/random';
+import { COMPLETED_RUNS, RUNS_KEY } from '../../src/plates/_shared/settle/settle';
 import { loadPlate } from '../../src/registry';
 import { p5Stub } from './p5-stub';
 
@@ -69,13 +70,24 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   let frames = 0;
   // a paced run that reports its end has settled only once it has ended (src/core/pace.ts)
   const ended = () => { const r = sim.pace?.(); return !r || r.kind === 'stream' || r.done; };
-  for (; frames < MAX_FRAMES && (still < SETTLE_FRAMES || !ended()); frames++) {
+  // a plate that starts a new run after each one ends settles only once it has stopped on the
+  // k completed runs the setup asks for (`runs`), never in a pause between two runs
+  // (src/plates/_shared/settle/settle.ts)
+  const k = plate.params.some((d) => d.key === RUNS_KEY) ? Number(params[RUNS_KEY]) || 0 : 0;
+  const completed = () => {
+    if (k <= 0) return true;
+    const row = rows.find((r) => r.label === COMPLETED_RUNS);
+    return !!row && (firstNumber(row.value) ?? 0) >= k;
+  };
+  for (; frames < MAX_FRAMES && (still < SETTLE_FRAMES || !ended() || !completed()); frames++) {
     sim.draw();
     const now = JSON.stringify(rows);
     still = now === last ? still + 1 : 0;
     last = now;
   }
-  if (still < SETTLE_FRAMES) return { frames, reason: `${id}'s readouts did not settle within ${MAX_FRAMES} frames` };
+  if (still < SETTLE_FRAMES || !completed()) {
+    return { frames, reason: `${id}'s readouts did not settle within ${MAX_FRAMES} frames${k > 0 ? ` (${k} completed runs asked)` : ''}` };
+  }
   const row = rows.find((r) => r.label === claim.readout);
   if (!row) {
     return { frames, reason: `${id} publishes no readout "${claim.readout}"; it publishes: ${rows.map((r) => `"${r.label}"`).join(', ')}` };

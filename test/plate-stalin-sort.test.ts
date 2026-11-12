@@ -57,8 +57,8 @@ describe('stalin sort plate', () => {
   it('runs headless at every extreme setting', () => {
     for (const params of extremes(plate)) {
       const h = headless(plate, { pace: steps(16384), ...params });
-      for (let f = 0; f < 20000 && (h.stats()['last result'] ?? '–') === '–'; f++) h.frames(1);
-      expect(h.stats()['last result'], JSON.stringify(params)).toMatch(/sorted subsequence of the input \(checked\)/);
+      for (let f = 0; f < 20000 && (h.stats()['last completed run'] ?? '–') === '–'; f++) h.frames(1);
+      expect(h.stats()['last completed run'], JSON.stringify(params)).toMatch(/sorted subsequence of the input \(checked\)/);
     }
   });
 
@@ -66,7 +66,7 @@ describe('stalin sort plate', () => {
     const h = headless(plate, { pace: steps(1024) });
     h.frames(400);
     const s = h.stats();
-    const runs = lead(s['finished runs']);
+    const runs = lead(s['completed runs']);
     expect(runs).toBeGreaterThan(3);
     let sum = 0;
     for (let k = 0; k < runs; k++) sum += records(input('random', 64, runSeed(4242, k))).length;

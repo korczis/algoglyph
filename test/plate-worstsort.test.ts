@@ -111,8 +111,8 @@ describe('worstsort plate', () => {
   it('runs headless at every extreme setting and finishes a run', () => {
     for (const params of extremes(plate)) {
       const h = headless(plate, { pace: steps(16384), ...params });
-      for (let f = 0; f < 4000 && !/^[1-9]/.test(h.stats()['runs finished'] ?? ''); f++) h.frames(1);
-      expect(h.stats()['runs finished'], JSON.stringify(params)).toMatch(/^[1-9].*sorted \(checked\)/);
+      for (let f = 0; f < 4000 && !/^[1-9]/.test(h.stats()['completed runs'] ?? ''); f++) h.frames(1);
+      expect(h.stats()['last completed run'], JSON.stringify(params)).toMatch(/output sorted \(checked\)$/);
     }
   });
 
@@ -125,7 +125,7 @@ describe('worstsort plate', () => {
   it('counts what the kernel counts on the same input', async () => {
     const h = headless(plate, { n: 4, pace: steps(16384) });
     await new Promise((r) => setTimeout(r, 0));
-    for (let f = 0; f < 400 && !/^[1-9]/.test(h.stats()['runs finished'] ?? ''); f++) h.frames(1);
+    for (let f = 0; f < 400 && !/^[1-9]/.test(h.stats()['completed runs'] ?? ''); f++) h.frames(1);
     const s = h.stats();
     const w = kernelRun('worstsort', input('random', 4, runSeed(4242, 0)), 0);
     expect(lead(s['key comparisons, counted live'])).toBe(w.counts.cmp);

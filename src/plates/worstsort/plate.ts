@@ -1,7 +1,8 @@
 // Worstsort: every permutation of the input as one row, the rows bubble-sorted lexicographically
 // (one level), or every permutation of that list of permutations as one row (two levels). The
 // compared rows are marked, the settled tail is bracketed, and the chart counts the bubble sort's
-// lexicographic comparisons and swaps against what the list itself says they must be.
+// lexicographic comparisons and swaps against what the list itself says they must be. The
+// `runs` control stops the plate after k completed runs (../_shared/settle/settle.ts).
 import type p5 from 'p5';
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode, type PlateContext } from '../../core/plate';
@@ -10,6 +11,7 @@ import { caption, drawBars, padding, type Box } from '../_shared/bars/bars';
 import { STEP_PACE, stepPaceParam, stepPacer } from '../_shared/kernel-mirror/controls';
 import { countOnly, sortingNow, type WasmRun } from '../_shared/kernel-mirror/wasm';
 import { chartOf, fmt, Series } from '../_shared/live-chart/series';
+import { RunCounter, runsParam } from '../_shared/settle/settle';
 import { DISTINCT, input, isSorted, runSeed, SHAPES, shapeOf, shapeParam } from '../_shared/sort-input/input';
 import { factorial } from '../_shared/theory/combinatorics';
 import {
@@ -35,6 +37,7 @@ const worstsortPlate: PlateCode = {
         { value: '2', label: '2: sort the (n!)! lists (n ≤ 3)' },
       ],
     },
+    runsParam(),
     stepPaceParam(),
     paletteParam('spectral'),
   ],
@@ -58,8 +61,7 @@ const worstsortPlate: PlateCode = {
     let flat = new Map<Val, number[]>();
     let raster: Raster | null = null;
     let wasm: WasmRun | undefined;
-    let finished = 0;
-    let lastOk = true;
+    const completed = new RunCounter(params);
 
     const inputOf = (i: number) => input(shape, n, runSeed(ctx.seed, i));
     const next = () => {
@@ -72,7 +74,7 @@ const worstsortPlate: PlateCode = {
     };
 
     return {
-      pace: () => pacer.report(false, params),
+      pace: () => pacer.report(completed.stopped, params),
       setup() {
         p.textFont('monospace');
         next();
@@ -81,6 +83,12 @@ const worstsortPlate: PlateCode = {
         if (hold > 0) {
           hold--;
           if (hold === 0) {
+            r++;
+            next();
+          }
+        } else if (run.stepper.done) {
+          // held on its k-th completed run; a raised limit lets the next run start
+          if (!completed.stopped) {
             r++;
             next();
           }
@@ -93,9 +101,10 @@ const worstsortPlate: PlateCode = {
             for (const v of st.initial) flat.set(v, leaves(v));
           }
           if (run.stepper.done) {
-            finished++;
-            lastOk = run.stepper.outcome === 'sorted' && isSorted(run.keys);
-            hold = ctx.thumbnail ? 1 : HOLD;
+            const ok = run.stepper.outcome === 'sorted' && isSorted(run.keys);
+            completed.complete(`${fmt(st.lex)} lexicographic comparisons, ${fmt(st.swaps)} swaps, `
+              + (ok ? 'output sorted (checked)' : 'output NOT sorted'));
+            if (!completed.stopped) hold = ctx.thumbnail ? 1 : HOLD;
           }
         }
         const s = sortingNow();
@@ -169,7 +178,7 @@ const worstsortPlate: PlateCode = {
         { label: 'bubble swaps / inversions of the list', value: `${fmt(st.swaps)} / ${cost ? fmt(cost.inversions) : '–'}` },
         { label: 'kernel (wasm) on this input', value: !kernelMode ? 'other levels than the kernel\'s f(n)'
           : wasm ? `${fmt(wasm.counts.cmp)} key comparisons, ${wasm.outcome}` : 'loading' },
-        { label: 'runs finished', value: `${fmt(finished)}${finished ? (lastOk ? ', last output sorted (checked)' : ', last output NOT sorted') : ''}` },
+        ...completed.rows(),
         pacer.row(params),
       ]);
       // counted at every pass boundary, plus where the pass in progress stands
