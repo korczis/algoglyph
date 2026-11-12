@@ -104,3 +104,21 @@ sources:
     year: 2003
     kind: paper
     url: https://arxiv.org/abs/physics/0407003
+  - id: gardner-life-1970
+    title: "Mathematical Games: The fantastic combinations of John Conway's new solitaire game \"life\""
+    author: Martin Gardner
+    publisher: Scientific American
+    year: 1970
+    kind: paper
+  - id: langton-artificial-life-1986
+    title: Studying artificial life with cellular automata
+    author: Christopher G. Langton
+    publisher: Physica D
+    year: 1986
+    kind: paper
+  - id: gale-further-travels-1995
+    title: Further travels with my ant
+    author: David Gale, James Propp, Scott Sutherland, Serge Troubetzkoy
+    publisher: The Mathematical Intelligencer
+    year: 1995
+    kind: paper
