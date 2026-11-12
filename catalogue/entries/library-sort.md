@@ -23,6 +23,25 @@ related:
   - binary-insertion-sort
   - insertion-sort
   - two-way-insertion-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites:
+  - binary-insertion-sort
+  objectives:
+  - 'Watch the auxiliary strip: each key is placed by binary search and shifts only as far as the nearest gap.'
+  - 'See the shelf spread out again after 1, 2, 4, 8 and further powers of two insertions, one phase each in the Phase readout.'
+  - 'Count exactly n array writes on every input: every shift is an auxiliary write, and the array is written only by the final copy.'
+  misconceptions:
+  - 'Library sort is n log n on every input; the published bound holds with high probability, not deterministically.'
+algorithm:
+  paradigm: incremental
+  properties:
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes and auxiliary writes (a shift on the shelf is one auxiliary write), and rebalancing phases (the Phase readout)'
+  average: 'on every input, exactly n array writes and ⌊lg(n − 1)⌋ + 1 rebalancing phases'
 ---
 
 Gapped insertion sort: keep the sorted keys in an array about (1 + ε) n long with empty slots scattered between them, find each new key's place by binary search, and shift only as far as the nearest gap.

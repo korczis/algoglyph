@@ -23,9 +23,31 @@ complexity: n best, n² average and worst; extra space 1
 related:
   - bubble-sort
   - shaker-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites:
+  - bubble-sort
+  objectives:
+  - 'Count the Rounds readout: every exchange falls within the first n rounds, and the run stops after at most 2⌈n/2⌉ + 2.'
+  - 'Read the Array writes as twice the inversions, as in bubble sort.'
+  - 'See Already sorted end after two rounds and n − 1 comparisons.'
+  misconceptions:
+  - 'Parallel rounds make the total work smaller; on one processor it stays quadratic, and only the rounds are few.'
+algorithm:
+  paradigm: iterative-refinement
+  properties:
+    stable: true
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes) and rounds'
+  best: '2 rounds, n − 1 comparisons and no writes (Already sorted)'
+  average: 'on every input, array writes = 2 × inversions'
+  worst: 'the last exchange within the first n rounds, and at most 2⌈n/2⌉ + 2 rounds before the run stops'
 ---
 
-Alternate two kinds of round over neighbouring pairs: the odd round compares (0, 1), (2, 3), …, the even round (1, 2), (3, 4), …, and every pair out of order is exchanged.
+Alternate two kinds of round over neighbouring pairs: counting positions from 0, the odd round compares (1, 2), (3, 4), …, the even round (0, 1), (2, 3), …, and every pair out of order is exchanged; the run begins with an odd round.
 
 The pairs of one round never overlap, so on a row of processors each round takes constant time and n rounds always sort n keys; Habermann proved this bound by induction. As a network it uses only comparators between neighbours, which is why it maps onto a linear array of simple cells. On one processor it compares the same neighbouring pairs as bubble sort in a different order, and exchanges exactly as many times as the input has inversions.
 

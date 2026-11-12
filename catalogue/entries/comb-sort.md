@@ -23,6 +23,28 @@ related:
   - bubble-sort
   - shaker-sort
   - shellsort-knuth
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - bubble-sort
+  objectives:
+  - 'Watch long exchanges across a wide gap give way to short ones as the gap shrinks by the factor 1.3.'
+  - 'Count on Already sorted one pass of n − g comparisons per gap g and no writes at all.'
+  - 'Count the passes in the Phase readout, one per gap, and the extra passes at gap 1 that the final bubble phase needs.'
+  misconceptions:
+  - 'The shrink factor 1.3 is an analysed optimum; it is a common empirical choice.'
+algorithm:
+  paradigm: iterative-refinement
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes) and passes (the Phase readout)'
+  best: 'no writes on Already sorted, and n − g comparisons for each gap g = ⌊10g/13⌋ from g = n down to 1'
+  average: 'unknown (no analysis)'
+  worst: 'O(n²), from the passes with gap 1'
 ---
 
 Bubble sort over keys a gap apart: compare and exchange pairs h positions away, shrink h by a constant factor after each pass, and finish with ordinary bubble passes once h reaches 1.

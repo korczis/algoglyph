@@ -24,6 +24,27 @@ related:
   - binary-insertion-sort
   - dual-pivot-quicksort
   - insertion-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - insertion-sort
+  objectives:
+  - 'Watch the larger key of each pair shift the run two places at once, then the smaller one continue one place at a time.'
+  - 'Count 3⌊(n − 1)/2⌋ comparisons, one more for even n, and 2⌊(n − 1)/2⌋ array writes on Already sorted: each pair is ordered, then both keys are written back.'
+  - 'Compare the writes with insertion sort on the same keys in the lab.'
+  misconceptions:
+  - 'Pair insertion is stable like straight insertion; an equal pair comes out reversed.'
+algorithm:
+  paradigm: incremental
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (a shift is one write)'
+  best: '3⌊(n − 1)/2⌋ comparisons, one more when n is even, and 2⌊(n − 1)/2⌋ array writes (Already sorted)'
+  worst: 'O(n²) comparisons and array writes'
 ---
 
 Insertion sort that takes the unsorted keys two at a time: order the pair, insert the larger one by shifting the run two places at once, then continue leftwards with the smaller one, shifting one place.
