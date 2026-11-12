@@ -14,6 +14,7 @@ tags:
   - quicksort
   - duplicate keys
   - dutch national flag
+  - in-place
 complexity: linear when the number of distinct keys is constant
 related:
   - quicksort

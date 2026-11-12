@@ -72,6 +72,12 @@ export interface Catalogue {
   entries: Entry[];
   labs: Lab[];
   sources: Source[];
+  /**
+   * Entries with no kernel file that a catalogue/<family>-sidecar.yaml maps to a compiled
+   * kernel: the sidecar, the adapter directory src/kernels/<adapter>/ that plays it, and the
+   * kernel id (checked against the module's manifest).
+   */
+  sidecar?: Record<string, { sidecar: string; adapter: string; kernel: string }>;
 }
 
 export const CATALOGUE = model as Catalogue;

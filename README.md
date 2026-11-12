@@ -103,7 +103,7 @@ Every row is its own shuffled spectrum, sorted in lockstep by one algorithm: its
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/binary-insertion-sort">020 · Binary insertion sort</a></b><br>
 Insertion sort that finds each insertion point by binary search.<br>
-<sub>Elementary sorts · n lg n compares, n²/4 moves · sorting, quadratic, stable, binary search</sub>
+<sub>Elementary sorts · n lg n compares, n²/4 moves · sorting, quadratic, stable, binary search, in-place</sub>
 </td>
 </tr>
 <tr>
@@ -122,7 +122,7 @@ Compare-exchange the first key with the last, the second with the second last, a
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/shaker-sort">023 · Cocktail shaker sort</a></b><br>
 Bubble sort that alternates direction, so small keys travel left as fast as large keys travel right.<br>
-<sub>Elementary sorts · n²/2 compares worst case · sorting, quadratic, stable, bidirectional</sub>
+<sub>Elementary sorts · n²/2 compares worst case · sorting, quadratic, stable, bidirectional, in-place</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/comb-sort">024 · Comb sort</a></b><br>
@@ -290,7 +290,7 @@ Quicksort with one change: the pivot is drawn uniformly at random from the subar
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/quicksort-three-way">051 · Quicksort, three-way partitioning</a></b><br>
 Dijkstra's three-way partition into keys less than, equal to and greater than the pivot.<br>
-<sub>Quicksort · linear when the number of distinct keys is constant · sorting, quicksort, duplicate keys, dutch national flag</sub>
+<sub>Quicksort · linear when the number of distinct keys is constant · sorting, quicksort, duplicate keys, dutch national flag, in-place</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/mergesort-bottom-up">057 · Mergesort, bottom-up</a></b><br>
@@ -379,7 +379,7 @@ Distribute by the leading base-4 digit, then sort each bin on the next digit, re
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/batcher-merge-exchange">107 · Batcher's merge exchange</a></b><br>
 Batcher's odd-even merge exchange: a fixed schedule of compare-exchanges that sorts any input.<br>
-<sub>Sorting networks · O(n log² n) compare-exchanges, fixed in advance · sorting, sorting network, parallel, oblivious</sub>
+<sub>Sorting networks · O(n log² n) compare-exchanges, fixed in advance · sorting, sorting network, parallel, oblivious, in-place</sub>
 </td>
 </tr>
 <tr>

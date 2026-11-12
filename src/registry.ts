@@ -13,10 +13,11 @@ import type { Engine, KernelInfo } from './engines/types';
 
 /** The adapter contract of src/kernels/<family>-wasm/index.ts. */
 export type SidecarKernel = (entryId: string) => Promise<ArrayKernel>;
-/** Where a sidecar-mapped entry is played: the sidecar that maps it, the adapter directory. */
+/** Where a sidecar-mapped entry is played: the sidecar, the adapter directory, the kernel. */
 export interface Backing {
   sidecar: string;
   adapter: string;
+  kernel: string;
 }
 type Load<T> = () => Promise<T>;
 /** What kernel resolution reads; the defaults are this tree's files and catalogue. */

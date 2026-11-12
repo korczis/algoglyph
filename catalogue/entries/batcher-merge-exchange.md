@@ -14,6 +14,7 @@ tags:
   - sorting network
   - parallel
   - oblivious
+  - in-place
 complexity: O(n log² n) compare-exchanges, fixed in advance
 related:
   - perfect-shuffle-merge

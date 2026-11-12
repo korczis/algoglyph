@@ -2,7 +2,7 @@
 // catalogue/<family>-sidecar.yaml that maps it. Each case copies the fixture tree under
 // test/fixtures/kernel-sidecar, changes one thing, and asks the catalogue (scripts/lib) and the
 // registry (src/registry.ts) what they make of it.
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -51,10 +51,12 @@ describe('sidecar fallback: the fixture as authored', () => {
   it('is a valid catalogue that maps exactly the array entries with no kernel file', () => {
     const { errors, model } = load(tree());
     expect(errors).toEqual([]);
-    const backing = { sidecar: SIDECAR, adapter: 'sorting-wasm' };
+    const backing = (kernel: string) => ({ sidecar: SIDECAR, adapter: 'sorting-wasm', kernel });
     // fixture-planned-sort: a mapping allows `live` and does not demand it
-    expect(model.sidecar)
-      .toEqual({ 'fixture-wasm-sort': backing, 'fixture-planned-sort': backing });
+    expect(model.sidecar).toEqual({
+      'fixture-wasm-sort': backing('fixture-wasm-kernel'),
+      'fixture-planned-sort': backing('fixture-planned-kernel'),
+    });
   });
 
   it('does not take the adapter directory for kernels of its own', () => {
@@ -102,8 +104,8 @@ describe('sidecar fallback: what it refuses', () => {
 
   it('a mapping to an entry of another engine, naming both', () => {
     const root = tree((r) => append(r, '  - { id: fixture-described, kernel: k, engine: array }'));
-    expect(load(root).errors).toEqual([`${SIDECAR}: fixture-described -> kernel k runs `
-      + 'engine array, but catalogue/entries/fixture-described.md names engine custom']);
+    expect(load(root).errors).toContain(`${SIDECAR}: fixture-described -> kernel k runs `
+      + 'engine array, but catalogue/entries/fixture-described.md names engine custom');
   });
 
   it('a mapped id that also has a kernel file', () => {
@@ -114,10 +116,47 @@ describe('sidecar fallback: what it refuses', () => {
       + 'too; one implementation per entry (delete the file, or mark the record existing)']);
     // and the registry, handed both, refuses to pick one
     const s = sources(root);
-    s.backing['fixture-wasm-sort'] = { sidecar: SIDECAR, adapter: 'sorting-wasm' };
+    s.backing['fixture-wasm-sort'] = { sidecar: SIDECAR, adapter: 'sorting-wasm', kernel: 'k' };
     expect(() => kernelLoader({ id: 'fixture-wasm-sort', engine: 'array' }, s))
       .toThrow(`fixture-wasm-sort: src/kernels/array/fixture-wasm-sort.ts and ${SIDECAR} both `
         + 'implement it');
+  });
+
+  it('a kernel its module does not have, naming the manifest', () => {
+    const root = tree((r) => writeFileSync(join(r, SIDECAR), 'version: 1\n\nentries:\n'
+      + '  - { id: fixture-wasm-sort, kernel: fixture-wasm-kernal, engine: array }\n'));
+    expect(load(root).errors).toEqual([`${SIDECAR}: fixture-wasm-sort -> kernel fixture-wasm-kernal: `
+      + 'crates/algoglyph-kernels/src/sorting/kernels.json lists no kernel fixture-wasm-kernal',
+    // and the entry it was meant to play is then live with nothing behind it
+    'catalogue/entries/fixture-wasm-sort.md: live, but src/kernels/array/fixture-wasm-sort.ts '
+      + `does not exist and no ${SIDECAR} maps it`]);
+  });
+
+  it('a sidecar whose module has no manifest', () => {
+    const root = tree((r) => rmSync(join(r, 'crates'), { recursive: true }));
+    expect(load(root).errors[0]).toMatch(new RegExp(`^${SIDECAR}: its module's manifest `
+      + 'crates/algoglyph-kernels/src/sorting/kernels.json cannot be read'));
+  });
+
+  it('existing: true on an entry whose own code does not exist', () => {
+    const root = tree((r) => append(r, '  - { id: fixture-planned-sort, kernel: k, engine: array, existing: true }'));
+    expect(load(root).errors).toContain(`${SIDECAR}: fixture-planned-sort -> kernel k: existing: true, `
+      + "but src/kernels/array/fixture-planned-sort.ts does not exist; existing means the entry's own code plays");
+  });
+
+  it('a second record for an entry that is not existing', () => {
+    const root = tree((r) => append(r, '  - { id: fixture-wasm-sort, kernel: k, engine: array }'));
+    expect(load(root).errors).toContain(`${SIDECAR}: fixture-wasm-sort has 2 records `
+      + '(fixture-wasm-kernel, k); an entry is played by one kernel, unless every record says existing: true');
+  });
+
+  it('an in-place tag its kernel does not declare', () => {
+    const root = tree((r) => {
+      const f = join(r, 'catalogue/entries/fixture-wasm-sort.md');
+      writeFileSync(f, readFileSync(f, 'utf8').replace('  - fixture\n', '  - fixture\n  - in-place\n'));
+    });
+    expect(load(root).errors).toEqual(['catalogue/entries/fixture-wasm-sort.md: tagged in-place, but '
+      + 'its kernel fixture-wasm-kernel declares in_place false (crates/algoglyph-kernels/src/sorting/kernels.json)']);
   });
 
   it('a record without its id, kernel or engine', () => {

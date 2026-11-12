@@ -14,6 +14,7 @@ tags:
   - quadratic
   - stable
   - bidirectional
+  - in-place
 complexity: n²/2 compares worst case
 related:
   - bubble-sort

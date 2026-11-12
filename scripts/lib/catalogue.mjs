@@ -92,10 +92,21 @@ const SIDECAR_FILE = /^([a-z0-9][a-z0-9-]*)-sidecar\.yaml$/;
 export const SIDECAR_ENGINES = ['array'];
 
 /**
+ * The kernel manifest of a family's compiled module, crates/algoglyph-kernels/src/<family>/
+ * kernels.json: every kernel id the module exports, with what the kernel declares about itself
+ * (stable, in_place, kind). The crate's native tests refuse a stale copy, so the catalogue can
+ * trust it without building the module.
+ */
+export function manifestPath(family) {
+  return `crates/algoglyph-kernels/src/${family}/kernels.json`;
+}
+
+/**
  * Every catalogue/<family>-sidecar.yaml, each with the adapter directory that plays it
- * (src/kernels/<family>-wasm), and every record of them (`entries: [{ id, kernel, engine,
- * existing?, ... }]`) with the sidecar it came from. No sidecar file means no records. Keys a
- * record carries beyond these are the family's own data and are not read here.
+ * (src/kernels/<family>-wasm) and the kernels of its module's manifest, and every record of them
+ * (`entries: [{ id, kernel, engine, existing?, in_place?, ... }]`) with the sidecar it came
+ * from. No sidecar file means no records. Keys a record carries beyond these are the family's
+ * own data and are not read here.
  */
 export function readSidecars(root, errors = []) {
   const dir = join(root, 'catalogue');
@@ -103,8 +114,17 @@ export function readSidecars(root, errors = []) {
   const records = [];
   for (const f of list(dir, (_, f) => SIDECAR_FILE.test(f))) {
     const file = `catalogue/${f}`;
-    const adapter = `${SIDECAR_FILE.exec(f)[1]}-wasm`;
-    files.push({ file, adapter });
+    const family = SIDECAR_FILE.exec(f)[1];
+    const adapter = `${family}-wasm`;
+    const manifest = manifestPath(family);
+    let kernels = new Map();
+    try {
+      const m = JSON.parse(readFileSync(join(root, manifest), 'utf8'));
+      kernels = new Map((m.kernels ?? []).map((k) => [k.id, k]));
+    } catch (e) {
+      errors.push(`${file}: its module's manifest ${manifest} cannot be read (${e.message})`);
+    }
+    files.push({ file, adapter, manifest, kernels });
     const doc = readYaml(join(dir, f), errors);
     if (!Array.isArray(doc.entries)) { errors.push(`${file}: entries must be a list`); continue; }
     for (const [i, r] of doc.entries.entries()) {
@@ -114,7 +134,8 @@ export function readSidecars(root, errors = []) {
         continue;
       }
       records.push({ id: r.id, kernel: r.kernel, engine: r.engine, existing: r.existing === true,
-        sidecar: file, adapter });
+        inPlace: typeof r.in_place === 'boolean' ? r.in_place : undefined,
+        meta: kernels.get(r.kernel), manifest, sidecar: file, adapter });
     }
   }
   return { files, records };
@@ -239,20 +260,51 @@ export function loadCatalogue(root, { code = true } = {}) {
   const width = Math.max(2, String(entries.length).length);
   entries.forEach((e, i) => { e.no = String(i + 1).padStart(width, '0'); });
 
-  // entry id -> { sidecar, adapter }: an entry with no kernel file, played by an adapter
+  // entry id -> { sidecar, adapter, kernel }: an entry with no kernel file, played by an adapter
   const backed = new Map();
   let sidecarFiles = [];
   if (code) {
     const found = discoverCode(root, errors);
     const byId = new Map(entries.map((e) => [e.id, e]));
     sidecarFiles = found.sidecarFiles;
+    const perEntry = new Map();
+    for (const r of found.sidecars) perEntry.set(r.id, [...(perEntry.get(r.id) ?? []), r]);
+    for (const [id, rs] of perEntry) {
+      // one record plays an entry; several only describe an entry whose own code plays
+      if (rs.length > 1 && !rs.every((r) => r.existing)) {
+        errors.push(`${rs[0].sidecar}: ${id} has ${rs.length} records (${rs.map((r) => r.kernel).join(', ')}); `
+          + 'an entry is played by one kernel, unless every record says existing: true');
+      }
+    }
     for (const r of found.sidecars) {
       const e = byId.get(r.id);
       const what = `${r.sidecar}: ${r.id} -> kernel ${r.kernel}`;
       if (!e) { errors.push(`${what}: no catalogue entry catalogue/entries/${r.id}.md`); continue; }
+      if (!r.meta) {
+        errors.push(`${what}: ${r.manifest} lists no kernel ${r.kernel}`);
+        continue;
+      }
+      if (r.inPlace !== undefined && r.inPlace !== r.meta.in_place) {
+        errors.push(`${what}: in_place ${r.inPlace}, but the kernel declares in_place ${r.meta.in_place}`);
+      }
+      if (e.tags.includes('in-place') !== r.meta.in_place) {
+        errors.push(`${e.file}: ${e.tags.includes('in-place') ? 'tagged' : 'not tagged'} in-place, but `
+          + `its kernel ${r.kernel} declares in_place ${r.meta.in_place} (${r.manifest})`);
+      }
+      if (!r.existing && e.tags.includes('stable') && r.meta.stable !== 'yes') {
+        errors.push(`${e.file}: tagged stable, but its kernel ${r.kernel} declares stable ${r.meta.stable}`);
+      }
       if (r.engine !== e.engine) {
         errors.push(`${what} runs engine ${r.engine}, but ${e.file} names engine ${e.engine}`);
         continue;
+      }
+      if (r.existing) {
+        const own = e.engine === 'custom' ? found.plates.includes(e.id)
+          : found.kernels.some((k) => k.id === e.id && k.engine === e.engine);
+        if (!own) {
+          errors.push(`${what}: existing: true, but ${e.engine === 'custom' ? `src/plates/${e.id}/plate.ts`
+            : `src/kernels/${e.engine}/${e.id}.ts`} does not exist; existing means the entry's own code plays`);
+        }
       }
       // a record of another engine describes its entry; only an adapter's engine is played
       if (!SIDECAR_ENGINES.includes(r.engine)) continue;
@@ -268,7 +320,7 @@ export function loadCatalogue(root, { code = true } = {}) {
       if (prev && prev.sidecar !== r.sidecar) {
         errors.push(`${e.file}: mapped by both ${prev.sidecar} and ${r.sidecar}; `
           + 'one implementation per entry');
-      } else if (!prev) backed.set(e.id, { sidecar: r.sidecar, adapter: r.adapter });
+      } else if (!prev) backed.set(e.id, { sidecar: r.sidecar, adapter: r.adapter, kernel: r.kernel });
     }
     for (const e of entries) {
       const plate = found.plates.includes(e.id);
