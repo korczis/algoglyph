@@ -217,7 +217,7 @@ page then says "a copied link carries your data". A larger table leaves only `~<
 and a re-attached file is reported as the same data or not. A token from a link passes the same
 parser as a file. Claims, pacing and labs run on seeded input only. The budget gate (test/budget/)
 measures every declaring plate on a synthetic table of `rows.max` rows, and the browser gate
-attaches data to every declaring plate and refuses any request that leaves the page.
+attaches data to every declaring plate and refuses any request that leaves the page. That section runs with the page's CPU slowed eight times, so a fast machine meets a slow runner's timing, and it can be run alone: `node scripts/audit-ui.mjs --only data` (`--only` takes any of collection, wings, planned, plates, data, labs, figures).
 
 A plate may also offer `reset()` on its `Sim`. The stage then shows "Reset view" (key V), which
 returns to the starting view without a rebuild. On a paused plate the stage runs a short burst
