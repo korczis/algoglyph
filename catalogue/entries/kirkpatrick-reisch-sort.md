@@ -2,7 +2,7 @@
 id: kirkpatrick-reisch-sort
 title: Kirkpatrick–Reisch sort
 taxonomy: sorting/radix
-status: planned
+status: live
 engine: array
 labs:
   - sorting

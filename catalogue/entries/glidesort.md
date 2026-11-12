@@ -2,7 +2,7 @@
 id: glidesort
 title: Glidesort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

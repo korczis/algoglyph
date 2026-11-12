@@ -2,7 +2,7 @@
 id: adaptiveshiverssort
 title: Adaptive ShiversSort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

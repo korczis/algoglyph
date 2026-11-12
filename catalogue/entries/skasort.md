@@ -2,7 +2,7 @@
 id: skasort
 title: Ska sort
 taxonomy: sorting/radix
-status: planned
+status: live
 engine: array
 labs:
   - sorting

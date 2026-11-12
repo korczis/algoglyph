@@ -2,7 +2,7 @@
 id: address-calculation-sort
 title: Address calculation sort
 taxonomy: sorting/distribution
-status: planned
+status: live
 engine: array
 labs:
   - sorting

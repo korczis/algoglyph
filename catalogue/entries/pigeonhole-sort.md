@@ -2,7 +2,7 @@
 id: pigeonhole-sort
 title: Pigeonhole sort
 taxonomy: sorting/distribution
-status: planned
+status: live
 engine: array
 labs:
   - sorting

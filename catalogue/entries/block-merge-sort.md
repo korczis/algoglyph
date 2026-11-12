@@ -2,7 +2,7 @@
 id: block-merge-sort
 title: Block merge sort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

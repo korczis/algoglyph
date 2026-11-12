@@ -2,7 +2,7 @@
 id: bucket-sort
 title: Bucket sort
 taxonomy: sorting/distribution
-status: planned
+status: live
 engine: array
 labs:
   - sorting
