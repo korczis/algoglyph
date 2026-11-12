@@ -47,3 +47,8 @@ the pre-commit hook, `npm run verify` (also `--fast`), CI and `test/derived-fact
 `node scripts/check-facts.mjs`; `test/derived-facts.test.ts` proves each check by a refused
 and an allowed case, keeps the root causes fixed (no count in the derived plan, the lab
 minimum read from one constant) and runs the gate over the repository.
+Two implementations read the one policy: `scripts/check-facts.mjs` is the gate, and its Rust
+port `algoglyph facts` (`crates/algoglyph-cli`, `just facts-rs`; checks beyond the built-in ones
+are Rhai scripts under `tools/checks/`) is held to it by
+`crates/algoglyph-cli/tests/equivalence.rs`, which runs both on the repository and on
+`test/fixtures/derived-facts/` and asserts the same findings.
