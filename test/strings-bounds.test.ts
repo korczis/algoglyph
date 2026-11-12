@@ -80,9 +80,15 @@ describe('strings: exact bounds against counted runs', () => {
     for (const x of inputs('expression', [2, 5, 9, 16])) expect(count(run('recursive-descent-parser', x), 'token')).toBe(x.infix.length);
   });
 
-  it('regex-nfa: at most m + 2 states examined per text character for a pattern of m characters', () => {
+  it('regex-nfa: at most m + 3 states in the set and m + 2 examined per character, for m pattern characters', () => {
     for (const x of inputs('regex', [8, 36, 120, 200])) {
-      expect(count(run('regex-nfa', x), 'trans'), x.pattern).toBeLessThanOrEqual((x.pattern.length + 2) * x.text.length);
+      const t = run('regex-nfa', x);
+      const m = x.pattern.length;
+      expect(count(t, 'trans'), x.pattern).toBeLessThanOrEqual((m + 2) * x.text.length);
+      // the chart's Active states series is the size of the set after every text character
+      const sizes = t.events.toArray().filter((e) => e.o === OP.plot && e.s === 'Active states').map((e) => Number(e.ss?.[0]));
+      expect(sizes.length).toBe(x.text.length);
+      expect(Math.max(0, ...sizes), x.pattern).toBeLessThanOrEqual(m + 3);
     }
   });
 
