@@ -30,6 +30,18 @@ algorithm:
 bounds:
   model: probes
   average: 'O(1) amortised expected per operation; the load factor stays between 1/8 and 1/2 once the table has grown'
+claims:
+  - id: six-shared-bits-cluster-bound
+    statement: >-
+      With adversarial keys sharing 6 leading hash bits and no deletions, the 96 keys leave the
+      table at 256 slots (it doubles past half full), and their homes, the hash's leading 8 bits,
+      fall in 2^(8 − 6) = 4 adjacent slots; two clusters are parted by an empty slot, so at most 2
+      clusters hold all 96 keys and the longest holds at least 48, a hard bound however the table
+      grows.
+    readout: Longest cluster
+    expect: { above: 47 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 6 }
 ---
 
 Double the table once it is more than half full and rehash, keeping every operation constant on average.
