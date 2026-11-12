@@ -121,6 +121,105 @@ fn aux_writes_count_the_cells_that_change() {
 }
 
 #[test]
+fn emptied_cells_are_recorded_as_uncounted_clears() {
+    let mut t = Tracer::new(&Options::default());
+    let (a, b, c) = (Item::new(5, 0), Item::new(7, 1), Item::new(9, 2));
+    t.aux("q", &[a, b, c]);
+    t.aux("q", &[a]); // cells 1 and 2 emptied
+    t.aux_cells("g", &[Some(a), Some(b), Some(c)]);
+    t.aux_cells("g", &[None, Some(b), None]); // cells 0 and 2 emptied
+    t.aux_clear("q"); // cell 0 emptied
+    let clears: Vec<(String, u32, u32)> = t
+        .steps()
+        .iter()
+        .filter_map(|s| match s {
+            Step::AuxClear { name, from, to } => Some((name.clone(), *from, *to)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        clears,
+        vec![
+            ("q".into(), 1, 3),
+            ("g".into(), 0, 1),
+            ("g".into(), 2, 3),
+            ("q".into(), 0, 1)
+        ]
+    );
+    let c2 = t.counts();
+    assert_eq!(c2.aux_writes, 6, "clears are not writes");
+    assert_eq!(t.step_count(), 6, "clears are not counted steps");
+}
+
+#[test]
+fn replaying_aux_writes_and_clears_reproduces_the_aux_state() {
+    use std::collections::BTreeMap;
+    let failures = for_each_entry(|e| {
+        for &n in &[2usize, 16, 61, 128] {
+            for (name, input) in presets(n, 29) {
+                let opt = Options {
+                    max_steps: 1_000_000,
+                    ..Options::default()
+                };
+                let run = engine::run_entry(e, input, &opt);
+                if run.truncated {
+                    continue;
+                }
+                let mut state: BTreeMap<String, Vec<Option<i32>>> = BTreeMap::new();
+                for s in run.tracer.steps() {
+                    match s {
+                        Step::AuxWrite { name, i, key } => {
+                            let cells = state.entry(name.clone()).or_default();
+                            if cells.len() <= *i as usize {
+                                cells.resize(*i as usize + 1, None);
+                            }
+                            cells[*i as usize] = Some(*key);
+                        }
+                        Step::AuxClear { name, from, to } => {
+                            let cells = state.entry(name.clone()).or_default();
+                            for c in cells.iter_mut().take(*to as usize).skip(*from as usize) {
+                                *c = None;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                let trim = |mut v: Vec<Option<i32>>| {
+                    while v.last() == Some(&None) {
+                        v.pop();
+                    }
+                    v
+                };
+                let replayed: Vec<(String, Vec<Option<i32>>)> = state
+                    .into_iter()
+                    .map(|(k, v)| (k, trim(v)))
+                    .filter(|(_, v)| !v.is_empty())
+                    .collect();
+                let held: Vec<(String, Vec<Option<i32>>)> = run
+                    .tracer
+                    .aux_state()
+                    .into_iter()
+                    .map(|(k, v)| (k, trim(v)))
+                    .filter(|(_, v)| !v.is_empty())
+                    .collect();
+                if replayed != held {
+                    return Err(format!(
+                        "{name} n = {n}: replayed aux {replayed:?} != held {held:?}"
+                    ));
+                }
+            }
+        }
+        Ok(())
+    });
+    assert!(
+        failures.is_empty(),
+        "{} algorithms failed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+#[test]
 fn meta_ids_match_file_stems_and_are_unique() {
     let mut seen = BTreeSet::new();
     for e in REGISTRY {
@@ -266,6 +365,11 @@ fn typed_words_decode_to_the_recorded_steps() {
             },
             Step::Lane { lane: 5 },
             Step::Round { n: 1 },
+            Step::AuxClear {
+                name: "buffer".into(),
+                from: 0,
+                to: 2
+            },
         ]
     );
     assert_eq!(t.recorded(), steps.len());
@@ -354,11 +458,26 @@ fn step_limit_truncates_the_trace() {
             ..Options::default()
         };
         let run = engine::run_entry(e, input.clone(), &opt);
+        // emptied aux cells are recorded for drawing but are not steps of the algorithm
+        let steps = run.tracer.steps();
+        let clears = steps
+            .iter()
+            .filter(|s| matches!(s, Step::AuxClear { .. }))
+            .count();
+        let writes = steps
+            .iter()
+            .filter(|s| matches!(s, Step::AuxWrite { .. }))
+            .count();
         assert!(
-            run.tracer.recorded() <= 50,
+            steps.len() - clears <= 50,
             "{}: {} steps recorded",
             e.meta.id,
-            run.tracer.recorded()
+            steps.len() - clears
+        );
+        assert!(
+            clears <= writes,
+            "{}: a clear empties only what was written",
+            e.meta.id
         );
         assert!(run.truncated, "{} must report truncated", e.meta.id);
     }
