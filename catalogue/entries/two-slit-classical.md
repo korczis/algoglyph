@@ -9,6 +9,8 @@ sources:
   - id: feynman-lectures
     ref: 'Vol. III, ch. 1, §1-2 (an experiment with bullets); the same chapter as Vol. I, ch. 37'
     purpose: further-reading
+  - id: wilson-hilferty
+    purpose: implementation
 tags:
   - two-slit experiment
   - Monte Carlo
@@ -86,4 +88,4 @@ The gun fires in a direction uniform within its spread. A bullet that reaches an
 
 Nothing a bullet does at one hole depends on the other, so the both-holes counts N₁₂ and the sum N₁ + N₂ estimate one curve. The comparison is a χ² over the bins, each squared difference divided by N₁₂ + N₁ + N₂, the variance of a difference of independent counts; bins in the tails are merged until each expects at least five bullets. A correct model's χ²/k falls between the 0.1 % and 99.9 % points of χ²ₖ/k 998 times in 1000; the readout shows both.
 
-A test that passes is only worth something if it could fail. The last readout tests the same histogram against an interference hypothesis, the one-hole counts combined as waves would be, with fringes four bins apart; it is rejected by a wide margin wherever the two one-hole curves overlap. Bullets are lumps: they arrive one at a time, whole, and through one hole or the other.
+A test that passes is only worth something if it could fail. The last readout tests the same histogram against an interference hypothesis, the one-hole counts combined as waves would be, with fringes four bins apart; it is rejected by a wide margin wherever the two one-hole curves overlap. Bullets are lumps: they arrive one at a time, whole, and through one hole or the other. Compare #/p/two-slit-amplitudes, where the arrivals are just as lumpy and the curves do not add.

@@ -536,7 +536,7 @@
               <h2 class="mb-4 text-xl font-bold leading-none text-gray-900 dark:text-white">Parameters</h2>
               <div class="space-y-5">
                 <template x-for="d in defs" :key="currentId + d.key">
-                  <div>
+                  <div x-show="applies(d)">
                     <template x-if="d.kind === 'range'">
                       <div>
                         <div class="flex items-center justify-between mb-2">

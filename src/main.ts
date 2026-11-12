@@ -194,6 +194,11 @@ Alpine.data('app', () => ({
     return LIVE[(Math.max(0, i) + offset + LIVE.length) % LIVE.length];
   },
 
+  /** Whether a control applies in the plate's current mode (ParamBase.when). */
+  applies(d: ParamDef): boolean {
+    return !d.when || d.when.values.includes(String(this.params[d.when.key]));
+  },
+
   fmt(value: unknown, d: ParamDef): string {
     if (d.kind !== 'range') return String(value);
     const decimals = d.step < 1 ? Math.min(4, Math.ceil(-Math.log10(d.step))) : 0;
