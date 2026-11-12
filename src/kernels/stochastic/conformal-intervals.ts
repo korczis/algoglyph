@@ -1,7 +1,7 @@
 import { num, str } from '../../core/plate';
 import { ascending, fmt, pct, Sampler } from '../../engines/stochastic/sample';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
-import { COVERAGE, coverageChart, ladder, LEVELS, publishCoverage, repetitionsParam, SHOWN_LEVEL } from './_coverage';
+import { COVERAGE, coverageChart, ladder, levelName, levelParam, LEVELS, publishCoverage, repetitionsParam, shownLevel } from './_coverage';
 
 const signal = (x: number) => 1.5 * Math.sin(2 * Math.PI * x) + x;
 
@@ -86,6 +86,7 @@ export const kernel: StochasticKernel<ConformalResult> = {
     { kind: 'range', key: 'degree', label: 'Model: polynomial degree', min: 1, max: 7, step: 1, value: 3, rebuild: true },
     { kind: 'range', key: 'ncal', label: 'Calibration cases', min: 19, max: 400, step: 1, value: 60, rebuild: true },
     repetitionsParam(),
+    levelParam(),
   ],
   chart: coverageChart,
   labSeries: COVERAGE,
@@ -96,9 +97,11 @@ export const kernel: StochasticKernel<ConformalResult> = {
     const nCal = num(cfg, 'ncal');
     const nTrain = 80;
     const reps = num(cfg, 'reps');
+    const level = shownLevel(cfg);
+    const name = levelName(level);
     const first = experiment(s, nTrain, nCal, kind, degree);
     ops.count(PREDICTIONS(nCal));
-    const q = conformalRadius(first.residuals, SHOWN_LEVEL);
+    const q = conformalRadius(first.residuals, level);
     // the fitted curve, sampled for drawing only
     const curve: [number, number][] = Array.from({ length: 61 }, (_, i) => [i / 60, polyval(first.c, i / 60)]);
     const band: [number, number, number][] = curve.map(([x, y]) => [x, y - q, y + q]);
@@ -117,13 +120,13 @@ export const kernel: StochasticKernel<ConformalResult> = {
         ],
       },
       {
-        kind: 'hist' as const, title: 'Calibration residuals |y − ŷ| and the 90% radius', lo: 0, hi: rmax, bins: histogram(first.residuals, 0, rmax, 24),
+        kind: 'hist' as const, title: `Calibration residuals |y − ŷ| and the ${name} radius`, lo: 0, hi: rmax, bins: histogram(first.residuals, 0, rmax, 24),
         marks: [{ x: q, label: `radius ${fmt(q, 3)}`, tone: -1 }],
       },
     ];
     const introStats = [
       { label: 'Training / calibration / test cases', value: `${fmt(nTrain)} / ${fmt(nCal)} / ${fmt(TEST)}` },
-      { label: '90% radius', value: `${fmt(q, 4)} (residual ${fmt(Math.ceil((nCal + 1) * SHOWN_LEVEL))} of ${fmt(nCal)})` },
+      { label: `${name} radius`, value: `${fmt(q, 4)} (residual ${fmt(Math.ceil((nCal + 1) * level))} of ${fmt(nCal)})` },
       { label: 'Test cases covered', value: pct(hitsFirst.filter(Boolean).length / TEST) },
     ];
     for (let h = 0; h < 60; h++) ops.frame(intro, introStats);
@@ -138,18 +141,20 @@ export const kernel: StochasticKernel<ConformalResult> = {
         const rad = conformalRadius(e.residuals, l);
         hits[i] += e.testResiduals.filter((v) => v <= rad).length / TEST;
       });
-      const rad = conformalRadius(e.residuals, SHOWN_LEVEL);
+      const rad = conformalRadius(e.residuals, level);
       width += 2 * rad;
       const pred = e.testPred[0];
       shown.push({ label: `run ${r}`, lo: pred - rad, hi: pred + rad, truth: e.test.y[0] });
       if (shown.length > LADDER) shown.shift();
       publishCoverage(ops, hits, r);
-      const c = hits[LEVELS.indexOf(SHOWN_LEVEL)] / r;
-      ops.frame([intro[0], ladder('One new case per experiment against its 90% interval', shown.slice(), [ylo, yhi])], [
+      const k = LEVELS.indexOf(level);
+      const c = hits[k] / r;
+      ops.frame([intro[0], ladder(`One new case per experiment against its ${name} interval`, shown.slice(), [ylo, yhi])], [
         { label: 'Experiments', value: `${fmt(r)} of ${fmt(reps)}, ${fmt(TEST)} test cases each` },
-        { label: '90% intervals covering', value: `${pct(c)} (guarantee: at least 90%)` },
-        { label: '50% intervals covering', value: pct(hits[0] / r) },
-        { label: 'Mean 90% width', value: fmt(width / r, 4) },
+        { label: `${name} intervals covering`, value: `${pct(c)} (guarantee: at least ${name})` },
+        // the lowest level beside the one shown, unless it is the one shown
+        ...(k ? [{ label: '50% intervals covering', value: pct(hits[0] / r) }] : []),
+        { label: `Mean ${name} width`, value: fmt(width / r, 4) },
       ]);
       yield;
     }

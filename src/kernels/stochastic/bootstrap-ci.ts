@@ -1,7 +1,7 @@
 import { num, str } from '../../core/plate';
 import { ascending, fmt, mean, pct, quantile, Sampler, variance } from '../../engines/stochastic/sample';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
-import { COVERAGE, coverageChart, ladder, LEVELS, publishCoverage, repetitionsParam, SHOWN_LEVEL } from './_coverage';
+import { COVERAGE, coverageChart, ladder, levelName, levelParam, LEVELS, publishCoverage, repetitionsParam, shownLevel } from './_coverage';
 
 export interface Population { label: string; draw(s: Sampler): number; mean: number }
 
@@ -64,6 +64,7 @@ export const kernel: StochasticKernel<BootstrapResult> = {
     { kind: 'range', key: 'n', label: 'Sample size', min: 5, max: 200, step: 5, value: 30, rebuild: true },
     { kind: 'range', key: 'b', label: 'Resamples', min: 200, max: 4000, step: 100, value: 1000, rebuild: true },
     repetitionsParam(),
+    levelParam(),
   ],
   chart: coverageChart,
   labSeries: COVERAGE,
@@ -73,6 +74,8 @@ export const kernel: StochasticKernel<BootstrapResult> = {
     const n = num(cfg, 'n');
     const b = num(cfg, 'b');
     const reps = num(cfg, 'reps');
+    const shown = shownLevel(cfg);
+    const name = levelName(shown);
     const data = Array.from({ length: n }, () => pop.draw(s));
     const m = mean(data);
     const sd = Math.sqrt(variance(data));
@@ -85,15 +88,15 @@ export const kernel: StochasticKernel<BootstrapResult> = {
       boots.set(yield* bootstrapMeans(s, data, to - from), from);
       ops.count(to - from);
       const sorted = ascending(boots.subarray(0, to));
-      const [a, z] = percentile(sorted, SHOWN_LEVEL);
+      const [a, z] = percentile(sorted, shown);
       ops.frame([{
-        kind: 'hist', title: 'Means of the resamples; the 90% percentile interval shaded', lo, hi, bins: histogram(boots, lo, hi, 40, 0, to),
+        kind: 'hist', title: `Means of the resamples; the ${name} percentile interval shaded`, lo, hi, bins: histogram(boots, lo, hi, 40, 0, to),
         shade: [a, z], marks: [{ x: m, label: 'sample mean', tone: -1 }, { x: pop.mean, label: 'population mean', tone: 0.05, dash: true }],
       }], [
         { label: 'Resamples', value: `${fmt(to)} of ${fmt(b)}` },
         { label: 'Sample mean', value: fmt(m, 4) },
         { label: 'Bootstrap standard error', value: `${fmt(Math.sqrt(variance(boots.subarray(0, to))), 4)} (s/√n ${fmt(sd / Math.sqrt(n), 4)})` },
-        { label: '90% percentile interval', value: `${fmt(a, 4)} – ${fmt(z, 4)}` },
+        { label: `${name} percentile interval`, value: `${fmt(a, 4)} – ${fmt(z, 4)}` },
       ]);
       yield;
     }
@@ -101,9 +104,9 @@ export const kernel: StochasticKernel<BootstrapResult> = {
     const se = Math.sqrt(variance(boots));
     // the sample shown keeps its comparison while the repeated experiments run
     const seRow = { label: 'Bootstrap standard error', value: `${fmt(se, 4)} (s/√n ${fmt(sd / Math.sqrt(n), 4)})` };
-    const interval = percentile(sorted, SHOWN_LEVEL);
+    const interval = percentile(sorted, shown);
     const hits = new Array<number>(LEVELS.length).fill(0);
-    const shown: { label: string; lo: number; hi: number; truth: number }[] = [];
+    const latest: { label: string; lo: number; hi: number; truth: number }[] = [];
     let width = 0;
     const span = 3 * Math.sqrt(variance(Array.from({ length: 400 }, () => pop.draw(s)))) / Math.sqrt(n);
     const x: [number, number] = [pop.mean - 1.6 * span, pop.mean + 1.6 * span];
@@ -117,18 +120,19 @@ export const kernel: StochasticKernel<BootstrapResult> = {
         const [a, z] = percentile(bs, l);
         if (a <= pop.mean && pop.mean <= z) hits[i]++;
       });
-      const [a, z] = percentile(bs, SHOWN_LEVEL);
+      const [a, z] = percentile(bs, shown);
       width += z - a;
-      shown.push({ label: `run ${r}`, lo: a, hi: z, truth: pop.mean });
-      if (shown.length > LADDER) shown.shift();
+      latest.push({ label: `run ${r}`, lo: a, hi: z, truth: pop.mean });
+      if (latest.length > LADDER) latest.shift();
       publishCoverage(ops, hits, r);
-      const k = LEVELS.indexOf(SHOWN_LEVEL);
+      const k = LEVELS.indexOf(shown);
       const c = hits[k] / r;
-      ops.frame([ladder('Latest 90% intervals against the population mean (tick)', shown.slice(), x)], [
+      ops.frame([ladder(`Latest ${name} intervals against the population mean (tick)`, latest.slice(), x)], [
         { label: 'Experiments', value: `${fmt(r)} of ${fmt(reps)}, ${fmt(bRep)} resamples each` },
-        { label: '90% intervals covering', value: `${pct(c)} ± ${pct(Math.sqrt(c * (1 - c) / r))}` },
-        { label: '50% intervals covering', value: pct(hits[0] / r) },
-        { label: 'Mean 90% width', value: fmt(width / r, 4) },
+        { label: `${name} intervals covering`, value: `${pct(c)} ± ${pct(Math.sqrt(c * (1 - c) / r))}` },
+        // the lowest level beside the one shown, unless it is the one shown
+        ...(k ? [{ label: '50% intervals covering', value: pct(hits[0] / r) }] : []),
+        { label: `Mean ${name} width`, value: fmt(width / r, 4) },
         seRow,
       ]);
       yield;

@@ -42,10 +42,37 @@ claims:
     expect: { value: 90, tolerance: 7.4 }
     setup:
       params: { population: normal, n: 200 }
+  - id: large-normal-sample-covers-at-50
+    statement: >-
+      Shown at the 50% level, for a sample of 200 from the normal population, the percentile
+      interval covers the population mean within three binomial standard errors of 150
+      experiments, 3 · √(0.5 · 0.5/150) ≈ 12.3 points, of 50%.
+    readout: 50% intervals covering
+    expect: { value: 50, tolerance: 12.3 }
+    setup:
+      params: { level: "0.5", population: normal, n: 200 }
+  - id: large-normal-sample-covers-at-80
+    statement: >-
+      Shown at the 80% level, for a sample of 200 from the normal population, the percentile
+      interval covers the population mean within three binomial standard errors of 150
+      experiments, 3 · √(0.8 · 0.2/150) ≈ 9.8 points, of 80%.
+    readout: 80% intervals covering
+    expect: { value: 80, tolerance: 9.8 }
+    setup:
+      params: { level: "0.8", population: normal, n: 200 }
+  - id: large-normal-sample-covers-at-95
+    statement: >-
+      Shown at the 95% level, for a sample of 200 from the normal population, the percentile
+      interval covers the population mean within three binomial standard errors of 150
+      experiments, 3 · √(0.95 · 0.05/150) ≈ 5.4 points, of 95%.
+    readout: 95% intervals covering
+    expect: { value: 95, tolerance: 5.4 }
+    setup:
+      params: { level: "0.95", population: normal, n: 200 }
 ---
 
 Resample the data with replacement and read the interval off the resampled statistic.
 
-Every resample draws n points from the sample with replacement and recomputes the mean; the spread of those means estimates the standard error, and the percentile interval keeps their middle 90%. The readout compares the bootstrap standard error with s/√n.
+Every resample draws n points from the sample with replacement and recomputes the mean; the spread of those means estimates the standard error, and the percentile interval keeps their middle 90%, or the middle of whichever measured level is shown. The readout compares the bootstrap standard error with s/√n.
 
 Repeating the whole experiment on fresh samples measures what the interval promises; when large samples and many experiments would make that run too long, each experiment resamples fewer times, and the readout says how many. For small samples from a skewed population the percentile interval covers less often than its nominal level, because the sample under-represents the long tail; the coverage-against-nominal chart shows the shortfall, and it closes as the sample grows.
