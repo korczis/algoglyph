@@ -65,6 +65,13 @@ claims:
       between −100.5 ppm (the readout's rounding) and −96 ppm.
     readout: Křovák scale k
     expect: { range: [-100.5, -96] }
+  - id: mercator-scale-changes-several-percent
+    statement: >-
+      Web Mercator's scale is sec φ, so across the plate's latitudes, 48.5° to 51.5°, it rises from
+      sec 48.5° = 1.50916 to sec 51.5° = 1.60639, by 6.4%: the readout's first end minus its second
+      is −0.097227, to the four decimals each end prints.
+    readout: Web Mercator scale k
+    expect: { against: Web Mercator scale k, against_number: 2, offset: -0.097227, tolerance: 0.0001 }
 ---
 
 How two projections bend the same graticule, measured by their distortion at each point.
