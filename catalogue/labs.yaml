@@ -75,3 +75,8 @@ labs:
     title: Name similarity lab
     summary: Levenshtein distance, Jaro–Winkler and trigram similarity on the same noisy name pair with the same budget of counted operations per frame, with each one's work measured as the names grow longer.
     engine: string
+
+  - id: signal-transforms
+    title: Transforms lab
+    summary: Transforms applied to one seeded signal side by side, each one's real multiplies counted and its growth measured as the signal lengthens.
+    engine: signal
