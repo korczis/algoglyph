@@ -102,21 +102,37 @@ export function loadPlate(id: string): Promise<Plate> | undefined {
       if (c.id !== id) throw new Error(`${id}: its code declares id ${c.id}`);
       return { ...c, title: e.title, summary: e.summary, no: e.no };
     });
+    // a failed load (a module that did not arrive) is not remembered: the next visit retries
+    p.catch(() => { if (cache.get(id) === p) cache.delete(id); });
     cache.set(id, p);
   }
   return p;
 }
 
-/** The runnable lab plate: every live kernel the lab names, side by side. */
+/**
+ * The runnable lab plate: every live kernel the lab names, side by side. A kernel that fails to
+ * load (a compiled module that did not arrive) is left out and named in the lab's summary; the
+ * others run. Only when too few remain does the lab fail, with the first error.
+ */
 export async function loadLab(id: string): Promise<Plate | undefined> {
   const l = findLab(id);
   if (!l) return undefined;
   const live = l.entries.map((x) => entry(x)).filter((e): e is Entry => e?.status === 'live');
   if (live.length < CATALOGUE.labMin) return undefined;
   const eng = await engine(l.engine);
-  const kernels = await Promise.all(live.map(async (e) => ({ info: info(e), kernel: await kernel(e) })));
+  const settled = await Promise.allSettled(live.map(async (e) => ({ info: info(e), kernel: await kernel(e) })));
+  const kernels = settled.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  const failed = live.filter((_, i) => settled[i].status === 'rejected');
+  if (kernels.length < CATALOGUE.labMin) {
+    throw (settled.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason;
+  }
+  for (const [i, r] of settled.entries()) {
+    if (r.status === 'rejected') console.warn(`lab ${id}: ${live[i].id} not loaded`, r.reason);
+  }
   const c = eng.lab(id, kernels);
-  return { ...c, title: l.title, summary: l.summary, no: 'lab' };
+  const summary = failed.length
+    ? `${l.summary} Not loaded this time: ${failed.map((e) => e.title).join(', ')}.` : l.summary;
+  return { ...c, title: l.title, summary, no: 'lab' };
 }
 
 /** Whether a lab has enough live kernels to run. */
