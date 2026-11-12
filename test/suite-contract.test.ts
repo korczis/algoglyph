@@ -51,6 +51,12 @@ describe('the test suite', () => {
     expect(files).toEqual([...wings, 'labs'].sort());
   });
 
+  it('drives the pacing contract in one file per wing, plus the labs, each in a process of its own', () => {
+    const wings = [...new Set(ENTRIES.filter((e) => e.status === 'live').map((e) => e.path[0]))].sort();
+    const files = readdirSync('test/pacing').filter((f) => f.endsWith('.test.ts')).map((f) => f.replace('.test.ts', '')).sort();
+    expect(files).toEqual([...wings, 'labs'].sort());
+  });
+
   it('finds a short Rust bound when one is set', () => {
     expect(rustBounds('if took >= Duration::from_secs(1) {')).toEqual([1]);
     expect(rustBounds('Duration::from_millis(500)')).toEqual([0.5]);

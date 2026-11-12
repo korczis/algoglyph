@@ -23,7 +23,7 @@ verify-fast:
     npm run verify -- --fast
 
 [group('gates')]
-[doc('Unit tests, then the main-thread budget alone (builds the wasm first)')]
+[doc('Unit tests, then the main-thread budget and the pacing drive, each alone (builds the wasm first)')]
 test:
     npm test
 
@@ -31,6 +31,11 @@ test:
 [doc('The main-thread budget of every live plate and lab, run alone (config/budgets.yaml)')]
 budget:
     npm run test:budget
+
+[group('gates')]
+[doc('Every default run of every live plate and lab driven to its end, run alone (config/pacing.yaml)')]
+pacing:
+    npm run test:pacing
 
 [group('gates')]
 [doc('Type-check the site and the tests')]
