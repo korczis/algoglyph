@@ -68,7 +68,10 @@ export function slope(psd: Float64Array, fs: number, frame: number, from = BANDS
 // Three noises from one seed: white, pink by Voss–McCartney, brown by a leaky integrator. Welch's
 // average over more and more frames shows the slopes of 0, −3 and −6 dB per octave emerge.
 export const kernel: SignalKernel = {
-  params: [{ kind: 'range', key: 'rows', label: 'Voss–McCartney rows', min: 4, max: 20, step: 1, value: 16 }],
+  params: [
+    { kind: 'range', key: 'rows', label: 'Voss–McCartney rows', min: 4, max: 20, step: 1, value: 16 },
+    { kind: 'range', key: 'leak', label: 'Brown noise leak a', min: 0.9, max: 0.999, step: 0.001, value: 0.998 },
+  ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const blocks = 48;
@@ -77,7 +80,7 @@ export const kernel: SignalKernel = {
     const sigs = [
       { name: 'white', src: whiteSource(rnd), ideal: 0, tone: 0.9 },
       { name: 'pink', src: pinkSource(rnd, Number(params.rows)), ideal: -10 * Math.log10(2), tone: 0.55 },
-      { name: 'brown', src: brownSource(rnd, 0.998, meter), ideal: -20 * Math.log10(2), tone: 0.15 },
+      { name: 'brown', src: brownSource(rnd, Number(params.leak), meter), ideal: -20 * Math.log10(2), tone: 0.15 },
     ].map((s) => ({ ...s, y: new Float64Array(n) }));
     const w = windowOf('hann', FRAME_LEN);
     const hop = FRAME_LEN / 2;
