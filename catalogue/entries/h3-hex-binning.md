@@ -21,6 +21,19 @@ pedagogy:
     - Map a point to axial hexagon coordinates by a linear map and round it in cube coordinates (q + r + s = 0) to the nearest cell centre.
     - Compare hexagons with squares of exactly the same area, and explain why the rounder hexagon has the smaller mean distance from a point to the centre of its cell.
     - Tell the planar hexagon grid from the H3 index, which tiles the globe from an icosahedron with hexagons and a few pentagons.
+data:
+  - id: points
+    title: Your points
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
+      - { key: y, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 10, max: 4000 }
+    bytes: 192000
+    replaces: shape
+    url_bytes: 1800
+    note: Your points are mapped by one scale into the plate's box and rounded to its integer grid, where every orientation test is exact; points that round to one position are merged, and the readout counts them.
 ---
 
 Count points in hexagonal cells, which have one kind of neighbour where squares have two.

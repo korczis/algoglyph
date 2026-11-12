@@ -33,6 +33,19 @@ claims:
       2 · 2^(h − 1) ≤ 150: between ⌈log₆ 150⌉ = 3 and 1 + ⌊log₂ 75⌋ = 7.
     readout: Tree height
     expect: { range: [3, 7] }
+data:
+  - id: points
+    title: Your points
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
+      - { key: y, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 1, max: 800 }
+    bytes: 38400
+    replaces: shape
+    url_bytes: 1800
+    note: Your points are mapped by one scale into the plate's box and rounded to its integer grid, where every orientation test is exact; points that round to one position are merged, and the readout counts them.
 ---
 
 Nested bounding rectangles split as nodes fill: the index under spatial databases.

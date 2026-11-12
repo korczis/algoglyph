@@ -40,6 +40,19 @@ claims:
     expect: { value: 160 }
     setup:
       params: { shape: circle }
+data:
+  - id: points
+    title: Your points
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
+      - { key: y, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 3, max: 1000 }
+    bytes: 48000
+    replaces: shape
+    url_bytes: 1800
+    note: Your points are mapped by one scale into the plate's box and rounded to its integer grid, where every orientation test is exact; points that round to one position are merged, and the readout counts them.
 ---
 
 The farthest point from a dividing line splits the problem in two, like quicksort.
