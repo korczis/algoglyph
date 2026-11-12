@@ -40,13 +40,15 @@ export interface Placement {
   bin: number;
   /** True when the item opened a new bin. */
   opened: boolean;
+  /** Fit tests the heuristic made to place this item. */
+  tests: number;
 }
 
 export interface Packing {
   placements: Placement[];
   /** Final load of every bin. */
   loads: number[];
-  /** Fit tests: one per (item, bin) pair the heuristic examined. */
+  /** Fit tests: one per (item, bin) pair the heuristic examined; the sum over the placements. */
   tests: number;
   /** Size comparisons made while sorting (first fit decreasing). */
   compares: number;
@@ -67,16 +69,19 @@ export function nextFit(sizes: number[], cap = CAPACITY): Packing {
   let tests = 0;
   sizes.forEach((s, item) => {
     const last = loads.length - 1;
+    let tried = 0;
     if (last >= 0) {
-      tests++;
+      tried++;
       if (loads[last] + s <= cap) {
         loads[last] += s;
-        placements.push({ item, size: s, bin: last, opened: false });
+        placements.push({ item, size: s, bin: last, opened: false, tests: tried });
+        tests += tried;
         return;
       }
     }
     loads.push(s);
-    placements.push({ item, size: s, bin: loads.length - 1, opened: true });
+    placements.push({ item, size: s, bin: loads.length - 1, opened: true, tests: tried });
+    tests += tried;
   });
   return { placements, loads, tests, compares: 0 };
 }
@@ -88,16 +93,18 @@ function firstFitIn(order: number[], sizes: number[], cap: number, compares: num
   for (const item of order) {
     const s = sizes[item];
     let bin = -1;
+    let tried = 0;
     for (let b = 0; b < loads.length; b++) {
-      tests++;
+      tried++;
       if (loads[b] + s <= cap) { bin = b; break; }
     }
+    tests += tried;
     if (bin >= 0) {
       loads[bin] += s;
-      placements.push({ item, size: s, bin, opened: false });
+      placements.push({ item, size: s, bin, opened: false, tests: tried });
     } else {
       loads.push(s);
-      placements.push({ item, size: s, bin: loads.length - 1, opened: true });
+      placements.push({ item, size: s, bin: loads.length - 1, opened: true, tests: tried });
     }
   }
   return { placements, loads, tests, compares };

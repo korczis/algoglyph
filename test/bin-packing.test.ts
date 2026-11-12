@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import { ALGORITHMS, CAPACITY, decreasing, EXACT_MAX, items, lowerBound, optimum, pack, SHAPE_LABELS, SHAPES,
-  type Packing } from '../src/plates/bin-packing/packing';
+  type Algorithm, type Packing } from '../src/plates/bin-packing/packing';
 import { advance, binPacking, build } from '../src/plates/bin-packing/plate';
 import { p5Stub } from './support/p5-stub';
 
@@ -45,6 +45,34 @@ function replay(p: Packing, each: (loads: number[], i: number) => void): number[
   return loads;
 }
 
+/**
+ * The fit tests each placement must have made, from the heuristic's rule: next fit tests only
+ * its newest bin; first fit tests every bin before the one it uses, or all of them to open one.
+ */
+function ruleTests(algorithm: Algorithm, p: Packing): number[] {
+  const want: number[] = [];
+  replay(p, (open, i) => {
+    const q = p.placements[i];
+    want.push(algorithm === 'next-fit' ? (open.length ? 1 : 0) : q.opened ? open.length : q.bin + 1);
+  });
+  return want;
+}
+
+/** Plate inputs (two sizes, every stream) on which first fit decreasing misses the optimum. */
+const FFD_MISSES = (() => {
+  const out: { sizes: number[]; opt: number }[] = [];
+  for (const shape of SHAPES) {
+    for (const n of [8, EXACT_MAX]) {
+      for (let seed = 0; seed < 200; seed++) {
+        const sizes = items(shape, n, seed);
+        const opt = brute(sizes);
+        if (pack('first-fit-decreasing', sizes).loads.length > opt) out.push({ sizes, opt });
+      }
+    }
+  }
+  return out;
+})();
+
 describe('bin packing heuristics', () => {
   for (const algorithm of ALGORITHMS) {
     describe(algorithm, () => {
@@ -55,13 +83,11 @@ describe('bin packing heuristics', () => {
             const p = pack(algorithm, sizes);
             expect(p.placements.map((q) => q.item).sort((a, b) => a - b)).toEqual(sizes.map((_, i) => i));
             for (const q of p.placements) expect(q.size).toBe(sizes[q.item]);
-            let tests = 0;
-            const loads = replay(p, (open, i) => {
-              const q = p.placements[i];
-              tests += algorithm === 'next-fit' ? (i > 0 ? 1 : 0) : q.opened ? open.length : q.bin + 1;
-            });
+            const want = ruleTests(algorithm, p);
+            expect(p.placements.map((q) => q.tests), `${shape} n=${n}`).toEqual(want);
+            expect(p.tests, `${shape} n=${n}`).toBe(want.reduce((a, b) => a + b, 0));
+            const loads = replay(p, () => {});
             expect(loads).toEqual(p.loads);
-            expect(p.tests, `${shape} n=${n}`).toBe(tests);
             for (const l of loads) {
               expect(l).toBeGreaterThan(0);
               expect(l).toBeLessThanOrEqual(CAPACITY);
@@ -113,11 +139,23 @@ describe('bin packing heuristics', () => {
     }
   });
 
+  it('finds the exact optimum where first fit decreasing does not', () => {
+    // without such inputs a search that returned the heuristic's count would pass unnoticed
+    expect(FFD_MISSES.length).toBeGreaterThan(0);
+    for (const { sizes, opt } of FFD_MISSES) {
+      expect(optimum(sizes), JSON.stringify(sizes)).toBe(opt);
+      expect(opt).toBeLessThan(pack('first-fit-decreasing', sizes).loads.length);
+    }
+    expect(() => optimum(new Array(EXACT_MAX + 1).fill(1))).toThrow(RangeError);
+  });
+
   it('finds the exact optimum, and every heuristic stays inside its proven bound', () => {
     const rnd = mulberry32(2024);
-    for (let trial = 0; trial < 300; trial++) {
+    const random = Array.from({ length: 300 }, () => {
       const n = 1 + Math.floor(rnd() * 9);
-      const sizes = Array.from({ length: n }, () => 1 + Math.floor(rnd() * CAPACITY));
+      return Array.from({ length: n }, () => 1 + Math.floor(rnd() * CAPACITY));
+    });
+    for (const sizes of [...random, ...FFD_MISSES.map((c) => c.sizes)]) {
       const opt = brute(sizes);
       expect(optimum(sizes), JSON.stringify(sizes)).toBe(opt);
       expect(opt).toBeGreaterThanOrEqual(lowerBound(sizes));
@@ -129,7 +167,6 @@ describe('bin packing heuristics', () => {
       expect(ff).toBeLessThanOrEqual(Math.floor(1.7 * opt));
       expect(ffd).toBeLessThanOrEqual((11 / 9) * opt + 6 / 9);
     }
-    expect(() => optimum(new Array(EXACT_MAX + 1).fill(1))).toThrow(RangeError);
   });
 
   it('halves and crumbs cost next fit nearly twice the bins of first fit decreasing', () => {
@@ -162,11 +199,15 @@ describe('bin packing items', () => {
 });
 
 describe('bin packing plate', () => {
-  it('replays every placement and recounts the fit tests the heuristics report', () => {
+  it('replays every placement and the fit tests each one recorded, mid-run and at the end', () => {
     for (const shape of SHAPES) {
       const run = build(shape, 120, 5);
       for (const lane of run.lanes) {
-        while (lane.at < lane.packing.placements.length) advance(lane, 7);
+        const want = ruleTests(lane.algorithm, lane.packing);
+        while (lane.at < lane.packing.placements.length) {
+          advance(lane, 7);
+          expect(lane.tests).toBe(want.slice(0, lane.at).reduce((a, b) => a + b, 0));
+        }
         expect(lane.loads).toEqual(lane.packing.loads);
         expect(lane.tests).toBe(lane.packing.tests);
         expect(lane.curve[lane.curve.length - 1]).toEqual([120, lane.packing.loads.length]);
