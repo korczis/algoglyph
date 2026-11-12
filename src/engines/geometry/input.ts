@@ -39,18 +39,40 @@ export const DEFAULT_SHAPES: Record<InputKind, string[]> = {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+const orient = (a: Pt, b: Pt, c: Pt) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+
 /** n distinct points of the named shape (fewer if the shape has fewer positions), on the integer
- * grid; On a circle uses a grid of 1/1024, fine enough for every point to stay a corner, and
- * orientation tests on it are still exact. */
+ * grid. On a circle uses a grid of 1/1024, on which orientation tests are still exact (43 bits).
+ * Rounding to that grid alone does not keep every point a corner: two near neighbours can pull
+ * a point a hair inside their chord (seed 4242 at n = 160 lost one). So the circle keeps its
+ * points as a ring in angular order about the centre, and a rounded point joins only if the
+ * three turns it touches (before it, at it, after it) are strictly left, by the exact test;
+ * otherwise it is rejected and the next seeded draw is tried. The ring starts as a triangle,
+ * which is convex, and each such insertion leaves the total turning unchanged, so the ring
+ * stays a strictly convex polygon and every point is a strict hull corner. */
 export function points(shape: string, n: number, rnd: () => number): Pt[] {
   const seen = new Set<string>();
   const out: Pt[] = [];
   const unit = shape === 'circle' ? 1024 : 1;
+  const ring: { p: Pt; t: number }[] = [];
+  const convexWith = (p: Pt): boolean => {
+    const t = Math.atan2(p.y - H / 2, p.x - W / 2);
+    let i = 0;
+    while (i < ring.length && ring[i].t < t) i++;
+    const m = ring.length;
+    const at = (k: number) => ring[((k % m) + m) % m].p;
+    // p goes between at(i - 1) and at(i)
+    const ok = m < 2 || (orient(at(i - 1), p, at(i)) > 0
+      && (m < 3 || (orient(at(i - 2), at(i - 1), p) > 0 && orient(p, at(i), at(i + 1)) > 0)));
+    if (ok) ring.splice(i, 0, { p, t });
+    return ok;
+  };
   const add = (x: number, y: number) => {
     const X = Math.round(clamp(x, M, W - M) * unit) / unit;
     const Y = Math.round(clamp(y, M, H - M) * unit) / unit;
     const key = `${X},${Y}`;
     if (seen.has(key)) return;
+    if (shape === 'circle' && !convexWith({ x: X, y: Y })) return;
     seen.add(key);
     out.push({ x: X, y: Y });
   };
