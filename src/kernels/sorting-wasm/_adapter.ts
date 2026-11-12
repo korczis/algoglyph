@@ -16,8 +16,9 @@
 //   phase text     -> phase(text)         lane l     -> lane(l)
 //   round r        -> round()             (the array engine numbers it r too: one call per word)
 // The array engine's rounds, phases and lanes are therefore exactly the kernel's own; a round is
-// named by the kind the kernel declares (a network's layers, an external sort's passes, any
-// other kernel's rounds), never by which kernel it is.
+// named by the kind the kernel declares (an external sort's are passes over the data, every
+// other kind's rounds, which a network may spend on a comparator layer or on a whole kernel
+// launch), never by which kernel it is.
 // Copying the array into the module costs n reads, recorded first: that is the adapter's own
 // work, and the array engine shows it as a first pass.
 //
@@ -191,7 +192,7 @@ const NO_STEPS = new Int32Array(0);
 
 /** What one round of a kernel of this kind is called (ArrayKernel.roundUnit). */
 export const ROUND_UNIT: Record<KernelMeta['kind'], string> = {
-  comparison: 'Rounds', distribution: 'Rounds', network: 'Layers', external: 'Passes',
+  comparison: 'Rounds', distribution: 'Rounds', network: 'Rounds', external: 'Passes',
   special: 'Rounds', joke: 'Rounds',
 };
 
