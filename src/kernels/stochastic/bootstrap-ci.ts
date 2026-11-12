@@ -3,13 +3,24 @@ import { ascending, fmt, mean, pct, quantile, Sampler, variance } from '../../en
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
 import { COVERAGE, coverageChart, ladder, levelName, levelParam, LEVELS, publishCoverage, repetitionsParam, shownLevel } from './_coverage';
 
-export interface Population { label: string; draw(s: Sampler): number; mean: number }
+export interface Population { label: string; draw(s: Sampler): number; mean: number; formula: string }
 
-export const POPULATIONS: Record<string, Population> = {
-  lognormal: { label: 'Log-normal (skewed)', draw: (s) => s.lognormal(0, 0.75), mean: Math.exp(0.75 ** 2 / 2) },
-  exponential: { label: 'Exponential', draw: (s) => s.exponential(1), mean: 1 },
-  normal: { label: 'Normal', draw: (s) => s.normal(0, 1), mean: 0 },
-};
+/** The log-normal's σ, the skew control's default. */
+export const LOGNORMAL_SIGMA = 0.75;
+
+/** The populations, the log-normal's skew set by its σ: its mean is exp(σ²/2). */
+export function populations(sigma = LOGNORMAL_SIGMA): Record<string, Population> {
+  return {
+    lognormal: {
+      label: 'Log-normal (skewed)', draw: (s) => s.lognormal(0, sigma), mean: Math.exp(sigma ** 2 / 2),
+      formula: `exp(σ²/2) at σ ${fmt(sigma, 2)}`,
+    },
+    exponential: { label: 'Exponential', draw: (s) => s.exponential(1), mean: 1, formula: 'of rate 1' },
+    normal: { label: 'Normal', draw: (s) => s.normal(0, 1), mean: 0, formula: 'standard' },
+  };
+}
+
+export const POPULATIONS = populations();
 
 /** The means of b resamples of xs, each drawn with replacement; yields every few thousand
  * draws so that a large resampling is spread over frames. */
@@ -61,6 +72,14 @@ export const kernel: StochasticKernel<BootstrapResult> = {
       kind: 'select', key: 'population', label: 'Population', value: 'lognormal', rebuild: true,
       options: Object.entries(POPULATIONS).map(([value, p]) => ({ value, label: p.label })),
     },
+    // σ costs no work, so the budget sets no end. At 0.25 the skewness, (e^σ² + 2)√(e^σ² − 1),
+    // is 0.78, nearly the symmetric case the normal population already shows; at 1.5 it is 33,
+    // and samples of at most 200 so rarely reach the tail that carries the mean that coverage
+    // would measure that luck rather than the interval.
+    {
+      kind: 'range', key: 'sigma', label: 'Skew (log-normal σ)', min: 0.25, max: 1.5, step: 0.05,
+      value: LOGNORMAL_SIGMA, rebuild: true, when: { key: 'population', values: ['lognormal'] },
+    },
     { kind: 'range', key: 'n', label: 'Sample size', min: 5, max: 200, step: 5, value: 30, rebuild: true },
     { kind: 'range', key: 'b', label: 'Resamples', min: 200, max: 4000, step: 100, value: 1000, rebuild: true },
     repetitionsParam(),
@@ -70,7 +89,10 @@ export const kernel: StochasticKernel<BootstrapResult> = {
   labSeries: COVERAGE,
   *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
-    const pop = POPULATIONS[str(cfg, 'population')] ?? POPULATIONS.lognormal;
+    const sigma = num(cfg, 'sigma');
+    const all = populations(Number.isFinite(sigma) ? sigma : LOGNORMAL_SIGMA);
+    const pop = all[str(cfg, 'population')] ?? all.lognormal;
+    const popRow = { label: 'Population mean', value: `${fmt(pop.mean, 4)}, ${pop.formula}` };
     const n = num(cfg, 'n');
     const b = num(cfg, 'b');
     const reps = num(cfg, 'reps');
@@ -97,6 +119,7 @@ export const kernel: StochasticKernel<BootstrapResult> = {
         { label: 'Sample mean', value: fmt(m, 4) },
         { label: 'Bootstrap standard error', value: `${fmt(Math.sqrt(variance(boots.subarray(0, to))), 4)} (s/√n ${fmt(sd / Math.sqrt(n), 4)})` },
         { label: `${name} percentile interval`, value: `${fmt(a, 4)} – ${fmt(z, 4)}` },
+        popRow,
       ]);
       yield;
     }
@@ -134,6 +157,7 @@ export const kernel: StochasticKernel<BootstrapResult> = {
         ...(k ? [{ label: '50% intervals covering', value: pct(hits[0] / r) }] : []),
         { label: `Mean ${name} width`, value: fmt(width / r, 4) },
         seRow,
+        popRow,
       ]);
       yield;
     }

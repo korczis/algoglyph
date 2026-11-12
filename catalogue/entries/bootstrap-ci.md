@@ -69,6 +69,22 @@ claims:
     expect: { value: 95, tolerance: 5.4 }
     setup:
       params: { level: "0.95", population: normal, n: 200 }
+  - id: mild-skew-population-mean
+    statement: >-
+      At σ = 0.25 the log-normal population's mean, marked as the truth every interval is judged
+      against, is exp(σ²/2) = exp(0.03125) = 1.03174, shown to four decimals (±0.00005).
+    readout: Population mean
+    expect: { value: 1.0317, tolerance: 0.00005 }
+    setup:
+      params: { sigma: 0.25 }
+  - id: strong-skew-population-mean
+    statement: >-
+      At σ = 1.5 the log-normal population's mean is exp(σ²/2) = exp(1.125) = 3.08022, shown to
+      four decimals (±0.00005).
+    readout: Population mean
+    expect: { value: 3.0802, tolerance: 0.00005 }
+    setup:
+      params: { sigma: 1.5 }
 ---
 
 Resample the data with replacement and read the interval off the resampled statistic.

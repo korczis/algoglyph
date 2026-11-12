@@ -5,7 +5,7 @@
 // interval is only asymptotically exact, so its oracle is the nominal level for a large sample
 // from a normal population, within three binomial standard errors of the repetitions.
 import { describe, expect, it } from 'vitest';
-import type { Params, SelectParam } from '../src/core/plate';
+import type { Params, RangeParam, SelectParam } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
 import { trace, type StochasticKernel } from '../src/engines/stochastic/trace';
 import { kernel as bootstrap, type BootstrapResult } from '../src/kernels/stochastic/bootstrap-ci';
@@ -72,6 +72,56 @@ describe('bootstrap-ci: nominal level shown', () => {
   it('runs the same at the default passed explicitly', () => {
     for (const seed of [1, 4242]) {
       const a = trace(k, { [KEY]: '0.9', n: 20, reps: 30 }, seed);
+      const b = trace(k, { n: 20, reps: 30 }, seed);
+      expect(a.frames).toEqual(b.frames);
+      expect(a.result).toEqual(b.result);
+    }
+  });
+});
+
+describe('bootstrap-ci: skew of the log-normal population', () => {
+  const KEY = 'sigma';
+  const range = () => defOf(KEY) as RangeParam | undefined;
+
+  it('is a range control with the old σ = 0.75 as its default, shown for the log-normal only', async () => {
+    expect(range()).toMatchObject({
+      kind: 'range', label: 'Skew (log-normal σ)', min: 0.25, max: 1.5, step: 0.05, value: 0.75, rebuild: true,
+      when: { key: 'population', values: ['lognormal'] },
+    });
+    expect((await loadPlate(ID))!.params.find((x) => x.key === KEY)).toEqual(range());
+  });
+
+  it('round-trips through a shared link', async () => {
+    await roundTrips(KEY, [0.25, 1.1, 1.5]);
+  });
+
+  it('draws the population with that σ: the logs of a sample spread by σ, the mean exp(σ²/2)', () => {
+    for (const sigma of [0.25, 0.75, 1.5]) {
+      const t = trace(k, { [KEY]: sigma, n: 200, b: 200, reps: 20 }, 3);
+      const logs = t.result.data.map(Math.log);
+      const m = logs.reduce((a, b) => a + b, 0) / logs.length;
+      const sd = Math.sqrt(logs.reduce((a, b) => a + (b - m) ** 2, 0) / (logs.length - 1));
+      // the sample standard deviation of 200 normal logs: relative standard error 1/√398 ≈ 0.05
+      expect(Math.abs(sd / sigma - 1), `σ=${sigma}`).toBeLessThan(4 / Math.sqrt(398));
+      expect(t.result.truth).toBeCloseTo(Math.exp(sigma ** 2 / 2), 12);
+    }
+    // other populations ignore it
+    const a = trace(k, { population: 'exponential', [KEY]: 1.5, n: 20, reps: 20 }, 3);
+    const b = trace(k, { population: 'exponential', n: 20, reps: 20 }, 3);
+    expect(a.result).toEqual(b.result);
+  });
+
+  it('drives the readouts: the population mean shown is exp(σ²/2)', async () => {
+    for (const sigma of [0.25, 1.5]) {
+      const r = await read(ID, claim('Population mean', { [KEY]: sigma, reps: 20 }));
+      expect(r.reason, `σ=${sigma}`).toBeUndefined();
+      expect(Math.abs(r.value! - Math.exp(sigma ** 2 / 2)), `σ=${sigma}`).toBeLessThanOrEqual(5e-5);
+    }
+  });
+
+  it('runs the same at the default passed explicitly', () => {
+    for (const seed of [1, 4242]) {
+      const a = trace(k, { [KEY]: 0.75, n: 20, reps: 30 }, seed);
       const b = trace(k, { n: 20, reps: 30 }, seed);
       expect(a.frames).toEqual(b.frames);
       expect(a.result).toEqual(b.result);
