@@ -2,7 +2,7 @@
 id: bead-sort
 title: Bead sort
 taxonomy: sorting/special
-status: planned
+status: live
 engine: array
 labs:
   - sorting

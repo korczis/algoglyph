@@ -2,7 +2,7 @@
 id: tag-sort
 title: Tag sort
 taxonomy: sorting/special
-status: planned
+status: live
 engine: array
 labs:
   - sorting

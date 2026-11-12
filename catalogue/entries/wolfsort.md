@@ -2,7 +2,7 @@
 id: wolfsort
 title: Wolfsort
 taxonomy: sorting/hybrid
-status: planned
+status: live
 engine: array
 labs:
   - sorting

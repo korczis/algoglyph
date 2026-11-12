@@ -2,7 +2,7 @@
 id: weavesort
 title: Weave merge sort
 taxonomy: sorting/hybrid
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -2,7 +2,7 @@
 id: crumsort
 title: Crumsort
 taxonomy: sorting/hybrid
-status: planned
+status: live
 engine: array
 labs:
   - sorting

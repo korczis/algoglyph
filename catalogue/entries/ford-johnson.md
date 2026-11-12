@@ -2,7 +2,7 @@
 id: ford-johnson
 title: Merge insertion (Ford–Johnson)
 taxonomy: sorting/hybrid
-status: planned
+status: live
 engine: array
 labs:
   - sorting
