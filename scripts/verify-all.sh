@@ -41,6 +41,9 @@ if [ "$fast" = 1 ]; then
   step "browser gate skipped (--fast)"
 else
   step "browser gate (axe WCAG 2.2 AA, console, overflow, every plate)"
+  # Playwright's own Chromium unless AUDIT_CHANNEL names another; the install is a no-op once
+  # this playwright-core's revision is in the user cache, and installs nothing system-wide.
+  [ -n "${AUDIT_CHANNEL:-}" ] || npx playwright-core install chromium
   node scripts/audit-ui.mjs
 fi
 
