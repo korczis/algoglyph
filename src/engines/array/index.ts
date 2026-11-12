@@ -234,7 +234,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
     params,
     create(p, ctx) {
       let generation = 0;
-      let panes: { info: KernelInfo; kernel: ArrayKernel; r: Replay; finished: number }[] = [];
+      type Pane = { info: KernelInfo; kernel: ArrayKernel; r: Replay; finished: number };
+      let panes: Pane[] = [];
+      // the next generation's panes, traced one kernel per frame and shown once all are ready, so
+      // a lab of many kernels never traces them all inside one frame (test/budget.test.ts)
+      let incoming: { list: ReturnType<typeof chosen>; data: number[]; half: number; built: Pane[] } | null = null;
       let curves: { info: KernelInfo; pts: [number, number][]; slope: number }[] = [];
       let finishedCount = 0;
       let hold = 0;
@@ -242,12 +246,25 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         const g = str(ctx.params, 'group');
         return kernels.filter((k) => g === 'all' || k.info.group === g);
       };
-      const build = () => {
+      /** Trace the next incoming kernel; true if one was traced. */
+      const buildOne = (): boolean => {
+        if (!incoming) return false;
+        const k = incoming.list[incoming.built.length];
+        incoming.built.push({ ...k, r: new Replay(trace(k.kernel, incoming.data, incoming.half)), finished: 0 });
+        if (incoming.built.length >= incoming.list.length) {
+          panes = incoming.built;
+          finishedCount = 0;
+          incoming = null;
+        }
+        return true;
+      };
+      const build = (atOnce: boolean) => {
         const n = num(ctx.params, 'n');
         const shape = str(ctx.params, 'shape') as Shape;
         const data = input(shape, n, ctx.seed + generation * 7919);
-        finishedCount = 0;
-        panes = chosen().map((k) => ({ ...k, r: new Replay(trace(k.kernel, data, Math.floor(n / 2))), finished: 0 }));
+        incoming = { list: chosen(), data, half: Math.floor(n / 2), built: [] };
+        if (!incoming.list.length) { panes = []; incoming = null; }
+        if (atOnce) while (buildOne());
         if (generation === 0) {
           // measured one point per frame, so building the lab never blocks a phone's main thread
           curves = chosen().map((k) => ({ info: k.info, pts: [], slope: NaN }));
@@ -265,7 +282,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         curves[ci].pts.push([n, t.truncated ? NaN : total(t)]);
         curves[ci].slope = exponent(curves[ci].pts);
       };
-      build();
+      // a thumbnail is one picture: traced at once; a live lab traces one kernel per frame
+      build(ctx.thumbnail);
       const color = (i: number): RGB => ramp(ctx.palette(), panes.length < 2 ? 0.5 : i / (panes.length - 1));
       return {
         setup() {
@@ -273,9 +291,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
-          if (!ctx.thumbnail) measure();
+          // at most one trace per frame: an incoming pane, else one scaling point
+          if (!ctx.thumbnail && !buildOne()) measure();
           const steps = num(ctx.params, 'speed');
-          if (!ctx.thumbnail) {
+          if (!ctx.thumbnail && !incoming) {
             for (const pane of panes) {
               if (!pane.r.done) {
                 pane.r.advance(steps);
@@ -285,7 +304,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
             if (panes.every((x) => x.r.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
               hold = 0;
-              build();
+              build(false);
             }
           }
           const W = ctx.width; const H = ctx.height;
@@ -350,6 +369,12 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
             y: { label: 'comparisons + writes', log: true },
             series: curves.map((cv) => ({ name: cv.info.title, points: cv.pts.slice() })),
           });
+          if (incoming && !panes.length) {
+            p.noStroke();
+            p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 160);
+            p.textAlign(p.LEFT, p.TOP);
+            p.text(`tracing ${incoming.built.length} of ${incoming.list.length} kernels on the same input`, pad, pad);
+          }
           ctx.stats(panes.map((pane, i) => {
             const c = pane.r.counts();
             const slope = curves[i]?.slope;
