@@ -18,7 +18,7 @@ export interface Graph {
   /** Capacity (flow networks; 1 elsewhere) and cost per unit of flow. */
   cap: number[];
   cost: number[];
-  /** A vertex weight: a task's duration (1..9). */
+  /** A vertex weight: a task's duration (1..9, or 1..maxDuration when the kernel sets it). */
   vw: number[];
   /** Edges leaving v, and edges entering v; for an undirected graph both are the incident edges. */
   out: number[][];
@@ -71,11 +71,23 @@ export function other(g: Graph, e: number, v: number): number {
 
 type Edge = [number, number, number];
 
+/** The longest task duration a vertex weight may have, unless the kernel's own control sets it. */
+export const MAX_DURATION = 9;
+
+/** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
+export interface GraphInput {
+  /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
+  maxDuration?: number;
+}
+
+/** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
+export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration'];
+
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
 
 export function build(shape: Shape, x: number[], y: number[], edges: Edge[], directed: boolean,
-  extra: Extra = {}, rnd: () => number = () => 0.5): Graph {
+  extra: Extra = {}, rnd: () => number = () => 0.5, longest = MAX_DURATION): Graph {
   const n = x.length;
   const m = edges.length;
   const out: number[][] = Array.from({ length: n }, () => []);
@@ -90,7 +102,7 @@ export function build(shape: Shape, x: number[], y: number[], edges: Edge[], dir
     eu: edges.map((e) => e[0]), ev: edges.map((e) => e[1]), w: edges.map((e) => e[2]),
     cap: extra.cap ?? edges.map(() => 1),
     cost: extra.cost ?? edges.map(() => 1),
-    vw: extra.vw ?? x.map(() => 1 + Math.floor(rnd() * 9)),
+    vw: extra.vw ?? x.map(() => 1 + Math.floor(rnd() * longest)),
     out, in: inc,
     s: extra.s ?? 0, t: extra.t ?? Math.max(0, n - 1),
     truth: extra.truth ?? x.map(() => 0),
@@ -284,8 +296,10 @@ export function trigramJaccard(a: string, b: string): number {
 }
 
 /** A seeded graph of the given shape with about n vertices. */
-export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9): Graph {
+export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9,
+  input: GraphInput = {}): Graph {
   const rnd = mulberry32(seed);
+  const longest = input.maxDuration ?? MAX_DURATION;
   n = Math.max(2, Math.floor(n));
   switch (shape) {
     case 'geometric': case 'digraph': case 'signed': case 'negative-cycle': {
@@ -294,7 +308,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       connect(x, y, pairs);
       const s = leftmost(x);
       if (shape === 'geometric') {
-        return build(shape, x, y, pairs.map(([i, j]) => [i, j, lengthOf(x, y, i, j, aspect)]), false, { s, t: farthest(x, y, s) }, rnd);
+        return build(shape, x, y, pairs.map(([i, j]) => [i, j, lengthOf(x, y, i, j, aspect)]), false, { s, t: farthest(x, y, s) }, rnd, longest);
       }
       const edges: Edge[] = [];
       for (const [i, j] of pairs) {
@@ -320,7 +334,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
           if (old) old[2] = -40; else edges.push([u, v, -40]);
         }
       }
-      return build(shape, x, y, edges, true, { s, t: farthest(x, y, s) }, rnd);
+      return build(shape, x, y, edges, true, { s, t: farthest(x, y, s) }, rnd, longest);
     }
     case 'grid': {
       const cols = Math.max(2, Math.round(Math.sqrt(n * aspect)));
@@ -340,7 +354,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
           if (r + 1 < rows) edges.push([v, v + cols, int(rnd, 1, 9)]);
         }
       }
-      return build(shape, x, y, edges, false, { s: 0, t: rows * cols - 1 }, rnd);
+      return build(shape, x, y, edges, false, { s: 0, t: rows * cols - 1 }, rnd, longest);
     }
     case 'random': case 'small-world': {
       const { x, y } = circle(n, aspect);
@@ -366,7 +380,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
           }
         }
       }
-      return build(shape, x, y, edges, false, { s: 0, t: Math.floor(n / 2) }, rnd);
+      return build(shape, x, y, edges, false, { s: 0, t: Math.floor(n / 2) }, rnd, longest);
     }
     case 'communities': case 'islands': {
       const c = shape === 'communities' ? 3 : Math.min(n, 3 + Math.floor(rnd() * 3));
@@ -412,7 +426,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       }
       const s = 0;
       return build(shape, x, y, pairs.map(([a, b]) => [a, b, shape === 'communities' ? 1 : lengthOf(x, y, a, b, aspect)]), false,
-        { s, t: farthest(x, y, s), truth }, rnd);
+        { s, t: farthest(x, y, s), truth }, rnd, longest);
     }
     case 'bipartite': {
       const L = Math.ceil(n / 2); const R = n - L;
@@ -437,13 +451,13 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
           edges.push([i, L + j, 1]);
         }
       }
-      return build(shape, x, y, edges, false, { s: 0, t: n - 1, truth }, rnd);
+      return build(shape, x, y, edges, false, { s: 0, t: n - 1, truth }, rnd, longest);
     }
     case 'dag': case 'signed-dag': {
       const { layers, x, y } = layered(n, aspect, rnd);
       const pairs = dagEdges(layers, rnd);
       const edges: Edge[] = pairs.map(([u, v]) => [u, v, shape === 'dag' ? int(rnd, 1, 20) : int(rnd, -8, 12)]);
-      return build(shape, x, y, edges, true, { s: 0, t: n - 1 }, rnd);
+      return build(shape, x, y, edges, true, { s: 0, t: n - 1 }, rnd, longest);
     }
     case 'flow': {
       const { x, y } = scatter(n, aspect, rnd);
@@ -457,7 +471,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         edges.push([u, v, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9));
         if (rnd() < 0.25 && u !== 0 && v !== n - 1) { edges.push([v, u, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9)); }
       }
-      return build(shape, x, y, edges, true, { s: 0, t: n - 1, cap: edges.map((e) => e[2]), cost }, rnd);
+      return build(shape, x, y, edges, true, { s: 0, t: n - 1, cap: edges.map((e) => e[2]), cost }, rnd, longest);
     }
     case 'ownership': {
       const { layers, x, y, layer } = layered(n, aspect, rnd, Math.max(3, Math.round(Math.sqrt(n) * 0.7)));
@@ -487,7 +501,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       pairs.forEach(([, v], e) => { into[v] += w[e]; });
       const float = x.map(() => 0.5 + rnd() * 0.45);
       const edges: Edge[] = pairs.map(([u, v], e) => [u, v, Math.round((1000 * w[e] * float[v]) / into[v]) / 1000]);
-      return build(shape, x, y, edges, true, { s: 0, t: n - 1 }, rnd);
+      return build(shape, x, y, edges, true, { s: 0, t: n - 1 }, rnd, longest);
     }
     case 'eulerian': {
       const { x, y } = scatter(n, aspect, rnd);
@@ -511,13 +525,13 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
           pairs.push([a, mid], [b, mid]);
         }
       }
-      return build(shape, x, y, pairs.map(([a, b]) => [a, b, lengthOf(x, y, a, b, aspect)]), false, { s: 0 }, rnd);
+      return build(shape, x, y, pairs.map(([a, b]) => [a, b, lengthOf(x, y, a, b, aspect)]), false, { s: 0 }, rnd, longest);
     }
     case 'points': {
       const { x, y } = scatter(n, aspect, rnd);
       const edges: Edge[] = [];
       for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) edges.push([i, j, lengthOf(x, y, i, j, aspect)]);
-      return build(shape, x, y, edges, false, {}, rnd);
+      return build(shape, x, y, edges, false, {}, rnd, longest);
     }
     case 'links': {
       const { x, y } = scatter(n, aspect, rnd);
@@ -525,7 +539,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       connect(x, y, pairs);
       const s = leftmost(x);
       return build(shape, x, y, pairs.map(([i, j]) => [i, j, Math.round(30 + rnd() * 69) / 100]), false,
-        { s, t: farthest(x, y, s) }, rnd);
+        { s, t: farthest(x, y, s) }, rnd, longest);
     }
     case 'reasoning': {
       // evidence at the bottom, claims above it, one conclusion on top; edges point upwards
@@ -562,7 +576,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
           }
         });
       }
-      return build(shape, x, y, edges, true, { s: 0, t: next - 1, truth }, rnd);
+      return build(shape, x, y, edges, true, { s: 0, t: next - 1, truth }, rnd, longest);
     }
     case 'records': {
       const k = Math.max(1, Math.round(n / 3));
@@ -591,7 +605,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
           if (sim >= 0.2) edges.push([i, j, Math.round(sim * 100) / 100]);
         }
       }
-      return build(shape, x, y, edges, false, { truth, names }, rnd);
+      return build(shape, x, y, edges, false, { truth, names }, rnd, longest);
     }
   }
 }

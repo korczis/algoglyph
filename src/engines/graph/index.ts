@@ -3,9 +3,11 @@
 // frame and measures how each one's work grows with the number of vertices (ADR 0004 §4-5).
 import type p5 from 'p5';
 import { paletteParam, ramp, type Palette, type RGB } from '../../core/palette';
-import { bool, num, str, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
+import { bool, num, str, type ParamDef, type Params, type PlateCode, type PlateContext,
+  type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
-import { makeGraph, SHAPE_LABELS, type Graph, type Shape } from './graph';
+import { INPUT_KEYS, makeGraph, SHAPE_LABELS, type Graph, type GraphInput,
+  type Shape } from './graph';
 import { defaultParams, E, emptyCounts, modularity, OP, start, V, work, type GraphKernel, type Options,
   type ReadoutKey, type Running, type SeriesKey, type Trace } from './trace';
 import { count } from '../../core/format';
@@ -480,6 +482,20 @@ function sizeParam(kernel: GraphKernel, cap?: number): ParamDef {
 
 const aspectOf = (k: GraphKernel) => (k.view?.matrix ? 1 : 16 / 9);
 
+/**
+ * What a kernel's own controls set in its input (graph.ts GraphInput): only the keys it declares,
+ * so a kernel without such a control gets the default input, drawn exactly as before.
+ */
+export function graphInput(kernel: GraphKernel, params: Params): GraphInput {
+  const out: GraphInput = {};
+  for (const d of kernel.params ?? []) {
+    if ((INPUT_KEYS as readonly string[]).includes(d.key) && params[d.key] !== undefined) {
+      out[d.key as keyof GraphInput] = num(params, d.key);
+    }
+  }
+  return out;
+}
+
 function options(kernel: GraphKernel, g: Graph, ctx: PlateContext, pick: number): Options {
   const p = defaultParams(kernel);
   for (const d of kernel.params ?? []) if (d.key in ctx.params) p[d.key] = ctx.params[d.key];
@@ -520,7 +536,8 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
       };
       let generation = 0;
       let pick = -1;
-      let g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed, aspectOf(kernel));
+      let g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed, aspectOf(kernel),
+        graphInput(kernel, ctx.params));
       let running: Running;
       const run = () => {
         running = start(kernel, g, options(kernel, g, ctx, pick), ctx.seed + generation, kernel.cap);
@@ -553,7 +570,8 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
               generation++;
               hold = 0;
               pick = -1;
-              g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed + generation * 7919, aspectOf(kernel));
+              g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed + generation * 7919,
+                aspectOf(kernel), graphInput(kernel, ctx.params));
               r = run();
               pacer.start();
               measured();
