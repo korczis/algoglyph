@@ -26,6 +26,33 @@ pedagogy:
 bounds:
   model: real multiplies per frame
   worst: 'W·τmax for the difference function over a frame of W samples, and 2τmax for its normalisation'
+claims:
+  - id: multiplies-at-w-512
+    statement: >-
+      Counted from the code: 1.5 s at 16 kHz is 24,000 samples, frames of W + τmax samples at hop
+      256 fit ⌊(24000 − W − 400)/256⌋ + 1 = 91 times for W = 512, and each costs W·τmax + 2τmax =
+      205,600 multiplies: 18,709,600 in all, exactly.
+    readout: Real multiplies
+    expect: { value: 18709600 }
+  - id: multiplies-at-w-384
+    statement: >-
+      At W = 384 the frames still number 91, at 154,400 multiplies each: 14,050,400, exactly.
+    readout: Real multiplies
+    expect: { value: 14050400 }
+    setup:
+      params: { w: '384' }
+  - id: frames-at-w-256
+    statement: At W = 256 one more frame fits, ⌊23344/256⌋ + 1 = 92, exactly.
+    readout: Frames
+    expect: { value: 92 }
+    setup:
+      params: { w: '256' }
+  - id: multiplies-at-w-256
+    statement: The 92 frames at W = 256 cost 103,200 multiplies each, 9,494,400 in all, exactly.
+    readout: Real multiplies
+    expect: { value: 9494400 }
+    setup:
+      params: { w: '256' }
 ---
 
 A difference function with cumulative normalisation that finds the fundamental period.

@@ -71,19 +71,23 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'vib', label: 'Vibrato depth (cents)', min: 0, max: 100, step: 5, value: 30 },
     { kind: 'range', key: 'snr', label: 'SNR (dB)', min: 0, max: 60, step: 1, value: 25 },
     { kind: 'range', key: 'thr', label: 'Threshold', min: 0.02, max: 0.5, step: 0.01, value: 0.1 },
+    { kind: 'select', key: 'w', label: 'Analysis window W', value: String(W),
+      options: ['256', '384', '512'].map((v) => ({ value: v, label: `${v} samples` })) },
   ],
   *run(params, seed, meter): Generator<View | null> {
     const n = Math.round(1.5 * FS);
     const { x, f } = voice(n, Number(params.f0), Number(params.glide), Number(params.vib), Number(params.snr), seed);
     yield null;
     const thr = Number(params.thr);
-    const track = new Float64Array(Math.floor((n - W - TAU_MAX) / HOP) + 1).fill(NaN);
-    const truth = Float64Array.from(track, (_, k) => f[k * HOP + W / 2]);
+    // a caller that predates the control (test/kernels-signal.test.ts) gets the default window
+    const w = Number(params.w ?? W);
+    const track = new Float64Array(Math.floor((n - w - TAU_MAX) / HOP) + 1).fill(NaN);
+    const truth = Float64Array.from(track, (_, k) => f[k * HOP + w / 2]);
     const errs: number[] = [];
     let gross = 0;
     for (let k = 0; k < track.length; k++) {
       const from = k * HOP;
-      const p = yin(x, from, FS, thr, W, TAU_MAX, meter);
+      const p = yin(x, from, FS, thr, w, TAU_MAX, meter);
       meter.add(FRAME);
       track[k] = p.f;
       const e = cents(p.f, truth[k]);
@@ -91,12 +95,12 @@ export const kernel: SignalKernel = {
       if (Math.abs(e) > 50) gross++;
       const sorted = errs.slice().sort((a, b) => a - b);
       const known: [number, number][] = [];
-      for (let j = 0; j <= k; j++) known.push([(j * HOP + W / 2) / FS, track[j]]);
+      for (let j = 0; j <= k; j++) known.push([(j * HOP + w / 2) / FS, track[j]]);
       const lo = Math.min(...truth) / 1.6; const hi = Math.max(...truth) * 1.4;
       yield {
         layout: [[0, 1], [2]],
         panels: [
-          { kind: 'wave', title: `Frame at ${((from + W / 2) / FS).toFixed(3)} s`, series: [{ name: 'x', y: x.subarray(from, from + W + TAU_MAX), tone: 0.7 }],
+          { kind: 'wave', title: `Frame at ${((from + w / 2) / FS).toFixed(3)} s`, series: [{ name: 'x', y: x.subarray(from, from + w + TAU_MAX), tone: 0.7 }],
             marks: [{ at: 0 }, { at: p.tau, label: 'one period' }] },
           { kind: 'wave', title: "d'(τ), the cumulative mean normalised difference", range: [0, 1.6], series: [
             { name: "d'(τ)", y: p.dprime, tone: 0.3 }, { name: 'threshold', y: new Float64Array(p.dprime.length).fill(thr), tone: -1, alpha: 110 }],
@@ -114,7 +118,7 @@ export const kernel: SignalKernel = {
         counts: meter.snapshot(),
         chart: { title: 'Pitch track', x: { label: 'time (s)' }, y: { label: 'frequency (Hz)' }, series: [
           { name: 'YIN', points: known },
-          { name: 'true', points: chartPoints(truth, (j) => (j * HOP + W / 2) / FS, 400, 0, k + 1) }] },
+          { name: 'true', points: chartPoints(truth, (j) => (j * HOP + w / 2) / FS, 400, 0, k + 1) }] },
       };
     }
   },
