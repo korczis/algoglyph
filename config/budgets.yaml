@@ -1,4 +1,4 @@
-# The main-thread budget every plate and lab must fit (test/budget.test.ts). A plate that
+# The main-thread budget every plate and lab must fit (test/budget/). A plate that
 # computes a whole run at creation, or does unbounded work per frame, freezes a phone; the
 # independent reviews of 2026-11-11 found that class in the grid, hash, bespoke and stochastic
 # waves at once, so it is gated in the core for every engine, present and future.
@@ -18,7 +18,7 @@ widths: [390, 1440]   # canvas widths measured: a phone and a desktop (the brows
 horizon_frames: 900   # frames driven past the first window, to reach a run's end and its rebuild
 horizon_cpu_ms: 3000  # ...or this much CPU, whichever comes first
 drag_steps: 8         # steps of a slider swept from its minimum to its maximum, one per frame
-reference_cpu_ms: 2.9   # referenceCpuMs() in test/budget.test.ts on the reference machine (an M-series Mac,
+reference_cpu_ms: 2.9   # referenceCpuMs() in test/support/budget.ts on the reference machine (an M-series Mac,
                         # best of seven at 2026-11-12T00:21Z); budgets scale by measured / this, never below 1
 local_headroom: 0.6     # outside CI (no CI env var) the budgets are this fraction: local green predicts CI green
 

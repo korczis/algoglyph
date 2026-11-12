@@ -14,7 +14,7 @@ export const kernel: GraphKernel<SupportResult> = {
   n: { min: 4, max: 160, value: 40 },
   pick: 't',
   endpoints: 't',
-  names: { frontier: 'Found under the conclusion', done: 'Searched', tree: 'Independent lines', marked: 'Evidence on a line' },
+  names: { frontier: 'Found under the conclusion', done: 'Searched', tree: 'Edges drawn thick', marked: 'Evidence on a line' },
   readouts: ['scans', 'done', 'tree', 'rounds'],
   chart: { title: 'Search, then lines of support', x: 'rounds', y: 'count', series: ['done', 'tree'] },
   speed: 2,

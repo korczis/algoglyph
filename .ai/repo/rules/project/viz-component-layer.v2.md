@@ -38,7 +38,7 @@ hand can no longer disagree with the code, and a family of algorithms shares one
 - `draw()` never relies on `p.frameCount` (thumbnails run several frames per p5 frame), and
   work that would block a frame for long (a lab's scaling runs, a direct-summation force pass,
   the next run of a loop) is spread over frames. A plate fits the main-thread budget of
-  `config/budgets.yaml`, proven by `test/budget.test.ts` for every live plate and lab, in three
+  `config/budgets.yaml`, proven by `test/budget/` for every live plate and lab, in three
   checks derived from its own controls: creation and the first frames at every width and every
   heavy corner (each range at its maximum and, in turn, at its minimum; each select option); the
   frames past the end of a run, where a loop rebuilds, for every option of each select that
@@ -46,8 +46,9 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   are); and a slider dragged without a remount. An array kernel too costly to trace in one frame
   at the engine's largest input declares `maxN`, derived from its measured cost, and its slider
   (and every lab it races in) stops there.
-  The gate counts CPU time, calibrated against a fixed reference workload, so it judges the
-  plate's work and not the machine's speed or load; each repeat takes a new seed, so a cache
+  The gate counts CPU time, calibrated against a fixed reference workload before each check and
+  again after a reading over budget, so it judges the plate's work and not the machine's speed or
+  load; each repeat takes a new seed, so a cache
   never answers for the work; outside CI the budgets carry `local_headroom`, so a plate that
   passes on a developer's machine passes on CI's runners.
 - A frame's share of a run is counted, never only timed: a wall-clock slice always finishes the

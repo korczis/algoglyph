@@ -15,6 +15,20 @@ complexity: "O(m log m) to sort the m candidate pairs, then near-constant time p
 related:
   - weighted-quick-union
   - connected-components
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - weighted-quick-union
+  objectives:
+  - Take candidate pairs from the most similar down, a match at or above the threshold becoming a union.
+  - Read the components as the resolved entities.
+  - See a lower threshold raise recall and tend to lower precision, as noisy names chain entities together.
+algorithm:
+  paradigm: union-find
+bounds:
+  model: candidate pairs examined and merging matches
+  worst: 'each of the m candidate pairs examined once; at most n − 1 merging matches for n records, each joining two clusters into one'
 ---
 
 Pairwise matches become unions, and the components are the resolved entities.

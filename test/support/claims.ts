@@ -12,7 +12,12 @@ export interface Claim {
   id: string;
   statement: string;
   readout: string;
-  expect: { value?: number; tolerance?: number; range?: [number, number]; below?: number; above?: number };
+  expect: {
+    value?: number; tolerance?: number; range?: [number, number]; below?: number; above?: number;
+    /** Compare with another readout (or another number of the same one): the claim judges
+     * readout − against, with tolerance (|difference|), below or above. */
+    against?: string; against_number?: number;
+  };
   setup?: { params?: Params; seed?: number };
 }
 
@@ -22,15 +27,22 @@ export const SETTLE_FRAMES = 120;
 export const MAX_FRAMES = 20_000;
 export const DEFAULT_SEED = 4242;
 
-/** The first number of a readout's text as displayed: thousands separators dropped, an exponent
- * read (toExponential and toPrecision print 3.2e-7), a percentage kept in percent, a typographic
- * minus read as a minus. A number written as a power of ten (1.5×10⁻³) is refused, not misread. */
-export function firstNumber(text: string): number | null {
-  const m = /[-−]?\d[\d,]*(?:\.\d+)?(?:[eE][-+−]?\d+)?/.exec(text);
-  if (!m) return null;
+const NUMBER = /[-−]?\d[\d,]*(?:\.\d+)?(?:[eE][-+−]?\d+)?/g;
+
+/** The n-th number (from 1) of a readout's text as displayed: thousands separators dropped, an
+ * exponent read (toExponential and toPrecision print 3.2e-7), a percentage kept in percent, a
+ * typographic minus read as a minus. A number written as a power of ten (1.5×10⁻³) is refused,
+ * not misread. */
+export function nthNumber(text: string, n: number): number | null {
+  const all = [...text.matchAll(NUMBER)];
+  const m = all[n - 1];
+  if (!m || m.index === undefined) return null;
   if (/^\s*[×x]\s*10/.test(text.slice(m.index + m[0].length))) return null;
   return Number(m[0].replace(/,/g, '').replace(/−/g, '-'));
 }
+
+/** The first number of a readout's text as displayed (see nthNumber). */
+export const firstNumber = (text: string): number | null => nthNumber(text, 1);
 
 export interface Reading { value?: number; text?: string; frames: number; reason?: string }
 
@@ -72,12 +84,24 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   }
   const value = firstNumber(row.value);
   if (value === null) return { frames, text: row.value, reason: `readout "${claim.readout}" shows no number: ${row.value}` };
-  return { frames, value, text: row.value };
+  const x = claim.expect;
+  if (x.against === undefined) return { frames, value, text: row.value };
+  // a comparison: the claim judges this readout's first number minus the other's chosen number
+  const other = rows.find((r) => r.label === x.against);
+  if (!other) {
+    return { frames, reason: `${id} publishes no readout "${x.against}" to compare with; it publishes: ${rows.map((r) => `"${r.label}"`).join(', ')}` };
+  }
+  const n = x.against_number ?? 1;
+  const b = nthNumber(other.value, n);
+  if (b === null) return { frames, text: other.value, reason: `readout "${x.against}" has no number ${n}: ${other.value}` };
+  return { frames, value: value - b, text: `${row.value} against ${other.value} (number ${n})` };
 }
 
 /** Whether a read value meets the claim's expectation (inclusive). */
 export function holds(claim: Claim, value: number): boolean {
   const x = claim.expect;
+  // against: `value` is the difference, judged around zero by tolerance, or by below or above
+  if (x.against !== undefined && x.tolerance !== undefined) return Math.abs(value) <= x.tolerance;
   if (x.range) return value >= x.range[0] && value <= x.range[1];
   if (x.below !== undefined) return value < x.below;
   if (x.above !== undefined) return value > x.above;
@@ -87,6 +111,11 @@ export function holds(claim: Claim, value: number): boolean {
 /** The expectation in words, for a failure message. */
 export function expected(claim: Claim): string {
   const x = claim.expect;
+  if (x.against !== undefined) {
+    const of = `${claim.readout} − ${x.against}${x.against_number ? ` (number ${x.against_number})` : ''}`;
+    if (x.tolerance !== undefined) return `|${of}| ≤ ${x.tolerance}`;
+    return x.below !== undefined ? `${of} below ${x.below}` : `${of} above ${x.above}`;
+  }
   if (x.range) return `in [${x.range[0]}, ${x.range[1]}]`;
   if (x.below !== undefined) return `below ${x.below}`;
   if (x.above !== undefined) return `above ${x.above}`;

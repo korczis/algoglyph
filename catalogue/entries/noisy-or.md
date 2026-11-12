@@ -20,6 +20,13 @@ pedagogy:
     - Check the formula against a simulation of its generative story, converging at the rate of a binomial proportion.
 algorithm:
   paradigm: incremental
+claims:
+  - id: simulation-converges-on-the-noisy-or-value
+    statement: >-
+      Over 6000 simulated cases the simulated frequency lies within three standard errors of the
+      noisy-OR value; a binomial proportion's standard error is at most 0.5/√6000, so within 0.0194.
+    readout: Simulated frequency
+    expect: { against: Noisy-OR P(effect), tolerance: 0.0194 }
 ---
 
 Independent pieces of evidence combine as one minus the product of their failures.

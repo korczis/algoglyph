@@ -99,6 +99,8 @@ export const kernel: StochasticKernel<BootstrapResult> = {
     }
     const sorted = ascending(boots);
     const se = Math.sqrt(variance(boots));
+    // the sample shown keeps its comparison while the repeated experiments run
+    const seRow = { label: 'Bootstrap standard error', value: `${fmt(se, 4)} (s/√n ${fmt(sd / Math.sqrt(n), 4)})` };
     const interval = percentile(sorted, SHOWN_LEVEL);
     const hits = new Array<number>(LEVELS.length).fill(0);
     const shown: { label: string; lo: number; hi: number; truth: number }[] = [];
@@ -127,6 +129,7 @@ export const kernel: StochasticKernel<BootstrapResult> = {
         { label: '90% intervals covering', value: `${pct(c)} ± ${pct(Math.sqrt(c * (1 - c) / r))}` },
         { label: '50% intervals covering', value: pct(hits[0] / r) },
         { label: 'Mean 90% width', value: fmt(width / r, 4) },
+        seRow,
       ]);
       yield;
     }

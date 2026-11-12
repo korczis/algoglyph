@@ -266,10 +266,19 @@ export function loadCatalogue(root, { code = true } = {}) {
       const x = c.expect ?? {};
       const hasValue = typeof x.value === 'number';
       const hasRange = Array.isArray(x.range);
-      const forms = [hasValue, hasRange, typeof x.below === 'number', typeof x.above === 'number'].filter(Boolean).length;
-      if (forms !== 1) err(`${at}: expect needs exactly one of value, range, below and above`);
+      const against = typeof x.against === 'string';
+      if (against) {
+        // a comparison judges a difference: by tolerance, below or above, never value or range
+        const judged = [typeof x.tolerance === 'number', typeof x.below === 'number', typeof x.above === 'number'].filter(Boolean).length;
+        if (hasValue || hasRange || judged !== 1) err(`${at}: expect.against needs exactly one of tolerance, below and above, and no value or range`);
+        if (x.against_number !== undefined && x.against_number < 1) err(`${at}: expect.against_number counts from 1`);
+      } else {
+        const forms = [hasValue, hasRange, typeof x.below === 'number', typeof x.above === 'number'].filter(Boolean).length;
+        if (forms !== 1) err(`${at}: expect needs exactly one of value, range, below and above`);
+        if (x.against_number !== undefined) err(`${at}: expect.against_number needs expect.against`);
+      }
       if (hasRange && (x.range.length !== 2 || x.range[0] > x.range[1])) err(`${at}: expect.range must be [lo, hi] with lo <= hi`);
-      if (x.tolerance !== undefined && !hasValue) err(`${at}: expect.tolerance is a distance around expect.value`);
+      if (x.tolerance !== undefined && !hasValue && !against) err(`${at}: expect.tolerance is a distance around expect.value`);
       if (typeof x.tolerance === 'number' && x.tolerance < 0) err(`${at}: expect.tolerance cannot be negative`);
     }
     const lower = text.toLowerCase();

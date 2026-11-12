@@ -16,6 +16,21 @@ tags:
 complexity: "O(n + m) expected; O(n m) when every window collides"
 related:
   - brute-force-search
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Read each window as a base-256 number modulo a prime q and roll it one position in constant work.
+  - Compare characters only when the window's hash equals the pattern's, so no match is reported falsely.
+  - See a small modulus such as 13 produce spurious hash hits and the comparisons they cost.
+  misconceptions:
+  - A hash match is not a match; the characters are always compared before one is reported.
+algorithm:
+  paradigm: search
+bounds:
+  model: character comparisons and hash updates
+  average: O(n + m) expected
+  worst: O(n m) when every window collides
 ---
 
 Compare rolling hashes of each window with the pattern's, characters only on a match.

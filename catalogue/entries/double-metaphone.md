@@ -15,6 +15,16 @@ complexity: "O(n) in the length of the name"
 related:
   - name-normalisation
   - jaro-winkler
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Keep the first letter and up to three digit classes of the consonants that follow, for Soundex.
+  - Walk the name with Double Metaphone's context rules and write a primary and an alternate key.
+  - Count how many spellings of one name meet on each key, and see a changed sound keep a pair apart.
+bounds:
+  model: letters coded and Metaphone rules applied
+  worst: 'at most n of each for a name of n letters: Soundex reads each letter at most once, and each Metaphone rule consumes at least one'
 ---
 
 Names reduced to how they sound, so differently transliterated spellings meet.

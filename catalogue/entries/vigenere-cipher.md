@@ -14,6 +14,16 @@ tags:
 complexity: "O(n L_max) letter tallies for n letters and candidate key lengths up to L_max"
 related:
   - entropy-map
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Shift each plaintext letter by the key letter under it.
+  - Find the key's length from the ciphertext alone, by Kasiski's repeat distances and the mean index of coincidence.
+  - Recover each key letter by treating its column as a Caesar cipher fitted to English letter frequencies.
+bounds:
+  model: letter shifts and letters tallied
+  worst: 'n shifts to encrypt; n tallies for each candidate key length up to L_max and n for the key letters, n(L_max + 1): O(n L_max)'
 ---
 
 A repeating keyword shifts each letter; the key's length falls out of repeated fragments.

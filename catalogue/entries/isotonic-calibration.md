@@ -23,6 +23,13 @@ pedagogy:
     - Measure calibration on held-out cases with the reliability diagram, the Brier score and the expected calibration error, so the fit does not grade itself.
 algorithm:
   paradigm: incremental
+claims:
+  - id: held-out-calibration-error-falls
+    statement: >-
+      Measured on the held-out half, the isotonic fit lowers the expected calibration error: the
+      error before calibration exceeds the error after it.
+    readout: Expected calibration error
+    expect: { against: Expected calibration error, against_number: 2, above: 0 }
 ---
 
 Pool adjacent violators until confidence rises with accuracy; the reliability diagram before and after.

@@ -15,6 +15,16 @@ complexity: "O(n w) bit operations for n message bits and a w-bit generator"
 related:
   - lfsr-keystream
   - hash-avalanche
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Divide the message bits followed by w zero bits by the generator x^w plus the model's polynomial over GF(2).
+  - XOR the generator in wherever the leading bit is 1, and move on where it is 0.
+  - Check the published check values of CRC-8, CRC-16/CCITT-FALSE, CRC-24/OpenPGP and CRC-32 on 123456789.
+bounds:
+  model: division steps and bit XORs, for n message bits and a w-bit generator
+  worst: 'n division steps and at most (w + 1) n bit XORs, the generator XORed in wherever the leading bit is 1: O(n w)'
 ---
 
 Divide the message by a generator polynomial over GF(2); the remainder is the check value.
