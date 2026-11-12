@@ -135,14 +135,19 @@ export interface EvidenceItem {
   reliability: number;
 }
 
-export function evidenceSet(s: Sampler, k: number): EvidenceItem[] {
+/** The least reliability an evidence item may have, unless the kernel's own control sets it. */
+export const MIN_RELIABILITY = 0.55;
+
+/** k evidence items; each reliability is min(1, minRel + 0.4 · u), the same draw at every
+ * minRel (at the default it never reaches 1, so the cap leaves the old set as it was). */
+export function evidenceSet(s: Sampler, k: number, minRel = MIN_RELIABILITY): EvidenceItem[] {
   return Array.from({ length: k }, (_, i) => {
     const sign = s.bernoulli(0.7) ? 1 : -1;
     return {
       label: `E${i + 1}`,
       llr: sign * (0.2 + 1.3 * s.uniform()),
       sd: 0.15 + 0.6 * s.uniform(),
-      reliability: 0.55 + 0.4 * s.uniform(),
+      reliability: Math.min(1, minRel + 0.4 * s.uniform()),
     };
   });
 }
