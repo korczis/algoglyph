@@ -2,7 +2,9 @@ import type { Box, GeometryKernel, Mark } from '../../engines/geometry/trace';
 import { BESSEL_E2, KROVAK, krovak, mercator, radii, WEB_MERCATOR_R } from './_projections';
 
 const D = Math.PI / 180;
-const LAT0 = 48.5; const LAT1 = 51.5; const LON0 = 12; const LON1 = 19;
+const LAT0 = 48.5; const LON0 = 12; const LON1 = 19;
+/** The band spans this many degrees of latitude north of its southern edge. */
+const BAND = 3;
 const STEP = 0.25;
 const H = 1e-5; // radians, for the central differences
 
@@ -27,17 +29,24 @@ export interface Distortion { lat: number; lon: number; h: number; k: number; an
 export const kernel: GeometryKernel = {
   task: 'projections',
   input: 'none',
+  params: [
+    {
+      kind: 'range', key: 'lat0', label: 'Southern edge (° N)', min: 40, max: 60, step: 0.5, value: LAT0,
+      hint: 'the band runs 3° north of it, over 12° to 19° E',
+    },
+  ],
   counters: [['proj', 'Projection evaluations'], ['node', 'Nodes measured']],
   *run(g) {
+    const lat0 = Number(g.params.lat0 ?? LAT0); const lat1 = lat0 + BAND;
     const panels: Box[] = [{ x0: 0, y0: 0, x1: 1, y1: 0.78 }, { x0: 1.12, y0: 0, x1: 2.12, y1: 0.78 }];
     g.view({ x0: -0.04, y0: -0.12, x1: 2.16, y1: 0.9 });
     const lats: number[] = []; const lons: number[] = [];
-    for (let v = LAT0; v <= LAT1 + 1e-9; v += STEP) lats.push(Number(v.toFixed(4)));
+    for (let v = lat0; v <= lat1 + 1e-9; v += STEP) lats.push(Number(v.toFixed(4)));
     for (let v = LON0; v <= LON1 + 1e-9; v += STEP) lons.push(Number(v.toFixed(4)));
     const P = (pj: Proj, lat: number, lon: number) => { g.count('proj'); return pj.f(lat, lon); };
     // fit each projection's graticule into its panel
     const fits = PROJ.map((pj, i) => {
-      const pts = [...lats.flatMap((la) => [pj.f(la, LON0), pj.f(la, LON1)]), ...lons.flatMap((lo) => [pj.f(LAT0, lo), pj.f(LAT1, lo)])];
+      const pts = [...lats.flatMap((la) => [pj.f(la, LON0), pj.f(la, LON1)]), ...lons.flatMap((lo) => [pj.f(lat0, lo), pj.f(lat1, lo)])];
       const xs = pts.map((q) => q[0]); const ys = pts.map((q) => q[1]);
       const bx0 = Math.min(...xs); const by0 = Math.min(...ys);
       const s = Math.min((panels[i].x1 - panels[i].x0) / (Math.max(...xs) - bx0), (panels[i].y1 - panels[i].y0) / (Math.max(...ys) - by0));
