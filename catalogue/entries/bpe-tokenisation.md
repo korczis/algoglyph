@@ -10,7 +10,6 @@ tags:
   - tokenisation
   - compression
   - merges
-motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: "O(k n) for k merges over n characters as written here"
 related:
   - huffman-coding
