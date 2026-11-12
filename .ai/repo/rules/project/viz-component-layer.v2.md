@@ -45,7 +45,10 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   plate's work and not the machine's speed or load.
 - Work that grows with the canvas or with the steps asked per frame is bounded with
   `src/core/budget.ts` (`cellWithin`, `stepsWithin`), and the readout says what was done
-  (`bounded`): a bounded quantity is never shown as the value asked.
+  (`bounded`): a bounded quantity is never shown as the value asked. A state that decays
+  towards zero (a dying reaction, a damped wave) is stored through `flush`, so it never sits in
+  subnormal floats, which x86 processors compute far slower than Apple silicon; a test of the
+  plate's module proves its decayed state holds no subnormal value.
 - A parameter that changes the structure (grid size, counts, scene) sets `rebuild: true`.
 
 # Failure behaviour

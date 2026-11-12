@@ -26,3 +26,17 @@ export function cellWithin(width: number, height: number, asked: number, maxCell
 export function bounded(used: number, asked: number, unit = ''): string {
   return used === asked ? `${used}${unit}` : `${used}${unit} (asked ${asked}${unit}, bounded by the frame budget)`;
 }
+
+/**
+ * Below this magnitude a simulated quantity is zero. A field that decays towards zero (a dying
+ * reaction, a damped wave) otherwise ends in subnormal floats, which x86 processors handle one to
+ * two orders of magnitude slower than normal ones while Apple silicon does not slow down: the
+ * Pages runner measured gray-scott at 477 ms per frame against 11 ms here, with every V cell
+ * subnormal from step 800 on (run 43120590754). Flush a decaying state with `flush`.
+ */
+export const TINY = 1e-30;
+
+/** x, or 0 when |x| < TINY: keeps a decaying state out of the subnormal range. */
+export function flush(x: number): number {
+  return x > TINY || x < -TINY ? x : 0;
+}
