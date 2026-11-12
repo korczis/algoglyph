@@ -488,8 +488,7 @@ Alpine.data('app', () => ({
         same: s.same,
       };
     });
-    // a plain property, set here with the slots: a getter over them was not re-evaluated by the
-    // notice's x-show after a hash navigation from one plate to the next
+    // a plain property, set with the slots it summarises
     this.dataTravels = this.dataSlots.some((s) => s.travels);
   },
 
