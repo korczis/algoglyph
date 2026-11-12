@@ -23,7 +23,7 @@ pedagogy:
   - See how a parenthesis fences off the stack until its closing partner.
 bounds:
   model: stack pushes and pops
-  worst: 'each operator is pushed once and popped once: O(n) for n tokens'
+  worst: 'each operator and opening parenthesis is pushed once and popped once: O(n) for n tokens'
 ---
 
 Convert an infix expression to postfix with an operator stack.

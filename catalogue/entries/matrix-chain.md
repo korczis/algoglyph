@@ -25,7 +25,7 @@ algorithm:
   paradigm: dynamic-programming
 bounds:
   model: cell reads
-  worst: 'Θ(n³): n(n−1)(n+1)/6 splits'
+  worst: 'Θ(n³): n(n−1)(n+1)/3 + 1, two per split and one for the traceback'
   space: Θ(n²) cells
 ---
 
