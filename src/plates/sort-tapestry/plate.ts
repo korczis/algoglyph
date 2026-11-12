@@ -47,13 +47,14 @@ export const sortTapestry: PlateCode = {
         return { a, c, gen: algo.run(a, c), done: false, touch: null };
       });
       hold = 0;
-      // every row advances alike; the run lasts as long as its longest row, counted on copies
-      pacer.start(Math.max(0, ...rows.map((row) => {
-        const gen = algo.run(row.a.slice(), { cmp: 0, wr: 0 });
+      // every row advances alike and sorts a shuffle of the same keys with the same algorithm:
+      // the run's length is the first row's, counted on a copy (one sort, never one per row)
+      if (rows.length) {
+        const gen = algo.run(rows[0].a.slice(), { cmp: 0, wr: 0 });
         let k = 0;
         while (!gen.next().done) k++;
-        return k;
-      })));
+        pacer.start(k);
+      } else pacer.start(0);
     };
 
     return {

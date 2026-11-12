@@ -58,17 +58,17 @@ export class Board {
     this.every = Math.max(1, Math.floor(t.events.length / 120));
   }
   get done(): boolean { return this.at >= this.t.events.length; }
-  /** Steps of `unit` in the whole run: the length the plate paces. */
+  /** Steps of `unit` in the whole run: the length the plate paces (counted once, by op). */
   steps(unit: StepUnit = 'cost'): number {
-    const ev = this.t.events;
-    const e: Ev = { o: 0, p: 0, i: 0, j: 0, v: 0 };
+    this.ops ??= this.t.events.histogram();
+    const h = this.ops;
+    if (unit === 'tick') return h[OP.tick];
+    if (unit === 'note') return h[OP.note];
     let n = 0;
-    for (let k = 0; k < ev.length; k++) {
-      ev.get(k, e);
-      if (counts(unit, e.o)) n++;
-    }
+    for (const o of COST) n += h[o];
     return n;
   }
+  private ops: Uint32Array | null = null;
   /** The replay's read cursor into the event log. */
   private cur: Ev = { o: 0, p: 0, i: 0, j: 0, v: 0 };
   /**
