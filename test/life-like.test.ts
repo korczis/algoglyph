@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import langtonTurmites from '../src/plates/langton-turmites/plate';
 import lifeLikeAutomata from '../src/plates/life-like-automata/plate';
-import { fadeTrace } from '../src/plates/_shared/trace/trace';
+import { fadeTrace, TRACE_FULL } from '../src/plates/_shared/trace/trace';
 import {
   bounds, CELL_BUDGET, generationsPerFrame, Life, parseRule, PATTERNS, ruleString,
   type Pattern,
@@ -229,27 +229,40 @@ describe('frame budget', () => {
 });
 
 describe('fading traces', () => {
-  it('reach exactly 0 at the slowest fade of either plate and never hold a subnormal', () => {
-    const fades = [lifeLikeAutomata, langtonTurmites].map((plate) => {
-      const d = plate.params.find((q) => q.key === 'fade');
-      return d && d.kind === 'range' ? d.max : NaN;
-    });
-    for (const fade of fades) {
-      expect(fade).toBeLessThan(1);
-      const trail = new Uint8Array(64);
-      for (let i = 0; i < trail.length; i++) trail[i] = fadeTrace(0, 1, fade);
-      let frames = 0;
-      while (trail.some((v) => v !== 0)) {
-        for (let i = 0; i < trail.length; i++) {
-          trail[i] = fadeTrace(trail[i], 0, fade);
-          const v = trail[i];
-          expect(v === 0 || v >= Number.MIN_VALUE * 2 ** 52).toBe(true);
-          expect(Number.isInteger(v)).toBe(true);
+  // Without truncation a trace would be 255·fᵏ: below 1 once k ≥ ln 255 / −ln f, so
+  // truncating can only end it sooner. Truncation takes off less than 1 per frame, so
+  // tₖ ≥ fᵏ(255 + 1/(1 − f)) − 1/(1 − f), which is still positive while
+  // k < ln(1 + 255(1 − f)) / −ln f. Every step also drops by at least 1, so 255 frames at most.
+  const range = (key: string) => [lifeLikeAutomata, langtonTurmites].map((plate) => {
+    const d = plate.params.find((q) => q.key === key);
+    if (!d || d.kind !== 'range') throw new Error(`${plate.id} has no range ${key}`);
+    return [d.min, d.max];
+  });
+
+  it('fall strictly from full to exactly 0 within the frames the fade implies', () => {
+    for (const [fastest, slowest] of range('fade')) {
+      for (const fade of [fastest, slowest]) {
+        expect(fade).toBeGreaterThan(0);
+        expect(fade).toBeLessThan(1);
+        let t = fadeTrace(0, 1, fade);
+        expect(t).toBe(TRACE_FULL);
+        let frames = 0;
+        while (t > 0) {
+          const next = fadeTrace(t, 0, fade);
+          expect(next).toBeLessThan(t);
+          expect(next).toBeGreaterThanOrEqual(t * fade - 1);
+          t = next;
+          frames++;
         }
-        frames++;
-        expect(frames).toBeLessThan(2000);
+        const upper = Math.min(TRACE_FULL, Math.ceil(Math.log(TRACE_FULL) / -Math.log(fade)));
+        const lower = Math.log(1 + TRACE_FULL * (1 - fade)) / -Math.log(fade);
+        expect(frames, `fade ${fade}`).toBeLessThanOrEqual(upper);
+        expect(frames, `fade ${fade}`).toBeGreaterThanOrEqual(lower);
       }
-      expect(frames).toBeGreaterThan(100);
     }
+  });
+
+  it('restart at full when marked again, whatever their level', () => {
+    for (const level of [0, 1, 17, TRACE_FULL]) expect(fadeTrace(level, 1, 0.9)).toBe(TRACE_FULL);
   });
 });
