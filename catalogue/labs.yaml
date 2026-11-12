@@ -84,3 +84,8 @@ labs:
     title: Convex hull lab
     summary: Every convex hull algorithm on the same points with the same budget of orientation tests per frame, ranked by when it closes its hull, with each one's work measured as n grows.
     engine: geometry
+
+  - id: replication
+    title: Replication lab
+    summary: Replicas reconciling, merging and electing a leader on one seeded network with the same delays, losses and partition, each protocol's messages counted as they go.
+    engine: systems

@@ -2,7 +2,7 @@
 id: vector-clocks
 title: Vector clocks
 taxonomy: systems/time
-status: planned
+status: live
 engine: systems
 sources:
   - id: practice-systems
@@ -11,6 +11,15 @@ tags:
   - causality
   - concurrency
 motivation: Coordinating many workers and machines without a shared clock depends on it.
+complexity: O(n) per event and per message for n workers
+related:
+  - lamport-clocks
 ---
 
 One counter per process, so that concurrent events are visibly concurrent.
+
+Each label is a worker's vector after the event: entry i counts the events of worker i it knows of. A worker increments its own entry for each event and, on receipt, first takes the entrywise maximum with the vector that arrived. The chart sums each vector: how much of the history each worker has heard about.
+
+Comparing two vectors decides causality exactly: a happened before b when a's vector is at most b's in every entry and they differ, and two events whose vectors are each larger somewhere are concurrent. The harness checks that this classification matches an independently computed happened-before on every pair of every run.
+
+For one seed the workload is the same one Lamport timestamps are shown on, message for message, so the two read side by side: here every message carries a whole vector instead of one number, and the concurrency a single counter hides is counted outright.
