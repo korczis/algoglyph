@@ -137,6 +137,69 @@ describe('var-cvar: jump probability', () => {
   });
 });
 
+/** The Student-t characteristic function at ν = 3, (1 + √3 |s|) e^(−√3 |s|). */
+const t3 = (s: number) => (1 + Math.sqrt(3) * Math.abs(s)) * Math.exp(-Math.sqrt(3) * Math.abs(s));
+/** The portfolio's loss 0.6 c + 0.16 Σ t_i (five positions 0.2 (0.6 c + 0.8 t_i)) at ν = 3: its
+ * characteristic function, and its distribution and density by Gil-Pelaez inversion. */
+const cf3 = (s: number) => t3(0.6 * s) * t3(0.16 * s) ** 5;
+function inversion(x: number): { F: number; f: number } {
+  const m = 20000;
+  const top = 60;
+  const h = top / m;
+  let sf = 0;
+  let sF = 0;
+  for (let i = 0; i <= m; i++) {
+    const s = i * h;
+    const w = i === 0 || i === m ? 1 : i % 2 ? 4 : 2;
+    const c = cf3(s);
+    sf += w * Math.cos(s * x) * c;
+    sF += w * (s === 0 ? x : Math.sin(s * x) / s) * c;
+  }
+  return { F: 0.5 + (sF * h) / 3 / Math.PI, f: (sf * h) / 3 / Math.PI };
+}
+
+describe('var-cvar: degrees of freedom', () => {
+  const KEY = 'nu';
+
+  it('is a select control with the old constant as its default, shown for the portfolio', () => {
+    const d = defOf(KEY) as SelectParam | undefined;
+    expect(d).toMatchObject({ kind: 'select', label: 'Degrees of freedom', value: '4', rebuild: true, when: { key: 'scenario', values: ['portfolio'] } });
+    expect(d!.options.map((o) => o.value)).toEqual(['3', '4', '6', '10', '30']);
+  });
+
+  it('round-trips through a shared link', async () => {
+    await roundTrip(KEY, ['3', '30']);
+  });
+
+  it('sets the tails: the losses\' variance is 0.488 ν / (ν − 2)', () => {
+    for (const nu of [6, 10, 30]) {
+      const r = trace(k, { scenario: 'portfolio', [KEY]: String(nu), n: 50000 }, 5).result!;
+      const xs = Array.from(r.losses);
+      const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+      const s2 = xs.reduce((a, b) => a + (b - mean) ** 2, 0) / (xs.length - 1);
+      // Var(0.6 c + 0.16 Σ t_i) = (0.36 + 5 × 0.0256) ν/(ν − 2); the sample variance's standard
+      // error from the fourth cumulant, κ4 = (0.6⁴ + 5 × 0.16⁴) × 6/(ν − 4) × (ν/(ν − 2))²
+      const v = (0.488 * nu) / (nu - 2);
+      const k4 = (0.6 ** 4 + 5 * 0.16 ** 4) * (6 / (nu - 4)) * (nu / (nu - 2)) ** 2;
+      expect(Math.abs(s2 - v), `ν=${nu}`).toBeLessThan(4 * Math.sqrt((k4 + 2 * v * v) / xs.length));
+    }
+  });
+
+  it('drives the readouts: at ν = 3 value at risk is the root of the inverted distribution', async () => {
+    expect(inversion(0).F).toBeCloseTo(0.5, 9);
+    let lo = 0;
+    let hi = 10;
+    for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (inversion(m).F < 0.99) lo = m; else hi = m; }
+    const v = (lo + hi) / 2;
+    const tol = 3 * Math.sqrt((0.99 * 0.01) / N) / inversion(v).f;
+    const r = await read(ID, claim('Value at risk 99.0%', { [KEY]: '3' }));
+    expect(r.reason).toBeUndefined();
+    expect(Math.abs(r.value! - v), `${r.text} against ${v} ± ${tol}`).toBeLessThanOrEqual(tol);
+    const four = await read(ID, claim('Value at risk 99.0%', {}));
+    expect(Math.abs(r.value! - four.value!), 'ν = 3 moves value at risk').toBeGreaterThan(0);
+  });
+});
+
 describe('var-cvar at its defaults is what it was before the controls', () => {
   // readout texts (strings), recorded on the code before the controls existed (5f091c7)
   const READOUTS = '739c125ba5e43e3b';

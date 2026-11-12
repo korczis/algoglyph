@@ -16,16 +16,16 @@ export function tailRisk(sorted: ArrayLike<number>, level: number): { var: numbe
 const MIN_BATCH_TAIL = 10;
 
 /** The scenarios' own constants, from the controls. */
-interface Shape { jumpP: number }
+interface Shape { jumpP: number; nu: number }
 
 const SCENARIOS: Record<string, { label: string; draw(s: Sampler, x: Shape): number }> = {
   portfolio: {
     label: 'Five positions, heavy tails, one common factor',
-    draw(s) {
-      // a common Student-t factor and five idiosyncratic ones, nu = 4
-      const common = s.studentT(4);
+    draw(s, x) {
+      // a common Student-t factor and five idiosyncratic ones, nu = 4 by default
+      const common = s.studentT(x.nu);
       let loss = 0;
-      for (let i = 0; i < 5; i++) loss += 0.2 * (0.6 * common + 0.8 * s.studentT(4));
+      for (let i = 0; i < 5; i++) loss += 0.2 * (0.6 * common + 0.8 * s.studentT(x.nu));
       return loss;
     },
   },
@@ -61,6 +61,11 @@ export const kernel: StochasticKernel<RiskResult> = {
       kind: 'range', key: 'jumpP', label: 'Jump probability', min: 0.005, max: 0.1, step: 0.005, value: 0.02, rebuild: true,
       when: { key: 'scenario', values: ['jumps'] },
     },
+    {
+      kind: 'select', key: 'nu', label: 'Degrees of freedom', value: '4', rebuild: true,
+      options: ['3', '4', '6', '10', '30'].map((v) => ({ value: v, label: `ν = ${v}` })),
+      when: { key: 'scenario', values: ['portfolio'] },
+    },
   ],
   chart: { title: 'Tail estimates as runs accumulate', x: { label: 'simulated losses', log: true }, y: { label: 'loss' } },
   *run(ops, cfg) {
@@ -69,7 +74,7 @@ export const kernel: StochasticKernel<RiskResult> = {
     const sc = SCENARIOS[id];
     const level = Number(str(cfg, 'level'));
     const n = num(cfg, 'n');
-    const shape: Shape = { jumpP: num(cfg, 'jumpP') };
+    const shape: Shape = { jumpP: num(cfg, 'jumpP'), nu: Number(str(cfg, 'nu')) };
     const lo = -4;
     const hi = id === 'jumps' ? 12 : 6;
     // all losses, and each of the batches (run i goes to batch i mod BATCHES), kept sorted as

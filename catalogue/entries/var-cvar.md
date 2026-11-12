@@ -103,10 +103,20 @@ claims:
     expect: { value: 10.855, tolerance: 0.599 }
     setup:
       params: { scenario: jumps, jumpP: 0.1 }
+  - id: three-degrees-of-freedom-push-var-at-99
+    statement: >-
+      With ν = 3 the portfolio's loss 0.6 c + 0.16 Σ tᵢ has the characteristic function
+      φ(0.6 s) φ(0.16 s)⁵, φ(s) = (1 + √3 |s|) e^(−√3 |s|), and its 99% value at risk, the root
+      of the distribution function by Gil-Pelaez inversion, is 3.067; the run lies within three
+      asymptotic standard errors of 20,000 runs, 3 √(0.99 × 0.01 / 20000) / f(3.067) = 0.212.
+    readout: Value at risk 99.0%
+    expect: { value: 3.067, tolerance: 0.212 }
+    setup:
+      params: { nu: '3' }
 ---
 
 The loss exceeded with a given probability, and the average of the losses beyond it.
 
 Value at risk at level α is the α-quantile of the loss distribution, read here as the smallest simulated loss with at least α of the runs at or below it; expected shortfall is the mean of the losses at or beyond it. Their standard errors come from ten independent batches of runs, and are withheld while a batch's tail holds too few losses to mean anything.
 
-For normal losses at 95% the two are 1.645 and 2.063 standard deviations. The heavy-tailed portfolio, five Student-t positions with four degrees of freedom sharing one factor, pushes expected shortfall further from VaR. Rare jumps, in one run of fifty by default (the jump probability p is a control), barely move VaR at levels below 1 − p, 98% at the default, where the jumps lie beyond the quantile and only shortfall sees them: at 90% VaR moves from 1.28 to 1.39 while shortfall rises from 1.76 to 2.68. At 99% the quantile falls among the jumps and VaR more than doubles, from 2.33 to 5.58. Few runs land in the tail, so tail estimates converge slowly.
+For normal losses at 95% the two are 1.645 and 2.063 standard deviations. The heavy-tailed portfolio, five Student-t positions with four degrees of freedom by default (a control) sharing one factor, pushes expected shortfall further from VaR. Rare jumps, in one run of fifty by default (the jump probability p is a control), barely move VaR at levels below 1 − p, 98% at the default, where the jumps lie beyond the quantile and only shortfall sees them: at 90% VaR moves from 1.28 to 1.39 while shortfall rises from 1.76 to 2.68. At 99% the quantile falls among the jumps and VaR more than doubles, from 2.33 to 5.58. Few runs land in the tail, so tail estimates converge slowly.
