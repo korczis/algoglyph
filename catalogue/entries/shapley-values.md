@@ -49,10 +49,35 @@ claims:
       every step: the two agree to the six decimals the readout prints.
     readout: Sum of estimates
     expect: { against: Sum of estimates, against_number: 2, tolerance: 0.000001 }
+  - id: additive-model-has-no-error
+    statement: >-
+      With no pairwise interactions the model is additive, so in every ordering input i adds
+      exactly aᵢ (xᵢ − bᵢ) and every sampled estimate equals the exact value: the largest error is
+      zero, up to float rounding of order 10⁻¹⁶, far below the 0.0000 the readout prints.
+    readout: Largest error
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { pairs: 0 }
+  - id: estimates-add-up-without-interactions
+    statement: >-
+      The telescoping does not depend on the model: with no interactions the estimates still add
+      up to v(all) − v(none) to the six decimals the readout prints.
+    readout: Sum of estimates
+    expect: { against: Sum of estimates, against_number: 2, tolerance: 0.000001 }
+    setup:
+      params: { pairs: 0 }
+  - id: estimates-add-up-with-four-interactions
+    statement: >-
+      With four pairwise interactions, each split as ½ β (xᵢ − bᵢ)(xⱼ + bⱼ) to input i, the
+      estimates add up to v(all) − v(none) to the six decimals the readout prints.
+    readout: Sum of estimates
+    expect: { against: Sum of estimates, against_number: 2, tolerance: 0.000001 }
+    setup:
+      params: { pairs: 4 }
 ---
 
 Each input's average marginal contribution over random orderings.
 
 The game's value of a coalition is the model's output with the coalition's inputs at the instance and the others at a baseline. In each sampled ordering every input's marginal contribution is recorded; the averages are unbiased estimates, and because each ordering's contributions telescope to v(all) − v(none), the estimates add up to it exactly at every step.
 
-With at most six inputs every ordering can be walked, so the exact values are drawn as ticks and the largest error is measured against them; it falls like one over the square root of the orderings sampled. The model has two pairwise interactions, whose credit the Shapley value splits evenly between the pair.
+With at most six inputs every ordering can be walked, so the exact values are drawn as ticks and the largest error is measured against them; it falls like one over the square root of the orderings sampled. The model has two pairwise interactions by default (their number is a control), whose credit the Shapley value splits evenly between the pair.
