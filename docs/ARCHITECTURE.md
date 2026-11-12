@@ -72,7 +72,7 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a check of the facts gate | `tools/checks/<name>.rhai` defining `fn check(file)` + a refused fixture | file name; `algoglyph facts` |
 | a measured claim on a page | `claims:` in the entry (`statement`, `readout`, `expect`, `setup`), ADR 0007 | `test/claims.test.ts` runs the plate and reads the readout |
 | a control that applies in one mode | `when: { key: <select>, values: [...] }` on the parameter | the controls panel hides it otherwise; `test/registry.test.ts` checks the select and its values |
-| a figure of a cited work | a figure in `catalogue/figures/<coll>-<vol>-<ch>.yaml` naming a live entry's plate and a `setup` of its parameters (ADR 0009) | routed once the chapter has a `review` and the plate is live and tested; `test/figures.test.ts` checks the setup |
+| a figure of a cited work | a figure in `catalogue/figures/<coll>-<vol>-<ch>.yaml` naming a live entry's plate and a `setup` of its parameters (ADR 0009) | routed once the chapter has a `review` and the plate is live and tested; `test/figures.test.ts` checks the setup; its `claims` (an entry claim's form) run in `test/claims.test.ts` with the setup under each claim's own |
 | a task | a recipe in `justfile` with `[group]` and `[doc]` | `just --list` |
 
 ### Engine and kernel
