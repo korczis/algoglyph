@@ -28,6 +28,33 @@ complexity: d (n + k) in every case; extra space n + p k
 related:
   - lsd-radix-sort
   - msd-radix-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [lsd-radix-sort]
+  objectives:
+  - 'Read the Rounds readout at 512 keys: 6, two per base-16 digit of max − min = 511, the local histograms and the scatter.'
+  - 'Read the Lanes readout: 4 processors, each counting and scattering its own block.'
+  - 'Read the Comparisons readout: 0 on every input; the Array writes, 1,536, are 3n.'
+  misconceptions:
+  - 'The global prefix sum is a round of its own; it is the one step the plate''s processors do not run in parallel, so it shows as a phase without a round.'
+algorithm:
+  paradigm: iterative-refinement
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: false
+bounds:
+  model: 'array writes (each pass writes every key back), auxiliary writes (the scatter''s output buffer), rounds (histograms and scatter) and lanes (four processors); no comparison'
+  average: 'on every input of n ≥ 2 keys, for the d base-16 digits of max − min: 2d rounds, 4 lanes, d·n array writes, at most d·n auxiliary writes and no comparison; d(n + k) work is the published bound'
+claims:
+  - id: two-rounds-per-digit
+    statement: >-
+      On Random permutation at 512 keys parallel radix sort takes 6 rounds, a local histogram and a scatter for each of the 3 base-16 digits of the key range 511.
+    readout: Rounds
+    expect: { value: 6 }
+    setup:
+      params: { shape: random, n: 512 }
 ---
 
 LSD radix sort with every pass shared among p workers: each worker counts the digits of its share in a local histogram, one prefix sum over all histograms tells every worker where its elements with each digit go, and the elements are moved.

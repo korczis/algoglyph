@@ -46,7 +46,7 @@ claims:
     readout: Rounds
     expect: { value: 4 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Leighton's columnsort: put the keys into an r × s matrix in column-major order and sort it in eight steps, of which four sort every column independently and four move the keys by fixed permutations (a transpose, its inverse, a shift by half a column and its inverse).

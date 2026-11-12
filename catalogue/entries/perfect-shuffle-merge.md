@@ -39,7 +39,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 14336 }
     setup:
-      params: { shape: random, n: 256, speed: 2000 }
+      params: { shape: random, n: 256 }
 ---
 
 Batcher's merge expressed as perfect shuffles and compare-exchanges, as a parallel machine would run it.

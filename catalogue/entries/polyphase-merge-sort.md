@@ -25,6 +25,32 @@ related:
   - external-merge-sort
   - replacement-selection
   - tape-merge-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [tape-merge-sort]
+  objectives:
+  - 'Read the distribution at 512 keys: 23 runs need the Fibonacci level 7, [21, 13] runs on two tapes, 11 of them dummy.'
+  - 'Count the merges of each phase in the Phase readout: 13, 8, 5, 3, 2, 1, 1, Fibonacci numbers falling to the last merge.'
+  - 'Read the Phase readout at the end: level + 3 = 10, run generation, distribution, seven merge phases and the final write.'
+  misconceptions:
+  - 'Every polyphase phase is a pass over all the data; a phase merges only as many runs as the shorter input tape holds, so the plate shows phases and no whole pass.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: false
+bounds:
+  model: 'comparisons (memory sorts and two-way merges), array writes (the sorted file written once), auxiliary writes (memory and the three tapes) and phases; no whole pass'
+  average: 'on every input of n ≥ 2 keys n array writes and level + 3 phases, level the smallest l whose Fibonacci distribution of order 2 holds the r = ⌈n/M⌉ runs (7 at 512 keys); the merges of the phases are Fibonacci numbers, and comparisons are at most the memory sorts'' bound plus n per merge phase'
+claims:
+  - id: fibonacci-phases
+    statement: >-
+      On Random permutation at 512 keys polyphase merging takes 10 phases: run generation, the distribution of 23 runs as [21, 13] with 11 dummies, seven merge phases of 13, 8, 5, 3, 2, 1 and 1 merges, and the final write.
+    readout: Phase
+    expect: { value: 10 }
+    setup:
+      params: { shape: random, n: 512 }
 ---
 
 Tape sorting without idle output tapes: spread the runs unevenly over all tapes but one, merge one run from each onto the empty tape until an input tape runs dry, and let that tape be the next output.

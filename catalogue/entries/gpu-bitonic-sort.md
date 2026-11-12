@@ -52,7 +52,7 @@ claims:
     readout: Rounds
     expect: { value: 15 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Batcher's bitonic network run one layer at a time as a pass over the whole array: in every pass each thread takes one position, computes its partner from the position and the layer, compares the two keys and keeps the smaller or the larger according to the direction of its block.

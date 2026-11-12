@@ -59,7 +59,7 @@ claims:
     readout: Phase
     expect: { value: 6 }
     setup:
-      params: { shape: organ-pipe, n: 512, speed: 2000 }
+      params: { shape: organ-pipe, n: 512 }
 ---
 
 Quicksort that watches itself: it counts the depth of its own recursion, and when the depth passes a bound proportional to log n it hands the current subarray to heapsort; small subarrays are left for one final pass of insertion sort.

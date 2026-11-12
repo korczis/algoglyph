@@ -50,7 +50,7 @@ claims:
     readout: Comparisons
     expect: { value: 1216 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Distribute the keys into buckets by value, about sixteen keys per bucket, and sort each bucket with Fluxsort; small inputs, and inputs whose keys all fall into one bucket, go to Fluxsort directly.

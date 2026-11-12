@@ -19,6 +19,25 @@ tags:
 complexity: n² best, unknown average, unbounded worst; extra space n²
 related:
   - bogosort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [bogosort]
+  objectives:
+  - 'Read the this-run readout of a finished run: its comparisons are always its swaps plus n − 1.'
+  - 'Read shuffles by prefix length: a shuffle of a prefix of m keys costs m − 1 swaps, and every failure of a longer prefix sends the shorter ones back to be shuffled again.'
+  - 'Watch the mean shuffles per run approach Σ m! over the prefixes whose last key is not their largest: n! − 1 = 119 averaged over the inputs of five keys.'
+  misconceptions:
+  - 'Nested random tests make the plate''s bogobogosort shuffle more than bogosort; its kernel, which skips the copy, expects n! − 1 shuffles averaged over the inputs, as bogosort does. The explosion Morgan-Mar measured comes from the comparison with the original that the kernel omits.'
+algorithm:
+  paradigm: randomized
+  properties:
+    stable: false
+bounds:
+  model: 'per run: shuffles (by prefix length), comparisons (one check of a prefix''s last key per attempt) and swaps (a shuffle of a prefix of m keys is m − 1 swaps)'
+  best: 'Already sorted: n − 1 comparisons and no shuffle on the plate''s kernel, which skips the copies; quadratic in Morgan-Mar''s definition'
+  average: 'Σ m! expected shuffles over the prefixes whose last key is not their largest, n! − 1 averaged over the inputs of n distinct keys (test/plate-bogobogosort.test.ts); for Morgan-Mar''s full definition unknown'
+  worst: 'unbounded; in every run the comparisons are exactly the swaps plus n − 1'
 ---
 
 Bogosort with a recursive sortedness test: to decide whether a list is sorted, copy it, bogobogosort all but the last element of the copy, shuffle the copy until its last element exceeds the rest, and only then ask whether the copy matches the original.

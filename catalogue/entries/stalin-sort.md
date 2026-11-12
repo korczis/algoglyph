@@ -26,6 +26,26 @@ related:
   - patience-sorting
   - strand-sort
   - wolfsort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - 'Read comparisons, reads, writes: n − 1 comparisons on every input, and a read and a write only for each survivor after the first key eliminated.'
+  - 'Choose Reversed: one survivor; choose Already sorted: all n survive and nothing is written.'
+  - 'Watch mean survivors per run approach H_n on Random permutation: 4.74 for 64 keys.'
+  misconceptions:
+  - 'Its output is sorted, so it sorts; it returns a subsequence, H_n keys on average for a Random permutation, which is not a permutation of the input.'
+algorithm:
+  paradigm: greedy
+  properties:
+    stable: true
+  postconditions:
+    - The kept prefix holds the input's non-strict left-to-right maxima, a sorted subsequence of the input.
+bounds:
+  model: 'comparisons, reads and writes (each survivor compacted to the front) and survivors'
+  best: 'Already sorted: n survivors and no write'
+  average: 'n − 1 comparisons on every input; reads and writes equal the survivors after the first key eliminated; H_n expected survivors on a Random permutation (Knuth; test/plate-stalin-sort.test.ts)'
+  worst: 'Reversed: one survivor'
 ---
 
 Walk the array once and eliminate every key that is smaller than the last key kept; the survivors are sorted, in linear time, because everything else is gone.

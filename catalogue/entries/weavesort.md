@@ -50,7 +50,7 @@ claims:
     readout: Comparisons
     expect: { value: 70657 }
     setup:
-      params: { shape: reversed, n: 512, speed: 2000 }
+      params: { shape: reversed, n: 512 }
 ---
 
 A mergesort whose merge is replaced: sort both halves recursively and, unless they are already in order, interleave them like the teeth of two combs so that keys of the left and right halves alternate, and let insertion sort tidy the nearly sorted result.

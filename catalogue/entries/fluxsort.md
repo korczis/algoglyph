@@ -53,7 +53,7 @@ claims:
     readout: Comparisons
     expect: { value: 511 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A stable quicksort: partition top-down around a pivot, copying the keys smaller than the pivot to the front of the array and the others to an auxiliary buffer, both in their original order, then copying the buffer back behind them; small ranges are finished by binary insertion.

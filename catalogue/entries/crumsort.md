@@ -52,7 +52,7 @@ claims:
     readout: Comparisons
     expect: { below: 2796 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 The in-place, unstable sibling of Fluxsort: the same pivot selection and the same treatment of keys equal to the pivot, but partitioning in place with what its author calls a fulcrum partition.
