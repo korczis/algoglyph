@@ -13,6 +13,26 @@ tags:
   - aircraft
 complexity: 'O(1) per frame: a CRC over 88 bits and a few divisions'
 motivation: Crisis maps and geospatial analysis are built from it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - crc-division
+  objectives:
+  - Find the preamble by correlation and decide each bit from its two half-microsecond halves.
+  - Check the CRC-24 parity over the first 88 bits, and flip back a single-bit error its syndrome locates.
+  - Combine one even and one odd compact position report into a global latitude and longitude.
+bounds:
+  model: CRC bit steps
+  best: '88 per parity check: the CRC-24 over the first 88 of the 112 bits'
+  worst: '88 per parity check: the CRC-24 over the first 88 of the 112 bits'
+claims:
+  - id: global-position-to-about-five-metres
+    statement: >-
+      Combining an even and an odd report gives a global position to about 5 m: the mean error
+      over the decoded fixes stays below 5 m.
+    readout: Mean error over decoded fixes
+    expect: { below: 5 }
 ---
 
 Compact position reports from two frames combined into a latitude and longitude.
