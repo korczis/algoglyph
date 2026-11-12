@@ -264,10 +264,12 @@ export const KINDS: Record<InputKind, KindDef> = {
     scale: [64, 128, 256, 512, 1024, 2048],
     shapes: [{ value: 'prose', label: 'English prose' }, { value: 'repetitive', label: 'Repeated phrases' },
       { value: 'runs', label: 'Scanline runs' }],
-    make(rnd, n, shape) {
+    make(rnd, n, shape, opts) {
       if (shape === 'runs') {
+        // runs of 1 + ⌊Exp⌋ symbols, the exponential's mean run-length encoding's control
+        const mean = Number(opts.meanRun ?? 6);
         let s = '';
-        while (s.length < n) s += pick(rnd, '.#').repeat(1 + Math.floor(-Math.log(1 - rnd()) * 6));
+        while (s.length < n) s += pick(rnd, '.#').repeat(1 + Math.floor(-Math.log(1 - rnd()) * mean));
         return { text: s.slice(0, n) };
       }
       if (shape === 'repetitive') {
