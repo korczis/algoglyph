@@ -24,7 +24,7 @@ export const kernel: StringKernel<'documents', SimhashResult> = {
   counters: { vote: 'Bit votes', xor: 'Fingerprint bits compared' },
   speed: 30,
   chart: { title: 'Fingerprint distance against cosine similarity', x: 'cosine similarity of word counts', y: 'Hamming distance (bits)' },
-  run(ops, { docs }) {
+  *run(ops, { docs }) {
     ops.table('v', 4, 16, { label: 'Bit totals' });
     ops.list('fp', [], { label: 'Fingerprints', lines: 4 });
     const tfs = docs.map((d) => {
@@ -32,7 +32,8 @@ export const kernel: StringKernel<'documents', SimhashResult> = {
       for (const w of d.text.toLowerCase().split(/\s+/).filter(Boolean)) tf.set(w, (tf.get(w) ?? 0) + 1);
       return tf;
     });
-    const prints = tfs.map((tf, r) => {
+    const prints: number[][] = [];
+    for (const [r, tf] of tfs.entries()) {
       const v = new Array<number>(BITS).fill(0);
       for (let k = 0; k < BITS; k++) ops.put('v', Math.floor(k / 16), k % 16, '');
       for (const [w, c] of tf) {
@@ -41,19 +42,21 @@ export const kernel: StringKernel<'documents', SimhashResult> = {
         for (let k = 0; k < BITS; k++) v[k] += bits[k] ? c : -c;
         const top = Math.max(1, ...v.map(Math.abs));
         for (let k = 0; k < BITS; k++) ops.heat('v', k, 0.5 + v[k] / (2 * top));
+        yield null;
       }
       const fp = v.map((x) => (x > 0 ? 1 : 0));
       let hex = '';
       for (let k = 0; k < BITS; k += 4) hex += (fp[k] * 8 + fp[k + 1] * 4 + fp[k + 2] * 2 + fp[k + 3]).toString(16);
       ops.push('fp', `${r}: ${hex}`, S.done);
       ops.note(`document ${r} (${docs[r].outlet}): ${tf.size} distinct words voted`);
-      return fp;
-    });
+      prints.push(fp);
+    }
     const n = docs.length;
     const distance = prints.map(() => new Array<number>(n).fill(0));
     const pts: [number, number][] = [];
     let inS = 0; let inN = 0; let outS = 0; let outN = 0;
     for (let i = 0; i < n; i++) {
+      yield null;
       for (let j = i + 1; j < n; j++) {
         let d = 0;
         for (let k = 0; k < BITS; k++) { if (prints[i][k] !== prints[j][k]) d++; }

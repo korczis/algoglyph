@@ -49,11 +49,15 @@ export class Board {
     this.every = Math.max(1, Math.floor(t.events.length / 120));
   }
   get done(): boolean { return this.at >= this.t.events.length; }
-  /** Replay events until `budget` costed events have passed (ticks only when ticksOnly). */
-  advance(budget: number, ticksOnly = false): void {
+  /**
+   * Replay events until `budget` costed events have passed (ticks only when ticksOnly), and at
+   * most `cap` events in all: marks and readouts cost no step of the speed, but they are work.
+   */
+  advance(budget: number, ticksOnly = false, cap = Infinity): void {
     const ev = this.t.events;
     let left = budget;
-    while (this.at < ev.length && left > 0) {
+    const end = Math.min(ev.length, this.at + cap);
+    while (this.at < end && left > 0) {
       const e = ev[this.at++];
       this.apply(e);
       if (ticksOnly ? e.o === OP.tick : COST.has(e.o)) left--;

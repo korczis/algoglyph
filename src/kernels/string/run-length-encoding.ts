@@ -10,7 +10,7 @@ export const kernel: StringKernel<'text', [number, string][]> = {
   shape: 'runs',
   counters: { compare: 'Symbol comparisons', emit: 'Pairs emitted' },
   chart: { title: 'Bytes in and out', x: 'symbols read', y: 'bytes' },
-  run(ops, { text }) {
+  *run(ops, { text }) {
     ops.row('in', [...text], { label: 'Input' });
     ops.list('out', [], { label: 'Count × symbol', lines: 3 });
     const out: [number, string][] = [];
@@ -23,6 +23,7 @@ export const kernel: StringKernel<'text', [number, string][]> = {
     };
     let i = 0;
     while (i < text.length) {
+      yield null;
       let j = i + 1;
       ops.mark('in', i, S.focus);
       while (j < text.length && j - i < MAX_RUN && ops.eq('compare', text[j], text[i])) { ops.mark('in', j, S.hit); j++; }

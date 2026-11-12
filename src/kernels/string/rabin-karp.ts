@@ -15,7 +15,7 @@ export const kernel: StringKernel<'search', number[]> = {
     kind: 'select', key: 'q', label: 'Modulus q', value: '1000003', rebuild: true,
     options: [{ value: '1000003', label: '1 000 003' }, { value: '997', label: '997' }, { value: '13', label: '13 (collisions)' }],
   }],
-  run(ops, { text, pattern: p }, params) {
+  *run(ops, { text, pattern: p }, params) {
     const q = Number(params.q ?? 1000003) || 1000003;
     const n = text.length; const m = p.length;
     const out: number[] = [];
@@ -35,6 +35,7 @@ export const kernel: StringKernel<'search', number[]> = {
     let spurious = 0;
     let wasted = 0;
     for (let s = 0; ; s++) {
+      yield null;
       align(ops, s);
       ops.plot('Hash updates', s, ops.count('hash'));
       ops.set('hash', 1, `window ${ht}`);

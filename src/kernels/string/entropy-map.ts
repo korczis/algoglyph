@@ -17,12 +17,15 @@ export const kernel: StringKernel<'binary', { offsets: number[]; entropy: number
     kind: 'select', key: 'window', label: 'Window', value: '128', rebuild: true,
     options: ['64', '128', '256'].map((v) => ({ value: v, label: `${v} bytes` })),
   }],
-  run(ops, { bytes, sections }, params) {
+  *run(ops, { bytes, sections }, params) {
     const w = Math.min(bytes.length, Number(params.window ?? 128) || 128);
     const step = Math.max(1, w / 8);
     const nWin = Math.floor((bytes.length - w) / step) + 1;
     ops.row('bytes', bytes.map(() => ''), { label: 'Bytes' }, true);
-    bytes.forEach((b, i) => ops.heat('bytes', i, b / 255));
+    for (let i = 0; i < bytes.length; i++) {
+      ops.heat('bytes', i, bytes[i] / 255);
+      if (i % 1024 === 1023) yield null;
+    }
     ops.row('H', new Array<string>(nWin).fill(''), { label: 'Entropy' }, true);
     ops.list('sections', sections.map((s) => `${s.start}: ${s.kind}`), { label: 'Sections', lines: 2 });
     const hist = new Array<number>(256).fill(0);
@@ -36,6 +39,7 @@ export const kernel: StringKernel<'binary', { offsets: number[]; entropy: number
     const offsets: number[] = []; const entropy: number[] = [];
     const bySection = sections.map(() => ({ s: 0, n: 0 }));
     for (let k = 0; k < nWin; k++) {
+      yield null;
       const at = k * step;
       if (k > 0) for (let i = at - step; i < at; i++) { add(bytes[i], -1); add(bytes[i + w], 1); }
       ops.tick('window');

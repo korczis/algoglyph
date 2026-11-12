@@ -16,13 +16,14 @@ export const kernel: StringKernel<'cipher', { ciphertext: string; length: number
   counters: { shift: 'Letter shifts', count: 'Letters tallied' },
   speed: 6,
   chart: { title: 'Index of coincidence by key length', x: 'candidate key length', y: 'mean index of coincidence' },
-  run(ops, { plaintext, key }) {
+  *run(ops, { plaintext, key }) {
     const n = plaintext.length; const L0 = key.length;
     ops.row('pt', [...plaintext], { label: 'Plaintext' });
     ops.row('key', Array.from({ length: n }, (_, i) => key[i % L0]), { label: 'Key', align: 'pt' });
     ops.row('ct', new Array<string>(n).fill(''), { label: 'Ciphertext', align: 'pt' });
     let ct = '';
     for (let i = 0; i < n; i++) {
+      yield null;
       ops.tick('shift');
       const c = String.fromCharCode(A + ((plaintext.charCodeAt(i) - A + key.charCodeAt(i % L0) - A) % 26));
       ct += c;
@@ -37,6 +38,7 @@ export const kernel: StringKernel<'cipher', { ciphertext: string; length: number
     const seen = new Map<string, number>();
     const dist: number[] = [];
     for (let i = 0; i + 3 <= n; i++) {
+      yield null;
       const g = ct.slice(i, i + 3);
       const j = seen.get(g);
       if (j !== undefined) { dist.push(i - j); if (dist.length <= 40) ops.push('kas', `${g} ${i - j}`); }
@@ -47,6 +49,7 @@ export const kernel: StringKernel<'cipher', { ciphertext: string; length: number
     // Friedman: mean index of coincidence of the columns for each candidate length
     const ioc: number[] = [0];
     for (let L = 1; L <= Math.min(MAX_KEY, Math.floor(n / 4)); L++) {
+      yield null;
       let s = 0;
       for (let c = 0; c < L; c++) {
         const f = new Array<number>(26).fill(0);
@@ -67,6 +70,7 @@ export const kernel: StringKernel<'cipher', { ciphertext: string; length: number
     ops.row('guess', new Array<string>(length).fill('?'), { label: 'Recovered key' });
     let found = '';
     for (let c = 0; c < length; c++) {
+      yield null;
       const f = new Array<number>(26).fill(0);
       let m = 0;
       for (let i = c; i < n; i += length) { ops.tick('count'); f[ct.charCodeAt(i) - A]++; m++; }

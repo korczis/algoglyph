@@ -9,7 +9,7 @@ export const kernel: StringKernel<'search', number[]> = {
   input: 'search',
   counters: SEARCH_COUNTERS,
   chart: SEARCH_CHART,
-  run(ops, { text, pattern: p }) {
+  *run(ops, { text, pattern: p }) {
     const n = text.length; const m = p.length;
     const out: number[] = [];
     board(ops, text, p);
@@ -39,6 +39,7 @@ export const kernel: StringKernel<'search', number[]> = {
     let s = 0;
     let skipped = 0;
     while (s + m <= n) {
+      yield null;
       align(ops, s);
       let k = m - 1;
       while (k >= 0 && compare(ops, text, p, s + k, k)) k--;

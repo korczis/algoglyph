@@ -8,7 +8,7 @@ export const kernel: StringKernel<'search', number[]> = {
   input: 'search',
   counters: SEARCH_COUNTERS,
   chart: SEARCH_CHART,
-  run(ops, { text, pattern }) {
+  *run(ops, { text, pattern }) {
     const n = text.length; const m = pattern.length;
     const out: number[] = [];
     board(ops, text, pattern);
@@ -28,6 +28,7 @@ export const kernel: StringKernel<'search', number[]> = {
     let q = 0;
     let shift = -1;
     for (let i = 0; i < n; i++) {
+      yield null;
       for (;;) {
         if (i - q !== shift) { shift = i - q; align(ops, shift); }
         if (compare(ops, text, pattern, i, q)) { q++; break; }

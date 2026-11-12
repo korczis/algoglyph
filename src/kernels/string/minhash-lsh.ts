@@ -17,7 +17,7 @@ export const kernel: StringKernel<'documents', MinhashResult> = {
     { kind: 'range', key: 'bands', label: 'Bands b', min: 2, max: 16, step: 1, value: 8, rebuild: true },
     { kind: 'range', key: 'rows', label: 'Rows per band r', min: 1, max: 6, step: 1, value: 4, rebuild: true },
   ],
-  // a generator: one document's minima, one band or one row of pairs per step
+  // a generator: one hash function of one document, one band or one row of pairs per step
   *run(ops, { docs }, params) {
     const bands = Number(params.bands ?? 8) || 8; const rows = Number(params.rows ?? 4) || 4;
     const k = bands * rows;
@@ -31,6 +31,7 @@ export const kernel: StringKernel<'documents', MinhashResult> = {
         for (const x of set) { ops.tick('hash'); const v = mix32(x, h + 1); if (v < min) min = v; }
         sig[r][h] = min;
         ops.heat('sig', r * k + h, (min % 251) / 250);
+        yield null;
       }
       ops.note(`document ${r}: ${set.length} shingles, ${k} minima`);
       yield null;

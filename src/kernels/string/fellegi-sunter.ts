@@ -17,7 +17,7 @@ export const kernel: StringKernel<'records', FsResult> = {
   counters: { compare: 'Field comparisons', em: 'EM pair updates' },
   speed: 40,
   chart: { title: 'Match weights of all pairs', x: 'total weight (bits)', y: 'pairs' },
-  // a generator: a few hundred pairs, then each EM iteration, per step (recorded across frames)
+  // a generator: a row of pairs, then each EM iteration, per step (recorded across frames)
   *run(ops, { records }) {
     const n = records.length;
     // every field folded once per record, not once per comparison
@@ -30,7 +30,7 @@ export const kernel: StringKernel<'records', FsResult> = {
         pairs.push([i, j]);
         gamma.push(FIELDS.map((_, k) => (ops.eq('compare', vals[i][k], vals[j][k]) ? 1 : 0)));
       }
-      if (i % 8 === 7) yield null;
+      yield null;
     }
     ops.note(`${pairs.length} pairs compared on ${FIELDS.length} fields`);
     let m = FIELDS.map(() => 0.9); let u = FIELDS.map(() => 0.1); let p = 0.1;
@@ -43,7 +43,8 @@ export const kernel: StringKernel<'records', FsResult> = {
     show();
     for (let it = 0; it < 60; it++) {
       let sg = 0; const sm = FIELDS.map(() => 0); const su = FIELDS.map(() => 0); let ll = 0;
-      for (const g of gamma) {
+      for (const [q, g] of gamma.entries()) {
+        if (q % 2048 === 2047) yield null;
         ops.tick('em');
         let a = p; let b = 1 - p;
         g.forEach((x, k) => { a *= x ? m[k] : 1 - m[k]; b *= x ? u[k] : 1 - u[k]; });

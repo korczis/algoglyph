@@ -8,11 +8,16 @@ import { bool, num, str, type Chart, type ParamDef, type PlateCode, type PlateCo
 import type { Engine, KernelInfo } from '../types';
 import { Board, drawBoard } from './board';
 import { input, KINDS, type InputKind } from './inputs';
-import { Recording, trace, traceSteps, work, type StringKernel } from './trace';
+import { Recording, traceSteps, work, type StringKernel } from './trace';
 
 const HOLD_FRAMES = 120;
-/** Milliseconds of recording a plate resumes per frame (a kernel that yields; others run whole). */
-export const SLICE_MS = 6;
+/**
+ * Work per frame, in recorded events: a recording resumes until RECORD_EVENTS more are recorded
+ * (a kernel pauses at least every STEP_EVENTS), and a replay applies at most REPLAY_EVENTS,
+ * whatever the speed asks. Counted, so CI's slower runners do the same work per frame.
+ */
+export const RECORD_EVENTS = 10000;
+export const REPLAY_EVENTS = 8000;
 const fmt = (x: number) => x.toLocaleString('en-US');
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
@@ -78,7 +83,7 @@ function plate(info: KernelInfo, kernel: StringKernel): PlateCode {
     thumbnailFrames: 2,
     params: [...inputParams(kernel.input, kernel), ...(kernel.params ?? []), ...tail(kernel)],
     create(p: p5, ctx) {
-      // the run is recorded across frames (SLICE_MS each), the first one before anything is
+      // the run is recorded across frames (RECORD_EVENTS each), the first one before anything is
       // shown and each new input while the finished board is held on screen
       let generation = 0;
       let b: Board | null = null;
@@ -92,9 +97,9 @@ function plate(info: KernelInfo, kernel: StringKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            next?.pump(SLICE_MS);
+            next?.pump(RECORD_EVENTS);
             if (!b) { if (next?.done) take(); }
-            else if (!b.done) b.advance(num(ctx.params, 'speed'));
+            else if (!b.done) b.advance(num(ctx.params, 'speed'), false, REPLAY_EVENTS);
             else if (bool(ctx.params, 'loop')) {
               if (!next && hold === 0) next = record(kernel, ctx, ++generation);
               if (++hold > HOLD_FRAMES && next?.done) take();
@@ -131,14 +136,30 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
       const pending = curves.flatMap((_, ci) => KINDS[kind].scale.map((n) => [ci, n] as [number, number]));
       let finishedCount = 0;
       let hold = 0;
-      const build = () => {
+      // the next input's runs, recorded across frames while the finished panes are held
+      let incoming: Recording[] | null = null;
+      const record = () => {
         const n = num(ctx.params, 'n');
         const x = input(kind, n, str(ctx.params, 'shape'), ctx.seed + generation * 7919);
-        finishedCount = 0;
-        panes = same.map((k) => ({ ...k, b: new Board(trace(k.kernel, x as never, ctx.params)), finished: 0 }));
+        incoming = same.map((k) => new Recording(traceSteps(k.kernel, x as never, { ...ctx.params })));
       };
-      // one measured point at a time, recorded for SLICE_MS per frame, so the lab never blocks a
-      // phone's main thread even where a kernel's work grows as n²
+      const take = () => {
+        finishedCount = 0;
+        hold = 0;
+        panes = same.map((k, i) => ({ ...k, b: new Board(incoming![i].trace!), finished: 0 }));
+        incoming = null;
+      };
+      /** Resume the incoming runs, one after another, for `events` recorded events in all. */
+      const pumpIncoming = (events: number): boolean => {
+        for (const r of incoming ?? []) {
+          if (r.done) continue;
+          r.pump(events);
+          return false;
+        }
+        return true;
+      };
+      // one measured point at a time, recorded across frames, so the lab never blocks a phone's
+      // main thread even where a kernel's work grows as n²
       let probe: { ci: number; n: number; rec: Recording } | null = null;
       const measure = () => {
         if (!probe) {
@@ -148,14 +169,17 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
           const x = input(kind, n, str(ctx.params, 'shape'), ctx.seed + n);
           probe = { ci, n, rec: new Recording(traceSteps(same[ci].kernel, x as never, { ...ctx.params })) };
         }
-        if (!probe.rec.pump(SLICE_MS)) return;
+        if (!probe.rec.pump(RECORD_EVENTS / 2)) return;
         const t = probe.rec.trace!;
         const c = curves[probe.ci];
         c.pts.push([probe.n, t.truncated ? NaN : work(t)]);
         c.slope = exponent(c.pts);
         probe = null;
       };
-      build();
+      // the first input is recorded at creation, so the lab opens on its panes
+      record();
+      for (const r of incoming!) r.pump();
+      take();
       return {
         setup() { if (ctx.thumbnail) for (const pane of panes) pane.b.seek(0.4); },
         draw() {
@@ -165,14 +189,14 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
             const steps = num(ctx.params, 'speed');
             for (const pane of panes) {
               if (!pane.b.done) {
-                pane.b.advance(steps, true);
+                pane.b.advance(steps, true, REPLAY_EVENTS / panes.length);
                 if (pane.b.done) pane.finished = ++finishedCount;
               }
             }
-            if (panes.every((x) => x.b.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
-              generation++;
-              hold = 0;
-              build();
+            if (panes.every((x) => x.b.done) && bool(ctx.params, 'loop')) {
+              if (!incoming && hold === 0) { generation++; record(); }
+              const ready = pumpIncoming(RECORD_EVENTS / 2);
+              if (++hold > HOLD_FRAMES && ready) take();
             }
           }
           const W = ctx.width; const H = ctx.height;

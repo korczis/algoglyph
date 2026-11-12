@@ -117,9 +117,19 @@ export function trace<K extends InputKind, R>(kernel: StringKernel<K, R>, x: Inp
   for (;;) { const r = steps.next(); if (r.done) return r.value; }
 }
 
-/** `trace` as steps: pauses (`null`) wherever the kernel does, so it can be spread over frames. */
+/**
+ * The most events a kernel records between two pauses, at its plate's largest input and its lab's
+ * largest measured size (test/string-engine.test.ts): a kernel that would record more is a
+ * generator that yields `null` often enough.
+ */
+export const STEP_EVENTS = 6000;
+
+/**
+ * `trace` as steps: pauses wherever the kernel does, each pause yielding the number of events
+ * recorded so far, so the recording can be spread over frames by counted work.
+ */
 export function* traceSteps<K extends InputKind, R>(kernel: StringKernel<K, R>, x: Inputs[K],
-  params: Params = {}, cap = EVENT_CAP): Generator<null, Trace<R | undefined>> {
+  params: Params = {}, cap = EVENT_CAP): Generator<number, Trace<R | undefined>> {
   const names = Object.keys(kernel.counters);
   const counts = names.map(() => 0);
   const events: Ev[] = [];
@@ -193,7 +203,11 @@ export function* traceSteps<K extends InputKind, R>(kernel: StringKernel<K, R>, 
   let truncated = false;
   try {
     const r = kernel.run(ops, x, params);
-    result = isSteps(r) ? yield* r : r;
+    if (isSteps(r)) {
+      let s = r.next();
+      while (!s.done) { yield events.length; s = r.next(); }
+      result = s.value;
+    } else result = r;
   } catch (e) {
     if (!(e instanceof Stop)) throw e;
     truncated = true;
@@ -208,15 +222,20 @@ export const work = (t: Trace) => t.counts.reduce((s, c) => s + c, 0);
 /** A trace being recorded across frames: `pump` resumes it for about the given time. */
 export class Recording<R = unknown> {
   trace: Trace<R | undefined> | null = null;
-  constructor(private readonly steps: Generator<null, Trace<R | undefined>>) {}
+  private seen = 0;
+  constructor(private readonly steps: Generator<number, Trace<R | undefined>>) {}
   get done(): boolean { return this.trace !== null; }
-  /** Resume for about `ms` milliseconds (at least one step); true once the trace is complete. */
-  pump(ms: number): boolean {
-    const end = performance.now() + ms;
+  /**
+   * Resume until about `events` more events are recorded (at least one step; a step records at
+   * most STEP_EVENTS); true once the trace is complete. Counted work, not wall-clock time, so a
+   * slow or loaded machine does the same work per frame as a fast one.
+   */
+  pump(events = Infinity): boolean {
+    const from = this.seen;
     while (!this.trace) {
       const r = this.steps.next();
       if (r.done) this.trace = r.value;
-      else if (performance.now() >= end) break;
+      else if ((this.seen = r.value) - from >= events) break;
     }
     return this.done;
   }

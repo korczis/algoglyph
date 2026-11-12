@@ -39,8 +39,16 @@ export function normalise(name: string): Normal {
   return { folded, tokens: sorted, titles, form, key: sorted.join(' ') + (form ? ` ${form}` : '') };
 }
 
+export interface JaroWinkler { jaro: number; jw: number; m: number; t: number; matchA: number[]; matchB: number[]; prefix: number }
+
 /** Jaro–Winkler similarity with Winkler's prefix bonus (scale 0.1, prefix up to 4, boost above 0.7). */
-export function jaroWinkler(a: string, b: string, eq: (i: number, j: number) => boolean = (i, j) => a[i] === b[j]) {
+export function jaroWinkler(a: string, b: string, eq: (i: number, j: number) => boolean = (i, j) => a[i] === b[j]): JaroWinkler {
+  const steps = jaroWinklerSteps(a, b, eq);
+  for (;;) { const r = steps.next(); if (r.done) return r.value; }
+}
+
+/** `jaroWinkler` pausing (`null`) after each character of the first string. */
+export function* jaroWinklerSteps(a: string, b: string, eq: (i: number, j: number) => boolean = (i, j) => a[i] === b[j]): Generator<null, JaroWinkler> {
   const la = a.length; const lb = b.length;
   if (!la && !lb) return { jaro: 1, jw: 1, m: 0, t: 0, matchA: [] as number[], matchB: [] as number[], prefix: 0 };
   const win = Math.max(0, Math.floor(Math.max(la, lb) / 2) - 1);
@@ -51,6 +59,7 @@ export function jaroWinkler(a: string, b: string, eq: (i: number, j: number) => 
       if (usedB[j]) continue;
       if (eq(i, j)) { usedB[j] = true; matchA[i] = j; break; }
     }
+    yield null;
   }
   const ia = matchA.map((j, i) => (j >= 0 ? i : -1)).filter((i) => i >= 0);
   const jb = usedB.map((u, j) => (u ? j : -1)).filter((j) => j >= 0);

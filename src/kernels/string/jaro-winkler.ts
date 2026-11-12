@@ -1,5 +1,5 @@
 import { S, type StringKernel } from '../../engines/string/trace';
-import { jaroWinkler } from './_normalise';
+import { jaroWinklerSteps } from './_normalise';
 
 // Two characters match when they are equal and no further apart than half the longer string
 // less one; each character matches at most once. Of the m matches, t is half the number that
@@ -8,12 +8,12 @@ import { jaroWinkler } from './_normalise';
 export const kernel: StringKernel<'pair', { jaro: number; jw: number }> = {
   input: 'pair',
   counters: { compare: 'Character comparisons' },
-  run(ops, { a, b }) {
+  *run(ops, { a, b }) {
     ops.row('a', [...a], { label: 'First' });
     ops.row('b', [...b], { label: 'Second', align: 'a' });
     const win = Math.max(0, Math.floor(Math.max(a.length, b.length) / 2) - 1);
     let row = -1;
-    const r = jaroWinkler(a, b, (i, j) => {
+    const r = yield* jaroWinklerSteps(a, b, (i, j) => {
       if (row !== i) {
         ops.clear('a'); ops.clear('b');
         row = i;

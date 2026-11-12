@@ -21,7 +21,7 @@ export const kernel: StringKernel<'register', { keystream: number[]; period: num
   input: 'register',
   counters: { shift: 'Shifts', xor: 'Tap XORs' },
   params: [{ kind: 'range', key: 'width', label: 'Register bits', min: 3, max: 16, step: 1, value: 8, rebuild: true }],
-  run(ops, { fill, message }, params) {
+  *run(ops, { fill, message }, params) {
     const w = Math.max(3, Math.min(16, Number(params.width ?? 8) || 8));
     const taps = TAPS[w];
     const mask = 2 ** w - 1;
@@ -40,6 +40,7 @@ export const kernel: StringKernel<'register', { keystream: number[]; period: num
     let period = 0;
     const limit = 2 ** w + 1;
     for (let t = 0; t < Math.max(limit, msg.length); t++) {
+      yield null;
       if (period && t >= msg.length) break;
       ops.tick('shift');
       ops.tick('xor', taps.length - 1);

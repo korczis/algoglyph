@@ -21,7 +21,7 @@ export const kernel: StringKernel<'message', number> = {
     kind: 'select', key: 'model', label: 'CRC', value: 'crc8', rebuild: true,
     options: Object.entries(MODELS).map(([value, m]) => ({ value, label: m.label })),
   }],
-  run(ops, { bytes }, params) {
+  *run(ops, { bytes }, params) {
     const m = MODELS[String(params.model ?? 'crc8')] ?? MODELS.crc8;
     const msg: number[] = [];
     for (const b of bytes) for (let k = 0; k < 8; k++) msg.push(m.ref ? (b >> k) & 1 : (b >> (7 - k)) & 1);
@@ -34,6 +34,7 @@ export const kernel: StringKernel<'message', number> = {
     ops.row('gen', gen.map(String), { label: 'Generator', align: 'div' });
     for (let k = L; k < L + m.w; k++) ops.mark('div', k, S.dim);
     for (let i = 0; i < L; i++) {
+      yield null;
       ops.tick('step');
       ops.clear('div');
       ops.mark('div', i, S.focus);

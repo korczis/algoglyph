@@ -9,7 +9,8 @@ import type { Params, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
 import { engine } from '../src/engines/string';
 import { input, KINDS, type InputKind } from '../src/engines/string/inputs';
-import { trace, traceSteps, type StringKernel } from '../src/engines/string/trace';
+import type { ParamDef } from '../src/core/plate';
+import { STEP_EVENTS, trace, traceSteps, type StringKernel } from '../src/engines/string/trace';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 installBrowserStubs();
@@ -52,6 +53,34 @@ describe('string engine: recording off create()', () => {
       expect(progress()).not.toMatch(/^100%/);
     }, 120000);
   }
+
+  it(`every kernel pauses at least every ${STEP_EVENTS} recorded events, at its largest inputs`, () => {
+    const over: string[] = [];
+    for (const e of live) {
+      const kernel = modules[`../src/kernels/string/${e.id}.ts`];
+      const def = KINDS[kernel.input];
+      const sizes = [def.size.max, ...((e.labs ?? []).length ? [Math.max(...def.scale)] : [])];
+      const own: ParamDef[] = kernel.params ?? [];
+      const top: Params = Object.fromEntries(own.map((d) => [d.key, d.kind === 'range' ? d.max : d.value]));
+      const variants = [top, ...own.flatMap((d) => (d.kind === 'select' ? d.options.map((o) => ({ ...top, [d.key]: o.value })) : []))];
+      for (const n of sizes) {
+        for (const shape of def.shapes.length ? def.shapes.map((sh) => sh.value) : ['']) {
+          for (const params of variants) {
+            const steps = traceSteps(kernel, input(kernel.input, n, shape, 77) as never, params);
+            let last = 0; let worst = 0;
+            for (let r = steps.next(); ; r = steps.next()) {
+              const at = r.done ? r.value.events.length : r.value;
+              worst = Math.max(worst, at - last);
+              last = at;
+              if (r.done) break;
+            }
+            if (worst > STEP_EVENTS) over.push(`${e.id} n=${n} ${shape} ${JSON.stringify(params)}: ${worst} events`);
+          }
+        }
+      }
+    }
+    expect(over).toEqual([]);
+  }, 300000);
 
   it('a trace recorded in steps equals the trace recorded at once, for every kernel that yields', () => {
     for (const e of live) {

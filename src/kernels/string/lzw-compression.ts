@@ -17,7 +17,7 @@ export const kernel: StringKernel<'text', number[]> = {
   shape: 'repetitive',
   counters: { lookup: 'Dictionary lookups', emit: 'Codes emitted' },
   chart: { title: 'Compressed size as the text is read', x: 'bytes read', y: 'percent of the input bits' },
-  run(ops, { text }) {
+  *run(ops, { text }) {
     // one symbol per UTF-8 byte; for ASCII text a byte is a character
     const bytes = new TextEncoder().encode(text);
     const ascii = bytes.length === text.length;
@@ -41,6 +41,7 @@ export const kernel: StringKernel<'text', number[]> = {
     let w = '';
     let start = 0;
     for (let i = 0; i < input.length; i++) {
+      yield null;
       const c = input[i];
       const wc = w + c;
       ops.tick('lookup');

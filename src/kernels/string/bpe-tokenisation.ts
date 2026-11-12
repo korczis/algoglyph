@@ -12,7 +12,7 @@ export const kernel: StringKernel<'text', { merges: [string, string][]; tokens: 
   counters: { count: 'Pairs counted', merge: 'Replacements' },
   chart: { title: 'Tokens left after each merge', x: 'merges learned', y: 'tokens' },
   params: [{ kind: 'range', key: 'merges', label: 'Merge budget', min: 1, max: 200, step: 1, value: 30, rebuild: true }],
-  run(ops, { text }, params) {
+  *run(ops, { text }, params) {
     const budget = Number(params.merges ?? 30) || 30;
     let tokens = [...text];
     const show = (t: string) => t.replace(/ /g, '␣');
@@ -21,8 +21,10 @@ export const kernel: StringKernel<'text', { merges: [string, string][]; tokens: 
     const merges: [string, string][] = [];
     ops.plot('Tokens', 0, tokens.length);
     while (merges.length < budget) {
+      yield null;
       const counts = new Map<string, number>();
       for (let i = 0; i + 1 < tokens.length; i++) {
+        if (i % 512 === 511) yield null;
         ops.tick('count');
         const k = tokens[i] + SEP + tokens[i + 1];
         counts.set(k, (counts.get(k) ?? 0) + 1);
