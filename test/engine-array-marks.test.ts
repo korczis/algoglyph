@@ -86,7 +86,7 @@ describe('array engine: the replay of phases, lanes and rounds', () => {
     expect([r.phase, r.round, r.lane]).toEqual(['layer 1', 1, 0]);
     expect([...r.laneOf!.slice(0, 2)]).toEqual([0, 0]);
     r.advance(r.t.length);
-    expect([r.phase, r.round, r.lanes]).toEqual(['layer 8', 8, 4]);
+    expect([r.phase, r.phases, r.round, r.lanes]).toEqual(['layer 8', 8, 8, 4]);
     expect(r.counts().rounds).toBe(8);
     expect(r.history.at(-1)![4]).toBe(8);
     // the last layer (odd parity) compares (1,2), (3,4), (5,6): lanes 0, 1, 2; cells 0 and 7 keep
@@ -123,7 +123,7 @@ describe('array engine: the plate of a kernel with rounds', () => {
     for (let f = 0; f < 5; f++) m.sim.draw();
     expect(m.value('Layers')).toBe('64 of 64');
     expect(m.value('Lanes')).toBe('32 of 32 seen');
-    expect(m.value('Phase')).toBe('layer 64');
+    expect(m.value('Phase')).toBe('layer 64 · 64 of 64');
   });
 
   it('draws the lane row with numbers and stripes, and the round boundaries, through the plate', () => {

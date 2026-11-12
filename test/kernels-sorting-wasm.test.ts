@@ -6,7 +6,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { ENTRIES, type Entry } from '../src/core/catalogue';
-import { exponent } from '../src/engines/array';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import type { Params, PlateContext, Stat } from '../src/core/plate';
+import { mulberry32 } from '../src/core/random';
+import { engine, exponent } from '../src/engines/array';
 import { apply, input, OP, SHAPES, trace, type ArrayKernel, type ArrayOps, type Trace } from '../src/engines/array/trace';
 import { loadSorting, SOP, STRIDE, type RunOptions, type WasmRun } from '../src/kernels/sorting-wasm/_abi';
 import {
@@ -14,6 +17,7 @@ import {
 } from '../src/kernels/sorting-wasm/_adapter';
 import { defaultLimits, hashWords, TraceCache } from '../src/kernels/sorting-wasm/_cache';
 import { kernelOf } from '../src/kernels/sorting-wasm/_sidecar';
+import { p5Stub } from './support/p5-stub';
 
 interface SidecarRecord { id: string; kernel: string; existing?: boolean }
 interface Manifest {
@@ -131,6 +135,27 @@ function engineMarks(t: Trace): string[] {
  * crates/algoglyph-kernels/src/sorting/tests/mod.rs), and the distinct lanes and the phase words
  * of its trace.
  */
+/**
+ * The readouts a live plate of kernel `kernel` ends its first run on: driven at full speed until
+ * it reports its result, at n = 64 on the random input the plate itself draws (seed 77).
+ */
+function finalReadouts(e: Entry, kernel: ArrayKernel): Stat[] {
+  const plate = engine.plate({ id: e.id, title: e.title, group: 'g' }, kernel);
+  const params: Params = {};
+  for (const d of plate.params) params[d.key] = d.value;
+  Object.assign(params, { n: 64, shape: 'random', speed: 2000, loop: false });
+  let rows: Stat[] = [];
+  const ctx: PlateContext = {
+    width: 1440, height: 810, params, seed: 77, rnd: mulberry32(77), theme: 'dark', bg: GROUNDS.dark.bg,
+    fg: GROUNDS.dark.fg, thumbnail: false, palette: () => lookupPalette('spectral'),
+    stats(r) { rows = r; }, chart() {},
+  };
+  const sim = plate.create(p5Stub(), ctx);
+  sim.setup();
+  for (let f = 0; f < 4000 && !rows.some((r) => r.label === 'Result'); f++) sim.draw();
+  return rows;
+}
+
 function checkMarks(id: string) {
   for (const shape of SHAPES) {
     for (const n of [16, 97]) {
@@ -317,6 +342,23 @@ for (const { e, kernel } of played) {
     it(`counts its phases, lanes and rounds (${kernel.roundUnit}) exactly as the Rust run does`, () => {
       expect(kernel.roundUnit).toBe(ROUND_UNIT[kernel.meta.kind]);
       checkMarks(id);
+    });
+
+    it('reads out on its plate the rounds, lanes and phases its Rust run recorded', () => {
+      const rows = finalReadouts(e, kernel);
+      const value = (label: string) => rows.find((r) => r.label === label)?.value;
+      expect(value('Result')).toBe('ascending, verified');
+      const data = input('random', 64, 77);
+      const m = rustMarks(S.run(id, data, { seed: seedOf(data) }));
+      const rounds = m.filter((x) => x.startsWith('round ')).length;
+      const lanes = new Set(m.filter((x) => x.startsWith('lane '))).size;
+      const phases = m.filter((x) => x.startsWith('phase '));
+      const f = (x: number) => x.toLocaleString('en-US');
+      expect(value(kernel.roundUnit!)).toBe(rounds ? `${f(rounds)} of ${f(rounds)}` : undefined);
+      expect(value('Lanes')).toBe(lanes ? `${f(lanes)} of ${f(lanes)} seen` : undefined);
+      expect(value('Phase')).toBe(phases.length
+        ? `${phases.at(-1)!.slice('phase '.length)} · ${f(phases.length)} of ${f(phases.length)}`
+        : undefined);
     });
 
     it('reproduces its native fixture in wasm', () => {

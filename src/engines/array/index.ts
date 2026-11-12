@@ -69,6 +69,8 @@ export class Replay {
   usesAux: boolean;
   /** The phase the replay has reached, '' before the first phase event. */
   phase = '';
+  /** Phases entered so far, counted from the phase events replayed. */
+  phases = 0;
   /** The lane working now, -1 before the first lane event. */
   lane = -1;
   /** The round the replay is in (the kernel's own number), 0 before the first. */
@@ -109,8 +111,10 @@ export class Replay {
       if (op === OP.range) {
         this.lo = i;
         this.hi = ev[3 * this.at + 2];
-      } else if (op === OP.phase) this.phase = this.t.labels[i] ?? '';
-      else if (op === OP.lane) {
+      } else if (op === OP.phase) {
+        this.phase = this.t.labels[i] ?? '';
+        this.phases++;
+      } else if (op === OP.lane) {
         this.lane = i;
         this.seen?.add(i);
       } else if (op === OP.round) {
@@ -358,7 +362,9 @@ function markRows(r: Replay, unit: string): Stat[] {
     const now = r.lane >= 0 && !r.done ? ` · lane ${r.lane} working` : '';
     rows.push({ label: 'Lanes', value: `${fmt(r.lanes)} of ${fmt(m.lanes)} seen${now}` });
   }
-  if (m.phases) rows.push({ label: 'Phase', value: r.phase || 'before the first phase' });
+  if (m.phases) {
+    rows.push({ label: 'Phase', value: r.phases ? `${r.phase} · ${fmt(r.phases)} of ${fmt(m.phases)}` : 'before the first phase' });
+  }
   return rows;
 }
 
