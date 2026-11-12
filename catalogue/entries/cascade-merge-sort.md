@@ -26,6 +26,32 @@ related:
   - external-merge-sort
   - polyphase-merge-sort
   - tape-merge-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [polyphase-merge-sort]
+  objectives:
+  - 'Read the distribution at 512 keys: 23 runs need cascade level 4, [14, 11, 6] runs on three tapes, 8 of them dummy.'
+  - 'Follow one cascade in the Phase readout: a three-way merge, a two-way merge and a one-way copy, the fan-in falling within the pass.'
+  - 'Read the Phase readout at the end: 3·4 + 1 = 13, the last cascade ending with its single three-way merge.'
+  misconceptions:
+  - 'The final copy of a cascade merges something; it moves a whole tape onto the one just emptied without a comparison, overhead that Knuth''s rewinding trick avoids.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: false
+bounds:
+  model: 'comparisons (memory sorts and merges of up to three runs), array writes (the sorted file written once), auxiliary writes (memory and the four tapes) and phases; no whole pass'
+  average: 'on every input of n ≥ 2 keys n array writes and, for the cascade level L holding the r = ⌈n/M⌉ runs, 3L + 1 phases (3 when one run is enough), 13 at 512 keys; comparisons at most the memory sorts'' bound plus 2n per cascade'
+claims:
+  - id: cascade-phases
+    statement: >-
+      On Random permutation at 512 keys cascade merging takes 13 phases: run generation, the distribution [14, 11, 6], three cascades of a three-way merge, a two-way merge and a copy, the last cascade's three-way merge, and the final write.
+    readout: Phase
+    expect: { value: 13 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 A tape sort whose every pass is a cascade: a (T − 1)-way merge onto the empty tape until the shortest input runs out, then a (T − 2)-way merge onto the tape just emptied, and so on down to a two-way merge and a final copy.

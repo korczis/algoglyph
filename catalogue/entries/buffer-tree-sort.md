@@ -27,6 +27,31 @@ related:
   - funnel-sort
   - heapsort
   - tree-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [b-tree, external-merge-sort]
+  objectives:
+  - 'Count the root buffer''s emptyings in the Phase readout at 512 keys: ⌊512/23⌋ = 22, one burst of work per full buffer.'
+  - 'Read the Auxiliary writes: n on every input, each key appended to the root buffer once.'
+  - 'Read the Array writes: n, the leaves written out in order once at the end.'
+  misconceptions:
+  - 'A buffer tree inserts each key down the tree as it arrives; insertions only append to the root buffer, which is emptied down the tree ⌊n/M⌋ times, 22 at 512 keys.'
+algorithm:
+  paradigm: incremental
+  properties:
+    in_place: false
+bounds:
+  model: 'comparisons (buffer sorts, routing among splitters and leaf merges), array writes (the leaves written out once), auxiliary writes (the root buffer) and phases; leaves of at most 8 keys, fan-out 4, M = max(4, ⌈√n⌉)'
+  average: 'on every input of n ≥ 2 keys exactly n array writes, n auxiliary writes and ⌊n/M⌋ emptyings of the root buffer; the O((N/B) log_{M/B}(N/B)) transfers are Arge''s bound in the I/O model'
+claims:
+  - id: root-buffer-only
+    statement: >-
+      On Random permutation at 512 keys buffer tree sort makes 512 auxiliary writes, one per key: an insertion only appends to the root buffer, and the work below it happens when the buffer is emptied.
+    readout: Auxiliary writes
+    expect: { value: 512 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Tree sort made I/O-optimal by laziness: insert every key into a buffer tree, whose internal nodes each carry a buffer of about M keys, then empty all buffers and read the leaves from left to right.
