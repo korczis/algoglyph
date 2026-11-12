@@ -549,7 +549,8 @@
             <!-- The figure's claims (ADR 0007, ADR 0009): read by the one instrument with this page's setup -->
             <template x-if="currentFigure.figure.claims.length">
               <section class="mt-5" aria-labelledby="figure-claims-title" data-doc="figure-claims">
-                <h2 id="figure-claims-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">What this page's run shows<span class="ml-2 font-normal normal-case tracking-normal text-gray-600 dark:text-gray-300">checked by every build</span></h2>
+                <h2 id="figure-claims-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">What this setup shows<span class="ml-2 font-normal normal-case tracking-normal text-gray-600 dark:text-gray-300">checked by every build</span></h2>
+                <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">The run above is a short demonstration, a few hundred particles. Each claim is computed at its own size, on its Run line, by every build.</p>
                 <div class="grid gap-3 md:grid-cols-2">
                   <template x-for="c in currentFigure.figure.claims" :key="'fc' + c.id">
                     <div data-doc="figure-claim" class="p-4 border border-gray-200 rounded-lg dark:border-gray-700">
@@ -565,7 +566,7 @@
                         </div>
                         <div>
                           <dt class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Run</dt>
-                          <dd class="text-gray-600 dark:text-gray-300" x-text="'this page, ' + claimSetup(c)"></dd>
+                          <dd class="text-gray-600 dark:text-gray-300" x-text="'this page’s setup, ' + claimSetup(c)"></dd>
                         </div>
                       </dl>
                     </div>

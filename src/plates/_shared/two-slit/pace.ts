@@ -9,6 +9,10 @@ import type { RangeParam } from '../../../core/plate';
 
 /** log₁₀ of the calm default, particles a frame across all runs. */
 export const CALM = -0.4;
+/** The frame rate and the window a default run must end in (ADR 0008's replay kind: run_s), so a
+ * default run is a demonstration of a few hundred particles, never a long wait. */
+export const FPS = 60;
+export const RUN_WINDOW_S: [number, number] = [10, 60];
 /** log₁₀ of the fastest pace: the per-frame work the main-thread budget measures. */
 export const FASTEST = 3.3;
 

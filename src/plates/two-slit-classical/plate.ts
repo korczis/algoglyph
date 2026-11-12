@@ -37,8 +37,10 @@ export const twoSlitClassical: PlateCode = {
       hint: 'A modelled deflection at the hole, normal with this standard deviation.' },
     { kind: 'range', key: 'bins', label: 'Backstop bins', min: 24, max: 96, step: 8, value: 48,
       rebuild: true },
-    { kind: 'range', key: 'n', label: 'Bullets fired per run', min: 5000, max: 80000, step: 5000,
-      value: 40000, rebuild: true },
+    // a default run is a demonstration that lasts DEMO_N × 3 / 24 ≈ 44 s at the calm pace; the
+    // claims pin their own n (src/plates/_shared/two-slit/pace.ts)
+    { kind: 'range', key: 'n', label: 'Bullets fired per run', min: 50, max: 80000, step: 50,
+      value: 350, rebuild: true },
     rateParam('Bullets'),
     paletteParam('ember'),
   ],

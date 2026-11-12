@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { GROUNDS, palette } from '../src/core/palette';
 import { defaults, type Params, type PlateContext, type Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
+import { CATALOGUE } from '../src/core/catalogue';
 import { loadPlate } from '../src/registry';
 import {
   compare, fire, mergedBins, MIN_EXPECTED, tally, type Gun,
@@ -16,7 +17,7 @@ import {
 import {
   besselJ0, chiSquareQuantile, erf, interpolate, ksBound, ksDistance, sinc, Z_999,
 } from '../src/plates/_shared/two-slit/math';
-import { CALM, FASTEST, Pacer, roundRobin } from '../src/plates/_shared/two-slit/pace';
+import { CALM, FASTEST, FPS, Pacer, roundRobin, RUN_WINDOW_S } from '../src/plates/_shared/two-slit/pace';
 import { closedForm, uncertaintyRatio, Wall } from '../src/plates/_shared/two-slit/recoil';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 import {
@@ -291,4 +292,45 @@ describe('two-slit pace', () => {
         .toEqual(await finalReadouts(id, setup, FASTEST));
     }
   }, 120_000);
+});
+
+/** The frame on which a plate's readouts last changed, run at its defaults and the given setup. */
+async function lastChange(id: string, setup: Params): Promise<number> {
+  const plate = (await loadPlate(id))!;
+  const params = { ...defaults(plate), ...setup };
+  let rows: Stat[] = [];
+  const ctx: PlateContext = {
+    width: 800, height: 500, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
+    bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg, thumbnail: false, palette: () => palette('abyss'),
+    stats(r) { rows = r; }, chart() {},
+  };
+  const sim = plate.create(p5Stub(), ctx);
+  sim.setup();
+  let last = '';
+  let changed = 0;
+  for (let f = 1; f <= (RUN_WINDOW_S[1] + 30) * FPS && f - changed < 600; f++) {
+    sim.draw();
+    const now = JSON.stringify(rows);
+    if (now !== last) changed = f;
+    last = now;
+  }
+  return changed;
+}
+
+describe('two-slit default runs', () => {
+  // every default a reader can open: each plate mode, and each figure page's setup
+  const runs: [string, Params][] = [
+    ['two-slit-classical', {}],
+    ...['electrons', 'watched', 'resolution', 'recoil'].map((scenario) => ['two-slit-amplitudes', { scenario }] as [string, Params]),
+    ...CATALOGUE.chapters.flatMap((c) => c.figures.map((f) => [f.plate, f.setup] as [string, Params])),
+  ];
+
+  it('end within the calm window, counted in frames at the calm pace', async () => {
+    const [lo, hi] = RUN_WINDOW_S.map((x) => x * FPS);
+    for (const [id, setup] of runs) {
+      const frames = await lastChange(id, setup);
+      expect(frames, `${id} ${JSON.stringify(setup)}: last readout change at frame ${frames}`).toBeGreaterThanOrEqual(lo);
+      expect(frames, `${id} ${JSON.stringify(setup)}: last readout change at frame ${frames}`).toBeLessThanOrEqual(hi);
+    }
+  }, 300_000);
 });

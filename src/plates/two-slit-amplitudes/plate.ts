@@ -91,8 +91,10 @@ export const twoSlitAmplitudes: PlateCode = {
     },
     { kind: 'range', key: 'spread', label: 'Wall momentum spread σₚ/Δq, log₁₀', min: -1.3, max: 1,
       step: 0.01, value: -0.3, rebuild: true, when: when('recoil') },
-    { kind: 'range', key: 'n', label: 'Particles emitted per run', min: 2000, max: 60000,
-      step: 2000, value: 20000, rebuild: true },
+    // a default run is a demonstration: 450 per run lasts about 19 s at the calm pace with one
+    // run and 56 s with the three of the electron mode; the claims pin their own n
+    { kind: 'range', key: 'n', label: 'Particles emitted per run', min: 50, max: 60000,
+      step: 50, value: 450, rebuild: true },
     rateParam('Particles'),
     paletteParam('abyss'),
   ],

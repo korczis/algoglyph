@@ -61,7 +61,7 @@ claims:
     readout: count balance, fired − blocked − detected − missed
     expect: { value: 0 }
     setup:
-      params: { rate: 3.3 }
+      params: { rate: 3.3, n: 40000 }
   - id: both-holes-above-the-band-floor
     statement: >-
       The χ²/k of the both-holes histogram against the sum of the one-hole histograms lies above the
@@ -69,7 +69,7 @@ claims:
     readout: χ²/k of N₁₂ against N₁ + N₂
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 1, above: 0 }
     setup:
-      params: { rate: 3.3 }
+      params: { rate: 3.3, n: 40000 }
   - id: both-holes-below-the-band-ceiling
     statement: >-
       The same χ²/k lies below the 99.9 % point of χ²ₖ/k: bullets through two holes add up, with no
@@ -77,7 +77,7 @@ claims:
     readout: χ²/k of N₁₂ against N₁ + N₂
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, below: 0 }
     setup:
-      params: { rate: 3.3 }
+      params: { rate: 3.3, n: 40000 }
   - id: the-test-would-see-interference
     statement: >-
       A power check: the same both-holes histogram tested against an interference hypothesis built
@@ -87,7 +87,7 @@ claims:
     readout: χ²/k against interference with a 4-bin period
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
     setup:
-      params: { rate: 3.3 }
+      params: { rate: 3.3, n: 40000 }
 ---
 
 A gun sprays bullets at a wall with two holes; behind it a backstop counts where they land. Three runs fire the same number of bullets: hole 2 shut, hole 1 shut, both open. The curve with both holes open is the sum of the other two.
@@ -97,3 +97,5 @@ The gun fires in a direction uniform within its spread. A bullet that reaches an
 Nothing a bullet does at one hole depends on the other, so the both-holes counts N₁₂ and the sum N₁ + N₂ estimate one curve. The comparison is a χ² over the bins, each squared difference divided by N₁₂ + N₁ + N₂, the variance of a difference of independent counts; bins in the tails are merged until each expects at least five bullets. A correct model's χ²/k falls between the 0.1 % and 99.9 % points of χ²ₖ/k 998 times in 1000; the readout shows both.
 
 A test that passes is only worth something if it could fail. The last readout tests the same histogram against an interference hypothesis, the one-hole counts combined as waves would be, with fringes four bins apart; it is rejected by a wide margin wherever the two one-hole curves overlap. Bullets are lumps: they arrive one at a time, whole, and through one hole or the other. Compare #/p/two-slit-amplitudes, where the arrivals are just as lumpy and the curves do not add.
+
+The default run is a demonstration: 350 bullets per run, landing about two dozen a second, so the three curves grow in under a minute and the sum can be watched taking shape from a few hundred lumps. The claims below are not computed from it; each is run at its own size, 40,000 bullets per run, named on its Run line, so its margin is the one its statistics need.
