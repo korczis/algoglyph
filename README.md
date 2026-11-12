@@ -306,7 +306,7 @@ Build the Cartesian tree of the input, whose root is the smallest key with the t
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/patience-sorting">039 · Patience sorting</a></b><br>
-Deal the keys like cards onto piles, each onto the leftmost pile whose top card is at least as large, or onto a new pile at the right; every pile is then a sorted run, and a multiway merge of the piles gives the sorted output.<br>
+Deal the keys like cards onto piles, each onto the leftmost pile whose top card is larger, or onto a new pile at the right; every pile is then a sorted run, and a multiway merge of the piles gives the sorted output.<br>
 <sub>Tree and pile sorts · n best, n log n average and worst; extra space n · sorting, piles, merging, adaptive</sub>
 </td>
 <td width="50%" valign="top">

@@ -21,6 +21,36 @@ related:
   - avl-tree
   - heapsort
   - tree-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [tree-sort, avl-tree]
+  objectives:
+  - 'Run Already sorted at 64 keys: 321 comparisons, where plain tree sort needs 2,016; at 512 keys 4,097 against 130,816.'
+  - 'Count the comparisons of Already sorted as Σ (⌊lg m⌋ + 1) over m = 1..n − 1: each new key walks the right spine of a tree the rotations keep balanced.'
+  - 'Read Array writes and Auxiliary writes: n each on every input; the rotations relink nodes and write no key.'
+  misconceptions:
+  - 'Already sorted is the worst input, as it is for plain tree sort; at eight keys it costs 17 comparisons and the worst permutation 18, the AVL height bound.'
+algorithm:
+  paradigm: incremental
+  properties:
+    in_place: false
+    comparison_based: true
+  invariants:
+    - The heights of the two subtrees of every node differ by at most one after each insertion.
+bounds:
+  model: 'comparisons (one per node passed on the way down; rotations compare nothing), array writes (the in-order walk) and auxiliary writes (one node per key)'
+  best: 'Σ (⌊lg m⌋ + 1) comparisons over m = 1..n − 1 on Already sorted, Reversed and keys all equal'
+  worst: 'at most Σ H(m) comparisons over m = 1..n − 1, H(m) the greatest height of an AVL tree of m nodes (fewest nodes N(h) = N(h − 1) + N(h − 2) + 1), reached by some permutation of every size up to eight; H(m) < 1.4405 lg(m + 2), so O(n log n) (Adelson-Velsky and Landis; Knuth)'
+  space: 'n tree nodes: n auxiliary writes and n array writes on every input'
+claims:
+  - id: sorted-input-stays-logarithmic
+    statement: >-
+      On Already sorted at 64 keys AVL tree sort makes 321 comparisons, Σ (⌊lg m⌋ + 1) for m = 1..63, where the unbalanced tree needs 2,016.
+    readout: Comparisons
+    expect: { value: 321 }
+    setup:
+      params: { shape: sorted, n: 64 }
 ---
 
 Tree sort into an AVL tree: after every insertion the balance factors are updated on the path back to the root, and a single or double rotation restores the rule that the two subtrees of any node differ in height by at most one; an in-order walk then reads the keys out sorted.
