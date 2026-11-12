@@ -24,3 +24,11 @@ labs:
     title: Union-find lab
     summary: Quick-find, quick-union, weighted quick-union and path compression on the same connections, with the measured array accesses per union as the number of sites grows; a curve whose next run would outgrow one frame stops there and says so.
     engine: tree
+  - id: stochastic-search
+    title: Stochastic search lab
+    summary: Annealing and a particle swarm on the same landscape and seed, each racing uniform random search with the same evaluation budget, compared by the best value found so far.
+    engine: stochastic
+  - id: uncertainty
+    title: Uncertainty lab
+    summary: Bootstrap percentile intervals and split conformal intervals measured the same way, by repeating the experiment and counting how often each covers the truth at every nominal level.
+    engine: stochastic
