@@ -1,5 +1,6 @@
 // Measures, for every wasm sorting kernel the array engine may play, what one rebuild costs at
-// each n (one full trace on the main thread, the worst input shape, best of three) and derives
+// each n (the array plate built at that n, as a loop rebuilds it inside one frame: the whole
+// trace, the replay and the frame's own work; the worst input shape, best of three) and derives
 // the largest n whose rebuild stays within a budget: the `max_n` the sidecar will carry once the
 // array engine accepts ArrayKernel.maxN. A measurement, not a gate: it runs only when asked,
 //
@@ -17,8 +18,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { ENTRIES } from '../src/core/catalogue';
-import { input, SHAPES, trace } from '../src/engines/array/trace';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import type { Params, PlateContext } from '../src/core/plate';
+import { mulberry32 } from '../src/core/random';
+import { engine } from '../src/engines/array';
+import { SHAPES } from '../src/engines/array/trace';
 import { sidecarKernel } from '../src/kernels/sorting-wasm/_adapter';
+import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 const OUT = process.env.ALGOGLYPH_MAX_N;
 const WRITE = process.env.ALGOGLYPH_MAX_N_WRITE === '1';
@@ -83,6 +89,8 @@ export function derivedMaxN(points: [number, number][], budget: number): number 
   return Math.max(STEP, Math.floor(Math.min(n, n1) / STEP) * STEP);
 }
 
+installBrowserStubs();
+
 describe.runIf(Boolean(OUT))('sorting rebuild cost per n', () => {
   it('measures every wasm-played sorting kernel and writes the derived max_n', async () => {
     const budgets = parse(readFileSync('config/budgets.yaml', 'utf8')) as { reference_cpu_ms: number };
@@ -92,15 +100,26 @@ describe.runIf(Boolean(OUT))('sorting rebuild cost per n', () => {
     }).entries.filter((r) => !r.existing && ENTRIES.find((e) => e.id === r.id)?.engine === 'array');
     const out: Record<string, { max_n: number; ms_at_512: number }> = {};
     for (const r of records) {
-      const kernel = await sidecarKernel(r.id);
+      // measured unbounded: the bound is what is being derived
+      const { maxN: _bound, ...kernel } = await sidecarKernel(r.id);
+      const plate = engine.plate({ id: r.id, title: r.id, group: 'sorting' }, kernel);
       const points: [number, number][] = GRID.map((n) => {
         let worst = 0;
         for (const shape of SHAPES) {
-          const data = input(shape, n, 4242 + n);
           let best = Infinity;
           for (let rep = 0; rep < 3; rep++) {
+            const params: Params = { shape, n, speed: 2000, loop: true, palette: 'spectral' };
+            const seed = 4242 + 31 * rep + n;
+            const ground = GROUNDS.dark;
+            const ctx: PlateContext = {
+              width: 1440, height: Math.round(1440 / plate.aspect), params, seed, rnd: mulberry32(seed),
+              theme: 'dark', bg: ground.bg, fg: ground.fg, thumbnail: false,
+              palette: () => lookupPalette('spectral'), stats() {}, chart() {},
+            };
             const t = cpuMs();
-            trace(kernel, data);
+            const sim = plate.create(p5Stub(), ctx);
+            sim.setup();
+            sim.draw();
             best = Math.min(best, cpuMs() - t);
           }
           worst = Math.max(worst, best);

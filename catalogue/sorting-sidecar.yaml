@@ -109,7 +109,7 @@ entries:
     broader: "bubble-sort"
   - id: "gnome-sort"
     kernel: "gnome-sort"
-    max_n: 424
+    max_n: 384
     max_n_of: "5300439f16504fdb"
     atlas_id: "TA-01.05"
     existing: false
@@ -132,7 +132,7 @@ entries:
     broader: null
   - id: "odd-even-sort"
     kernel: "odd-even-sort"
-    max_n: 384
+    max_n: 352
     max_n_of: "c1d7b3ed41da5cab"
     atlas_id: "TA-01.06"
     existing: false
@@ -155,7 +155,7 @@ entries:
     broader: "bubble-sort"
   - id: "exchange-sort"
     kernel: "exchange-sort"
-    max_n: 504
+    max_n: 448
     max_n_of: "e503cfa4f7b6d076"
     atlas_id: "TA-01.07"
     existing: false
@@ -557,7 +557,7 @@ entries:
     broader: null
   - id: "cycle-sort"
     kernel: "cycle-sort"
-    max_n: 392
+    max_n: 352
     max_n_of: "75707ed164735800"
     atlas_id: "TA-02.09"
     existing: false
@@ -1973,7 +1973,7 @@ entries:
     broader: null
   - id: "enumeration-sort"
     kernel: "enumeration-sort"
-    max_n: 504
+    max_n: 440
     max_n_of: "276c4a6f34c8e1cf"
     atlas_id: "TA-07.08"
     existing: false
@@ -2605,6 +2605,8 @@ entries:
     broader: "external-merge-sort"
   - id: "pancake-sort"
     kernel: "pancake-sort"
+    max_n: 440
+    max_n_of: "8c543b0e01690503"
     atlas_id: "TA-09.01"
     existing: false
     engine: "array"
@@ -2669,7 +2671,7 @@ entries:
     broader: null
   - id: "spaghetti-sort"
     kernel: "spaghetti-sort"
-    max_n: 408
+    max_n: 384
     max_n_of: "7e9c351908212f83"
     atlas_id: "TA-09.04"
     existing: false
