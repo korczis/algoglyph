@@ -2,7 +2,7 @@
 id: aks-sorting-network
 title: AKS sorting network
 taxonomy: sorting/networks
-status: planned
+status: live
 engine: array
 labs:
   - sorting

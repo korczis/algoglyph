@@ -2,7 +2,7 @@
 id: zig-zag-sort
 title: Zig-zag sort
 taxonomy: sorting/networks
-status: planned
+status: live
 engine: array
 labs:
   - sorting

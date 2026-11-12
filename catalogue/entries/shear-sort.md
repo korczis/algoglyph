@@ -2,7 +2,7 @@
 id: shear-sort
 title: Shearsort
 taxonomy: sorting/networks
-status: planned
+status: live
 engine: array
 labs:
   - sorting
