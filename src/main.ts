@@ -221,6 +221,12 @@ Alpine.data('app', () => ({
     return LIVE[(Math.max(0, i) + offset + LIVE.length) % LIVE.length];
   },
 
+  /** Readout labels are set in capitals, unless a symbol in them would change meaning (σ is not
+   * Σ, ħ is not Ħ, λ is not Λ): those keep their case. */
+  caseOf(label: string): string {
+    return /[\u0370-\u03ff\u0127\u1d00-\u1dbf\u2090-\u209c]/.test(label) ? 'normal-case' : 'uppercase';
+  },
+
   /** Whether a control applies in the plate's current mode (ParamBase.when). */
   applies(d: ParamDef): boolean {
     return !d.when || d.when.values.includes(String(this.params[d.when.key]));

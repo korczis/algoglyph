@@ -608,7 +608,7 @@
               <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2" aria-live="off">
                 <template x-for="s in stats" :key="s.label">
                   <div class="p-3 border border-gray-200 rounded-lg dark:border-gray-700">
-                    <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400" x-text="s.label"></dt>
+                    <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 dark:text-gray-400" :class="caseOf(s.label)" x-text="s.label"></dt>
                     <dd class="font-mono text-sm text-gray-900 break-words dark:text-white" x-text="s.value"></dd>
                   </div>
                 </template>

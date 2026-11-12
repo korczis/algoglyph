@@ -285,16 +285,16 @@ export const twoSlitAmplitudes: PlateCode = {
           curve(g, panel, runs[0].hist, peak, rgba(ramp(pal, 0.25), 0.9), 1.1);
           curve(g, panel, runs[1].hist, peak, rgba(ramp(pal, 0.45), 0.9), 1.1);
           curve(g, panel, expect1.map((v) => 2 * v), peak, rgba(fg, 0.6), 1.1, [4, 3]);
-          legend(g, panel.x + panel.w * 0.5, top + 8, [
-            [rgba(main, 0.8), 'N₁₂ both slits'], [rgba(fg, 0.9), 'n·∫ P₁₂, expected'],
+          legend(g, panel.x + panel.w * 0.58, top + 8, [
+            [rgba(main, 0.8), 'N₁₂ both slits'], [rgba(fg, 0.9), 'expected'],
             [rgba(ramp(pal, 0.25), 1), 'N₁ slit 2 shut'], [rgba(ramp(pal, 0.45), 1), 'N₂ slit 1 shut'],
-            [rgba(fg, 0.6), 'P₁ + P₂, expected'],
+            [rgba(fg, 0.6), 'P₁ + P₂ expected'],
           ], fg);
         } else {
           curve(g, panel, flashHist, peak, rgba(ramp(pal, 0.95), 0.9), 1.1);
           curve(g, panel, darkHist, peak, rgba(ramp(pal, 0.3), 0.9), 1.1);
-          legend(g, panel.x + panel.w * 0.5, top + 8, [
-            [rgba(main, 0.8), 'all hits'], [rgba(fg, 0.9), 'n·∫ e(1 + γ_eff cos), expected'],
+          legend(g, panel.x + panel.w * 0.58, top + 8, [
+            [rgba(main, 0.8), 'all hits'], [rgba(fg, 0.9), 'expected, γ_eff'],
             [rgba(ramp(pal, 0.95), 1), 'hits with a photon'], [rgba(ramp(pal, 0.3), 1), 'hits with none'],
           ], fg);
         }
