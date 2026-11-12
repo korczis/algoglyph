@@ -16,7 +16,7 @@ export const foucaultPendulum: PlateCode = {
   aspect: 16 / 10,
   thumbnailFrames: 360,
   params: [
-    { kind: 'range', key: 'lat', label: 'Latitude (°)', min: -90, max: 90, step: 0.5, value: 48.85,
+    { kind: 'range', key: 'lat', label: 'Latitude (°)', min: -90, max: 90, step: 0.05, value: 48.85,
       rebuild: true },
     {
       kind: 'select', key: 'boost', label: 'Earth spun up', value: '3000', rebuild: true,

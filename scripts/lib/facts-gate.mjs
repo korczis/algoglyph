@@ -11,7 +11,7 @@
 //                 that names no file
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize, relative } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 
 const REGION = /<!-- algoglyph:derived:begin (\S+) -->[\s\S]*?<!-- algoglyph:derived:end \1 -->/g;
@@ -130,11 +130,26 @@ export function gate(root, model) {
   const tracked = execFileSync('git', ['ls-files', '-co', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
     .split('\n').filter(Boolean);
   const files = tracked.filter((f) => matches(f, policy.files.include) && !matches(f, policy.files.exclude));
-  const exists = (p) => existsSync(join(root, p));
+  // a path the repository ignores (.ai/local/, dist/, build output) is local state by
+  // contract: no checkout can prove it, so it is not judged (a CI checkout has none of it)
+  // asked both ways: a directory pattern (`.ai/local/`) matches a missing path only with its slash
+  const ignored = (p) => [p, `${p}/`].some((q) => spawnSync('git', ['check-ignore', '-q', '--no-index', q], { cwd: root }).status === 0);
+  const exists = (p) => existsSync(join(root, p)) || ignored(p);
   const findings = [];
+  const scanned = [];
   for (const f of files) {
     if (!existsSync(join(root, f))) continue;
-    findings.push(...scan(relative(root, join(root, f)), readFileSync(join(root, f), 'utf8'), { policy, model, exists }));
+    const path = relative(root, join(root, f));
+    scanned.push(path);
+    findings.push(...scan(path, readFileSync(join(root, f), 'utf8'), { policy, model, exists }));
   }
-  return { findings, files: files.length, exempt: policy.exempt ?? [] };
+  return { findings, files: files.length, exempt: policy.exempt ?? [], scanned,
+    applied: applied(policy, scanned) };
+}
+
+/** The declared exemptions each scanned file falls under: what the gate did not judge, and why. */
+export function applied(policy, scanned) {
+  return scanned.flatMap((file) => (policy.exempt ?? [])
+    .filter((x) => matches(file, [x.path]))
+    .map((x) => ({ file, path: x.path, checks: x.checks })));
 }

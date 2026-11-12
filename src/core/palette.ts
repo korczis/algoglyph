@@ -43,6 +43,7 @@ export function paletteParam(value = 'ember'): SelectParam {
     kind: 'select',
     key: 'palette',
     label: 'Palette',
+    cosmetic: true,
     value,
     options: PALETTES.map((p) => ({ value: p.id, label: p.label })),
   };

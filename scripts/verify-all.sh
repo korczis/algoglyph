@@ -21,7 +21,7 @@ step "typecheck"
 npx tsc --noEmit
 
 step "unit tests"
-npx vitest run
+npm test
 
 step "README derived sections are current"
 node scripts/build-readme.mjs --check

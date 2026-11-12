@@ -8,3 +8,92 @@ labs:
     title: Sorting lab
     summary: Every sort on the same keys with the same operation budget per frame, ranked by when it finishes, with each one's work measured from n = 16 to 512.
     engine: array
+  - id: quadrature
+    title: Quadrature lab
+    summary: Uniform trapezoid and Simpson panels against adaptive Simpson on the same integrand, each one's error measured against the closed-form integral for the evaluations it spent.
+    engine: numeric
+  - id: interpolation
+    title: Interpolation lab
+    summary: One polynomial through all the nodes against a natural cubic spline on the same function, with the maximum error of each measured as nodes are added.
+    engine: numeric
+  - id: dynamic-programming
+    title: Dynamic programming lab
+    summary: Several dynamic-programming tables filling side by side at the same problem size with the same operation budget per frame, ranked by when each finishes, with each one's work measured as n grows and its growth exponent fitted over the measured range, which is a fit over small n rather than the asymptotic bound.
+    engine: grid
+  - id: hashing
+    title: Hashing lab
+    summary: Every hashing scheme on the same key stream with the same operation budget per frame, ranked by when it finishes, with probes per search and each one's work measured as n grows.
+    engine: hash
+  - id: search-trees
+    title: Search tree lab
+    summary: Plain, root-inserting, randomized, splay, red-black, AVL, 2-3-4 and B-trees on the same keys with the same step budget per frame, ranked by when each finishes, with the measured cost of a search against lg n as n grows towards 1024; a curve whose next run would outgrow one frame stops there and says so.
+    engine: tree
+  - id: union-find
+    title: Union-find lab
+    summary: Quick-find, quick-union, weighted quick-union and path compression on the same connections, with the measured array accesses per union as the number of sites grows; a curve whose next run would outgrow one frame stops there and says so.
+    engine: tree
+  - id: stochastic-search
+    title: Stochastic search lab
+    summary: Annealing and a particle swarm on the same landscape and seed, each racing uniform random search with the same evaluation budget, compared by the best value found so far.
+    engine: stochastic
+  - id: uncertainty
+    title: Uncertainty lab
+    summary: Bootstrap percentile intervals and split conformal intervals measured the same way, by repeating the experiment and counting how often each covers the truth at every nominal level.
+    engine: stochastic
+
+  - id: graph-search
+    title: Graph search lab
+    summary: "Breadth-first and depth-first search on the same graph with the same event budget per frame, ranked by when they finish, with each one’s counted work measured as the graph grows."
+    engine: graph
+
+  - id: shortest-paths
+    title: Shortest paths lab
+    summary: "Single-source and all-pairs shortest paths on the same layered DAG, ranked by when they finish, with each one’s counted work measured as the graph grows."
+    engine: graph
+
+  - id: spanning-trees
+    title: Spanning trees lab
+    summary: "Kruskal, Prim and Borůvka on the same weighted graph: the same tree weight, built in different orders, with each one’s counted work measured as the graph grows."
+    engine: graph
+
+  - id: max-flow
+    title: Maximum flow lab
+    summary: "Augmenting paths, shortest augmenting paths and preflow-push on the same network, reaching the same flow value by different routes."
+    engine: graph
+
+  - id: strong-components
+    title: Strong components lab
+    summary: "Kosaraju’s two searches against Tarjan’s one, on the same directed graph."
+    engine: graph
+
+  - id: communities
+    title: Communities lab
+    summary: "Label propagation against modularity optimisation on the same graph, side by side."
+    engine: graph
+
+  - id: centrality
+    title: Centrality lab
+    summary: "Who is central by PageRank, by betweenness and by degree, closeness and eigenvector, on the same graph."
+    engine: graph
+  - id: string-search
+    title: String search lab
+    summary: Brute force, Knuth–Morris–Pratt, Boyer–Moore and Rabin–Karp on the same text and pattern with the same budget of counted operations per frame, ranked by when they finish, with each one's work measured as the text grows.
+    engine: string
+  - id: name-similarity
+    title: Name similarity lab
+    summary: Levenshtein distance, Jaro–Winkler and trigram similarity on the same noisy name pair with the same budget of counted operations per frame, with each one's work measured as the names grow longer.
+    engine: string
+
+  - id: signal-transforms
+    title: Transforms lab
+    summary: Transforms applied to one seeded signal side by side, each one's real multiplies counted and its growth measured as the signal lengthens.
+    engine: signal
+  - id: hulls
+    title: Convex hull lab
+    summary: Every convex hull algorithm on the same points with the same budget of orientation tests per frame, ranked by when it closes its hull, with each one's work measured as n grows.
+    engine: geometry
+
+  - id: replication
+    title: Replication lab
+    summary: Replicas reconciling, merging and electing a leader on one seeded network with the same delays, losses and partition, each protocol's messages counted as they go.
+    engine: systems

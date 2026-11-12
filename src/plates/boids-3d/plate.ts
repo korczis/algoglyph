@@ -22,7 +22,7 @@ export const boidsMurmuration: PlateCode = {
       value: DEFAULT_RULES.alignment },
     { kind: 'range', key: 'cohesion', label: 'Cohesion', min: 0, max: 3, step: 0.05,
       value: DEFAULT_RULES.cohesion },
-    { kind: 'range', key: 'radius', label: 'Perception radius', min: 0.06, max: 0.4, step: 0.01,
+    { kind: 'range', key: 'radius', label: 'Perception radius', min: 0.06, max: 0.3, step: 0.01,
       value: DEFAULT_RULES.radius },
     { kind: 'range', key: 'speed', label: 'Max speed', min: 0.2, max: 1.5, step: 0.05,
       value: DEFAULT_RULES.maxSpeed },

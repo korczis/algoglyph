@@ -6,10 +6,13 @@ import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, links, 
 import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
+import { parseRoute } from './core/route';
+import { HashWriter, parse as parseShared, serialise } from './core/share';
+import { ThumbQueue } from './core/thumbs';
 import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
 
-type View = 'browse' | 'plate' | 'lab';
+import type { View } from './core/route';
 
 const THUMB_CACHE = 'algoglyph:thumb:v3';
 const FACTS = facts(CATALOGUE);
@@ -24,28 +27,15 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 // Not reactive on purpose: p5 instances must never be wrapped in Alpine proxies.
 let stage: Stage | null = null;
 let plateCode: Plate | null = null;
-let thumbQueue: string[] = [];
-let thumbBusy = false;
+// the query of the route being loaded, applied once the plate's controls are known
+let pendingQuery = '';
+const hashWriter = new HashWriter(250);
 let thumbObserver: IntersectionObserver | null = null;
+// the gallery's queue: renders only while the collection is shown (src/core/thumbs.ts)
+let thumbs: ThumbQueue | null = null;
 
 function currentTheme(): Theme {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-}
-
-interface Route { view: View; key: string; id: string; seed?: number }
-
-function parseHash(): Route {
-  const raw = location.hash.replace(/^#\/?/, '');
-  const [path, query = ''] = raw.split('?');
-  const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
-  const seed = Number(new URLSearchParams(query).get('seed'));
-  const s = Number.isInteger(seed) && seed > 0 ? seed : undefined;
-  if (parts[0] === 'p' && parts[1] && entry(parts[1])) return { view: 'plate', key: '', id: parts[1], seed: s };
-  if (parts[0] === 'lab' && parts[1] && findLab(parts[1])) return { view: 'lab', key: '', id: parts[1], seed: s };
-  if (parts[0] === 'c' && parts.length > 1 && node(parts.slice(1).join('/'))) {
-    return { view: 'browse', key: parts.slice(1).join('/'), id: '' };
-  }
-  return { view: 'browse', key: '', id: '' };
 }
 
 function cacheGet(key: string): string | null {
@@ -98,7 +88,7 @@ const posterSeed = (id: string) => 1009 + 7919 * ENTRIES.findIndex((e) => e.id =
 
 Alpine.data('app', () => ({
   facts: FACTS,
-  factCards: factCards(FACTS),
+  factCards: factCards(FACTS, CATALOGUE.labs.find((l) => labRunnable(l.id))?.id),
   wings: roots(),
   labs: CATALOGUE.labs,
   mosaic: spread(LIVE, MOSAIC_SIZE),
@@ -125,20 +115,32 @@ Alpine.data('app', () => ({
   keys: [
     ['Space', 'Play / pause'], ['.', 'Step one frame'], ['R', 'Reseed'], ['D', 'Default parameters'],
     ['S', 'Save PNG'], ['F', 'Full screen'], ['← →', 'Previous / next live plate'], ['G', 'Collection'],
-    ['T', 'Toggle theme'], ['/', 'Search'],
+    ['T', 'Toggle theme'], ['/', 'Search'], ['V', 'Reset the view (where a plate offers it)'],
   ] as [string, string][],
 
   init() {
     window.addEventListener('hashchange', () => this.route());
     window.addEventListener('keydown', (e) => this.key(e));
+    thumbs = new ThumbQueue(
+      (id, signal) => this.renderThumb(id, signal),
+      (id) => this.view === 'browse' && !this.thumbs[id]
+        && !!document.querySelector(`[data-thumb="${CSS.escape(id)}"]`),
+    );
     thumbObserver = new IntersectionObserver((seen) => {
       for (const s of seen) {
         const id = (s.target as HTMLElement).dataset.thumb;
         if (!id) continue;
         if (s.isIntersecting) this.queueThumb(id);
-        else thumbQueue = thumbQueue.filter((x) => x !== id);
+        else thumbs?.drop(id);
       }
     }, { rootMargin: '200px' });
+    this.$watch('params', () => {
+      if (this.view === 'browse' || !plateCode) return;
+      hashWriter.schedule(() => {
+        // the route may have changed since the knob moved: never write a plate URL over it
+        if (this.view !== 'browse' && plateCode) this.writeHash();
+      });
+    });
     this.route();
     watchSidebar();
   },
@@ -197,24 +199,30 @@ Alpine.data('app', () => ({
   },
 
   route() {
+    hashWriter.cancel();
     closeDrawer();
-    const r = parseHash();
+    const r = parseRoute(location.hash);
     if (r.view === 'browse') {
       stage?.unmount();
       plateCode = null;
       this.view = 'browse';
+      thumbs?.resume();
       this.nodeKey = r.key;
       this.currentId = '';
-      this.status = 'all';
+      this.status = r.status ?? 'all';
       if (r.key) this.open[r.key.split('/')[0]] = true;
       document.title = r.key ? `${node(r.key)?.title} · algoglyph` : 'algoglyph';
       this.$nextTick(() => this.observeThumbs());
       return;
     }
+    // a plate or a lab owns the main thread: the gallery's queue stops and forgets its cards
+    thumbObserver?.disconnect();
+    thumbs?.close();
     const changed = r.id !== this.currentId || r.view !== this.view;
     this.view = r.view;
     if (changed) {
       this.currentId = r.id;
+      this.canReset = false;
       this.stats = [];
       this.resetChart();
       this.defs = [];
@@ -229,13 +237,25 @@ Alpine.data('app', () => ({
         return;
       }
     }
+    // the route carries every changed knob; a link redraws the same picture (src/core/share.ts)
+    pendingQuery = r.query;
+    let paramsDiffer = false;
+    if (!changed && plateCode) {
+      const wanted = { ...defaults(plateCode), ...parseShared(plateCode.params, r.query).params };
+      paramsDiffer = plateCode.params.some((d) => wanted[d.key] !== this.params[d.key]);
+      if (paramsDiffer) Object.assign(this.params, wanted);
+    }
     const seed = r.seed ?? (changed ? freshSeed() : this.seed);
-    if (!changed && seed === this.seed && plateCode) return;
+    if (!changed && !paramsDiffer && seed === this.seed && plateCode) {
+      this.writeHash(); // unknown or ill-fitting keys: show the canonical URL
+      return;
+    }
     this.seed = seed;
-    this.writeHash();
+    if (plateCode) this.writeHash();
     void this.load(changed);
   },
 
+  /** Load the plate if needed and mount it; scroll to the top only for a new plate. */
   async load(changed: boolean) {
     const id = this.currentId;
     const view = this.view;
@@ -247,7 +267,8 @@ Alpine.data('app', () => ({
         if (!p) throw new Error(view === 'lab' ? `this lab needs at least ${CATALOGUE.labMin} live plates` : 'not runnable');
         plateCode = p;
         this.defs = p.params;
-        this.params = defaults(p);
+        this.params = { ...defaults(p), ...parseShared(p.params, pendingQuery).params };
+        this.writeHash();
       } catch (err) {
         this.error = String(err instanceof Error ? err.message : err);
         console.error(err);
@@ -263,9 +284,13 @@ Alpine.data('app', () => ({
   },
 
   writeHash() {
-    const hash = `#/${this.view === 'lab' ? 'lab' : 'p'}/${this.currentId}?seed=${this.seed}`;
+    const query = plateCode ? serialise(plateCode.params, this.params, this.seed) : `seed=${this.seed}`;
+    const hash = `#/${this.view === 'lab' ? 'lab' : 'p'}/${this.currentId}?${query}`;
     if (location.hash !== hash) history.replaceState(null, '', hash);
   },
+
+  canReset: false,
+  resetView() { stage?.reset(); },
 
   async mount(attempt = 0) {
     const host = document.getElementById('stage');
@@ -288,6 +313,7 @@ Alpine.data('app', () => ({
       onChart: (c) => { this.chart = c; void this.drawChart(); },
       onLoopChange: (running) => { this.running = running; },
     });
+    this.canReset = stage.canReset();
   },
 
   changed(d: ParamDef) { if (d.rebuild) void this.mount(); },
@@ -307,6 +333,8 @@ Alpine.data('app', () => ({
     else void el.requestFullscreen?.();
   },
   async copyLink() {
+    hashWriter.cancel();
+    if (plateCode && this.view !== 'browse') this.writeHash();
     try {
       await navigator.clipboard.writeText(location.href);
       this.copied = true;
@@ -324,7 +352,7 @@ Alpine.data('app', () => ({
     if (this.view !== 'browse') void this.mount();
     void this.drawChart();
     this.thumbs = {};
-    thumbQueue = [];
+    thumbs?.clear();
     this.$nextTick(() => this.observeThumbs());
   },
 
@@ -353,40 +381,29 @@ Alpine.data('app', () => ({
 
   // ---- lazy thumbnails: rendered for cards in view, one at a time ---------------------------
   observeThumbs() {
-    if (!thumbObserver) return;
+    if (!thumbObserver || this.view !== 'browse') return;
+    // disconnect delivers no leaving callbacks: cards gone from the page leave the queue here
     thumbObserver.disconnect();
-    document.querySelectorAll<HTMLElement>('[data-thumb]').forEach((el) => thumbObserver?.observe(el));
+    const cards = [...document.querySelectorAll<HTMLElement>('[data-thumb]')];
+    thumbs?.keep(new Set(cards.map((el) => el.dataset.thumb ?? '')));
+    cards.forEach((el) => thumbObserver?.observe(el));
   },
   queueThumb(id: string) {
-    if (this.thumbs[id] || thumbQueue.includes(id)) return;
+    if (this.thumbs[id]) return;
     const cached = cacheGet(`${THUMB_CACHE}:${this.theme}:${id}`);
     if (cached) { this.thumbs[id] = cached; return; }
-    thumbQueue.push(id);
-    void this.drainThumbs();
+    thumbs?.add(id);
   },
-  async drainThumbs() {
-    if (thumbBusy) return;
-    thumbBusy = true;
-    try {
-      while (thumbQueue.length) {
-        const id = thumbQueue.shift() as string;
-        const theme = this.theme;
-        try {
-          const p = await loadPlate(id);
-          if (!p) continue;
-          const { thumbnail } = await stageModule();
-          const url = await thumbnail(p, defaults(p), posterSeed(id), theme);
-          if (theme !== this.theme) continue;
-          this.thumbs[id] = url;
-          cacheSet(`${THUMB_CACHE}:${theme}:${id}`, url);
-        } catch (err) {
-          console.error(`thumbnail ${id}`, err);
-        }
-        await new Promise((r) => window.setTimeout(r, 16));
-      }
-    } finally {
-      thumbBusy = false;
-    }
+  async renderThumb(id: string, signal: AbortSignal) {
+    const p = await loadPlate(id);
+    if (!p || signal.aborted) return;
+    const { thumbnail } = await stageModule();
+    if (signal.aborted) return;
+    const theme = this.theme;
+    const url = await thumbnail(p, defaults(p), posterSeed(id), theme, undefined, undefined, signal);
+    if (theme !== this.theme) return;
+    this.thumbs[id] = url;
+    cacheSet(`${THUMB_CACHE}:${theme}:${id}`, url);
   },
 
   key(e: KeyboardEvent) {
@@ -404,6 +421,7 @@ Alpine.data('app', () => ({
     if (k === ' ') { e.preventDefault(); this.togglePause(); } else if (k === '.') this.step();
     else if (k === 'r') this.reseed();
     else if (k === 'd') this.resetParams();
+    else if (k === 'v') this.resetView();
     else if (k === 's') this.save();
     else if (k === 'f') this.fullscreen();
     else if (k === 'arrowleft' && this.view === 'plate') this.go(`#/p/${this.neighbour(-1).id}`);

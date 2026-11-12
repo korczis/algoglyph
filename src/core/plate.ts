@@ -12,6 +12,11 @@ interface ParamBase {
   label: string;
   /** Changing this parameter rebuilds the simulation instead of steering the running one. */
   rebuild?: boolean;
+  /**
+   * Changes how the picture looks, never how much work a frame does (a palette). The main-thread
+   * budget gate measures every other control's corners and skips these.
+   */
+  cosmetic?: boolean;
   hint?: string;
 }
 
@@ -80,6 +85,8 @@ export interface Sim {
   draw(): void;
   pressed?(x: number, y: number): void;
   dragged?(x: number, y: number): void;
+  /** Return to the starting view without rebuilding (e.g. undo zooms); the stage offers it. */
+  reset?(): void;
 }
 
 /** What a plate's code provides: behaviour only. Everything a person reads about the plate

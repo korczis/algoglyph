@@ -84,14 +84,21 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Derived facts (no hand-typed counts, plate numbers or dangling links)
         run: node scripts/check-facts.mjs
-      - name: Rust kernels (native tests, wasm32 build; the .wasm is never committed)
-        run: scripts/wasm.sh
+      # The CLI's tests include its equivalence with the Node facts gate (needs npm ci, done above).
+      - name: Rust kernels (native tests, wasm32 build; the .wasm is never committed) and the CLI
+        run: |
+          scripts/wasm.sh
+          cargo test -p algoglyph-cli --locked
       - name: Catalogue (schema, references, live and code agree, derived plan current)
         run: node scripts/catalogue.mjs --check
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Unit tests (algorithms against reference values, integrator invariants)
-        run: npx vitest run
+        run: npx vitest run --exclude test/budget.test.ts
+      # Alone, after the suite: wall-clock budgets read preemption by parallel test files on a
+      # small runner as a slow plate (Pages run 43115536542: gray-scott 55 ms here, 1.9 ms alone).
+      - name: Main-thread budget at the heaviest settings (test/budget.test.ts, config/budgets.yaml)
+        run: npm run test:budget
       - name: README derived sections are current (scripts/build-readme.mjs --check)
         run: node scripts/build-readme.mjs --check
       - name: Build (stamps dist/revision.txt with the commit)
