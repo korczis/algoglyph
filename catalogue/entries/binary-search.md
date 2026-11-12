@@ -16,6 +16,18 @@ related:
   - interpolation-search
   - sequential-search
   - bst-search-insert
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Keep an interval that must hold the key and halve it by probing its middle.
+  - See why at most ⌊lg n⌋ + 1 probes are needed, whether the key is found or not.
+  - Read the probe map as the implicit balanced binary search tree.
+algorithm:
+  paradigm: search
+bounds:
+  model: probes
+  worst: '⌊lg n⌋ + 1 probes, hit or miss'
 ---
 
 Halve the sorted interval that can hold the key, lg n times at most.

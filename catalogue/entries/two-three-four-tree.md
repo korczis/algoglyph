@@ -17,6 +17,15 @@ complexity: between log4 n and lg n levels; every leaf at the same depth
 related:
   - red-black-tree
   - b-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Split every 4-node met on the way down, so an insertion never has to come back up.
+  - See that the tree grows only at the root, which keeps every leaf at the same depth.
+bounds:
+  model: levels
+  worst: between log₄(n+1) and lg(n+1), every leaf at the same depth
 ---
 
 Split every 4-node on the way down, so an insertion never has to come back up.

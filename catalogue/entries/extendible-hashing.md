@@ -16,6 +16,19 @@ tags:
 complexity: one directory read and one page read per search; the directory grows faster than linearly
 related:
   - separate-chaining
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Index pages through a directory of 2^g entries by the leading g bits of a key's hash.
+  - Split a full page on its next bit, doubling the directory first when its local depth equals g.
+  - 'See why a search costs one directory read and one page read: a single access to secondary storage.'
+algorithm:
+  paradigm: search
+bounds:
+  model: key comparisons
+  worst: 'at most b (the page capacity), after one directory read and one page read'
+  space: about n/(b ln 2) pages and (e/(b ln 2)) n^(1 + 1/b) directory entries for uniform keys
 ---
 
 A directory indexed by the leading hash bits that doubles when a page splits.

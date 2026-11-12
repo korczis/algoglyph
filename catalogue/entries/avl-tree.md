@@ -16,6 +16,18 @@ complexity: height below 1.44 lg n; lg n per insert and search
 related:
   - red-black-tree
   - bst-rotations
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - bst-rotations
+  objectives:
+  - Keep the heights of every node's subtrees within one, recomputing them on the way back up.
+  - Choose a single rotation for an outside heavy grandchild and a double one for an inside one.
+  - See why a Fibonacci number of nodes per height keeps the height below about 1.44 lg n.
+bounds:
+  model: levels
+  worst: below about 1.44 lg n
 ---
 
 Keep the heights of every node's subtrees within one, with single and double rotations.

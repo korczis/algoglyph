@@ -15,6 +15,17 @@ complexity: one character test per character of the key; R links per node
 related:
   - ternary-search-trie
   - binary-trie
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Follow one link per character, one level per character of the key, with no key comparisons.
+  - Weigh the speed against the memory of a link reserved for every letter in every node.
+algorithm:
+  paradigm: search
+bounds:
+  model: character tests
+  worst: one per character of the search key, and no key comparisons
 ---
 
 R links per node, one per character, fast and generous with memory.

@@ -16,6 +16,18 @@ complexity: the comparisons of a plain insertion plus one rotation per level cli
 related:
   - randomized-bst
   - bst-rotations
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - bst-search-insert
+  - bst-rotations
+  objectives:
+  - Insert at the bottom, then rotate the new key over each ancestor until it is the root.
+  - See that the result is the plain search tree of the same keys inserted in reverse order.
+bounds:
+  model: rotations
+  worst: one per key comparison of an insertion, n − 1 when the new key lands at the bottom of a path
 ---
 
 Insert at the bottom, then rotate the new key up to the root.

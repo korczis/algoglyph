@@ -17,6 +17,18 @@ complexity: expected ½(1 + 1/(1 − α)) probes per hit and ½(1 + 1/(1 − α)
 related:
   - double-hashing
   - dynamic-hash-table
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Step from a key's home slot to the next slot until it finds itself or an empty slot.
+  - See primary clustering make the miss cost climb steeply as α approaches 1.
+  - Delete by Knuth's backward shift, which leaves no tombstones.
+algorithm:
+  paradigm: search
+bounds:
+  model: probes
+  average: 'expected ½(1 + 1/(1 − α)) per hit and ½(1 + 1/(1 − α)²) per miss (Knuth, uniform keys)'
 ---
 
 On a collision try the next slot; watch clusters form and slow everything down.

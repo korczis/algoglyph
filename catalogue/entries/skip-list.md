@@ -15,6 +15,18 @@ complexity: 'O(log n) expected comparisons per search, insert and delete; 1/(1 â
 related:
   - bst-search-insert
   - randomized-bst
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Search a sorted linked list with express lanes, moving right and dropping a level before overshooting.
+  - Promote each node one level up with probability p, by a coin flip.
+  - 'Compare p = 1/2 and p = 1/4: about 2 lg n comparisons for both, fewer links per node at 1/4.'
+algorithm:
+  paradigm: randomized
+bounds:
+  model: key comparisons
+  average: 'expected about (1/p) log_{1/p} n, which is 2 lg n for p = 1/2 and for p = 1/4'
 ---
 
 Linked lists stacked in levels, each node promoted by a coin flip: search skips ahead.

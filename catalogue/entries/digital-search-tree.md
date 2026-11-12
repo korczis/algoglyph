@@ -15,6 +15,21 @@ complexity: at most w + 1 nodes per search for w-bit keys, about lg n on random 
 related:
   - binary-trie
   - bst-search-insert
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - bst-search-insert
+  objectives:
+  - Branch on bit d of the search key at depth d, with a full comparison at each node.
+  - See why no path is longer than the key width, whatever the insertion order.
+  misconceptions:
+  - Reading a digital search tree in order gives the keys sorted; it does not, the keys of a subtree only share the bits of the path to it.
+algorithm:
+  paradigm: search
+bounds:
+  model: nodes touched
+  worst: at most w + 1 per search for w-bit keys, whatever the insertion order
 ---
 
 Branch on the key's bits, one per level, with keys stored in the internal nodes.

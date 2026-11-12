@@ -16,6 +16,19 @@ tags:
 complexity: O(1 + α) expected comparisons per operation, O(n) in the worst case
 related:
   - linear-probing
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Pick a key's chain by the leading bits of its multiplicative hash, then walk the chain comparing keys.
+  - 'Relate the cost to the load factor α: about 1 + α/2 keys compared for a hit and α for a miss.'
+  - See why a chained table never fills and only slows down in proportion to α.
+algorithm:
+  paradigm: search
+bounds:
+  model: key comparisons
+  average: about 1 + α/2 per hit and α per miss (uniform keys)
+  worst: 'a miss compares every key of its chain; a hit, the keys up to its own'
 ---
 
 Each table slot holds a list of the keys that hash there.

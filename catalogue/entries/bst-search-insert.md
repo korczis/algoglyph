@@ -16,6 +16,18 @@ complexity: about 1.39 lg n compares per search on random keys, n in the worst c
 related:
   - bst-delete-join
   - red-black-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Search and insert by comparing down from the root, a new key hanging where the search fell off.
+  - See that the shape is the insertion order, a path of n levels on ascending or descending keys.
+algorithm:
+  paradigm: search
+bounds:
+  model: key comparisons
+  average: about 2 ln n, roughly 1.39 lg n, per search on random keys
+  worst: n per search, on the path of n levels that ascending or descending keys build
 ---
 
 Search and insert by comparing down from the root; the shape is the insertion order.

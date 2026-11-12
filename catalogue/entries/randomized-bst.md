@@ -18,6 +18,17 @@ related:
   - bst-root-insertion
   - bst-delete-join
   - splay-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites:
+  - bst-root-insertion
+  objectives:
+  - Make a new key the root of a subtree of size s with probability 1/(s+1), by root insertion.
+  - See why the tree is distributed like one built from a random permutation, even on ascending input.
+  - Join two subtrees on deletion choosing either root in proportion to its size.
+algorithm:
+  paradigm: randomized
 ---
 
 Every insertion lands at the root with the right probability, so the tree is random whatever the order.

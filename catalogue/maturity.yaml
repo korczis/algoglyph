@@ -4,3 +4,4 @@
 # and `npm run verify` fail on it. A wing is added here in the commit that finishes its wave.
 documented:
   - foundations
+  - searching
