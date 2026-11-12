@@ -3,6 +3,7 @@
 // never sizes itself and never picks its own background: it receives all of that in its context.
 import type p5 from 'p5';
 import type { PaceDecl, PaceReport } from './pace';
+import type { DataTable } from './data';
 import type { Palette, RGB } from './palette';
 
 export type Mode = '2d' | 'webgl';
@@ -84,6 +85,12 @@ export interface PlateContext {
   chart(c: Chart): void;
   /** True while the stage renders a gallery thumbnail rather than the live plate. */
   readonly thumbnail: boolean;
+  /**
+   * A reader's own data for a declared input (ADR 0010), validated by src/core/data.ts; null
+   * when none is attached. Read it only while a select picks `data:<id>`. Absent in contexts
+   * that never carry data (thumbnails, claims, pacing).
+   */
+  data?(id: string): DataTable | null;
 }
 
 /** What a plate hands the stage: one frame of work and optional pointer handlers. */

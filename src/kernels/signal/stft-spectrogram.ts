@@ -30,21 +30,24 @@ export const kernel: SignalKernel = {
       { value: '0', label: 'None' }, { value: '0.5', label: '50 %' }, { value: '0.75', label: '75 %' }] },
     { kind: 'select', key: 'window', label: 'Window', value: 'hann', options: WINDOWS.map((w) => ({ value: w.id, label: w.label })) },
     { kind: 'range', key: 'snr', label: 'Signal-to-noise ratio (dB)', min: -10, max: 40, step: 1, value: 10 },
+    { kind: 'select', key: 'len', label: 'Signal length (samples)', value: String(LEN),
+      options: ['4000', '8000', '16000'].map((v) => ({ value: v, label: `${v} samples` })) },
   ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const frame = Number(str(params, 'frame'));
     const hop = Math.max(1, Math.round(frame * (1 - Number(str(params, 'overlap')))));
     const tone = Math.round(1000 + rnd() * 1500);
-    const x = chirp(LEN, FS, F0, F1, 0.5);
-    const t = tones(LEN, FS, [{ f: tone, a: 0.25 }]);
-    for (let i = 0; i < LEN; i++) x[i] += t[i];
+    const len = Number(str(params, 'len'));
+    const x = chirp(len, FS, F0, F1, 0.5);
+    const t = tones(len, FS, [{ f: tone, a: 0.25 }]);
+    for (let i = 0; i < len; i++) x[i] += t[i];
     addNoise(x, rnd, Number(params.snr));
     const win = str(params, 'window');
     const w = windowOf(win, frame);
     const rows: Float32Array[] = [];
     const avg = new Float64Array(frame / 2 + 1);
-    const total = Math.floor((LEN - frame) / hop) + 1;
+    const total = Math.floor((len - frame) / hop) + 1;
     const every = Math.max(1, Math.ceil(total / 80));
     const df = FS / frame;
     let ridge = 0;
@@ -57,7 +60,7 @@ export const kernel: SignalKernel = {
       rows.push(Float32Array.from(a, dbOf));
       const k = argmax(a, 1, a.length - 1);
       const peak = (k + parabolic(a[k - 1], a[k], a[k + 1])) * df;
-      const truth = chirpFreq(LEN, FS, F0, F1, from + frame / 2);
+      const truth = chirpFreq(len, FS, F0, F1, from + frame / 2);
       ridge += Math.abs(peak - truth);
       if (f % every !== 0 && f !== total - 1) continue;
       const mean = Float64Array.from(avg, (v) => 10 * Math.log10(Math.max(1e-12, v / (f + 1))));

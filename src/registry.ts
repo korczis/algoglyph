@@ -7,6 +7,7 @@
 import {
   CATALOGUE, entry, lab as findLab, node, type Catalogue, type Entry,
 } from './core/catalogue';
+import { withDataOptions } from './core/data';
 import type { Plate, PlateCode } from './core/plate';
 import type { ArrayKernel } from './engines/array/trace';
 import type { Engine, KernelInfo } from './engines/types';
@@ -101,7 +102,7 @@ export function loadPlate(id: string): Promise<Plate> | undefined {
   if (!p) {
     p = code(e).then((c) => {
       if (c.id !== id) throw new Error(`${id}: its code declares id ${c.id}`);
-      return { ...c, title: e.title, summary: e.summary, no: e.no };
+      return { ...c, params: withDataOptions(c.params, e.data), title: e.title, summary: e.summary, no: e.no };
     });
     // a failed load (a module that did not arrive) is not remembered: the next visit retries
     p.catch(() => { if (cache.get(id) === p) cache.delete(id); });

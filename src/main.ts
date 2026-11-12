@@ -9,7 +9,9 @@ import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
 import { parseRoute } from './core/route';
-import { HashWriter, parse as parseShared, serialise, snap } from './core/share';
+import { optionValue, parseData, type DataError } from './core/data';
+import { dataTokens, HashWriter, parse as parseShared, serialise, snap } from './core/share';
+import { DataStore, readFile } from './core/upload';
 import { ThumbQueue } from './core/thumbs';
 import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
@@ -33,6 +35,22 @@ let stage: Stage | null = null;
 let plateCode: Plate | null = null;
 // the query of the route being loaded, applied once the plate's controls are known
 let pendingQuery = '';
+// a reader's own data for the plate shown (ADR 0010): in memory only, never in Alpine's proxies
+let store: DataStore | null = null;
+
+/** What the data card shows of one declared input; a plain snapshot, rebuilt on every change. */
+interface DataView {
+  id: string; title: string; note: string; replaces: string; ignores: string[];
+  columns: string; rows: string; accepts: string; formats: string;
+  selected: boolean;
+  loaded: { rows: number; from: string; digest: string } | null;
+  travels: boolean;
+  errors: { where: string; reason: string }[];
+  marker: { rows: number; digest: string } | null;
+  same: boolean | null;
+}
+
+const where = (e: DataError) => [e.row !== undefined ? `row ${e.row}` : '', e.col ? `column ${e.col}` : ''].filter(Boolean).join(', ');
 const hashWriter = new HashWriter(250);
 let thumbObserver: IntersectionObserver | null = null;
 // the gallery's queue: renders only while the collection is shown (src/core/thumbs.ts)
@@ -121,6 +139,10 @@ Alpine.data('app', () => ({
   theme: currentTheme(),
   thumbs: {} as Record<string, string>,
   copied: false,
+  dataSlots: [] as DataView[],
+  /** True when a copied link of this plate carries a reader's data (said beside Copy link). */
+  dataTravels: false,
+  pasted: {} as Record<string, string>,
   keys: [
     ['Space', 'Play / pause'], ['.', 'Step one frame'], ['R', 'Reseed'], ['D', 'Default parameters'],
     ['S', 'Save PNG'], ['F', 'Full screen'], ['← →', 'Previous / next live plate'], ['G', 'Collection'],
@@ -293,6 +315,9 @@ Alpine.data('app', () => ({
     if (r.view === 'browse') {
       stage?.unmount();
       plateCode = null;
+      store = null;
+      this.dataSlots = [];
+      this.dataTravels = false;
       this.view = 'browse';
       this.figureKey = '';
       thumbs?.resume();
@@ -320,6 +345,9 @@ Alpine.data('app', () => ({
       this.defs = [];
       this.error = '';
       plateCode = null;
+      store = null;
+      this.dataSlots = [];
+      this.dataTravels = false;
       stage?.unmount();
       const e = r.view === 'plate' ? entry(r.id) : undefined;
       if (e) this.open[e.path[0]] = true;
@@ -337,6 +365,12 @@ Alpine.data('app', () => ({
       const wanted = { ...defaults(plateCode), ...this.base(), ...parseShared(plateCode.params, r.query).params };
       paramsDiffer = plateCode.params.some((d) => wanted[d.key] !== this.params[d.key]);
       if (paramsDiffer) Object.assign(this.params, wanted);
+      if (store) {
+        const before = store.all().map((x) => x.table?.digest ?? '').join();
+        store.fromLink(dataTokens(r.query));
+        this.settleData();
+        if (store.all().map((x) => x.table?.digest ?? '').join() !== before) paramsDiffer = true;
+      }
     }
     const seed = r.seed ?? (changed ? freshSeed() : this.seed);
     if (!changed && !paramsDiffer && seed === this.seed && plateCode) {
@@ -360,7 +394,10 @@ Alpine.data('app', () => ({
         if (!p) throw new Error(view === 'lab' ? `this lab needs at least ${CATALOGUE.labMin} live plates` : 'not runnable');
         plateCode = p;
         this.defs = p.params;
+        store = view === 'plate' ? new DataStore(entry(id)?.data ?? []) : null;
+        store?.fromLink(dataTokens(pendingQuery));
         this.params = { ...defaults(p), ...this.base(), ...parseShared(p.params, pendingQuery).params };
+        this.settleData();
         this.writeHash();
       } catch (err) {
         this.error = String(err instanceof Error ? err.message : err);
@@ -377,7 +414,9 @@ Alpine.data('app', () => ({
   },
 
   writeHash() {
-    const query = plateCode ? serialise(plateCode.params, this.params, this.seed, this.base()) : `seed=${this.seed}`;
+    const query = plateCode
+      ? serialise(plateCode.params, this.params, this.seed, this.base(), store?.tokens(this.params) ?? {})
+      : `seed=${this.seed}`;
     const path = this.view === 'figure' ? this.figureKey : `${this.view === 'lab' ? 'lab' : 'p'}/${this.currentId}`;
     const hash = `#/${path}?${query}`;
     if (location.hash !== hash) history.replaceState(null, '', hash);
@@ -406,17 +445,106 @@ Alpine.data('app', () => ({
       onStats: (rows) => { this.stats = rows; },
       onChart: (c) => { this.putChart(c); },
       onLoopChange: (running) => { this.running = running; },
+      data: (id) => store?.table(id) ?? null,
     });
     this.canReset = stage.canReset();
   },
 
-  changed(d: ParamDef) { if (d.rebuild) void this.mount(); },
+  changed(d: ParamDef) {
+    if (store && d.kind === 'select') this.syncData();
+    if (d.rebuild) void this.mount();
+  },
+
+  // ---- a reader's own data (ADR 0010): read here, never sent; the link carries it when small ----
+  /**
+   * A select left on a declared input with nothing to read goes back to its default, unless a
+   * link named data it does not carry: then it stays, so the link keeps the marker the reader
+   * can restore by attaching the file. The plate runs its default input meanwhile.
+   */
+  settleData() {
+    if (!store || !plateCode) return;
+    for (const s of store.all()) {
+      const def = plateCode.params.find((d) => d.key === s.decl.replaces);
+      if (!def || this.params[def.key] !== optionValue(s.decl.id)) continue;
+      if (!s.table && !s.marker) this.params[def.key] = def.value;
+    }
+    this.syncData();
+  },
+  syncData() {
+    this.dataSlots = (store?.all() ?? []).map((s) => {
+      const d = s.decl;
+      const selected = this.params[d.replaces] === optionValue(d.id);
+      return {
+        id: d.id, title: d.title, note: d.note ?? '', replaces: d.replaces, ignores: d.ignores ?? [],
+        columns: d.columns.map((c) => `${c.key} (${c.unit === '1' ? 'a pure number' : c.unit})`).join(', '),
+        rows: `${d.rows.min} to ${d.rows.max} rows`,
+        accepts: d.accepts.map((f) => f.toUpperCase()).join(' or '),
+        formats: [...d.accepts.flatMap((f) => (f === 'csv' ? ['.csv', '.tsv', '.txt', 'text/csv'] : ['.json', 'application/json']))].join(','),
+        selected,
+        loaded: s.table ? { rows: s.table.rows, from: s.from === 'file' ? `the file ${s.name}` : s.from === 'paste' ? 'the pasted text' : 'the link', digest: s.table.digest.slice(0, 12) } : null,
+        travels: !!s.table && selected && store!.carries({ [d.replaces]: optionValue(d.id) }),
+        errors: s.errors.map((e) => ({ where: where(e), reason: e.reason })),
+        marker: s.marker ? { rows: s.marker.rows, digest: s.marker.digest.slice(0, 12) } : null,
+        same: s.same,
+      };
+    });
+    // a plain property, set with the slots it summarises
+    this.dataTravels = this.dataSlots.some((s) => s.travels);
+  },
+
+  /** Whether a control does nothing right now, because the data it would shape is the reader's. */
+  ignoredNow(key: string): boolean {
+    return this.dataSlots.some((s) => s.selected && !!s.loaded && s.ignores.includes(key));
+  },
+  /** Run on a table just accepted: pick it in its select, rewrite the link, remount. */
+  useData(id: string) {
+    const s = store?.get(id);
+    if (!s || !plateCode) return;
+    if (s.table) this.params[s.decl.replaces] = optionValue(id);
+    this.syncData();
+    this.writeHash();
+    void this.mount();
+  },
+  async attachFile(id: string, ev: Event) {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    await this.readInto(id, file);
+  },
+  async dropFile(id: string, ev: DragEvent) {
+    await this.readInto(id, ev.dataTransfer?.files?.[0]);
+  },
+  async readInto(id: string, file: File | undefined) {
+    const s = store?.get(id);
+    if (!s || !file) return;
+    const r = await readFile(s.decl, file);
+    if (store?.get(id) !== s) return; // the plate changed while the file was read
+    if (store.set(id, r, 'file', file.name)) this.useData(id);
+    else this.syncData();
+  },
+  usePasted(id: string) {
+    const s = store?.get(id);
+    if (!s) return;
+    if (store!.set(id, parseData(s.decl, this.pasted[id] ?? ''), 'paste')) this.useData(id);
+    else this.syncData();
+  },
+  clearData(id: string) {
+    const s = store?.get(id);
+    if (!s || !plateCode) return;
+    store!.clear(id);
+    const def = plateCode.params.find((d) => d.key === s.decl.replaces);
+    if (def && this.params[def.key] === optionValue(id)) this.params[def.key] = def.value;
+    this.syncData();
+    this.writeHash();
+    void this.mount();
+  },
   togglePause() { this.paused = !this.paused; stage?.setPaused(this.paused); },
   step() { this.paused = true; stage?.step(); },
   reseed() { this.seed = freshSeed(); this.writeHash(); void this.mount(); },
   resetParams() {
     if (!plateCode) return;
     Object.assign(this.params, defaults(plateCode), this.base());
+    this.syncData();
     void this.mount();
   },
   save() { stage?.save(`algoglyph-${this.currentId}-${this.seed}`); },

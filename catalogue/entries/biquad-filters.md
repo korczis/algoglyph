@@ -32,6 +32,26 @@ claims:
       rounding, within 10⁻⁶ dB.
     readout: Measured against evaluated, worst
     expect: { below: 1.0e-6 }
+  - id: truncation-bound-at-1024-samples
+    statement: >-
+      Cut to 1024 samples, the response leaves out the tail Σ_{n≥N} |h[n]|, and |h[n]| ≤ (|K1| +
+      |K2|)·r^n from the residues K_i = B(p_i)/(p_i(p_i − p_j)) of the poles p_i: the tail is at
+      most (|K1| + |K2|)·r^N/(1 − r). For the peaking boost at 200 Hz, Q 10, +9 dB, that is
+      0.0085020·0.997666^1024/0.002334 = 0.3328, and its |H| never falls below 1, so no bin is off
+      by more than −20·log10(1 − 0.3328) = 3.515 dB.
+    readout: Measured against evaluated, worst
+    expect: { below: 3.515 }
+    setup:
+      params: { type: peaking, f0: 200, q: 10, gain: 9, irLen: '1024' }
+  - id: truncation-bound-at-4096-samples
+    statement: >-
+      At 4096 samples the same bound is 0.0085020·0.997666^4096/0.002334 = 2.539·10⁻⁴ of a
+      magnitude never below 1, so no bin is off by more than −20·log10(1 − 2.539·10⁻⁴) = 2.205·10⁻³
+      dB.
+    readout: Measured against evaluated, worst
+    expect: { below: 2.205e-3 }
+    setup:
+      params: { type: peaking, f0: 200, q: 10, gain: 9, irLen: '4096' }
 ---
 
 Moving poles and zeros on the z-plane and watching the frequency response follow.

@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { CATALOGUE, ENTRIES } from '../../src/core/catalogue';
+import { optionId, tableOf, type DataTable } from '../../src/core/data';
 import { palette as lookupPalette, GROUNDS } from '../../src/core/palette';
 import type { ParamDef, Params, Plate, PlateContext, Sim } from '../../src/core/plate';
 import { mulberry32 } from '../../src/core/random';
@@ -75,9 +76,33 @@ export function corners(defs: ParamDef[]): Params[] {
  */
 let seed = 4242;
 
+/**
+ * A reader's data at its declared maximum (ADR 0010): seeded values inside each column's bounds,
+ * so a corner whose select picks `data:<id>` measures the plate on the largest table it accepts.
+ */
+const synthetic = new Map<string, DataTable>();
+function dataFor(plate: Plate, id: string): DataTable | null {
+  const decl = ENTRIES.find((e) => e.id === plate.id)?.data.find((d) => d.id === id);
+  if (!decl) return null;
+  const key = `${plate.id}:${id}`;
+  let t = synthetic.get(key);
+  if (!t) {
+    const rnd = mulberry32(97);
+    const rows = Array.from({ length: decl.rows.max }, () => decl.columns.map((c) => {
+      const lo = Math.max(c.min ?? -1000, -1000); const hi = Math.min(c.max ?? 1000, 1000);
+      return lo + (hi - lo) * rnd();
+    }));
+    t = tableOf(decl, rows);
+    synthetic.set(key, t);
+  }
+  return t;
+}
+
 function context(plate: Plate, params: Params, width: number): PlateContext {
   const ground = GROUNDS.dark;
+  const picked = new Set(Object.values(params).map(optionId).filter(Boolean));
   return {
+    data: (id) => (picked.has(id) ? dataFor(plate, id) : null),
     width, height: Math.round(width / plate.aspect), params, seed, rnd: mulberry32(seed),
     theme: 'dark', bg: ground.bg, fg: ground.fg, thumbnail: false,
     palette: () => lookupPalette(String(params.palette ?? 'ember')),

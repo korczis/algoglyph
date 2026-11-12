@@ -2,10 +2,10 @@
 // keeps showing its held frame until the run arrives, encoded and transferred without a copy.
 import type { Params } from '../../core/plate';
 import { makeInput } from './input';
-import { record, type GeometryKernel, type InputKind } from './trace';
+import { record, type GeometryKernel, type InputKind, type Pt } from './trace';
 import { encode } from './track';
 
-export interface Job { job: number; id: string; kind: InputKind; shape: string; n: number; seed: number; params: Params; stride: number }
+export interface Job { job: number; id: string; kind: InputKind; shape: string; n: number; seed: number; params: Params; points?: Pt[]; stride: number }
 
 const kernels = import.meta.glob<GeometryKernel>('../../kernels/geometry/[!_]*.ts', { import: 'kernel', eager: true });
 
@@ -14,7 +14,7 @@ self.onmessage = (ev: MessageEvent<Job>) => {
   try {
     const kernel = kernels[`../../kernels/geometry/${j.id}.ts`];
     if (!kernel) throw new Error(`no geometry kernel ${j.id}`);
-    const t = record(kernel, makeInput(j.kind, j.shape, j.n, j.seed, j.params), j.params, j.seed, true, j.stride);
+    const t = record(kernel, makeInput(j.kind, j.shape, j.n, j.seed, j.params, j.points), j.params, j.seed, true, j.stride);
     const { enc, transfer } = encode(t);
     (self as unknown as Worker).postMessage({ job: j.job, enc }, transfer);
   } catch (e) {
