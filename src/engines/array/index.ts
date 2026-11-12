@@ -59,7 +59,7 @@ const baseParams = (n: number, max = MAX_N): ParamDef[] => [
 ];
 
 /** One replayed run: its trace, the array as replayed so far, and where it stands. */
-class Replay {
+export class Replay {
   a: number[];
   aux: number[];
   at = 0;
@@ -67,9 +67,25 @@ class Replay {
   lo = -1;
   hi = -1;
   usesAux: boolean;
-  private c = { compares: 0, writes: 0, aux: 0 };
-  /** [operation, comparisons, array writes, auxiliary writes], about 120 points over the run. */
-  history: [number, number, number, number][] = [[0, 0, 0, 0]];
+  /** The phase the replay has reached, '' before the first phase event. */
+  phase = '';
+  /** Phases entered so far, counted from the phase events replayed. */
+  phases = 0;
+  /** The lane working now, -1 before the first lane event. */
+  lane = -1;
+  /** The round the replay is in (the kernel's own number), 0 before the first. */
+  round = 0;
+  /** The lane that last touched each cell, -1 for none; null when the kernel works in no lane. */
+  readonly laneOf: Int32Array | null;
+  /** The event at which each round begins, in order: the boundaries the plate marks. */
+  readonly roundAt: number[] = [];
+  private seen: Set<number> | null;
+  private c = { compares: 0, writes: 0, aux: 0, rounds: 0 };
+  /**
+   * [operation, comparisons, array writes, auxiliary writes, rounds begun], about 120 points over
+   * the run.
+   */
+  history: [number, number, number, number, number][] = [[0, 0, 0, 0, 0]];
   private every: number;
   constructor(readonly t: Trace) {
     this.a = t.input.slice();
@@ -78,43 +94,142 @@ class Replay {
     for (let e = 0; e < t.length && !aux; e++) aux = t.events[3 * e] === OP.auxWrite;
     this.usesAux = aux;
     this.every = Math.max(1, Math.floor(t.length / 120));
+    // a kernel without annotations pays nothing for them: no lane row, no scan
+    this.laneOf = t.marks.lanes ? new Int32Array(t.input.length).fill(-1) : null;
+    this.seen = t.marks.lanes ? new Set() : null;
+    if (t.marks.rounds) for (let e = 0; e < t.length; e++) if (t.events[3 * e] === OP.round) this.roundAt.push(e);
   }
   get done(): boolean { return this.at >= this.t.length; }
+  /** Distinct lanes replayed so far. */
+  get lanes(): number { return this.seen?.size ?? 0; }
   advance(steps: number): void {
+    const ev = this.t.events;
     const end = Math.min(this.t.length, this.at + steps);
     for (; this.at < end; this.at++) {
-      const op = this.t.events[3 * this.at];
+      const op = ev[3 * this.at];
+      const i = ev[3 * this.at + 1];
       if (op === OP.range) {
-        this.lo = this.t.events[3 * this.at + 1];
-        this.hi = this.t.events[3 * this.at + 2];
-      } else this.last = this.at;
+        this.lo = i;
+        this.hi = ev[3 * this.at + 2];
+      } else if (op === OP.phase) {
+        this.phase = this.t.labels[i] ?? '';
+        this.phases++;
+      } else if (op === OP.lane) {
+        this.lane = i;
+        this.seen?.add(i);
+      } else if (op === OP.round) {
+        this.round = i;
+        this.c.rounds++;
+      } else {
+        this.last = this.at;
+        if (this.laneOf && this.lane >= 0) {
+          // the cells this operation touched now belong to the lane that touched them
+          if (op === OP.compare || op === OP.swap) {
+            const j = ev[3 * this.at + 2];
+            if (i >= 0) this.laneOf[i] = this.lane;
+            if (j >= 0) this.laneOf[j] = this.lane;
+          } else if (op === OP.write || op === OP.read) this.laneOf[i] = this.lane;
+        }
+      }
       if (op === OP.compare) this.c.compares++;
       else if (op === OP.write) this.c.writes++;
       else if (op === OP.swap) this.c.writes += 2;
       else if (op === OP.auxWrite) this.c.aux++;
+      if (this.colN && (op === OP.auxWrite || op === OP.auxClear)) this.column(op, i, ev[3 * this.at + 2]);
       apply(this.a, this.aux, this.t.events, this.at);
       if ((this.at + 1) % this.every === 0 || this.at + 1 === this.t.length) {
-        this.history.push([this.at + 1, this.c.compares, this.c.writes, this.c.aux]);
+        this.history.push([this.at + 1, this.c.compares, this.c.writes, this.c.aux, this.c.rounds]);
       }
     }
   }
   /** The counts up to the replayed position, counted from the events as they were replayed. */
   counts() { return { ...this.c }; }
+  // the auxiliary row folded into pixel columns, kept only once a plate drew it folded: the
+  // tallest key of every column, updated as cells are written and recomputed only for a column
+  // whose tallest key was overwritten or emptied
+  private colN = 0;
+  private colMax = new Float64Array(0);
+  private colDirty = new Uint8Array(0);
+  private dirty = false;
+  /** Keep the folded columns true for the auxiliary event about to be applied. */
+  private column(op: number, i: number, j: number): void {
+    const len = this.aux.length;
+    const of = (k: number) => Math.floor((k * this.colN) / len);
+    if (op === OP.auxWrite) {
+      const c = of(i);
+      if (j >= this.colMax[c]) this.colMax[c] = j;
+      else if (this.aux[i] === this.colMax[c]) { this.colDirty[c] = 1; this.dirty = true; }
+      return;
+    }
+    for (let c = of(i); c <= of(j); c++) {
+      if (this.colMax[c] > 0) { this.colDirty[c] = 1; this.dirty = true; }
+    }
+  }
+  /**
+   * The tallest key in each of `cols` equal columns of the auxiliary row (cell k in column
+   * floor(k * cols / cells)): what a row wider than its pixels is drawn from, one bar per column,
+   * so a frame costs the pixel width and never the row's cells.
+   */
+  auxColumns(cols: number): Float64Array {
+    const len = this.aux.length;
+    const first = (c: number) => Math.ceil((c * len) / cols);
+    const fill = (c: number) => {
+      let m = 0;
+      for (let k = first(c), e = first(c + 1); k < e; k++) if (this.aux[k] > m) m = this.aux[k];
+      this.colMax[c] = m;
+      this.colDirty[c] = 0;
+    };
+    if (cols !== this.colN) {
+      this.colN = cols;
+      this.colMax = new Float64Array(cols);
+      this.colDirty = new Uint8Array(cols);
+      for (let c = 0; c < cols; c++) fill(c);
+    } else if (this.dirty) {
+      for (let c = 0; c < cols; c++) if (this.colDirty[c]) fill(c);
+    }
+    this.dirty = false;
+    return this.colMax;
+  }
+  private tickCols = -1;
+  private ticks = new Int32Array(0);
+  /** The pixel columns, of `cols`, that hold a round boundary: one mark per column at most. */
+  roundTicks(cols: number): Int32Array {
+    if (cols !== this.tickCols) {
+      const L = Math.max(1, this.t.length);
+      const out: number[] = [];
+      for (const e of this.roundAt) {
+        const c = Math.min(cols - 1, Math.floor((e / L) * cols));
+        if (out[out.length - 1] !== c) out.push(c);
+      }
+      this.ticks = Int32Array.from(out);
+      this.tickCols = cols;
+    }
+    return this.ticks;
+  }
 }
+
+/** A lane's place on the palette: neighbouring lane numbers far apart (golden-ratio steps). */
+const laneTone = (l: number) => (l * 0.6180339887) % 1;
 
 function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: number, h: number) {
   const n = r.a.length;
   const max = Math.max(1, ...r.t.input);
   const pal = ctx.palette();
-  const auxH = r.usesAux ? Math.round(h * 0.22) : 0;
-  const mainH = h - auxH - (auxH ? 4 : 0);
+  // a kernel that counts rounds gets a timeline of them on top, one that works in lanes a lane
+  // row under its bars; a kernel with neither is drawn exactly as it always was
+  const timeH = r.roundAt.length ? Math.max(3, Math.round(h * 0.03)) : 0;
+  const laneH = r.laneOf ? Math.max(4, Math.round(h * 0.05)) : 0;
+  const y0 = timeH ? y + timeH + 3 : y;
+  const hh = timeH ? h - timeH - 3 : h;
+  const auxH = r.usesAux ? Math.round(hh * 0.22) : 0;
+  const mainH = hh - auxH - (auxH ? 4 : 0) - (laneH ? laneH + 2 : 0);
   const bw = w / n;
   // the auxiliary row is as wide as the kernel reserved, drawn across the same width
   const abw = w / Math.max(1, r.aux.length);
   if (r.lo >= 0 && !r.done) {
     p.noStroke();
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 22);
-    p.rect(x + r.lo * bw, y, (r.hi - r.lo + 1) * bw, mainH);
+    p.rect(x + r.lo * bw, y0, (r.hi - r.lo + 1) * bw, mainH);
   }
   p.noStroke();
   for (let i = 0; i < n; i++) {
@@ -122,19 +237,26 @@ function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: 
     const c: RGB = ramp(pal, (v - 1) / Math.max(1, max - 1));
     p.fill(c[0], c[1], c[2]);
     const bh = Math.max(1, (v / max) * mainH);
-    p.rect(x + i * bw, y + mainH - bh, Math.max(1, bw - (bw > 3 ? 1 : 0)), bh);
+    p.rect(x + i * bw, y0 + mainH - bh, Math.max(1, bw - (bw > 3 ? 1 : 0)), bh);
   }
+  if (timeH) drawRounds(p, ctx, r, x, y, w, timeH);
+  if (laneH) drawLanes(p, ctx, r, x, y0 + mainH + 2, w, laneH);
   if (auxH) {
-    const ay = y + h - auxH;
+    const ay = y0 + hh - auxH;
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 18);
     p.rect(x, ay, w, auxH);
-    for (let i = 0; i < r.aux.length; i++) {
-      const v = r.aux[i];
+    // a row of more cells than pixels is drawn one column per pixel, each its tallest key
+    const cols = Math.max(1, Math.floor(w));
+    const folded = r.aux.length > cols;
+    const cells = folded ? r.auxColumns(cols) : r.aux;
+    const cw = folded ? w / cols : abw;
+    for (let i = 0; i < cells.length; i++) {
+      const v = cells[i];
       if (!v) continue;
       const c = ramp(pal, (v - 1) / Math.max(1, max - 1));
       p.fill(c[0], c[1], c[2], 200);
       const bh = Math.max(1, (v / max) * auxH);
-      p.rect(x + i * abw, ay + auxH - bh, Math.max(1, abw - (abw > 3 ? 1 : 0)), bh);
+      p.rect(x + i * cw, ay + auxH - bh, Math.max(1, cw - (cw > 3 ? 1 : 0)), bh);
     }
   }
   if (r.last >= 0 && !r.done) {
@@ -147,10 +269,103 @@ function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: 
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2]);
     for (const i of marks) {
       if (i < 0) continue;
-      const my = onAux ? y + h - auxH : y + mainH;
+      const my = onAux ? y0 + hh - auxH : y0 + mainH;
       p.triangle(x + (i + 0.5) * cw, my - 2, x + (i + 0.5) * cw - 4, my + 5, x + (i + 0.5) * cw + 4, my + 5);
     }
   }
+}
+
+/**
+ * The rounds as a timeline over the run: the track, how far the replay is, the current round's
+ * span, and a mark at every boundary (one per pixel column at most).
+ */
+function drawRounds(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: number, th: number) {
+  const fg = ctx.fg;
+  const L = Math.max(1, r.t.length);
+  p.noStroke();
+  p.fill(fg[0], fg[1], fg[2], 18);
+  p.rect(x, y, w, th);
+  p.fill(fg[0], fg[1], fg[2], 60);
+  p.rect(x, y, (w * r.at) / L, th);
+  if (r.round > 0 && !r.done) {
+    const from = r.roundAt[r.round - 1] ?? 0;
+    const to = r.roundAt[r.round] ?? L;
+    p.fill(fg[0], fg[1], fg[2], 140);
+    p.rect(x + (w * from) / L, y, Math.max(1, (w * (to - from)) / L), th);
+  }
+  const cols = Math.max(1, Math.floor(w));
+  p.fill(fg[0], fg[1], fg[2], 220);
+  for (const c of r.roundTicks(cols)) p.rect(x + (c * w) / cols, y, 1, th);
+}
+
+/**
+ * The lane row: each cell under the lane that last touched it, in the lane's colour and, so a
+ * lane never rests on colour alone, a pattern (odd lanes striped), a separator wherever the
+ * lane changes, and the lane's number where it fits.
+ */
+function drawLanes(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: number, lh: number) {
+  const of = r.laneOf;
+  if (!of) return;
+  const n = of.length;
+  const bw = w / Math.max(1, n);
+  const fg = ctx.fg;
+  const pal = ctx.palette();
+  p.push();
+  p.noStroke();
+  const fs = Math.max(8, Math.min(11, lh - 1));
+  p.textSize(fs);
+  p.textAlign(p.CENTER, p.CENTER);
+  for (let start = 0, i = 1; i <= n; i++) {
+    if (i < n && of[i] === of[start]) continue;
+    const l = of[start];
+    const sx = x + start * bw;
+    const sw = (i - start) * bw;
+    const cw = Math.max(1, sw - (sw > 3 ? 1 : 0));
+    if (l >= 0) {
+      const c = ramp(pal, laneTone(l));
+      p.fill(c[0], c[1], c[2], l === r.lane && !r.done ? 255 : 170);
+      p.rect(sx, y, cw, lh);
+      if (l % 2) {
+        p.fill(ctx.bg[0], ctx.bg[1], ctx.bg[2], 200);
+        p.rect(sx, y + Math.floor(lh / 2) - 1, cw, 2);
+      }
+      const label = String(l);
+      if (lh >= 8 && sw >= fs * 0.62 * label.length + 4) {
+        p.fill(fg[0], fg[1], fg[2]);
+        p.text(label, sx + sw / 2, y + lh / 2);
+      }
+    }
+    if (start > 0) {
+      p.fill(fg[0], fg[1], fg[2], 200);
+      p.rect(sx, y, 1, lh);
+    }
+    start = i;
+  }
+  p.pop();
+}
+
+/**
+ * Rounds a decade or more below the run's largest work count (its comparisons, array writes or
+ * auxiliary writes, all counted from its trace) get a chart of their own: on one axis with the
+ * work they would lie flat on zero. The choice is the whole run's, so it never flips mid-run.
+ */
+export function roundsApart(t: Trace): boolean {
+  return Math.max(t.counts.compares, t.counts.writes, t.counts.auxWrites) >= 10 * t.marks.rounds;
+}
+
+/** The readouts of a run's rounds, lanes and phase, each only when the kernel has them. */
+function markRows(r: Replay, unit: string): Stat[] {
+  const m = r.t.marks;
+  const rows: Stat[] = [];
+  if (m.rounds) rows.push({ label: unit, value: `${fmt(r.counts().rounds)} of ${fmt(m.rounds)}` });
+  if (m.lanes) {
+    const now = r.lane >= 0 && !r.done ? ` · lane ${r.lane} working` : '';
+    rows.push({ label: 'Lanes', value: `${fmt(r.lanes)} of ${fmt(m.lanes)} seen${now}` });
+  }
+  if (m.phases) {
+    rows.push({ label: 'Phase', value: r.phases ? `${r.phase} · ${fmt(r.phases)} of ${fmt(m.phases)}` : 'before the first phase' });
+  }
+  return rows;
 }
 
 function sortedOK(r: Replay, goal: ArrayKernel['goal']): boolean {
@@ -216,6 +431,11 @@ function plate(info: KernelInfo, kernel: ArrayKernel): PlateCode {
             { label: 'Progress', value: `${Math.round((100 * r.at) / Math.max(1, r.t.length))}% of ${fmt(r.t.length)} operations` },
           ];
           const h = r.history;
+          const marks = r.t.marks;
+          const unit = kernel.roundUnit ?? 'Rounds';
+          const rounds = { name: unit, points: h.map((q) => [q[0], q[4]] as [number, number]) };
+          // rounds share the work chart only when they are of its magnitude; otherwise their own
+          const apart = marks.rounds > 0 && roundsApart(r.t);
           ctx.chart({
             title: 'Work so far',
             x: { label: 'operations replayed' },
@@ -224,8 +444,18 @@ function plate(info: KernelInfo, kernel: ArrayKernel): PlateCode {
               { name: 'Comparisons', points: h.map((q) => [q[0], q[1]]) },
               { name: 'Array writes', points: h.map((q) => [q[0], q[2]]) },
               ...(r.usesAux ? [{ name: 'Auxiliary writes', points: h.map((q) => [q[0], q[3]] as [number, number]) }] : []),
+              ...(marks.rounds > 0 && !apart ? [rounds] : []),
             ],
           });
+          if (apart) {
+            ctx.chart({
+              title: `${unit} so far`,
+              x: { label: 'operations replayed' },
+              y: { label: unit.toLowerCase() },
+              series: [rounds],
+            });
+          }
+          rows.push(...markRows(r, unit));
           if (r.done) rows.push({ label: 'Result', value: sortedOK(r, kernel.goal) ? (kernel.goal === 'select' ? `a[${r.t.k}] is the ${r.t.k + 1}-th smallest` : 'ascending, verified') : 'NOT sorted' });
           ctx.stats(rows);
         },
@@ -262,7 +492,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
       // the next generation's panes, traced one kernel per frame and shown once all are ready, so
       // a lab of many kernels never traces them all inside one frame (test/budget.test.ts)
       let incoming: { list: ReturnType<typeof chosen>; data: number[]; half: number; built: Pane[] } | null = null;
-      let curves: { info: KernelInfo; pts: [number, number][]; slope: number }[] = [];
+      let curves: { info: KernelInfo; unit: string; pts: [number, number][]; rounds: [number, number][]; slope: number }[] = [];
       let finishedCount = 0;
       let hold = 0;
       const chosen = () => {
@@ -290,7 +520,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         if (atOnce) while (buildOne());
         if (generation === 0) {
           // measured one point per frame, so building the lab never blocks a phone's main thread
-          curves = chosen().map((k) => ({ info: k.info, pts: [], slope: NaN }));
+          curves = chosen().map((k) => ({ info: k.info, unit: k.kernel.roundUnit ?? 'Rounds', pts: [], rounds: [], slope: NaN }));
           // a kernel's growth is measured up to its own bound, never past it in one frame
           const list = chosen();
           pending = curves.flatMap((_, ci) => labScalingN(list[ci].kernel).map((n) => [ci, n] as [number, number]));
@@ -306,6 +536,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         if (!k) return false;
         const t = trace(k.kernel, input(str(ctx.params, 'shape') as Shape, n, ctx.seed + n), Math.floor(n / 2));
         curves[ci].pts.push([n, t.truncated ? NaN : total(t)]);
+        // a kernel's rounds at this n, counted from its own trace
+        if (t.marks.rounds && !t.truncated) curves[ci].rounds.push([n, t.marks.rounds]);
         curves[ci].slope = exponent(curves[ci].pts);
         return true;
       };
@@ -397,6 +629,16 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
             y: { label: 'comparisons + writes', log: true },
             series: curves.map((cv) => ({ name: cv.info.title, points: cv.pts.slice() })),
           });
+          // rounds are another quantity than work: on a chart of their own, never a second axis
+          const counted = curves.filter((cv) => cv.rounds.length);
+          if (counted.length) {
+            ctx.chart({
+              title: 'Measured rounds as n grows',
+              x: { label: 'keys n', log: true },
+              y: { label: "rounds, layers or passes (each kernel's own count)", log: true },
+              series: counted.map((cv) => ({ name: `${cv.info.title} (${cv.unit.toLowerCase()})`, points: cv.rounds.slice() })),
+            });
+          }
           if (incoming && !panes.length) {
             p.noStroke();
             p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 160);
@@ -406,9 +648,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
           ctx.stats(panes.map((pane, i) => {
             const c = pane.r.counts();
             const slope = curves[i]?.slope;
+            const m = pane.r.t.marks;
+            const rounds = m.rounds ? ` · ${fmt(c.rounds)} of ${fmt(m.rounds)} ${(pane.kernel.roundUnit ?? 'Rounds').toLowerCase()}` : '';
             return {
               label: pane.info.title,
-              value: `${fmt(c.compares)} cmp · ${fmt(c.writes + c.aux)} writes · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
+              value: `${fmt(c.compares)} cmp · ${fmt(c.writes + c.aux)} writes · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${rounds}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
             };
           }));
         },

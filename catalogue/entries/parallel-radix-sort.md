@@ -2,7 +2,7 @@
 id: parallel-radix-sort
 title: Radix sort, parallel
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

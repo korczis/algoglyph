@@ -2,7 +2,7 @@
 id: parallel-merge-sort
 title: Mergesort, parallel
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -2,7 +2,7 @@
 id: external-samplesort
 title: External samplesort
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

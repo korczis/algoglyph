@@ -9,6 +9,9 @@
 //! run is left; the last pass writes the file. `aux` shows the memory and the runs on disk
 //! after every pass. Merges take the lower run on ties, so the sort is stable.
 //! No simplification beyond the head scan that replaces a selection tree in the merge.
+//!
+//! Passes (`t.round()`): a pass reads and writes every item once, run generation included;
+//! the closing copy into the array belongs to the last merge pass.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -25,6 +28,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     }
     let m = memory_size(n);
     let k = ways(opt, 4);
+    t.round();
     t.phase(&format!("phase 1: run generation, memory M = {m}"));
     let mut runs = generate_runs(t, v, m);
     show_tape(t, "runs on disk", &runs);
@@ -34,6 +38,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
             return Outcome::Truncated;
         }
         pass += 1;
+        t.round();
         t.phase(&format!(
             "phase 2, pass {pass}: {}-way merge of {} runs",
             k,

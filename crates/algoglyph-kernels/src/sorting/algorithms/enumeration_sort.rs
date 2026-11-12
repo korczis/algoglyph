@@ -9,6 +9,8 @@
 //! are summed; this simulation runs one lane per element (`t.lane(i)`), each lane comparing
 //! its element against all the others, then writes every element to its rank.
 //! No simplification beyond running the n lanes one after another.
+//!
+//! Rounds (`t.round()`): the two rounds of the parallel formulation, rank and write.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -20,6 +22,7 @@ pub const META: Meta = Meta {
 
 pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
     let n = v.len();
+    t.round();
     t.phase("round 1: every lane ranks its element");
     let mut rank = vec![0usize; n];
     for i in 0..n {
@@ -38,6 +41,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
             return Outcome::Truncated;
         }
     }
+    t.round();
     t.phase("round 2: every lane writes its element to its rank");
     let items: Vec<Item> = (0..n).map(|i| t.read(v, i)).collect();
     t.aux("input", &items);

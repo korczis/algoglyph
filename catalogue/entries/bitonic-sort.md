@@ -2,7 +2,7 @@
 id: bitonic-sort
 title: Bitonic sort
 taxonomy: sorting/networks
-status: planned
+status: live
 engine: array
 labs:
   - sorting

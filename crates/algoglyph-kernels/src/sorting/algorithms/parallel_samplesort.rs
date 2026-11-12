@@ -15,6 +15,9 @@
 //! The distribution keeps the input order inside each bucket, so this simulation happens
 //! to be stable; the algorithm is not specified as stable and META declares it unstable.
 //! p = `options.k` when it is at least 2, otherwise 4.
+//!
+//! Rounds (`t.round()`): one per step that every processor runs: classify, exchange,
+//! local sort, concatenate.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -47,6 +50,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     let splitters: Vec<Item> = (1..p).map(|i| sample[i * OVERSAMPLE - 1]).collect();
     t.aux("splitters", &splitters);
 
+    t.round();
     t.phase("classify: every processor its own block");
     let block = n.div_ceil(p);
     let mut sent: Vec<Vec<Vec<Item>>> = vec![vec![Vec::new(); p]; p]; // [lane][bucket]
@@ -61,6 +65,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     if !t.ok() {
         return Outcome::Truncated;
     }
+    t.round();
     t.phase("exchange: bucket b of every processor goes to processor b");
     let mut received: Vec<Vec<Item>> = vec![Vec::new(); p];
     for (b, recv) in received.iter_mut().enumerate() {
@@ -72,6 +77,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         t.lane(b as u32);
         t.aux(&format!("processor {b}"), recv);
     }
+    t.round();
     t.phase("local sort: every processor sorts its bucket");
     for (b, recv) in received.iter_mut().enumerate() {
         t.lane(b as u32);
@@ -81,6 +87,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
             return Outcome::Truncated;
         }
     }
+    t.round();
     t.phase("concatenate the buckets");
     let mut pos = 0;
     for (b, recv) in received.iter().enumerate() {

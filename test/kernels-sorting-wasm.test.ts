@@ -6,14 +6,18 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { ENTRIES, type Entry } from '../src/core/catalogue';
-import { exponent } from '../src/engines/array';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import type { Params, PlateContext, Stat } from '../src/core/plate';
+import { mulberry32 } from '../src/core/random';
+import { engine, exponent } from '../src/engines/array';
 import { apply, input, OP, SHAPES, trace, type ArrayKernel, type ArrayOps, type Trace } from '../src/engines/array/trace';
 import { loadSorting, SOP, STRIDE, type RunOptions, type WasmRun } from '../src/kernels/sorting-wasm/_abi';
 import {
-  auxCell, auxLayout, replay, seedOf, sidecarKernel, traceCache, traceKey, traceOf,
+  auxCell, auxLayout, replay, ROUND_UNIT, seedOf, sidecarKernel, traceCache, traceKey, traceOf,
 } from '../src/kernels/sorting-wasm/_adapter';
 import { defaultLimits, hashWords, TraceCache } from '../src/kernels/sorting-wasm/_cache';
 import { kernelOf } from '../src/kernels/sorting-wasm/_sidecar';
+import { p5Stub } from './support/p5-stub';
 
 interface SidecarRecord { id: string; kernel: string; existing?: boolean }
 interface Manifest {
@@ -83,6 +87,9 @@ function rowOps(keys: number[]) {
       row[k] = v; writes++;
     },
     range: () => {},
+    phase: () => {},
+    lane: () => {},
+    round: () => {},
     reserveAux: (c) => { row = new Array<number>(Math.max(c, row.length)).fill(0); },
     clearAux: (lo, hi) => { for (let k = lo; k <= hi; k++) row[k] = 0; },
   };
@@ -95,6 +102,75 @@ function engineAux(t: Trace): number[] {
   const aux = new Array<number>(t.auxN).fill(0);
   for (let e = 0; e < t.length; e++) apply(a, aux, t.events, e);
   return aux;
+}
+
+/** A Rust run's phase, lane and round words in order (phase text, lane, round number). */
+function rustMarks(r: WasmRun): string[] {
+  const out: string[] = [];
+  for (let e = 0; e < r.steps.length; e += STRIDE) {
+    const op = r.steps[e] & 15;
+    if (op === SOP.phase) out.push(`phase ${r.strings[r.steps[e] >>> 8]}`);
+    else if (op === SOP.lane) out.push(`lane ${r.steps[e + 1]}`);
+    else if (op === SOP.round) out.push(`round ${r.steps[e + 1]}`);
+  }
+  return out;
+}
+
+/** The same annotations as the array engine recorded them. */
+function engineMarks(t: Trace): string[] {
+  const out: string[] = [];
+  for (let e = 0; e < t.length; e++) {
+    const [op, i] = [t.events[3 * e], t.events[3 * e + 1]];
+    if (op === OP.phase) out.push(`phase ${t.labels[i]}`);
+    else if (op === OP.lane) out.push(`lane ${i}`);
+    else if (op === OP.round) out.push(`round ${i}`);
+  }
+  return out;
+}
+
+/**
+ * The array engine replays every phase, lane and round word of the Rust run one to one, in order,
+ * at every shape and at two sizes, and its counted rounds, lanes and phases are the Rust run's
+ * own: its rounds counter (which every kernel keeps from round() calls, never from lanes:
+ * crates/algoglyph-kernels/src/sorting/tests/mod.rs), and the distinct lanes and the phase words
+ * of its trace.
+ */
+/**
+ * The readouts a live plate of kernel `kernel` ends its first run on: driven at full speed until
+ * it reports its result, at n = 64 on the random input the plate itself draws (seed 77).
+ */
+function finalReadouts(e: Entry, kernel: ArrayKernel): Stat[] {
+  const plate = engine.plate({ id: e.id, title: e.title, group: 'g' }, kernel);
+  const params: Params = {};
+  for (const d of plate.params) params[d.key] = d.value;
+  Object.assign(params, { n: 64, shape: 'random', speed: 2000, loop: false });
+  let rows: Stat[] = [];
+  const ctx: PlateContext = {
+    width: 1440, height: 810, params, seed: 77, rnd: mulberry32(77), theme: 'dark', bg: GROUNDS.dark.bg,
+    fg: GROUNDS.dark.fg, thumbnail: false, palette: () => lookupPalette('spectral'),
+    stats(r) { rows = r; }, chart() {},
+  };
+  const sim = plate.create(p5Stub(), ctx);
+  sim.setup();
+  for (let f = 0; f < 4000 && !rows.some((r) => r.label === 'Result'); f++) sim.draw();
+  return rows;
+}
+
+function checkMarks(id: string) {
+  for (const shape of SHAPES) {
+    for (const n of [16, 97]) {
+      const at = `${shape} n=${n}`;
+      const data = input(shape, n, 31 + n);
+      const r = S.run(id, data, { seed: seedOf(data) });
+      expect(r.truncated, at).toBe(false);
+      const t = trace({ run: (a: ArrayOps) => replay(a, r) }, data);
+      const want = rustMarks(r);
+      expect(engineMarks(t), at).toEqual(want);
+      expect(t.marks.rounds, `${at}: rounds`).toBe(r.counts.rounds);
+      expect(t.marks.lanes, `${at}: lanes`).toBe(new Set(want.filter((m) => m.startsWith('lane '))).size);
+      expect(t.marks.phases, `${at}: phases`).toBe(want.filter((m) => m.startsWith('phase ')).length);
+    }
+  }
 }
 
 /** The lane checks of a layout on a row of `n` cells: inside the row, and shared only when it must be. */
@@ -265,6 +341,28 @@ for (const { e, kernel } of played) {
       checkAuxRow(id);
     });
 
+    it(`counts its phases, lanes and rounds (${kernel.roundUnit}) exactly as the Rust run does`, () => {
+      expect(kernel.roundUnit).toBe(ROUND_UNIT[kernel.meta.kind]);
+      checkMarks(id);
+    });
+
+    it('reads out on its plate the rounds, lanes and phases its Rust run recorded', () => {
+      const rows = finalReadouts(e, kernel);
+      const value = (label: string) => rows.find((r) => r.label === label)?.value;
+      expect(value('Result')).toBe('ascending, verified');
+      const data = input('random', 64, 77);
+      const m = rustMarks(S.run(id, data, { seed: seedOf(data) }));
+      const rounds = m.filter((x) => x.startsWith('round ')).length;
+      const lanes = new Set(m.filter((x) => x.startsWith('lane '))).size;
+      const phases = m.filter((x) => x.startsWith('phase '));
+      const f = (x: number) => x.toLocaleString('en-US');
+      expect(value(kernel.roundUnit!)).toBe(rounds ? `${f(rounds)} of ${f(rounds)}` : undefined);
+      expect(value('Lanes')).toBe(lanes ? `${f(lanes)} of ${f(lanes)} seen` : undefined);
+      expect(value('Phase')).toBe(phases.length
+        ? `${phases.at(-1)!.slice('phase '.length)} · ${f(phases.length)} of ${f(phases.length)}`
+        : undefined);
+    });
+
     it('reproduces its native fixture in wasm', () => {
       expect(S.scenario(id)).toBe(native(id));
     });
@@ -310,6 +408,7 @@ describe('sorting wasm auxiliary rows of every mapped array kernel, live or not'
     && ENTRIES.find((e) => e.id === r.id)?.engine === 'array');
   for (const r of pending) {
     it(`${r.kernel}: lanes inside the row at every size, and Rust's final auxiliary state`, () => checkAuxRow(r.kernel));
+    it(`${r.kernel}: every phase, lane and round replayed one to one, and counted as Rust counts them`, () => checkMarks(r.kernel));
   }
 
   it('lays out any number and width of structures on any row, never outside it', () => {

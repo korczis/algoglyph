@@ -2,7 +2,7 @@
 id: psrs
 title: Parallel sorting by regular sampling
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -14,6 +14,12 @@ export const OP = {
   range: 6,
   /** Auxiliary cells [i, j] emptied: free and uncounted (an emptied cell is not a write). */
   auxClear: 7,
+  /** A free annotation: the kernel enters the phase named labels[i]. */
+  phase: 8,
+  /** A free annotation: the kernel works as lane i from here on (a processor, a comparator). */
+  lane: 9,
+  /** A free annotation: round i begins (1-based; a network layer, a parallel step, a pass). */
+  round: 10,
 } as const;
 
 /** The widest auxiliary row a kernel may reserve. */
@@ -45,6 +51,12 @@ export interface ArrayOps {
   clearAux(lo: number, hi: number): void;
   /** Mark the range [lo, hi] as the one being worked on (free; drawing only). */
   range(lo: number, hi: number): void;
+  /** Enter the phase `name` (free; recorded, never a compare or a write). */
+  phase(name: string): void;
+  /** Work as lane `l` from here on, a non-negative integer (free; recorded). */
+  lane(l: number): void;
+  /** Begin the next round: a network layer, a parallel step, a pass over the data (free; counted). */
+  round(): void;
 }
 
 export interface ArrayKernel {
@@ -56,6 +68,11 @@ export interface ArrayKernel {
    * here. Derived from measured cost by whoever provides the kernel, never typed by guess.
    */
   maxN?: number;
+  /**
+   * What one of this kernel's rounds is called in its readouts and charts, plural ('Rounds',
+   * 'Layers', 'Passes'); 'Rounds' when it says nothing. Only a kernel that calls round() shows it.
+   */
+  roundUnit?: string;
   run(a: ArrayOps, k: number): void;
 }
 
@@ -66,6 +83,16 @@ export interface Counts {
   swaps: number;
   auxReads: number;
   auxWrites: number;
+}
+
+/** The free annotations of a run, counted from its own events: never inferred. */
+export interface Marks {
+  /** round() calls. */
+  rounds: number;
+  /** phase() calls. */
+  phases: number;
+  /** Distinct lanes the kernel worked as. */
+  lanes: number;
 }
 
 export interface Trace {
@@ -80,9 +107,14 @@ export interface Trace {
   truncated: boolean;
   /** Cells of the auxiliary row: n, or what the kernel reserved. */
   auxN: number;
+  /** Phase names, by the id an OP.phase event carries. */
+  labels: string[];
+  marks: Marks;
 }
 
-/** Events a trace may hold; a quadratic sort at the largest n stays well inside it. */
+/** Events a trace may hold; a quadratic sort at the largest n stays well inside it. Phase, lane
+ * and round annotations take slots here too, so an annotated kernel reaches the cap slightly
+ * earlier than its operation count alone would say. */
 export const EVENT_CAP = 4_000_000;
 
 class Stop extends Error {}
@@ -98,6 +130,10 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
   let buf = new Int32Array(3 * 4096);
   let len = 0;
   const counts: Counts = { compares: 0, reads: 0, writes: 0, swaps: 0, auxReads: 0, auxWrites: 0 };
+  const marks: Marks = { rounds: 0, phases: 0, lanes: 0 };
+  const labels: string[] = [];
+  const labelId = new Map<string, number>();
+  const lanes = new Set<number>();
   const push = (op: number, i: number, j: number) => {
     if (len >= cap) throw new Stop();
     if (3 * len + 3 > buf.length) {
@@ -149,6 +185,22 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
       push(OP.auxClear, lo, hi);
     },
     range(lo, hi) { push(OP.range, Math.max(0, lo), Math.min(a.length - 1, hi)); },
+    phase(name) {
+      let id = labelId.get(name);
+      if (id === undefined) { id = labels.length; labels.push(name); labelId.set(name, id); }
+      push(OP.phase, id, 0);
+      marks.phases++;
+    },
+    lane(l) {
+      if (!Number.isInteger(l) || l < 0 || l > 0x7fffffff) throw new RangeError(`lane ${l} is not a non-negative integer`);
+      push(OP.lane, l, 0);
+      lanes.add(l);
+      marks.lanes = lanes.size;
+    },
+    round() {
+      push(OP.round, marks.rounds + 1, 0);
+      marks.rounds++;
+    },
   };
   let truncated = false;
   try {
@@ -160,7 +212,9 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
   // the buffer grew by doubling: keep only what the run filled, since a lab holds a trace per
   // kernel for two generations at once
   const events = buf.length > 3 * len + 3 * 4096 ? buf.slice(0, 3 * len) : buf;
-  return { events, length: len, counts, input: input.slice(), output: a, k, truncated, auxN: aux.length };
+  return {
+    events, length: len, counts, input: input.slice(), output: a, k, truncated, auxN: aux.length, labels, marks,
+  };
 }
 
 export const SHAPES = ['random', 'nearly-sorted', 'reversed', 'few-unique', 'organ-pipe', 'sorted'] as const;

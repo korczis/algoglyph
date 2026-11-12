@@ -502,6 +502,40 @@ fn runs_are_deterministic_for_a_seed() {
     }
 }
 
+/// The browser counts a kernel's rounds from its round steps, so no kernel may leave its round
+/// count to the tracer's inference from lanes: a kernel that works in lanes calls `round()`,
+/// and its rounds counter is exactly its recorded round steps.
+#[test]
+fn every_kernel_that_works_in_lanes_declares_its_rounds() {
+    let failures = for_each_entry(|e| {
+        for n in [2usize, 17, 64] {
+            for (name, input) in presets(n, 5) {
+                let run = engine::run_entry(e, input, &Options::default());
+                if run.truncated {
+                    continue;
+                }
+                let steps = run.tracer.steps();
+                let lanes = steps.iter().any(|s| matches!(s, Step::Lane { .. }));
+                let rounds = steps
+                    .iter()
+                    .filter(|s| matches!(s, Step::Round { .. }))
+                    .count() as u64;
+                if lanes && rounds == 0 {
+                    return Err(format!("{name} n={n}: lanes without a round() call"));
+                }
+                if run.counts.rounds != rounds {
+                    return Err(format!(
+                        "{name} n={n}: rounds counter {} != {rounds} round steps",
+                        run.counts.rounds
+                    ));
+                }
+            }
+        }
+        Ok(())
+    });
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 #[test]
 fn rounds_are_inferred_from_lanes() {
     let mut t = Tracer::new(&Options::default());

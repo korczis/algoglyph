@@ -2,7 +2,7 @@
 id: ips4o
 title: In-place parallel super scalar samplesort (IPS⁴o)
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

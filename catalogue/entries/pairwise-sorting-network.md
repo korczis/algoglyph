@@ -2,7 +2,7 @@
 id: pairwise-sorting-network
 title: Pairwise sorting network
 taxonomy: sorting/networks
-status: planned
+status: live
 engine: array
 labs:
   - sorting

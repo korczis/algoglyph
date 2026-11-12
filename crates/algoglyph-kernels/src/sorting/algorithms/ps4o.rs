@@ -19,6 +19,9 @@
 //! and the sort is stable: Axtmann et al. list PS4o as the stable variant.
 //! Simplification: k = 8 buckets (the real default is up to 256); 4 threads
 //! (`options.k` when it is at least 2).
+//!
+//! Rounds (`t.round()`): one per step that all lanes run, classification and distribution, at
+//! every recursion level as this simulation runs the levels one after another.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -112,6 +115,7 @@ fn ps4o(t: &mut Tracer, v: &mut [Item], lo: usize, hi: usize, lanes: usize, dept
     t.aux("splitters", &chosen);
     let cl = Classifier::new(&chosen);
 
+    t.round();
     t.phase(&format!("depth {depth}: classification into the oracle"));
     let nb = 2 * K - 1;
     let stripe = n.div_ceil(lanes);
@@ -137,6 +141,7 @@ fn ps4o(t: &mut Tracer, v: &mut [Item], lo: usize, hi: usize, lanes: usize, dept
         }
     }
     bucket_start[nb] = acc;
+    t.round();
     t.phase(&format!(
         "depth {depth}: distribution into the temporary array"
     ));

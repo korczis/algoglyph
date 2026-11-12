@@ -1,7 +1,12 @@
 // The array engine's auxiliary row: reserveAux widens it, clearAux empties cells for free, and
 // both are recorded so a replay draws the row the kernel left, cell by cell.
 import { describe, expect, it } from 'vitest';
-import { apply, AUX_CAP, OP, trace, type ArrayOps } from '../src/engines/array/trace';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import type { Params, PlateContext } from '../src/core/plate';
+import { mulberry32 } from '../src/core/random';
+import { engine, Replay } from '../src/engines/array';
+import { apply, AUX_CAP, OP, trace, type ArrayKernel, type ArrayOps } from '../src/engines/array/trace';
+import { drawRecorder } from './support/draw-recorder';
 
 /** The auxiliary row a replay of a trace ends on (what Replay draws). */
 function replayedAux(t: ReturnType<typeof trace>): number[] {
@@ -37,5 +42,59 @@ describe('array engine auxiliary row', () => {
     expect(t.counts.auxWrites).toBe(6);
     expect(t.events[3 * (t.length - 1)]).toBe(OP.auxClear);
     expect(replayedAux(t)).toEqual([1, 0, 0, 0, 5, 6]);
+  });
+});
+
+describe('array engine auxiliary row wider than its pixels', () => {
+  /** The tallest key of each of `cols` columns, by brute force over the replayed row. */
+  const columns = (aux: number[], cols: number) => {
+    const out = new Array<number>(cols).fill(0);
+    aux.forEach((v, k) => { const c = Math.floor((k * cols) / aux.length); out[c] = Math.max(out[c], v); });
+    return out;
+  };
+
+  it('folds into one column per pixel, kept true as cells are written, overwritten and emptied', () => {
+    const rnd = mulberry32(5);
+    const cells = 5000;
+    const t = trace({
+      run(a: ArrayOps) {
+        a.reserveAux(cells);
+        for (let s = 0; s < 4000; s++) {
+          const k = Math.floor(rnd() * cells);
+          if (rnd() < 0.15) a.clearAux(k, Math.min(cells - 1, k + Math.floor(rnd() * 40)));
+          else a.setAux(k, 1 + Math.floor(rnd() * 9));
+        }
+      },
+    }, [1, 2, 3]);
+    for (const cols of [7, 333, 1440]) {
+      const r = new Replay(t);
+      r.auxColumns(cols);
+      while (!r.done) {
+        r.advance(97);
+        expect([...r.auxColumns(cols)], `${cols} columns at ${r.at}`).toEqual(columns(r.aux, cols));
+      }
+    }
+  });
+
+  it('draws at most one auxiliary bar per pixel column, however wide the row', () => {
+    const wide: ArrayKernel = { run(a: ArrayOps) { a.reserveAux(AUX_CAP); for (let k = 0; k < AUX_CAP; k += 997) a.setAux(k, 1 + (k % 8)); } };
+    const plate = engine.plate({ id: 'wide', title: 'wide', group: 'g' }, wide);
+    const params: Params = {};
+    for (const d of plate.params) params[d.key] = d.value;
+    Object.assign(params, { n: 8, speed: 2000 });
+    const { p, calls } = drawRecorder();
+    const ctx: PlateContext = {
+      width: 390, height: 220, params, seed: 3, rnd: mulberry32(3), theme: 'dark', bg: GROUNDS.dark.bg,
+      fg: GROUNDS.dark.fg, thumbnail: false, palette: () => lookupPalette('spectral'), stats() {}, chart() {},
+    };
+    const sim = plate.create(p, ctx);
+    sim.setup();
+    for (let f = 0; f < 3; f++) sim.draw();
+    calls.length = 0;
+    sim.draw();
+    const rects = calls.filter((c) => c.startsWith('rect(')).length;
+    // the bars, the range and the row's ground, and no more auxiliary bars than pixels
+    expect(rects).toBeLessThanOrEqual(8 + 2 + 390);
+    expect(rects).toBeGreaterThan(8 + 100);
   });
 });

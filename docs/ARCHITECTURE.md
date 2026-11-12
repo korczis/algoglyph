@@ -80,6 +80,22 @@ The readouts and the chart are counted from the trace, never asserted, and
 an independent reference, with a stability check for entries tagged `stable` and a
 no-comparison check for entries tagged `non-comparison`.
 
+Some operations annotate the trace without costing a compare or a write:
+
+- `reserveAux(cells)` widens the auxiliary row before use (never narrows it), and
+  `clearAux(lo, hi)` empties cells without counting an auxiliary write. The trace carries the
+  reserved width as `Trace.auxN`, which the replay and the drawing size from.
+- `phase(name)`, `lane(l)` and `round()` record what the kernel itself says about its
+  structure: the phase it enters, the lane (worker, comparator column, thread) an operation
+  belongs to, and the end of a round or of a pass over the data. They are counted in
+  `Trace.marks` (rounds, phases, distinct lanes), with phase names in `Trace.labels`, and are
+  never inferred. The plate shades and numbers the lanes, marks round boundaries on a timeline
+  and shows them as readouts named by `ArrayKernel.roundUnit` ("Rounds", "Passes"); rounds go
+  on the work chart when they are of its magnitude, otherwise on a chart of their own.
+- `ArrayKernel.maxN` caps the plate's n slider and the lab's sizes for a kernel whose rebuild
+  would not fit the frame budget at the engine's largest n; a sorting kernel takes it from the
+  measured `max_n` in `catalogue/sorting-sidecar.yaml`.
+
 A lab gives each kernel the same input and the same operation budget per frame, ranks them by
 when they finish, and measures each one's work for n = 16 … 512, one size per frame, fitting the
 growth exponent by least squares on a log–log scale.

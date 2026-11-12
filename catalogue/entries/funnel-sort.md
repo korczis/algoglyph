@@ -2,7 +2,7 @@
 id: funnel-sort
 title: Funnelsort
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

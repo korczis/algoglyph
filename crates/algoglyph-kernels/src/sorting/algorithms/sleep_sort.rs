@@ -12,6 +12,8 @@
 //! deadlines whose comparisons are counted, and the clock jumps from one deadline to the
 //! next (`t.phase("t = ...")`), where the threads that wake append their element. Threads
 //! with equal deadlines wake in thread order here; real threads would race.
+//!
+//! Rounds (`t.round()`): two, every thread spawned and every thread woken.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -32,12 +34,15 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
         "spawn {n} threads; thread i sleeps key - min = key - {min} ticks"
     ));
     let mut heap: Vec<usize> = Vec::with_capacity(n);
+    // two rounds of all threads: every thread is spawned, then every thread wakes and writes
+    t.round();
     for i in 0..n {
         t.lane(i as u32);
         push(t, &items, &mut heap, i);
     }
     let mut pos = 0;
     let mut now: Option<i64> = None;
+    t.round();
     while let Some(i) = pop(t, &items, &mut heap) {
         if !t.ok() {
             return Outcome::Truncated;

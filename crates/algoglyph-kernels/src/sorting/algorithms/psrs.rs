@@ -16,6 +16,8 @@
 //! Ties in the p-way merge go to the lower processor, so this simulation happens to be
 //! stable; PSRS is not specified as stable and META declares it unstable.
 //! p = `options.k` when it is at least 2, otherwise 4. No simplification.
+//!
+//! Rounds (`t.round()`): one per phase that every processor runs, phases 1, 2, 4, 5 and 6.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -40,6 +42,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         .map(|l| ((l * block).min(n), ((l + 1) * block).min(n)))
         .collect();
 
+    t.round();
     t.phase("phase 1: local sort");
     for (l, &(a, b)) in bounds.iter().enumerate() {
         t.lane(l as u32);
@@ -49,6 +52,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         }
     }
 
+    t.round();
     t.phase("phase 2: regular sampling");
     let mut samples = Vec::with_capacity(p * p);
     for (l, &(a, b)) in bounds.iter().enumerate() {
@@ -68,6 +72,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         .collect();
     t.aux("pivots", &pivots);
 
+    t.round();
     t.phase("phase 4: partition every sorted block at the pivots");
     // cut[l][i] = start of piece i in block l; piece i is [cut[l][i], cut[l][i + 1]).
     let mut cuts: Vec<Vec<usize>> = Vec::with_capacity(p);
@@ -82,6 +87,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         cuts.push(c);
     }
 
+    t.round();
     t.phase("phase 5: exchange the pieces");
     let mut pieces: Vec<Vec<Vec<Item>>> = vec![Vec::with_capacity(p); p]; // [receiver][sender]
     for (l, c) in cuts.iter().enumerate() {
@@ -95,6 +101,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         return Outcome::Truncated;
     }
 
+    t.round();
     t.phase("phase 6: every processor merges its p pieces");
     let mut pos = 0;
     for (i, recv) in pieces.iter().enumerate() {

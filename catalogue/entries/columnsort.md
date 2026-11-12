@@ -2,7 +2,7 @@
 id: columnsort
 title: Columnsort
 taxonomy: sorting/networks
-status: planned
+status: live
 engine: array
 labs:
   - sorting

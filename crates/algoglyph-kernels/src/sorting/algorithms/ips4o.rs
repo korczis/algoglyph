@@ -18,6 +18,9 @@
 //! American flag sort) that reclassifies each element when it is moved; it is still in
 //! place (O(k) extra memory) but not block-wise and not cache-efficient. k = 8 buckets
 //! (the real default is up to 256), 4 lanes (`options.k` when it is at least 2).
+//!
+//! Rounds (`t.round()`): one per step that all lanes run, classification and distribution, at
+//! every recursion level as this simulation runs the levels one after another.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -111,6 +114,7 @@ fn ips(t: &mut Tracer, v: &mut [Item], lo: usize, hi: usize, lanes: usize, depth
     t.aux("splitters", &chosen);
     let cl = Classifier::new(&chosen);
 
+    t.round();
     t.phase(&format!(
         "depth {depth}: classification (branch-free decision tree)"
     ));
@@ -128,6 +132,7 @@ fn ips(t: &mut Tracer, v: &mut [Item], lo: usize, hi: usize, lanes: usize, depth
     for b in 0..nb {
         start[b + 1] = start[b] + count[b];
     }
+    t.round();
     t.phase(&format!(
         "depth {depth}: in-place distribution (cycle leader)"
     ));

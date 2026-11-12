@@ -13,7 +13,12 @@
 //                     the writes the Rust tracer counted.
 //   aux clear s [f,t) -> clearAux(cell, cell) for each emptied cell: free and uncounted, since
 //                     an emptied cell is not a write.
-//   phase, lane, round: no ArrayOps counterpart; they stay in the Rust trace.
+//   phase text     -> phase(text)         lane l     -> lane(l)
+//   round r        -> round()             (the array engine numbers it r too: one call per word)
+// The array engine's rounds, phases and lanes are therefore exactly the kernel's own; a round is
+// named by the kind the kernel declares (an external sort's are passes over the data, every
+// other kind's rounds, which a network may spend on a comparator layer or on a whole kernel
+// launch), never by which kernel it is.
 // Copying the array into the module costs n reads, recorded first: that is the adapter's own
 // work, and the array engine shows it as a first pass.
 //
@@ -146,6 +151,9 @@ export function replay(a: ArrayOps, r: WasmRun, emitted = 0): void {
       case SOP.set: a.set(p, s[e + 1]); events++; break;
       case SOP.read: a.get(p); events++; break;
       case SOP.mark: if (s[e + 1] > p) { a.range(p, s[e + 1] - 1); events++; } break;
+      case SOP.phase: a.phase(r.strings[p] ?? ''); events++; break;
+      case SOP.lane: a.lane(s[e + 1]); events++; break;
+      case SOP.round: a.round(); events++; break;
       case SOP.auxWrite: {
         const lane = lanes.get(p);
         if (!lane) break; // no row to draw on (an empty array)
@@ -182,6 +190,12 @@ export function replay(a: ArrayOps, r: WasmRun, emitted = 0): void {
 
 const NO_STEPS = new Int32Array(0);
 
+/** What one round of a kernel of this kind is called (ArrayKernel.roundUnit). */
+export const ROUND_UNIT: Record<KernelMeta['kind'], string> = {
+  comparison: 'Rounds', distribution: 'Rounds', network: 'Rounds', external: 'Passes',
+  special: 'Rounds', joke: 'Rounds',
+};
+
 export interface WasmArrayKernel extends ArrayKernel {
   /** The atlas kernel id. */
   readonly kernelId: string;
@@ -201,6 +215,7 @@ export function wasmKernel(s: Sorting, id: string, maxN?: number): WasmArrayKern
     goal: 'sort',
     kernelId: id,
     meta,
+    roundUnit: ROUND_UNIT[meta.kind],
     ...(maxN ? { maxN } : {}),
     run(a: ArrayOps) {
       const keys = new Int32Array(a.n);

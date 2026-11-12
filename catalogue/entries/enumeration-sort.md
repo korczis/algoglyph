@@ -2,7 +2,7 @@
 id: enumeration-sort
 title: Enumeration sort
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

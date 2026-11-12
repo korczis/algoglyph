@@ -21,6 +21,8 @@
 //! points. Map-side sorts are stable merges and the reduce merge takes the lower mapper on
 //! ties, so this simulation happens to be stable; Hadoop does not promise that, and META
 //! declares it unstable.
+//!
+//! Rounds (`t.round()`): one per stage that every task runs: map, sort/spill, merge/reduce.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -56,6 +58,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         .collect();
     t.aux("split points", &cuts);
 
+    t.round();
     t.phase("map: assign every record to the reducer of its key range");
     let split = n.div_ceil(mappers);
     // spill[m][r] = output of mapper m for reducer r
@@ -69,6 +72,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         }
     }
     t.aux_clear("split points");
+    t.round();
     t.phase("sort/spill: every mapper sorts its output by (partition, key)");
     for (m, out) in spill.iter_mut().enumerate() {
         t.lane(m as u32);
@@ -86,6 +90,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
             fetched[r].push(seg);
         }
     }
+    t.round();
     t.phase("merge/reduce: every reducer merges its sorted segments (identity reduce)");
     let mut pos = 0;
     for (r, segs) in fetched.iter().enumerate() {
