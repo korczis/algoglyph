@@ -50,7 +50,20 @@ export const kernel: SystemsKernel<RaftResult> = {
     };
     const stood = new Map<number, Set<number>>(); // term -> its candidates
     const won = new Set<number>(); // terms that elected a leader
-    const split = new Set<number>(); // terms counted as split votes
+    const reachable = new Set<number>(); // terms a candidate gave up on with a majority in reach
+    const pending = new Set<number>(); // terms with rival candidates, not yet over
+    // A term is over once no node can still win it: none is its candidate, and none is at an
+    // earlier term (only a node at term t - 1 can stand in t). An over term that had rival
+    // candidates, no leader, and a candidate that gave up while a majority was within reach is
+    // a split vote; one whose candidates were cut off in a minority failed for want of voters.
+    const settle = () => {
+      for (const t of pending) {
+        if (won.has(t)) { pending.delete(t); continue; }
+        if (term.some((x, j) => x < t || (x === t && role[j] === 'candidate'))) continue;
+        pending.delete(t);
+        if (reachable.has(t)) net.count('split');
+      }
+    };
 
     const setRole = (i: number, r: Role) => {
       if (role[i] !== r) { role[i] = r; net.state(i, r); }
@@ -66,21 +79,15 @@ export const kernel: SystemsKernel<RaftResult> = {
       net.sample(`node ${i + 1}`, t);
       if (role[i] === 'leader') { net.cancel(beat[i]); resetTimer(i); }
       setRole(i, 'follower');
+      settle();
     };
     const timeout = (i: number) => {
       if (role[i] === 'down' || role[i] === 'leader') return;
-      // a split vote: the term had rival candidates, none won, and this one could have reached a
-      // majority; a candidate cut off in a minority times out for want of voters, not a split
-      if (role[i] === 'candidate') {
-        const t = term[i];
-        if (!won.has(t) && !split.has(t) && (stood.get(t)?.size ?? 0) > 1 && reach(i) >= majority) {
-          split.add(t);
-          net.count('split');
-        }
-      }
+      if (role[i] === 'candidate' && reach(i) >= majority) reachable.add(term[i]);
       term[i]++;
       if (!stood.has(term[i])) stood.set(term[i], new Set());
       stood.get(term[i])!.add(i);
+      if (stood.get(term[i])!.size > 1) pending.add(term[i]);
       net.sample(`node ${i + 1}`, term[i]);
       net.gauge('term', Math.max(...term));
       votedFor[i] = i;
@@ -89,6 +96,7 @@ export const kernel: SystemsKernel<RaftResult> = {
       net.count('elections');
       net.mark(i, `T${term[i]}?`, 0.55);
       resetTimer(i);
+      settle();
       const t = term[i]; const mine = last(i);
       for (let j = 0; j < n; j++) {
         if (j === i) continue;

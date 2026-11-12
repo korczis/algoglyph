@@ -242,9 +242,12 @@ const CHECKS: Record<string, () => void> = {
       elected += r.leaders.length;
     }
     expect(elected).toBeGreaterThan(0);
-    // the split-vote and leaderless readouts, recounted by replaying the trace: roles from the
-    // state events, candidacies and winners from the marks, reachability from the partition
-    let splits = 0; let stale = 0;
+    // the split-vote and leaderless readouts, recounted from the whole trace after the fact: a
+    // split vote is a term with rival candidates (election marks) that no leader mark ever
+    // claims, that is over by the end (every node's last term sample is at least it and none is
+    // still its candidate), and in which a candidate gave up with a majority in reach (roles
+    // replayed from the state events, reachability from the partition)
+    let splits = 0; let stale = 0; let lateWins = 0; let wins = 0;
     for (const seed of [...SEEDS, 55, 89]) for (const net of NETS) for (const nodes of [3, 5]) {
       const { net: tr } = run<RaftResult>('raft-election', { ...net, nodes }, seed);
       const majority = Math.floor(nodes / 2) + 1;
@@ -253,25 +256,32 @@ const CHECKS: Record<string, () => void> = {
         && part.side[a] >= 0 && part.side[b] >= 0 && part.side[a] !== part.side[b]);
       const role = new Array<string>(nodes).fill('follower');
       const since = new Array<number>(nodes).fill(-1);
+      const lastTerm = new Array<number>(nodes).fill(0);
       const reach = (i: number, t: number) => role.filter((r, j) => j === i || (r !== 'down' && !cut(i, j, t))).length;
-      const stood = new Map<number, Set<number>>(); const won = new Set<number>(); const lost = new Set<number>();
+      const stood = new Map<number, Set<number>>(); const won = new Set<number>();
+      const gaveUp = new Map<number, number>(); // term -> time a candidate gave up with a majority in reach
       for (const e of tr.events) {
         if (e.k === 'state') { role[e.lane] = e.state; since[e.lane] = e.t; }
+        if (e.k === 'sample' && /^node \d+$/.test(e.series)) lastTerm[Number(e.series.slice(5)) - 1] = e.value;
         if (e.k !== 'mark') continue;
         const leader = /^leader T(\d+)$/.exec(e.label);
         if (leader) won.add(Number(leader[1]));
         const start = /^T(\d+)\?$/.exec(e.label);
         if (!start) continue;
         const k = Number(start[1]);
-        // a candidate since before this instant timed out in term k - 1
-        if (role[e.lane] === 'candidate' && since[e.lane] < e.t && !won.has(k - 1)
-          && (stood.get(k - 1)?.size ?? 0) > 1 && reach(e.lane, e.t) >= majority) lost.add(k - 1);
+        // a candidate since before this instant gave up on term k - 1
+        if (role[e.lane] === 'candidate' && since[e.lane] < e.t && reach(e.lane, e.t) >= majority && !gaveUp.has(k - 1)) gaveUp.set(k - 1, e.t);
         if (!stood.has(k)) stood.set(k, new Set());
         stood.get(k)!.add(e.lane);
       }
+      const over = (k: number) => lastTerm.every((x, j) => x > k || (x === k && role[j] !== 'candidate'));
+      const lost = [...stood].filter(([k, c]) => c.size > 1 && !won.has(k) && gaveUp.has(k) && over(k));
+      // terms a candidate gave up on while rivals were out, and that a delayed vote then won
+      lateWins += [...stood].filter(([k, c]) => c.size > 1 && won.has(k) && gaveUp.has(k)).length;
       const counted = tr.events.filter((e) => e.k === 'count' && e.key === 'split').length;
-      expect(counted, `seed ${seed} nodes ${nodes} ${JSON.stringify(net)}: split votes`).toBe(lost.size);
+      expect(counted, `seed ${seed} nodes ${nodes} ${JSON.stringify(net)}: split votes`).toBe(lost.length);
       splits += counted;
+      wins += won.size;
       // leaderless ticks: counted exactly when no leader reaches a majority (ticks where a role
       // or the partition changes at that very instant are ambiguous and skipped)
       const ticks = new Set<number>(); const changes = new Set<number>();
@@ -295,6 +305,8 @@ const CHECKS: Record<string, () => void> = {
       }
     }
     expect(splits, 'some split votes happen').toBeGreaterThan(0);
+    expect(splits, 'the note: split votes are fewer than the terms that elect a leader').toBeLessThan(wins);
+    expect(lateWins, 'a term given up on and then won by a delayed vote is seen, and not counted').toBeGreaterThan(0);
     expect(stale, 'a stale leader in a minority is seen').toBeGreaterThan(0);
   },
 
