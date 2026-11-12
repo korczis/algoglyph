@@ -27,7 +27,8 @@ derive or check them. The owner's order is that everything be described in front
 
 An entry may carry `claims` (catalogue/schema/entry.yaml): each an `id`, a `statement`, the
 `readout` it is about (the label of a row the plate publishes), the `expect`ation (a `value`
-with an optional `tolerance`, or an inclusive `range`, in the readout's displayed units), an
+with an optional `tolerance`, an inclusive `range`, or a strict `below` or `above` for a one-sided
+claim, in the readout's displayed units, exponents read), an
 optional `setup` (`params` on the plate, `seed`) and an optional `source`.
 
 The evidence is never authored. One instrument, `test/support/claims.ts`, serves every entry:
@@ -38,7 +39,8 @@ catalogue. A claim whose readout the plate does not publish, whose setup names a
 plate lacks, whose run does not settle, or whose value misses its expectation fails the gate.
 
 `scripts/lib/catalogue.mjs` checks the static form (exactly one of value and range, a range
-[lo, hi] with lo <= hi, a tolerance only around a value, ids unique within the entry) and
+[lo, hi] with lo <= hi, exactly one expectation form, a tolerance only around a value, ids
+unique within the entry) and
 derives `evidence.claims` ({ declared, instrument }); a claim without its instrument is
 refused where the catalogue is checked with code.
 

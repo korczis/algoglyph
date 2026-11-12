@@ -106,6 +106,8 @@ fields:
             value: { type: number, doc: The predicted value; with tolerance, an interval around it. }
             tolerance: { type: number, doc: Allowed distance from value; 0 when absent. }
             range: { type: list, of: { type: number }, doc: '[lo, hi], inclusive.' }
+            below: { type: number, doc: A strict upper bound, for a one-sided claim. }
+            above: { type: number, doc: A strict lower bound, for a one-sided claim. }
         setup:
           type: map
           doc: The run the claim is about; the plate's defaults otherwise, with loop off.

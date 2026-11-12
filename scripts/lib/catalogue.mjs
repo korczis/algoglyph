@@ -254,7 +254,7 @@ export function loadCatalogue(root, { code = true } = {}) {
     const summary = paras[0] ?? '';
     if (summary.length < 20) err('the body must open with a summary of at least 20 characters');
     if (fm.status === 'live' && paras.length < 2) err('a live entry needs reading notes after its summary');
-    // a claim's expectation (ADR 0007): exactly one of value and range, a range is [lo, hi] with
+    // a claim's expectation (ADR 0007): exactly one of value, range, below and above; a range is [lo, hi] with
     // lo <= hi, tolerance only around a value; ids unique within the entry. Whether its readout
     // exists and its value holds is the plate's to show: test/claims.test.ts runs it.
     const claimIds = new Set();
@@ -266,7 +266,8 @@ export function loadCatalogue(root, { code = true } = {}) {
       const x = c.expect ?? {};
       const hasValue = typeof x.value === 'number';
       const hasRange = Array.isArray(x.range);
-      if (hasValue === hasRange) err(`${at}: expect needs exactly one of value and range`);
+      const forms = [hasValue, hasRange, typeof x.below === 'number', typeof x.above === 'number'].filter(Boolean).length;
+      if (forms !== 1) err(`${at}: expect needs exactly one of value, range, below and above`);
       if (hasRange && (x.range.length !== 2 || x.range[0] > x.range[1])) err(`${at}: expect.range must be [lo, hi] with lo <= hi`);
       if (x.tolerance !== undefined && !hasValue) err(`${at}: expect.tolerance is a distance around expect.value`);
       if (typeof x.tolerance === 'number' && x.tolerance < 0) err(`${at}: expect.tolerance cannot be negative`);

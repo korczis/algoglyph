@@ -23,7 +23,7 @@ claims:
       For a sample of 30 from the skewed log-normal population, the 90% percentile interval
       covers the population mean less often than its nominal 90%.
     readout: 90% intervals covering
-    expect: { range: [0, 89.9] }
+    expect: { below: 90 }
   - id: shortfall-closes-as-the-sample-grows
     statement: >-
       For a sample of 200 from the normal population, the 90% percentile interval covers the

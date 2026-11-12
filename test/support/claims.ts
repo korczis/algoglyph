@@ -12,7 +12,7 @@ export interface Claim {
   id: string;
   statement: string;
   readout: string;
-  expect: { value?: number; tolerance?: number; range?: [number, number] };
+  expect: { value?: number; tolerance?: number; range?: [number, number]; below?: number; above?: number };
   setup?: { params?: Params; seed?: number };
 }
 
@@ -22,11 +22,14 @@ export const SETTLE_FRAMES = 120;
 export const MAX_FRAMES = 20_000;
 export const DEFAULT_SEED = 4242;
 
-/** The first number of a readout's text as displayed: thousands separators dropped, a percentage
- * kept in percent, a typographic minus read as a minus. */
+/** The first number of a readout's text as displayed: thousands separators dropped, an exponent
+ * read (toExponential and toPrecision print 3.2e-7), a percentage kept in percent, a typographic
+ * minus read as a minus. A number written as a power of ten (1.5×10⁻³) is refused, not misread. */
 export function firstNumber(text: string): number | null {
-  const m = /[-−]?\d[\d,]*(?:\.\d+)?/.exec(text);
-  return m ? Number(m[0].replace(/,/g, '').replace('−', '-')) : null;
+  const m = /[-−]?\d[\d,]*(?:\.\d+)?(?:[eE][-+−]?\d+)?/.exec(text);
+  if (!m) return null;
+  if (/^\s*[×x]\s*10/.test(text.slice(m.index + m[0].length))) return null;
+  return Number(m[0].replace(/,/g, '').replace(/−/g, '-'));
 }
 
 export interface Reading { value?: number; text?: string; frames: number; reason?: string }
@@ -76,10 +79,16 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
 export function holds(claim: Claim, value: number): boolean {
   const x = claim.expect;
   if (x.range) return value >= x.range[0] && value <= x.range[1];
+  if (x.below !== undefined) return value < x.below;
+  if (x.above !== undefined) return value > x.above;
   return Math.abs(value - (x.value as number)) <= (x.tolerance ?? 0);
 }
 
 /** The expectation in words, for a failure message. */
-export const expected = (claim: Claim): string => (claim.expect.range
-  ? `in [${claim.expect.range[0]}, ${claim.expect.range[1]}]`
-  : `${claim.expect.value} ± ${claim.expect.tolerance ?? 0}`);
+export function expected(claim: Claim): string {
+  const x = claim.expect;
+  if (x.range) return `in [${x.range[0]}, ${x.range[1]}]`;
+  if (x.below !== undefined) return `below ${x.below}`;
+  if (x.above !== undefined) return `above ${x.above}`;
+  return `${x.value} ± ${x.tolerance ?? 0}`;
+}

@@ -41,8 +41,16 @@ describe('the claims instrument', () => {
 
   it('reads the first number of a readout as displayed', () => {
     expect(firstNumber('89.7% (guarantee: at least 90%)')).toBe(89.7);
+    expect(firstNumber('92.7% ± 2.1%')).toBe(92.7);
     expect(firstNumber('1,000 of 1,000')).toBe(1000);
+    expect(firstNumber('1,234.5 draws')).toBe(1234.5);
     expect(firstNumber('−0.25 to 0.5')).toBe(-0.25);
+    // toExponential and toPrecision print exponents; reading 3.2 would be wrong by 10⁷
+    expect(firstNumber('3.2e-7')).toBe(3.2e-7);
+    expect(firstNumber('largest error 1.25e+3 dB')).toBe(1250);
+    expect(firstNumber('−4.0e−2')).toBe(-0.04);
+    // no engine prints a power of ten in this form; it is refused rather than read as 1.5
+    expect(firstNumber('1.5×10⁻³')).toBeNull();
     expect(firstNumber('starting')).toBeNull();
   });
 
@@ -61,6 +69,9 @@ describe('the claims instrument', () => {
     expect(r.reason).toBeUndefined();
     expect(holds({ ...base, expect: { range: [0, 100] } }, r.value as number)).toBe(true);
     expect(holds({ ...base, expect: { value: 50, tolerance: 1 } }, r.value as number)).toBe(false);
+    // one-sided claims are strict
+    expect(holds({ ...base, expect: { below: r.value as number } }, r.value as number)).toBe(false);
+    expect(holds({ ...base, expect: { above: (r.value as number) - 1 } }, r.value as number)).toBe(true);
   }, 120_000);
 
   it('reads the same value twice for the same seed', async () => {
@@ -95,9 +106,12 @@ describe('the claims schema', () => {
 
   it('refuses an expectation with both a value and a range, or neither', () => {
     expect(errorsWith(ok.replace('{ range: [0, 1] }', '{ value: 1, range: [0, 1] }')).join('\n'))
-      .toMatch(/expect needs exactly one of value and range/);
+      .toMatch(/expect needs exactly one of value, range, below and above/);
     expect(errorsWith(ok.replace('{ range: [0, 1] }', '{ tolerance: 1 }')).join('\n'))
-      .toMatch(/expect needs exactly one of value and range/);
+      .toMatch(/expect needs exactly one of value, range, below and above/);
+    expect(errorsWith(ok.replace('{ range: [0, 1] }', '{ below: 1, above: 0 }')).join('\n'))
+      .toMatch(/expect needs exactly one of value, range, below and above/);
+    expect(errorsWith(ok.replace('{ range: [0, 1] }', '{ below: 1 }'))).toEqual([]);
   });
 
   it('refuses a reversed range and a tolerance without a value', () => {
