@@ -46,6 +46,12 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   are); and a slider dragged without a remount. An array kernel too costly to trace in one frame
   at the engine's largest input declares `maxN`, derived from its measured cost, and its slider
   (and every lab it races in) stops there.
+- A control's range ends where the main-thread budget fails at its extreme, measured by
+  `test/budget/` (which runs each range at its maximum and, in turn, its minimum, and each select
+  option), and nowhere sooner: a setting that only costs more than the default, or more than the
+  plate's heaviest run before the control existed, stays in the range. A range that ends sooner
+  for another reason (its inputs cannot fill the plate, or the run no longer means what the
+  plate shows) says why in a comment at its declaration.
   The gate counts CPU time, calibrated against a fixed reference workload before each check and
   again after a reading over budget, so it judges the plate's work and not the machine's speed or
   load; each repeat takes a new seed, so a cache
