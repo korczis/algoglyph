@@ -1,0 +1,24 @@
+# Fixture sidecar: maps fixture entries to kernels of a compiled module the test fakes.
+version: 1
+
+entries:
+  # live, no kernel file: played by the sidecar's adapter
+  - id: fixture-wasm-sort
+    kernel: fixture-wasm-kernel
+    engine: array
+    existing: false
+  # planned, no kernel file: a mapping allows live and does not demand it
+  - id: fixture-planned-sort
+    kernel: fixture-planned-kernel
+    engine: array
+    existing: false
+  # has its own kernel file and predates the sidecar: the file plays, the record describes
+  - id: fixture-kept-sort
+    kernel: fixture-kept-kernel
+    engine: array
+    existing: true
+  # another engine: the record describes its entry and nothing plays it
+  - id: fixture-described
+    kernel: fixture-described-kernel
+    engine: custom
+    existing: false

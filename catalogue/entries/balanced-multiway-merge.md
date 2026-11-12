@@ -1,7 +1,7 @@
 ---
 id: balanced-multiway-merge
 title: Balanced multiway merge
-taxonomy: sorting/networks
+taxonomy: sorting/external
 status: live
 engine: custom
 sources:

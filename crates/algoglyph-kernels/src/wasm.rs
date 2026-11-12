@@ -6,6 +6,13 @@
 //!   ag_fluid_density(h) -> *f32, (n+2)² cells   ag_fluid_stats(h) -> *f32, 4 values
 //!   ag_fluid_checksum(h) -> f64                  ag_fluid_free(h)
 //! ```
+//!
+//! The sorting kernels' half of the ABI (`ag_sort_*`) lives in `sorting/abi.rs`, behind the
+//! `sorting` feature.
+
+#[cfg(feature = "sorting")]
+#[path = "sorting/abi.rs"]
+pub mod sorting;
 
 use crate::fluids::{scenario, Fluid};
 
