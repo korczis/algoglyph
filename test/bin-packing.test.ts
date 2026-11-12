@@ -3,7 +3,7 @@
 // bounds checked on random small inputs.
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { ALGORITHMS, CAPACITY, decreasing, EXACT_MAX, items, lowerBound, optimum, pack, SHAPES,
+import { ALGORITHMS, CAPACITY, decreasing, EXACT_MAX, items, lowerBound, optimum, pack, SHAPE_LABELS, SHAPES,
   type Packing } from '../src/plates/bin-packing/packing';
 import { advance, binPacking, build } from '../src/plates/bin-packing/plate';
 import { p5Stub } from './support/p5-stub';
@@ -138,6 +138,26 @@ describe('bin packing heuristics', () => {
     const ffd = pack('first-fit-decreasing', sizes).loads.length;
     expect(nf).toBe(sizes.length / 2);
     expect(nf).toBeGreaterThan(1.8 * ffd);
+  });
+});
+
+describe('bin packing items', () => {
+  it('draw sizes in 1..capacity, and the labels state the ranges the streams actually draw', () => {
+    const pct = (x: number) => `${Math.round((100 * x) / CAPACITY)}%`;
+    const range = (shape: (typeof SHAPES)[number], pick = (_: number) => true) => {
+      const xs = items(shape, 4000, 1).filter((_, i) => pick(i));
+      return [Math.min(...xs), Math.max(...xs)];
+    };
+    for (const shape of SHAPES) {
+      const [lo, hi] = range(shape);
+      expect(lo).toBeGreaterThanOrEqual(1);
+      expect(hi).toBeLessThanOrEqual(CAPACITY);
+    }
+    expect(SHAPE_LABELS.uniform).toContain(String(range('uniform')[1]));
+    expect(SHAPE_LABELS.small).toContain(pct(range('small')[1]));
+    expect(SHAPE_LABELS.halves).toContain(String(range('halves', (i) => i % 2 === 1)[1]));
+    const [tlo, thi] = range('thirds');
+    expect(SHAPE_LABELS.thirds).toContain(`${pct(tlo)} to ${pct(thi)}`);
   });
 });
 

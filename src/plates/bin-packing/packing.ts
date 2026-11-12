@@ -4,13 +4,19 @@ import { mulberry32 } from '../../core/random';
 
 export const CAPACITY = 100;
 
+/** Size ranges of the item streams, as integers in 1..CAPACITY. */
+const SMALL_MAX = 30;
+const CRUMB_MAX = 3;
+const THIRDS: [number, number] = [26, 40];
+const pct = (x: number) => `${Math.round((100 * x) / CAPACITY)}%`;
+
 export const SHAPES = ['uniform', 'small', 'halves', 'thirds'] as const;
 export type Shape = (typeof SHAPES)[number];
 export const SHAPE_LABELS: Record<Shape, string> = {
-  uniform: 'Uniform sizes, 1 to the capacity',
-  small: 'Small items, up to 30% of a bin',
-  halves: 'Halves and crumbs, alternating',
-  thirds: 'Near thirds, 26% to 40% of a bin',
+  uniform: `Uniform sizes, 1 to ${CAPACITY}`,
+  small: `Small items, up to ${pct(SMALL_MAX)} of a bin`,
+  halves: `Halves and crumbs (up to ${CRUMB_MAX}), alternating`,
+  thirds: `Near thirds, ${pct(THIRDS[0])} to ${pct(THIRDS[1])} of a bin`,
 };
 
 /** n seeded integer sizes in 1..CAPACITY, in arrival order. */
@@ -20,9 +26,9 @@ export function items(shape: Shape, n: number, seed: number): number[] {
   return Array.from({ length: n }, (_, i) => {
     switch (shape) {
       case 'uniform': return int(1, CAPACITY);
-      case 'small': return int(1, 30);
-      case 'halves': return i % 2 === 0 ? CAPACITY / 2 : int(1, 3);
-      case 'thirds': return int(26, 40);
+      case 'small': return int(1, SMALL_MAX);
+      case 'halves': return i % 2 === 0 ? CAPACITY / 2 : int(1, CRUMB_MAX);
+      case 'thirds': return int(THIRDS[0], THIRDS[1]);
     }
   });
 }
