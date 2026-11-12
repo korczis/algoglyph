@@ -367,6 +367,7 @@ export function drawTable(p: p5, ctx: PlateContext, r: Replay, box: Box): void {
 
 /** A plate's controls; a lab's (`plate` false) keep the adversarial band at its default. */
 function params(kernels: HashKernel[], n: number, nMax: number, plate = false): ParamDef[] {
+  const own = plate ? kernels.flatMap((k) => k.params ?? []) : [];
   const loads = kernels.map((k) => k.maxLoad).filter((x): x is number => x !== undefined);
   const out: ParamDef[] = [
     {
@@ -387,6 +388,7 @@ function params(kernels: HashKernel[], n: number, nMax: number, plate = false): 
   }
   out.push(
     { kind: 'range', key: 'deletes', label: 'Keys deleted at the end (percent)', min: 0, max: 90, step: 5, value: 50, rebuild: true },
+    ...own,
     paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New keys when done', value: true },
     paletteParam('ember'),
@@ -394,10 +396,15 @@ function params(kernels: HashKernel[], n: number, nMax: number, plate = false): 
   return out;
 }
 
-function sizeOf(ctx: PlateContext, n: number): Size {
+/** The table a run starts with; a plate's kernel also gets its own parameters' values. */
+function sizeOf(ctx: PlateContext, n: number, kernel?: HashKernel): Size {
   const ld = ctx.params.load === undefined ? 100 : num(ctx.params, 'load');
   const page = ctx.params.page === undefined ? 4 : num(ctx.params, 'page');
-  return { n, m: Math.max(1, Math.ceil(n / (ld / 100))), pageSize: page };
+  const size: Size = { n, m: Math.max(1, Math.ceil(n / (ld / 100))), pageSize: page };
+  if (kernel?.params?.length) {
+    size.opts = Object.fromEntries(kernel.params.map((d) => [d.key, ctx.params[d.key] ?? d.value]));
+  }
+  return size;
 }
 
 function steps(ctx: PlateContext, n: number, seed: number) {
@@ -563,7 +570,7 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
       let hold = 0;
       let next: { rebuild: Rebuild; n: number } | null = null;
       const n0 = num(ctx.params, 'n');
-      let r = new Replay(trace(kernel, steps(ctx, n0, ctx.seed), sizeOf(ctx, n0)), kernel.layout, n0);
+      let r = new Replay(trace(kernel, steps(ctx, n0, ctx.seed), sizeOf(ctx, n0, kernel)), kernel.layout, n0);
       const pacer = new Pacer('replay', 'events', MAX_EVENTS_PER_FRAME);
       paced(pacer, [r]);
       return {
@@ -581,7 +588,7 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
               if (!next) {
                 const n = num(ctx.params, 'n');
                 generation++;
-                next = { rebuild: new Rebuild([kernel], steps(ctx, n, ctx.seed + generation * 7919), sizeOf(ctx, n)), n };
+                next = { rebuild: new Rebuild([kernel], steps(ctx, n, ctx.seed + generation * 7919), sizeOf(ctx, n, kernel)), n };
               }
               if (!next.rebuild.ready) next.rebuild.step();
               if (++hold > HOLD_FRAMES && next.rebuild.ready) {

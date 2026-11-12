@@ -2,6 +2,7 @@
 // HashOps: every hash evaluation, slot or chain read (a probe), write, removal, resize, page split
 // and directory doubling is counted and recorded as a trace, and the plate replays the trace on
 // a Table of its own. Nothing here draws; the readouts and charts are computed from the trace.
+import type { ParamDef, ParamValue } from '../../core/plate';
 
 /** An open-addressing slot that never held a key. */
 export const EMPTY = -1;
@@ -169,6 +170,8 @@ export interface HashOps {
   /** Keys a page holds (extendible hashing). */
   readonly pageSize: number;
   readonly globalDepth: number;
+  /** Values of the kernel's own parameters (Size.opts), empty when none were given. */
+  readonly opts: Readonly<Record<string, ParamValue>>;
   /** One counted hash evaluation: fn 0 is h1, fn 1 is h2. */
   hash(key: number, fn?: 0 | 1): number;
   /** Entries in bucket b (structure, not a probe). */
@@ -199,6 +202,8 @@ export interface Size {
   /** Buckets the plate asks for (fixed-size schemes). */
   m: number;
   pageSize: number;
+  /** Values of the kernel's own parameters; a kernel falls back to its defaults without them. */
+  opts?: Readonly<Record<string, ParamValue>>;
 }
 
 /** Knuth's expected probes for a search at load factor a, as a labelled reference. */
@@ -228,6 +233,8 @@ export interface HashKernel {
   remove(t: HashOps, key: number): boolean;
   expected?: Expected;
   growth?: Growth;
+  /** Parameters of the kernel itself, read through `t.opts` (a plate's, never a lab's). */
+  params?: ParamDef[];
 }
 
 export interface Counts {
@@ -305,6 +312,7 @@ export function tracer(kernel: HashKernel, size: Size, cap = EVENT_CAP): Tracer 
     get count() { return t.count; },
     get globalDepth() { return t.globalDepth; },
     pageSize: size.pageSize,
+    opts: size.opts ?? {},
     hash(key, fn = 0) {
       const h = fn === 0 ? h1(key) : h2(key);
       push(OP.hash, fn, key, h | 0);
