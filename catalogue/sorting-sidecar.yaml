@@ -1,7 +1,7 @@
-# Sorting sidecar: the atlas sorting catalogue folded into this catalogue, one record per
-# atlas algorithm. DERIVED, not hand-typed: every value is converted from the atlas data
-# (data/ids.json, data/algorithms/*.toml). Regenerate it from those sources; never edit a value
-# by hand. What a kernel declares about itself (stable, in place, kind) is not repeated here:
+# Sorting sidecar: one record per sorting algorithm of the owner's list, first converted from a
+# local atlas draft that was never published and is retired. This file is now the authored
+# source of these values; edit it here, and the catalogue gate checks it on every build.
+# What a kernel declares about itself (stable, in place, kind) is not repeated here:
 # the module's manifest, crates/algoglyph-kernels/src/sorting/kernels.json, says it, and the
 # catalogue gate checks the entries' tags and this file's in_place against it.
 #
