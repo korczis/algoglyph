@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import type { Params, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32, shuffle } from '../src/core/random';
 import {
   Delaunay, LATTICE, inCircle, minAngle, orient,
 } from '../src/plates/bowyer-watson-delaunay/bowyer';
-import { FADE, highlight, scatter } from '../src/plates/bowyer-watson-delaunay/plate';
+import plate, { FADE, highlight, scatter } from '../src/plates/bowyer-watson-delaunay/plate';
+import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 type Pt = [number, number];
 
@@ -367,5 +370,36 @@ describe('no state decays into subnormal floats', () => {
       const m = minAngle(d.xs[p], d.ys[p], d.xs[q], d.ys[q], d.xs[r], d.ys[r]);
       expect(m > 0 && normal(m)).toBe(true);
     }
+  });
+});
+
+describe('the plate', () => {
+  it('readouts follow clicks that only add duplicates, after the queue has run out', () => {
+    installBrowserStubs();
+    let rows: Stat[] = [];
+    const params: Params = { points: 20, rate: 60, distribution: 'uniform', circles: true,
+      voronoi: false, colour: 'area', palette: 'ember' };
+    const ctx: PlateContext = {
+      width: 960, height: 600, params, seed: 7, rnd: mulberry32(7), theme: 'dark',
+      bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg, thumbnail: false,
+      palette: () => lookupPalette('ember'), stats: (r) => { rows = r; }, chart() {},
+    };
+    const sim = plate.create(p5Stub(), ctx);
+    sim.setup();
+    // run the queue out and let the highlight fade, so the picture is idle
+    for (let f = 0; f < FADE + 5; f++) sim.draw();
+    const read = (label: string) => rows.find((r) => r.label === label)?.value;
+    expect(read('points inserted')).toBe('20 / 20');
+    sim.pressed?.(480, 300);
+    sim.draw();
+    expect(read('points inserted')).toBe('21 / 21');
+    for (let f = 0; f < FADE + 5; f++) sim.draw();
+    // the same spot twice more: both are duplicates and change nothing but the counts
+    sim.pressed?.(480, 300);
+    sim.draw();
+    sim.pressed?.(480, 300);
+    sim.draw();
+    expect(read('points inserted')).toBe('21 / 23');
+    expect(read('duplicates skipped')).toBe('2');
   });
 });

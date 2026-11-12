@@ -193,9 +193,11 @@ export const bowyerWatsonDelaunay: PlateCode = {
         }
         if (!inserted) age = Math.min(FADE, age + 1);
 
-        // the canvas keeps its last frame: redraw only when something it shows has changed
-        const key = [mesh.vertices, next, age, ctx.theme, str(params, 'palette'),
-          str(params, 'colour'), bool(params, 'voronoi'), bool(params, 'circles')].join('|');
+        // the canvas keeps its last frame: redraw only when something it or the readouts show
+        // has changed. Every other readout is a function of the mesh, so of its vertex count.
+        const key = [mesh.vertices, mesh.duplicates, clicks, next, age, ctx.theme,
+          str(params, 'palette'), str(params, 'colour'), bool(params, 'voronoi'),
+          bool(params, 'circles')].join('|');
         if (key === shown) {
           ctx.stats(rows);
           return;
