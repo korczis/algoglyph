@@ -13,7 +13,6 @@ tags:
   - multi-scale
   - dwt
 complexity: 'O(N · L) for a filter of length L; each level halves the work'
-motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced
