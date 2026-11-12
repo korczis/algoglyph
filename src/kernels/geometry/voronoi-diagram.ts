@@ -24,7 +24,7 @@ export const kernel: GeometryKernel = {
   task: 'delaunay',
   input: 'points',
   shapes: ['uniform', 'clustered', 'disk', 'lattice'],
-  n: { min: 3, max: 800, value: 90, step: 1 },
+  n: { min: 3, max: 500, value: 90, step: 1 },
   counters: [['incircle', 'In-circle tests'], ['orient', 'Orientation tests'], ['flip', 'Edge flips'], ['compare', 'Sort comparisons']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
   *run(g) {
@@ -123,7 +123,7 @@ export const kernel: GeometryKernel = {
       g.frame(() => [...delaunay, ...vor.slice(0, cut)], 'the dual: Voronoi edges between circumcentres');
       yield;
     }
-    g.last(() => [...delaunay, ...vor, ...dots(P, { c: 0.1, r: 2.6 })], 'Delaunay triangulation and Voronoi diagram');
+    g.last(() => [...delaunay, ...vor], 'Delaunay triangulation and Voronoi diagram');
     return {
       result: { triangles },
       rows: [{ label: 'Triangles', value: String(triangles.length) }, { label: 'Voronoi vertices', value: String(cc.size) }],

@@ -6,17 +6,22 @@
 import type { Params } from '../../core/plate';
 import { makeInput } from './input';
 import { record, Recording, type Box, type GeometryKernel, type Mark } from './trace';
-import { fromEncoded, fromPacked, fromTrace, unpack, type Encoded, type Track } from './track';
+import { fromEncoded, fromPacked, fromTrace, type Encoded, type Packed, type Track } from './track';
 import type { Job } from './worker';
 
 /** Main-thread time a frame spends on background work (builds, then scaling runs). */
-export const SLICE_MS = 8;
+export const SLICE_MS = 4;
+const NONE: Packed = { data: new Float64Array(0), strings: [] };
 /** A worker reply later than this is treated as lost. */
 const WORKER_TIMEOUT_MS = 15_000;
 
-export interface Request { id: string; kernel: GeometryKernel; shape: string; n: number; seed: number; params: Params }
+export interface Request {
+  id: string; kernel: GeometryKernel; shape: string; n: number; seed: number; params: Params;
+  /** The stride a previous run of the same settings ended with. */
+  stride?: number;
+}
 
-export interface Partial { base: Mark[]; view: Box; frame: Mark[]; steps: number }
+export interface Partial { base: Mark[]; view: Box; frame: Packed; steps: number }
 
 export interface Build {
   /** The finished run, once there is one. */
@@ -25,10 +30,12 @@ export interface Build {
   pump(deadline: number): void;
   /** What has been recorded so far, for drawing while the build runs. */
   partial(): Partial;
+  /** The frame stride the build ended with (1 when unknown). */
+  readonly stride: number;
 }
 
 const recordingOf = (r: Request, recording = true) =>
-  new Recording(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params), r.params, r.seed, recording, recording);
+  new Recording(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params), r.params, r.seed, recording, recording, r.stride);
 
 /** The whole run at once (thumbnails and tests). */
 export function buildNow(r: Request): Track {
@@ -39,8 +46,7 @@ class Sliced implements Build {
   track: Track | null = null;
   private readonly rec: Recording;
   constructor(r: Request) { this.rec = recordingOf(r); }
-  private shown = -1;
-  private shownMarks: Mark[] = [];
+  get stride(): number { return this.rec.stride; }
   pump(deadline: number): void {
     if (this.track || !this.rec.until(deadline)) return;
     const rec = this.rec;
@@ -49,8 +55,7 @@ class Sliced implements Build {
   }
   partial(): Partial {
     const f = this.rec.packedFrames;
-    if (f.length - 1 !== this.shown && f.length) { this.shown = f.length - 1; this.shownMarks = unpack(f[this.shown].packed); }
-    return { base: this.rec.base, view: this.rec.view, frame: this.shownMarks, steps: f.length };
+    return { base: this.rec.base, view: this.rec.view, frame: f[f.length - 1]?.packed ?? NONE, steps: f.length };
   }
 }
 
@@ -97,6 +102,7 @@ class Remote implements Build {
     const msg: Job = { job, id: r.id, kind: r.kernel.input, shape: r.shape, n: r.n, seed: r.seed, params: { ...r.params } };
     try { w.postMessage(msg); } catch { waiting.delete(job); clearTimeout(timer); this.fail(); }
   }
+  get stride(): number { return this.fallback?.stride ?? this.r.stride ?? 1; }
   private fail(): void { if (!this.track && !this.fallback) this.fallback = new Sliced(this.r); }
   pump(deadline: number): void {
     if (this.fallback && !this.track) {
@@ -105,7 +111,7 @@ class Remote implements Build {
     }
   }
   partial(): Partial {
-    return this.fallback?.partial() ?? { base: [], view: { x0: 0, y0: 0, x1: 1, y1: 1 }, frame: [], steps: 0 };
+    return this.fallback?.partial() ?? { base: [], view: { x0: 0, y0: 0, x1: 1, y1: 1 }, frame: NONE, steps: 0 };
   }
 }
 

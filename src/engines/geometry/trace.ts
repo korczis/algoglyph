@@ -128,7 +128,8 @@ export interface Trace {
 /** Frames and marks a trace keeps; past either, every other frame is dropped and the stride
  * doubles, so a long run keeps an even sample of itself in bounded memory. */
 export const FRAME_CAP = 1200;
-export const MARK_CAP = 200_000;
+/** Marks kept per run: what a frame allocates is garbage later, collected inside some frame. */
+export const MARK_CAP = 150_000;
 
 /**
  * One run of a kernel on an input, counting every primitive and keeping (a sample of) its
@@ -147,13 +148,20 @@ export class Recording {
   private readonly it: Generator<unknown, Outcome, unknown>;
   private outcome: Outcome = { result: null };
 
+  /** The stride frames are kept at: doubled whenever the caps are passed. */
+  stride: number;
+
+  /**
+   * `stride` starts the sampling coarser: a rebuild of the same settings passes the stride its
+   * previous run ended with, so it never makes the frames it would only drop.
+   */
   constructor(kernel: GeometryKernel, readonly input: Input, params: Params, seed: number, readonly recording = true,
-    readonly packed = false) {
+    readonly packed = false, stride = 1) {
+    this.stride = Math.max(1, stride);
     const counts = this.counts;
     for (const [k] of kernel.counters) counts[k] = 0;
     const bump = (k: string, by = 1) => { counts[k] = (counts[k] ?? 0) + by; };
     this.view = input.box;
-    let stride = 1;
     let seen = 0;
     let kept = 0;
     let sizes: number[] = [];
@@ -170,7 +178,7 @@ export class Recording {
       base: (m) => { if (recording) this.base = m; },
       view: (b) => { this.view = b; },
       frame: (make, note = '') => {
-        if (!recording || seen++ % stride !== 0) return;
+        if (!recording || seen++ % this.stride !== 0) return;
         const marks = make();
         this.keep(marks, note);
         kept += marks.length;
@@ -180,7 +188,7 @@ export class Recording {
           if (packed) this.packedFrames = this.packedFrames.filter(even); else this.frames = this.frames.filter(even);
           sizes = sizes.filter(even);
           kept = sizes.reduce((t, v) => t + v, 0);
-          stride *= 2;
+          this.stride *= 2;
         }
       },
       last: (make, note = '') => {

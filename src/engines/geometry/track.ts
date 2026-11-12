@@ -12,11 +12,18 @@ export interface Track {
   readonly rows: Stat[];
   readonly chart: Chart | undefined;
   marks(i: number): Mark[];
+  /** Frame i packed, for drawing without objects (track.ts layout). */
+  packed(i: number): Packed;
+  /** The base marks, packed once. */
+  packedBase(): Packed;
   counts(i: number): Counts;
   note(i: number): string;
 }
 
 export function fromTrace(t: Trace): Track {
+  let at = -1;
+  let cache: Packed = EMPTY;
+  let base: Packed | undefined;
   return {
     length: t.frames.length,
     base: t.base,
@@ -25,6 +32,11 @@ export function fromTrace(t: Trace): Track {
     rows: t.outcome.rows ?? [],
     chart: t.outcome.chart,
     marks: (i) => t.frames[i]?.marks ?? [],
+    packed(i) {
+      if (i !== at) { at = i; cache = pack(t.frames[i]?.marks ?? []); }
+      return cache;
+    },
+    packedBase: () => (base ??= pack(t.base)),
     counts: (i) => t.frames[i]?.counts ?? t.counts,
     note: (i) => t.frames[i]?.note ?? '',
   };
@@ -53,6 +65,8 @@ const back = (v: number) => (Number.isNaN(v) ? undefined : v);
 
 /** One frame's marks as a flat array (strings of text marks beside it). */
 export interface Packed { data: Float64Array; strings: string[] }
+
+const EMPTY: Packed = { data: new Float64Array(0), strings: [] };
 
 export function pack(marks: Mark[]): Packed {
   let size = 0;
@@ -142,6 +156,7 @@ function readMarks(d: Float64Array, start: number, end: number, strings: string[
 
 export function fromEncoded(e: Encoded): Track {
   const frames = e.starts.length - 1;
+  let base: Packed | undefined;
   let cached = -1;
   let cache: Mark[] = [];
   return {
@@ -156,6 +171,8 @@ export function fromEncoded(e: Encoded): Track {
       if (i !== cached) { cache = decode(e, i); cached = i; }
       return cache;
     },
+    packed: (i) => (i < 0 || i >= frames ? EMPTY : { data: e.data.subarray(e.starts[i], e.starts[i + 1]), strings: e.strings }),
+    packedBase: () => (base ??= pack(e.base)),
     counts(i) {
       if (i < 0 || i >= frames) return e.final;
       const out: Counts = {};
@@ -169,6 +186,7 @@ export function fromEncoded(e: Encoded): Track {
 /** A finished run whose frames were packed as they were recorded. */
 export function fromPacked(r: { base: Mark[]; view: Box; final: Counts; rows: Stat[]; chart: Chart | undefined;
   frames: { packed: Packed; counts: Counts; note: string }[] }): Track {
+  let base: Packed | undefined;
   let cached = -1;
   let cache: Mark[] = [];
   return {
@@ -184,6 +202,8 @@ export function fromPacked(r: { base: Mark[]; view: Box; final: Counts; rows: St
       if (i !== cached) { cache = unpack(f.packed); cached = i; }
       return cache;
     },
+    packed: (i) => r.frames[i]?.packed ?? EMPTY,
+    packedBase: () => (base ??= pack(r.base)),
     counts: (i) => r.frames[i]?.counts ?? r.final,
     note: (i) => r.frames[i]?.note ?? '',
   };

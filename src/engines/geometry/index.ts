@@ -6,7 +6,7 @@ import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type Chart, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
-import { drawMarks, fit, type View } from './draw';
+import { drawMarks, drawPacked, fit, type View } from './draw';
 import { DEFAULT_SHAPES, makeInput, SHAPE_LABELS } from './input';
 import { buildNow, Scaling, SLICE_MS, startBuild, type Build, type Request } from './build';
 import { record, type Box, type GeometryKernel } from './trace';
@@ -70,7 +70,7 @@ function drawPartial(p: p5, ctx: PlateContext, b: Build, v: (box: Box) => View):
   const part = b.partial();
   const view = v(part.view);
   drawMarks(p, ctx, view, part.base);
-  drawMarks(p, ctx, view, part.frame);
+  drawPacked(p, ctx, view, part.frame);
   return part.steps;
 }
 
@@ -90,6 +90,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
       let pending: Build | null = t ? null : startBuild(request(info, kernel, ctx.params, seedOf(), shapes), false);
       let at = 0;
       let hold = 0;
+      let stride = 1;
       const sizes = kernel.scaling ?? [];
       const scaling = new Scaling(kernel, sizes, shapeOf(ctx.params, shapes), ctx.seed, ctx.params);
       const primary = kernel.counters[0];
@@ -105,7 +106,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
             const deadline = performance.now() + SLICE_MS;
             if (pending) {
               pending.pump(deadline);
-              if (pending.track) { t = pending.track; pending = null; at = 0; hold = 0; }
+              if (pending.track) { t = pending.track; stride = pending.stride; pending = null; at = 0; hold = 0; }
             }
             if (t && !pending) {
               const last = t.length - 1;
@@ -114,7 +115,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
                 // the next input builds in the background (a worker when there is one, slices
                 // otherwise); the held frame stays on screen until it is ready
                 generation++;
-                pending = startBuild(request(info, kernel, ctx.params, seedOf(), shapes), true);
+                pending = startBuild({ ...request(info, kernel, ctx.params, seedOf(), shapes), stride }, true);
               }
             }
             scaling.pump(deadline);
@@ -125,9 +126,9 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
             return;
           }
           const v = fitIn(t.view);
-          drawMarks(p, ctx, v, t.base);
+          drawPacked(p, ctx, v, t.packedBase());
           const shown = Math.max(0, Math.min(at, t.length - 1));
-          drawMarks(p, ctx, v, t.marks(shown));
+          drawPacked(p, ctx, v, t.packed(shown));
           const counts = t.counts(shown);
           const done = shown >= t.length - 1;
           const rows: Stat[] = kernel.counters.map(([k, label]) => ({ label, value: fmt(counts[k] ?? 0) }));
@@ -177,6 +178,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
       type Pane = { info: KernelInfo; kernel: GeometryKernel; t: Track; at: number; finished: number };
       let panes: Pane[] = [];
       let builds: Build[] | null = null;
+      let strides: number[] = kernels.map(() => 1);
       let spent = 0;
       let finishedCount = 0;
       let hold = 0;
@@ -213,14 +215,14 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
             const deadline = performance.now() + SLICE_MS;
             if (builds) {
               for (const b of builds) if (!b.track) { b.pump(deadline); if (!b.track) break; }
-              if (builds.every((b) => b.track)) { start(builds.map((b) => b.track as Track)); builds = null; }
+              if (builds.every((b) => b.track)) { strides = builds.map((b) => b.stride); start(builds.map((b) => b.track as Track)); builds = null; }
             }
             if (panes.length && !builds) {
               spent += num(ctx.params, 'budget') * Math.max(1, num(ctx.params, 'n'));
               advance();
               if (panes.every((x) => x.finished) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
                 generation++;
-                builds = kernels.map((k) => startBuild(req(k), true));
+                builds = kernels.map((k, i) => startBuild({ ...req(k), stride: strides[i] }, true));
               }
             }
             curves.find((cv) => !cv.scaling.done)?.scaling.pump(deadline);
@@ -248,8 +250,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
             const fitIn = (box: Box) => fit(box, x, y + fs + 6, cw, ch - fs - 6);
             if (pane) {
               const v = fitIn(pane.t.view);
-              drawMarks(p, ctx, v, pane.t.base);
-              drawMarks(p, ctx, v, pane.t.marks(pane.at));
+              drawPacked(p, ctx, v, pane.t.packedBase());
+              drawPacked(p, ctx, v, pane.t.packed(pane.at));
             } else if (builds) drawPartial(p, ctx, builds[i], fitIn);
           });
           ctx.chart({
