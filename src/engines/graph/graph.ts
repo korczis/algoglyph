@@ -74,14 +74,21 @@ type Edge = [number, number, number];
 /** The longest task duration a vertex weight may have, unless the kernel's own control sets it. */
 export const MAX_DURATION = 9;
 
+/** The reasoning input's conclusion draws this many supports per claim below it, unless the
+ * kernel's own control sets it. */
+export const FAN_IN = 0.7;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
   maxDuration?: number;
+  /** The reasoning conclusion draws max(1, round(fanIn × claims below)) supports, with
+   * replacement; it is drawn last among the edges, so every edge below it stays as it was. */
+  fanIn?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
-export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration'];
+export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -300,6 +307,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
   input: GraphInput = {}): Graph {
   const rnd = mulberry32(seed);
   const longest = input.maxDuration ?? MAX_DURATION;
+  const fanIn = input.fanIn ?? FAN_IN;
   n = Math.max(2, Math.floor(n));
   switch (shape) {
     case 'geometric': case 'digraph': case 'signed': case 'negative-cycle': {
@@ -568,7 +576,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         const below = ids[ti - 1];
         ids[ti].forEach((v, i) => {
           const centre = Math.round(((i + 0.5) * below.length) / ids[ti].length - 0.5);
-          const k = ti === ids.length - 1 ? Math.max(1, Math.round(below.length * 0.7)) : int(rnd, 1, 3);
+          const k = ti === ids.length - 1 ? Math.max(1, Math.round(below.length * fanIn)) : int(rnd, 1, 3);
           for (let d = 0; d < k; d++) {
             const j = ti === ids.length - 1 ? Math.floor(rnd() * below.length)
               : Math.min(below.length - 1, Math.max(0, centre + int(rnd, -2, 2)));

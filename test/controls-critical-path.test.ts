@@ -12,7 +12,7 @@ import { ENTRIES } from '../src/core/catalogue';
 import type { Params, RangeParam } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
 import * as G from '../src/engines/graph';
-import { makeGraph, SHAPES, type Graph, type Shape } from '../src/engines/graph/graph';
+import { INPUT_KEYS, makeGraph, SHAPES, type Graph, type Shape } from '../src/engines/graph/graph';
 import { defaultParams, trace, type GraphKernel } from '../src/engines/graph/trace';
 import type { CpmResult } from '../src/kernels/graph/critical-path';
 import { read, type Claim } from './support/claims';
@@ -139,11 +139,14 @@ describe('the graph engine at the defaults is what it was before the control', (
   });
 
   it('every other graph kernel gets the default input, and traces the same', () => {
+    /** A kernel's own input controls at their defaults (transitive-support's fan-in, S4 C4). */
+    const own = (k: GraphKernel) => Object.fromEntries((k.params ?? [])
+      .filter((d) => (INPUT_KEYS as readonly string[]).includes(d.key)).map((d) => [d.key, d.value]));
     for (const e of live) {
       const k = kernelOf(e.id);
       const p = defaultParams(k);
       if (e.id === ID) { expect(inputOf(k, p)).toEqual({ maxDuration: 9 }); continue; }
-      expect(inputOf(k, p), e.id).toEqual({});
+      expect(inputOf(k, p), e.id).toEqual(own(k));
       for (const shape of k.inputs) {
         for (const n of [k.n?.min ?? 8, Math.min(k.n?.value ?? 60, 60)]) {
           const g = graphAt(shape, n, SEED, inputOf(k, p));
@@ -158,7 +161,9 @@ describe('the graph engine at the defaults is what it was before the control', (
   }, 120_000);
 
   it('every graph plate offers the same controls, the new one aside', () => {
-    const defs = live.map((e) => [e.id, plateOf(e.id).params.filter((d) => d.key !== KEY)]);
+    // every input control aside: each is checked by its own plate's controls test
+    const defs = live.map((e) => [e.id, plateOf(e.id).params
+      .filter((d) => !(INPUT_KEYS as readonly string[]).includes(d.key))]);
     expect(hash(defs)).toBe(CONTROLS);
   });
 
