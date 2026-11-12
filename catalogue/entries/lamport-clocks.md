@@ -13,6 +13,21 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: O(1) per event; one integer per message
 related:
   - vector-clocks
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Advance one counter per event and, on a receipt, jump one past the larger of the worker's own counter and the one the message carried.
+    - State the implication the timestamps keep, that a happened before b gives a smaller timestamp, and turn them into a total order every worker agrees on by breaking ties on worker number.
+    - Explain why the converse fails, so that a smaller timestamp says nothing about causality, and what telling concurrent events apart costs with vector clocks.
+claims:
+  - id: one-integer-per-message
+    statement: >-
+      A Lamport clock costs one integer per message: every send carries only the sender's
+      counter, so the clock integers carried equal the messages sent, an identity whose
+      difference is exactly 0.
+    readout: Clock integers carried
+    expect: { against: Messages, tolerance: 0 }
 ---
 
 A counter on every process, advanced past every message received: a total order consistent with causality.

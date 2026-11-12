@@ -16,6 +16,28 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: merge O(size of state); state grows with tombstones
 related:
   - anti-entropy
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+    - Merge a counter by taking the larger increment and decrement total per replica, and a set by unique add tags, so that an add the remover had not seen survives the remove.
+    - Explain why merges that are commutative, associative and idempotent end in the same state whatever the order of deliveries, with repeats.
+    - Read the divergence chart, which climbs while writes flow across a partition and drops to one state after writes stop and gossip crosses the healed partition.
+claims:
+  - id: counter-equals-the-sum-of-writes
+    statement: >-
+      Once converged, the counter equals the sum of all increments and decrements ever made: the
+      result line's first number (the counter) minus its second (the sum of writes) is exactly 0.
+    readout: Result
+    expect: { against: Result, against_number: 2, tolerance: 0 }
+  - id: converges-after-the-partition-heals
+    statement: >-
+      The replicas reach one state only after the partition heals: it cuts them from 1,800 to
+      3,600 ms (0.3 to 0.6 of the 6,000 ms run) while every replica writes until 3,300 ms at most
+      320 ms apart, so the two sides differ until 3,600 ms; they converge before the run ends at
+      6,000 ms.
+    readout: Converged at
+    expect: { range: [3600, 6000] }
 ---
 
 Replicas that accept writes during a partition and converge when it heals, by merge rules alone.

@@ -23,6 +23,9 @@ export const hashAvalanche: PlateCode = {
     { kind: 'range', key: 'trials', label: 'Trials per frame', min: 16, max: 1024, step: 16,
       value: 512 },
     { kind: 'range', key: 'gain', label: 'Gain around 1/2', min: 1, max: 40, step: 1, value: 8 },
+    // the run stops at this many trials and holds still, so its readouts settle (ADR 0007)
+    { kind: 'range', key: 'budget', label: 'Total trials, then stop', min: 16_384, max: 4_194_304,
+      step: 16_384, value: 262_144 },
     paletteParam('spectral'),
   ],
   create(p, ctx) {
@@ -52,7 +55,7 @@ export const hashAvalanche: PlateCode = {
       draw() {
         const f = FUNCTIONS[fn];
         const outWords = f.bits / 32;
-        const n = num(params, 'trials');
+        const n = Math.max(0, Math.min(num(params, 'trials'), num(params, 'budget') - trials));
         for (let t = 0; t < n; t++) {
           for (let i = 0; i < 8; i++) msg[i] = word();
           const bit = Math.floor(ctx.rnd() * 256);

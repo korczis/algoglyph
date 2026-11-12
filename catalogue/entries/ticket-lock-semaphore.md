@@ -12,6 +12,23 @@ tags:
   - fairness
 motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: O(1) per acquire; a waiter spins once per poll
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Build a ticket lock from two shared counters, a ticket drawn by fetch-and-increment and a serving counter polled until it shows that ticket, so that workers are served strictly in the order they drew tickets.
+    - Contrast it with a test-and-set lock, where whoever polls first after a release wins.
+    - Run a counting semaphore whose release hands the slot straight to the head of the queue, or returns it when nobody waits, so that slots in use never exceed the count.
+claims:
+  - id: slots-never-exceed-the-count
+    statement: >-
+      Slots in use never exceed the semaphore's count: with 2 slots, the most slot holds that
+      overlap at one instant, recounted from every hold's grant and release in the result line
+      (its first number), is at most 2.
+    readout: Result
+    expect: { range: [0, 2] }
+    setup:
+      params: { slots: 2 }
 ---
 
 First come first served for one holder, and a fixed number of slots for heavy work.

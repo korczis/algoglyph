@@ -16,6 +16,31 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: O(n) messages per election round for n nodes
 related:
   - lease-fencing
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+    - Trace an election, a timeout into a new term, a vote for itself and requests to every node, where a node grants one vote per term and only to a candidate whose log is at least as up to date as its own, and a majority makes a leader.
+    - Derive election safety, at most one leader in any term, from one vote per node per term and majorities intersecting.
+    - Tell the two ways an election fails apart, a split vote that the next randomised timeout breaks and a candidate cut off on the minority side that cannot win at all.
+algorithm:
+  paradigm: randomized
+claims:
+  - id: one-leader-per-term
+    statement: >-
+      At most one leader is elected in any term. The result line's first number counts the terms
+      that elected a leader; with one leader per term it equals the leaders elected, an identity
+      whose difference is exactly 0 (a term with two leaders would make the result line count
+      those terms instead).
+    readout: Result
+    expect: { against: Leaders elected, tolerance: 0 }
+  - id: split-votes-fewer-than-elected-terms
+    statement: >-
+      With message loss and a partition mid-run, the randomised timeouts keep the terms lost to a
+      split vote fewer than the terms that elect a leader: split votes minus leaders elected below
+      0, a one-sided claim, since the note predicts the direction, not the size.
+    readout: Terms lost to a split vote
+    expect: { against: Leaders elected, below: 0 }
 ---
 
 Randomised timeouts, terms and votes until one leader holds a majority.

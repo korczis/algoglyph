@@ -15,6 +15,32 @@ complexity: O(n² + e) for n tasks and e precedence edges; no guarantee of optim
 related:
   - critical-path
   - kahn-waves
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+    - critical-path
+  objectives:
+    - Start ready tasks at time zero and at every completion, from the highest bottom level down, each one that fits in the units still free, so that a small task can overtake a large one waiting for room.
+    - Frame the makespan by two lower bounds, the critical path and the total work divided by the number of units.
+    - Explain why list scheduling is a heuristic that can miss the optimum, which is NP-hard to find with resource limits.
+algorithm:
+  paradigm: greedy
+claims:
+  - id: makespan-at-least-both-bounds
+    statement: >-
+      No schedule beats the larger of the critical path and the total work divided by the units,
+      which the result line reports rounded to the millisecond (its third number): the makespan
+      minus that bound is at least 0, and since both are whole milliseconds, above −1.
+    readout: Makespan
+    expect: { against: Result, against_number: 3, above: -1 }
+  - id: work-bound
+    statement: >-
+      The utilisation is the total work divided by the units times the makespan, so the bound
+      that the makespan is at least the work divided by the units is a utilisation of at most
+      100%.
+    readout: Utilisation
+    expect: { range: [0, 100] }
 ---
 
 Tasks start in priority order when their predecessors are done and a resource is free.
