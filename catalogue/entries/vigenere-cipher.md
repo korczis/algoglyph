@@ -53,6 +53,6 @@ claims:
 
 A repeating keyword shifts each letter; the key's length falls out of repeated fragments.
 
-The first rows encrypt: each plaintext letter is shifted by the key letter under it. The attack then reads only the ciphertext. The repeat distances are the gaps between repeated trigrams (Kasiski's test); the chart plots the mean index of coincidence of the columns i mod L for every candidate length L up to the longest key tried (16 unless the control shortens it, and never more than n/4), which rises from about 0.04 for shuffled letters towards the value of English when L is a multiple of the key's length. The smallest L within 90% of the best is taken.
+The first rows encrypt: each plaintext letter is shifted by the key letter under it. The attack then reads only the ciphertext. The repeat distances are the gaps between repeated trigrams (Kasiski's test); the chart plots the mean index of coincidence of the columns i mod L for every candidate length L up to the longest key tried (16 unless the control shortens it, and never more than n/4), which rises from about 0.04 for shuffled letters towards the value of English when L is a multiple of the key's length. The smallest L within 90% of the best is taken; the share control moves that 90% between half and all of it.
 
 Each column is then a Caesar cipher: the shift whose letter counts are closest, by chi-squared, to English letter frequencies gives one key letter. The Correct readout compares the recovered key with the one used.

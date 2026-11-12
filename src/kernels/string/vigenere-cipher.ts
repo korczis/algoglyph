@@ -11,7 +11,7 @@ const MAX_KEY = 16;
 // Kasiski's distances between repeated trigrams hint at multiples of L; for every candidate L
 // up to the longest key tried (16 by default, and no more than n/4) the columns i mod L are each
 // a Caesar cipher, so their mean index of coincidence rises to that of English at the true
-// length (the smallest L within 90% of the best is taken). Each column's shift is the one whose
+// length (the smallest L within a share of the best is taken, 90% by default). Each column's shift is the one whose
 // letter counts are closest, by chi-squared, to English.
 export const kernel: StringKernel<'cipher', { ciphertext: string; length: number; key: string }> = {
   input: 'cipher',
@@ -19,9 +19,11 @@ export const kernel: StringKernel<'cipher', { ciphertext: string; length: number
   chart: { title: 'Index of coincidence by key length', x: 'candidate key length', y: 'mean index of coincidence' },
   params: [
     { kind: 'range', key: 'lmax', label: 'Longest key tried', min: 2, max: MAX_KEY, step: 1, value: MAX_KEY, rebuild: true },
+    { kind: 'range', key: 'within', label: 'Take L within (share of best)', min: 0.5, max: 1, step: 0.05, value: 0.9, rebuild: true },
   ],
   *run(ops, { plaintext, key }, params) {
     const lmax = Math.min(MAX_KEY, Math.max(2, Number(params.lmax ?? MAX_KEY) || MAX_KEY));
+    const within = Math.min(1, Math.max(0.5, Number(params.within ?? 0.9) || 0.9));
     const n = plaintext.length; const L0 = key.length;
     ops.row('pt', [...plaintext], { label: 'Plaintext' });
     ops.row('key', Array.from({ length: n }, (_, i) => key[i % L0]), { label: 'Key', align: 'pt' });
@@ -67,7 +69,7 @@ export const kernel: StringKernel<'cipher', { ciphertext: string; length: number
       ops.note(`key length ${L}: mean index of coincidence ${(s / L).toFixed(4)}`);
     }
     const best = Math.max(...ioc);
-    const length = ioc.findIndex((v, L) => L > 0 && v >= 0.9 * best);
+    const length = ioc.findIndex((v, L) => L > 0 && v >= within * best);
     ops.stat('Key length found', String(length));
     const kas = factors.reduce((b, v, f) => (v > factors[b] ? f : b), 2);
     ops.stat('Commonest Kasiski factor', dist.length ? String(kas) : 'no repeats');
