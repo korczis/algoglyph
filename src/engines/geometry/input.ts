@@ -169,12 +169,20 @@ export function segments(shape: string, n: number, rnd: () => number): Seg[] {
   return out;
 }
 
-/** n horizontal and vertical segments with real coordinates, so no two share an x or a y. */
-export function orthogonal(n: number, rnd: () => number): Seg[] {
+/** Whether segment i of an orthogonal set with `pct` % horizontals is horizontal: when the
+ * running quota ⌈i · s⌉ steps up, s = pct / 100, so the first n segments hold exactly ⌈n · s⌉
+ * horizontals, spread evenly (at 50 % the even i). Integer percents keep the quotients exact. */
+export function isHorizontal(i: number, pct: number): boolean {
+  return Math.ceil(((i + 1) * pct) / 100) > Math.ceil((i * pct) / 100);
+}
+
+/** n horizontal and vertical segments with real coordinates, so no two share an x or a y;
+ * `pct` % of them horizontal (isHorizontal). Both kinds draw three numbers each. */
+export function orthogonal(n: number, rnd: () => number, pct = 50): Seg[] {
   const out: Seg[] = [];
   for (let i = 0; i < n; i++) {
     const len = 60 + rnd() * 480;
-    if (i % 2 === 0) {
+    if (isHorizontal(i, pct)) {
       const x = M + rnd() * (W - 2 * M - len);
       const y = M + rnd() * (H - 2 * M);
       out.push({ a: { x, y }, b: { x: x + len, y } });
@@ -258,13 +266,14 @@ const empty = (kind: InputKind, shape: string, n: number): Input => ({
 });
 
 /** The seeded input of a kind and shape; `params` may carry `q` (query size, % of the box),
- * `m` (polygon vertices), `aisles` and `spread` (firm size spread σ). */
+ * `m` (polygon vertices), `aisles`, `spread` (firm size spread σ) and `horiz` (horizontal
+ * share of an orthogonal set, %). */
 export function makeInput(kind: InputKind, shape: string, n: number, seed: number, params: Params = {}): Input {
   const rnd = mulberry32(seed);
   const inp = empty(kind, shape, n);
   if (kind === 'points') inp.points = points(shape, n, rnd);
   else if (kind === 'segments') inp.segments = segments(shape, n, rnd);
-  else if (kind === 'orthogonal') inp.segments = orthogonal(n, rnd);
+  else if (kind === 'orthogonal') inp.segments = orthogonal(n, rnd, Number(params.horiz ?? 50));
   else if (kind === 'polygon') {
     inp.polygon = polygon(shape, Number(params.m ?? 24), rnd);
     inp.points = points('uniform', n, rnd);
