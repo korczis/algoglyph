@@ -243,6 +243,30 @@ describe('split-step Schrödinger integrator', () => {
     expect(a.steps).toBe(3);
   });
 
+  it('never leaves ψ in subnormal floats, however far it decays', () => {
+    // subnormals are what x86 computes one to two orders of magnitude slower; a narrow packet's
+    // tails start there, and a state the edges have swallowed decays towards them
+    const normalOrZero = (w: Wave) => {
+      for (const arr of [w.re, w.im]) {
+        for (const v of arr) if (v !== 0 && Math.abs(v) < 2.2250738585072014e-308) return false;
+      }
+      return true;
+    };
+    const w = new Wave({ n: 2048, dx: 0.1, dt: 0.0125, absorb: 240 }, potential('step', 4, 1, 0.1));
+    w.gaussian(-12, 3, 2);
+    expect(normalOrZero(w)).toBe(true);
+    // scale the state down to the edge of the subnormal range and keep stepping it
+    for (let i = 0; i < w.re.length; i++) {
+      w.re[i] *= 1e-300;
+      w.im[i] *= 1e-300;
+    }
+    for (let s = 0; s < 20; s++) {
+      w.step(1);
+      expect(normalOrZero(w)).toBe(true);
+    }
+    expect(w.norm()).toBe(0);
+  });
+
   it('is deterministic: the same set-up gives bit-identical states', () => {
     const run = () => {
       const pot = potential('double', 1.2, 1, 0.1);

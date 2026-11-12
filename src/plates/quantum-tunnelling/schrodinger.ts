@@ -2,6 +2,7 @@
 // 1D grid, advanced by the split-step Fourier method (Strang splitting): half a potential
 // phase, the exact kinetic phase in k-space, half a potential phase. The FFT is a radix-2
 // Cooley–Tukey transform written here; plane-wave transmission comes from transfer matrices.
+import { flush, TINY } from '../../core/budget';
 
 /** In-place radix-2 FFT of one power-of-two length, with its tables computed once. */
 export class Fft {
@@ -281,7 +282,7 @@ export class Wave {
   gaussian(x0: number, k0: number, sigma: number): void {
     for (let i = 0; i < this.spec.n; i++) {
       const d = this.x[i] - x0;
-      const a = Math.exp(-(d * d) / (4 * sigma * sigma));
+      const a = flush(Math.exp(-(d * d) / (4 * sigma * sigma)));
       this.re[i] = a * Math.cos(k0 * this.x[i]);
       this.im[i] = a * Math.sin(k0 * this.x[i]);
     }
@@ -334,16 +335,22 @@ export class Wave {
           const b = n - 1 - j;
           left += (re[a] * re[a] + im[a] * im[a]) * loss;
           right += (re[b] * re[b] + im[b] * im[b]) * loss;
-          re[a] *= m;
-          im[a] *= m;
-          re[b] *= m;
-          im[b] *= m;
+          re[a] = flush(re[a] * m);
+          im[a] = flush(im[a] * m);
+          re[b] = flush(re[b] * m);
+          im[b] = flush(im[b] * m);
         }
         this.absorbedLeft += left * dx;
         this.absorbedRight += right * dx;
       }
       this.t += this.spec.dt;
       this.steps++;
+    }
+    // what has decayed below TINY anywhere (tails, a state the edges have all but swallowed) is
+    // zero, so the FFT never runs on subnormal floats
+    for (let i = 0; i < n; i++) {
+      if (re[i] < TINY && re[i] > -TINY) re[i] = 0;
+      if (im[i] < TINY && im[i] > -TINY) im[i] = 0;
     }
   }
 
