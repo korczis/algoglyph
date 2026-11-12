@@ -157,7 +157,10 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
     if (!(e instanceof Stop)) throw e;
     truncated = true;
   }
-  return { events: buf, length: len, counts, input: input.slice(), output: a, k, truncated, auxN: aux.length };
+  // the buffer grew by doubling: keep only what the run filled, since a lab holds a trace per
+  // kernel for two generations at once
+  const events = buf.length > 3 * len + 3 * 4096 ? buf.slice(0, 3 * len) : buf;
+  return { events, length: len, counts, input: input.slice(), output: a, k, truncated, auxN: aux.length };
 }
 
 export const SHAPES = ['random', 'nearly-sorted', 'reversed', 'few-unique', 'organ-pipe', 'sorted'] as const;

@@ -9,6 +9,12 @@ import { apply, input, inversions, OP, SHAPE_LABELS, SHAPES, trace, type ArrayKe
   type Trace } from './trace';
 
 const SCALING_N = [16, 32, 64, 128, 256, 512];
+/**
+ * Operations a lab replays per frame across all its panes, at most: a counted bound beside the
+ * per-pane speed, so a lab of many kernels at full speed does a phone's frame of work, not one
+ * per kernel. Every pane gets the same share, so the race stays fair.
+ */
+export const LAB_OPS_PER_FRAME = 24000;
 /** The sizes a kernel's growth is measured at: none past its own bound (ArrayKernel.maxN). */
 const scalingN = (kernel: ArrayKernel) => SCALING_N.filter((n) => n <= (kernel.maxN ?? MAX_N));
 const HOLD_FRAMES = 90;
@@ -286,15 +292,17 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         }
       };
       let pending: [number, number][] = [];
-      const measure = () => {
+      /** Measure the next scaling point; true if one was traced. */
+      const measure = (): boolean => {
         const next = pending.shift();
-        if (!next) return;
+        if (!next) return false;
         const [ci, n] = next;
         const k = chosen()[ci];
-        if (!k) return;
+        if (!k) return false;
         const t = trace(k.kernel, input(str(ctx.params, 'shape') as Shape, n, ctx.seed + n), Math.floor(n / 2));
         curves[ci].pts.push([n, t.truncated ? NaN : total(t)]);
         curves[ci].slope = exponent(curves[ci].pts);
+        return true;
       };
       // a thumbnail is one picture: traced at once; a live lab traces one kernel per frame
       build(ctx.thumbnail);
@@ -305,10 +313,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
-          // at most one trace per frame: an incoming pane, else one scaling point
-          if (!ctx.thumbnail && !buildOne()) measure();
-          const steps = num(ctx.params, 'speed');
-          if (!ctx.thumbnail && !incoming) {
+          // at most one trace per frame: an incoming pane, else one scaling point; a frame that
+          // traced replays nothing, so the trace is its only heavy work
+          const traced = !ctx.thumbnail && (buildOne() || measure());
+          const steps = Math.max(1, Math.min(num(ctx.params, 'speed'), Math.floor(LAB_OPS_PER_FRAME / Math.max(1, panes.length))));
+          if (!ctx.thumbnail && !incoming && !traced) {
             for (const pane of panes) {
               if (!pane.r.done) {
                 pane.r.advance(steps);
