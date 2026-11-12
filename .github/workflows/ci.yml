@@ -74,11 +74,13 @@ jobs:
   validate:
     name: Validate and build
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
-    # Measured: run 43083820780 (19 plates, lundra-algoglyph) took 1311 s, of which the browser
-    # gate waited for every thumbnail in all four theme/width contexts. The gate now waits for
-    # thumbnails only at desktop width; 45 min keeps twice the measured time as margin and stops
-    # a hung browser long before the 6 h default.
-    timeout-minutes: 45
+    # The job grows with the live plates: the budget gate and the browser gate visit every one.
+    # Measured on lundra-algoglyph: run 43083820780 (19 plates) 1311 s; run 43156574615 (257 plates)
+    # 35 min; run 43161482405 (322 plates) passed every step and was cut at the old 45 min bound
+    # 46 min in, uploading screenshots (budget gate 18 min, browser gate 21 min). 90 min keeps
+    # about twice the latest measurement, room for the entries still planned, and still stops
+    # a hung browser long before the 6 h default. Re-measure when the catalogue grows again.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
