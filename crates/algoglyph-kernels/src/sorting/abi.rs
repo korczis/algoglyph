@@ -9,14 +9,17 @@
 //!   ag_sort_meta(k) -> u32                       stable(0 yes,1 no,2 variant) | in_place<<2 | kind<<3
 //!   ag_sort_version() -> u32                     crate version, major<<16 | minor<<8 | patch
 //!   ag_sort_fingerprint() -> f64                 the sources' FNV-1a, top 53 bits
-//!   ag_sort_input(n) -> *i32                     room for n keys (tags are the positions)
-//!   ag_sort_edges(m) -> *u32                     room for m arcs (u, v) of topological sort
+//!   ag_sort_abi() -> u32                         ABI_VERSION: the layout of everything below
+//!   ag_sort_max_n() -> u32, ag_sort_max_edges()  the largest input and arc list accepted
+//!   ag_sort_input(n) -> *i32                     room for n keys (tags are the positions);
+//!                                                null when n > MAX_N
+//!   ag_sort_edges(m) -> *u32                     room for m arcs (u, v) of topological sort;
+//!                                                null when m > MAX_EDGES
 //!   ag_sort_run(k, n, m, seed_hi, seed_lo, base, kp, max_steps, trace) -> i32
 //!                                                outcome code (0 sorted, 1 truncated,
 //!                                                2 not a sort, 3 unsupported), -1 bad call
 //!   ag_sort_result() -> *f64                     RESULT_LEN values, see RESULT below
 //!   ag_sort_steps() -> *i32                      steps * 3 words (prelude::op)
-//!   ag_sort_pool() -> *i32                       the keys of every aux snapshot
 //!   ag_sort_output() -> *i32, ag_sort_output_tags() -> *u32
 //!   ag_sort_strings() -> *u8, ag_sort_string_ends() -> *u32   interned labels, end offsets
 //!   ag_sort_note() -> *u8                        the outcome's note (length in RESULT)
@@ -24,11 +27,13 @@
 //!   ag_sort_scenario(k) -> f64                   the fixture checksum, top 53 bits
 //! ```
 use crate::sorting::prelude::*;
-use crate::sorting::{run_entry, scenario_checksum, FINGERPRINT, MAX_N, REGISTRY, VERSION};
+use crate::sorting::{
+    run_entry, scenario_checksum, ABI_VERSION, FINGERPRINT, MAX_EDGES, MAX_N, REGISTRY, VERSION,
+};
 use std::cell::RefCell;
 
 /// `ag_sort_result()` layout: cmp, swap, write, read, aux peak, rounds, steps recorded,
-/// truncated (0/1), outcome code, output length, pool length, strings, note length,
+/// truncated (0/1), outcome code, output length, auxiliary writes, strings, note length,
 /// steps counted (recorded or not).
 pub const RESULT_LEN: usize = 14;
 
@@ -38,7 +43,6 @@ struct State {
     edges: Vec<u32>,
     result: [f64; RESULT_LEN],
     steps: Vec<i32>,
-    pool: Vec<i32>,
     output: Vec<i32>,
     tags: Vec<u32>,
     strings: Vec<u8>,
@@ -97,19 +101,43 @@ pub extern "C" fn ag_sort_fingerprint() -> f64 {
 }
 
 #[no_mangle]
+pub extern "C" fn ag_sort_abi() -> u32 {
+    ABI_VERSION
+}
+
+#[no_mangle]
+pub extern "C" fn ag_sort_max_n() -> u32 {
+    MAX_N as u32
+}
+
+#[no_mangle]
+pub extern "C" fn ag_sort_max_edges() -> u32 {
+    MAX_EDGES as u32
+}
+
+/// Room for `n` keys, or null (and no buffer) when `n` exceeds [`MAX_N`]: the caller writes
+/// exactly `n` words, so the buffer is never smaller than asked.
+#[no_mangle]
 pub extern "C" fn ag_sort_input(n: u32) -> *mut i32 {
     with(|s| {
         s.input.clear();
-        s.input.resize((n as usize).min(MAX_N), 0);
+        if n as usize > MAX_N {
+            return core::ptr::null_mut();
+        }
+        s.input.resize(n as usize, 0);
         s.input.as_mut_ptr()
     })
 }
 
+/// Room for `m` arcs, or null when `m` exceeds [`MAX_EDGES`].
 #[no_mangle]
 pub extern "C" fn ag_sort_edges(m: u32) -> *mut u32 {
     with(|s| {
         s.edges.clear();
-        s.edges.resize(2 * (m as usize).min(4 * MAX_N), 0);
+        if m as usize > MAX_EDGES {
+            return core::ptr::null_mut();
+        }
+        s.edges.resize(2 * m as usize, 0);
         s.edges.as_mut_ptr()
     })
 }
@@ -155,7 +183,7 @@ pub extern "C" fn ag_sort_run(
         let run = run_entry(entry, input, &opt);
         let c = run.counts;
         let (recorded, counted) = (run.tracer.recorded(), run.tracer.step_count());
-        let (words, pool, strings) = run.tracer.into_buffers();
+        let (words, strings) = run.tracer.into_buffers();
         s.strings.clear();
         s.ends.clear();
         for text in &strings {
@@ -176,13 +204,12 @@ pub extern "C" fn ag_sort_run(
             run.truncated as u32 as f64,
             run.outcome.code() as f64,
             s.output.len() as f64,
-            pool.len() as f64,
+            c.aux_writes as f64,
             s.ends.len() as f64,
             s.note.len() as f64,
             counted as f64,
         ];
         s.steps = words;
-        s.pool = pool;
         run.outcome.code() as i32
     })
 }
@@ -195,11 +222,6 @@ pub extern "C" fn ag_sort_result() -> *const f64 {
 #[no_mangle]
 pub extern "C" fn ag_sort_steps() -> *const i32 {
     with(|s| s.steps.as_ptr())
-}
-
-#[no_mangle]
-pub extern "C" fn ag_sort_pool() -> *const i32 {
-    with(|s| s.pool.as_ptr())
 }
 
 #[no_mangle]

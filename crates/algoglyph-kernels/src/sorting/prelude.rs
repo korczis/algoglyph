@@ -1,4 +1,4 @@
-//! The plugin prelude, ported from the trideni crate of the Atlas třídicích algoritmů.
+//! The plugin prelude, ported from the sorting atlas's engine crate (trideni).
 //!
 //! A plugin is one file `src/sorting/algorithms/<slug_snake>.rs`:
 //!
@@ -17,13 +17,19 @@
 //!
 //! The array is mutated only through the [`Tracer`] (`swap`, `set`), so replaying the trace
 //! on the input reproduces the output. Auxiliary structures (buckets, heaps, runs, tapes,
-//! buffers) are shown with [`Tracer::aux`]; the tracer measures their peak size, which is the
-//! `aux` count of a run. Rules for plugin authors:
+//! buffers) are shown with [`Tracer::aux`] (or [`Tracer::aux_cells`] for a structure with
+//! gaps); the tracer measures their peak size, which is the `aux` count of a run, and the keys
+//! stored into them, which is its `aux_writes` count. Rules for plugin authors:
 //!
 //! - compare through `cmp` / `cmp_items` / `cmp_at`, write through `swap` / `set`, fetch
 //!   values you keep through `read`, so the counters mean what they say;
-//! - call `aux(name, items)` whenever an auxiliary structure changes in a way worth seeing,
-//!   and `aux(name, &[])` (or `aux_clear`) when it is released;
+//! - call `aux(name, items)` whenever an auxiliary structure changes, with its cells in their
+//!   own positions (`aux_cells` with `None` for an empty cell), and `aux(name, &[])` (or
+//!   `aux_clear`) when it is released. The tracer compares every cell with the one before:
+//!   each cell that now holds a different element is one auxiliary write, recorded as its own
+//!   step (`aux_writes`); a cell that is emptied, or a released structure, writes nothing.
+//!   A snapshot that compacts a structure (drops its gaps, or shows a moving window) counts
+//!   every shifted key as written, so show a structure as it is laid out;
 //! - a terminating algorithm may ignore `ok()`: the tracer stops recording at the step limit
 //!   and reports `truncated`, the counts stay exact; an algorithm that may not terminate
 //!   (joke sorts) must poll `ok()` and return `Outcome::Truncated`;
@@ -32,9 +38,10 @@
 //!   count is inferred from lanes: a round ends when a lane already used in it is set again.
 //!
 //! What changed in the port: the trace is recorded as typed words, three `i32` per step
-//! ([`STRIDE`]), with auxiliary snapshots in a key pool and labels in an interned string
-//! table, which is what the C ABI hands to the browser without any serialisation. The
-//! [`Step`] enum survives as the decoded view the tests read ([`Tracer::steps`]).
+//! ([`STRIDE`]), with labels in an interned string table, which is what the C ABI hands to the
+//! browser without any serialisation. An auxiliary snapshot is recorded as the cell writes it
+//! amounts to, one step each, so the browser replays exactly the writes the tracer counts.
+//! The [`Step`] enum survives as the decoded view the tests read ([`Tracer::steps`]).
 use std::cell::OnceCell;
 use std::collections::HashMap;
 
@@ -180,8 +187,6 @@ pub struct Entry {
 pub const DEFAULT_MAX_STEPS_TRACE: u32 = 200_000;
 /// Default step limit in count-only mode (`trace = false`).
 pub const DEFAULT_MAX_STEPS_COUNT: u32 = 50_000_000;
-/// The recorded trace holds at most this many keys of `aux` snapshots in total.
-pub const AUX_KEY_BUDGET: u64 = 2_000_000;
 
 /// Request options. Every field has a default; `0` in `base`, `k` and `max_steps` means
 /// "the algorithm's (or engine's) own default".
@@ -277,6 +282,8 @@ pub struct Counts {
     pub read: u64,
     /// Peak number of items held in auxiliary structures at the same time.
     pub aux: u64,
+    /// Keys stored into auxiliary cells (each cell that came to hold a different element).
+    pub aux_writes: u64,
     /// Parallel rounds / network depth; 0 for a sequential algorithm.
     pub rounds: u64,
 }
@@ -298,8 +305,8 @@ pub mod op {
     pub const READ: i32 = 4;
     /// Range `[from, to)`: w0 = op | from<<8, w1 = to, w2 = label string id.
     pub const MARK: i32 = 5;
-    /// Snapshot: w0 = op | name string id<<8, w1 = pool offset, w2 = number of keys.
-    pub const AUX: i32 = 6;
+    /// One auxiliary write: w0 = op | structure name string id<<8, w1 = cell, w2 = key.
+    pub const AUXW: i32 = 6;
     /// w0 = op | text string id<<8.
     pub const PHASE: i32 = 7;
     /// w1 = lane.
@@ -342,10 +349,11 @@ pub enum Step {
         to: u32,
         label: String,
     },
-    /// Snapshot of an auxiliary structure (its keys, in its own order).
-    Aux {
+    /// Cell `i` of the auxiliary structure `name` now holds `key`.
+    AuxWrite {
         name: String,
-        keys: Vec<i32>,
+        i: u32,
+        key: i32,
     },
     Phase {
         text: String,
@@ -372,12 +380,10 @@ pub struct Tracer {
     recording: bool,
     max_steps: u64,
     words: Vec<i32>,
-    pool: Vec<i32>,
     strings: Vec<String>,
     string_ids: HashMap<String, u32>,
     decoded: OnceCell<Vec<Step>>,
     n_steps: u64,
-    aux_keys: u64,
     truncated: bool,
     counts: Counts,
     rng: SplitMix64,
@@ -386,7 +392,10 @@ pub struct Tracer {
     lanes_used: bool,
     inferred_rounds: u64,
     explicit_rounds: u64,
-    aux_sizes: Vec<(String, usize)>,
+    /// Every auxiliary structure's cells as last shown (key and tag), by its name's string id.
+    aux_cells: HashMap<u32, Vec<Option<(i32, u32)>>>,
+    aux_live: HashMap<u32, usize>,
+    aux_writes: u64,
     aux_now: usize,
     aux_peak: usize,
 }
@@ -397,12 +406,10 @@ impl Tracer {
             recording: opt.trace,
             max_steps: opt.step_limit(),
             words: Vec::new(),
-            pool: Vec::new(),
             strings: Vec::new(),
             string_ids: HashMap::new(),
             decoded: OnceCell::new(),
             n_steps: 0,
-            aux_keys: 0,
             truncated: false,
             counts: Counts::default(),
             rng: SplitMix64::new(opt.seed),
@@ -411,7 +418,9 @@ impl Tracer {
             lanes_used: false,
             inferred_rounds: 0,
             explicit_rounds: 0,
-            aux_sizes: Vec::new(),
+            aux_cells: HashMap::new(),
+            aux_live: HashMap::new(),
+            aux_writes: 0,
             aux_now: 0,
             aux_peak: 0,
         }
@@ -419,10 +428,9 @@ impl Tracer {
 
     /// Counts one step; true when it is to be recorded.
     #[inline]
-    fn tick(&mut self, aux_len: usize) -> bool {
+    fn tick(&mut self) -> bool {
         self.n_steps += 1;
-        self.aux_keys += aux_len as u64;
-        if self.n_steps > self.max_steps || self.aux_keys > AUX_KEY_BUDGET {
+        if self.n_steps > self.max_steps {
             self.truncated = true;
             return false;
         }
@@ -451,7 +459,7 @@ impl Tracer {
     pub fn cmp(&mut self, v: &[Item], i: usize, j: usize) -> Ordering {
         let r = v[i].key.cmp(&v[j].key);
         self.counts.cmp += 1;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::CMP | (ord_bits(r) << 4), i as u32, j as i32, 0);
         }
         r
@@ -468,7 +476,7 @@ impl Tracer {
     pub fn cmp_items(&mut self, a: &Item, b: &Item) -> Ordering {
         let r = a.key.cmp(&b.key);
         self.counts.cmp += 1;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::CMPV | (ord_bits(r) << 4), 0, a.key, b.key);
         }
         r
@@ -479,7 +487,7 @@ impl Tracer {
     pub fn cmp_at(&mut self, x: &Item, v: &[Item], j: usize) -> Ordering {
         let r = x.key.cmp(&v[j].key);
         self.counts.cmp += 1;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::CMPV | (ord_bits(r) << 4), j as u32 + 1, x.key, v[j].key);
         }
         r
@@ -489,7 +497,7 @@ impl Tracer {
     pub fn swap(&mut self, v: &mut [Item], i: usize, j: usize) {
         v.swap(i, j);
         self.counts.swap += 1;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::SWAP, i as u32, j as i32, 0);
         }
     }
@@ -498,7 +506,7 @@ impl Tracer {
     pub fn set(&mut self, v: &mut [Item], i: usize, item: Item) {
         v[i] = item;
         self.counts.write += 1;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::SET, i as u32, item.key, item.tag as i32);
         }
     }
@@ -506,7 +514,7 @@ impl Tracer {
     #[inline]
     pub fn read(&mut self, v: &[Item], i: usize) -> Item {
         self.counts.read += 1;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::READ, i as u32, 0, 0);
         }
         v[i]
@@ -514,39 +522,69 @@ impl Tracer {
 
     /// Highlights the range `[from, to)` with a label (run, partition, bucket, …).
     pub fn mark(&mut self, from: usize, to: usize, label: &str) {
-        if self.tick(0) {
+        if self.tick() {
             let id = self.intern(label) as i32;
             self.push(op::MARK, from as u32, to as i32, id);
         }
     }
 
-    /// Snapshot of the auxiliary structure `name`; its current size counts towards the
-    /// `aux` peak until it is replaced or cleared with an empty slice.
+    /// The auxiliary structure `name` as it is now: its items in their cells, in its own
+    /// order. Its size counts towards the `aux` peak until it is replaced or cleared with an
+    /// empty slice; every cell that now holds a different element (key and tag) is one
+    /// auxiliary write.
     pub fn aux(&mut self, name: &str, items: &[Item]) {
-        let len = items.len();
-        match self.aux_sizes.iter_mut().find(|(n, _)| n == name) {
-            Some(entry) => {
-                self.aux_now = self.aux_now - entry.1 + len;
-                entry.1 = len;
+        self.aux_update(
+            name,
+            items.len(),
+            items.iter().map(|x| Some((x.key, x.tag))),
+        );
+    }
+
+    /// The auxiliary structure `name` cell by cell, `None` for an empty cell (a gapped array,
+    /// a tree with absent nodes, a buffer of which only a range is occupied).
+    pub fn aux_cells(&mut self, name: &str, cells: &[Option<Item>]) {
+        self.aux_update(
+            name,
+            cells.len(),
+            cells.iter().map(|c| c.map(|x| (x.key, x.tag))),
+        );
+    }
+
+    fn aux_update(
+        &mut self,
+        name: &str,
+        len: usize,
+        cells: impl Iterator<Item = Option<(i32, u32)>>,
+    ) {
+        let id = self.intern(name);
+        let mut old = self.aux_cells.remove(&id).unwrap_or_default();
+        let mut live = 0usize;
+        for (i, c) in cells.enumerate() {
+            if i >= old.len() {
+                old.push(None);
             }
-            None => {
-                if len > 0 {
-                    self.aux_sizes.push((name.to_string(), len));
-                    self.aux_now += len;
+            if let Some((key, tag)) = c {
+                live += 1;
+                // the element (key and tag), not the key: a copy of an equal key is a write
+                if old[i] != Some((key, tag)) {
+                    self.aux_writes += 1;
+                    if self.tick() {
+                        self.push(op::AUXW, id, i as i32, key);
+                    }
                 }
             }
+            old[i] = c;
         }
-        if len == 0 {
-            self.aux_sizes.retain(|(n, s)| !(n == name && *s == 0));
-        }
+        old.truncate(len);
+        let before = self.aux_live.insert(id, live).unwrap_or(0);
+        self.aux_now = self.aux_now - before + live;
         if self.aux_now > self.aux_peak {
             self.aux_peak = self.aux_now;
         }
-        if self.tick(len) {
-            let id = self.intern(name);
-            let at = self.pool.len() as i32;
-            self.pool.extend(items.iter().map(|x| x.key));
-            self.push(op::AUX, id, at, len as i32);
+        if len > 0 {
+            self.aux_cells.insert(id, old);
+        } else {
+            self.aux_live.remove(&id);
         }
     }
 
@@ -556,7 +594,7 @@ impl Tracer {
     }
 
     pub fn phase(&mut self, text: &str) {
-        if self.tick(0) {
+        if self.tick() {
             let id = self.intern(text);
             self.push(op::PHASE, id, 0, 0);
         }
@@ -578,7 +616,7 @@ impl Tracer {
         }
         self.lanes_in_round[word] |= bit;
         self.lane = lane;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::LANE, 0, lane as i32, 0);
         }
     }
@@ -592,7 +630,7 @@ impl Tracer {
     pub fn round(&mut self) {
         self.explicit_rounds += 1;
         let n = self.explicit_rounds;
-        if self.tick(0) {
+        if self.tick() {
             self.push(op::ROUND, 0, n as i32, 0);
         }
     }
@@ -628,6 +666,7 @@ impl Tracer {
     pub fn counts(&self) -> Counts {
         let mut c = self.counts;
         c.aux = self.aux_peak as u64;
+        c.aux_writes = self.aux_writes;
         c.rounds = if self.explicit_rounds > 0 {
             self.explicit_rounds
         } else {
@@ -639,11 +678,6 @@ impl Tracer {
     /// The recorded steps as typed words, [`STRIDE`] per step (codes in [`op`]).
     pub fn words(&self) -> &[i32] {
         &self.words
-    }
-
-    /// The keys of every `aux` snapshot, back to back.
-    pub fn pool(&self) -> &[i32] {
-        &self.pool
     }
 
     /// The interned labels, names and phase texts, by id.
@@ -659,22 +693,21 @@ impl Tracer {
     /// The recorded steps, decoded (built once, on first use).
     pub fn steps(&self) -> &[Step] {
         self.decoded
-            .get_or_init(|| decode(&self.words, &self.pool, &self.strings))
+            .get_or_init(|| decode(&self.words, &self.strings))
     }
 
-    /// The recorded words, pool and strings, moved out (the C ABI keeps them for the caller).
-    pub fn into_buffers(self) -> (Vec<i32>, Vec<i32>, Vec<String>) {
-        (self.words, self.pool, self.strings)
+    /// The recorded words and strings, moved out (the C ABI keeps them for the caller).
+    pub fn into_buffers(self) -> (Vec<i32>, Vec<String>) {
+        (self.words, self.strings)
     }
 
     pub fn into_steps(self) -> Vec<Step> {
-        let words = self.words;
-        decode(&words, &self.pool, &self.strings)
+        decode(&self.words, &self.strings)
     }
 }
 
 /// Decodes typed words back into [`Step`]s: the inverse of the recording, used by the tests.
-pub fn decode(words: &[i32], pool: &[i32], strings: &[String]) -> Vec<Step> {
+pub fn decode(words: &[i32], strings: &[String]) -> Vec<Step> {
     let r = |w: i32| (((w >> 4) & 3) - 1) as i8;
     let s = |id: u32| strings.get(id as usize).cloned().unwrap_or_default();
     words
@@ -708,13 +741,11 @@ pub fn decode(words: &[i32], pool: &[i32], strings: &[String]) -> Vec<Step> {
                     to: w[1] as u32,
                     label: s(w[2] as u32),
                 },
-                op::AUX => {
-                    let at = w[1] as usize;
-                    Step::Aux {
-                        name: s(p),
-                        keys: pool[at..at + w[2] as usize].to_vec(),
-                    }
-                }
+                op::AUXW => Step::AuxWrite {
+                    name: s(p),
+                    i: w[1] as u32,
+                    key: w[2],
+                },
                 op::PHASE => Step::Phase { text: s(p) },
                 op::LANE => Step::Lane { lane: w[1] as u32 },
                 _ => Step::Round {

@@ -13,6 +13,15 @@ pub const META: Meta = Meta {
     kind: Kind::Comparison,
 };
 
+/// The output buffer as laid out, the occupied range `[lo, hi)` in its own cells: a shift
+/// writes the cells it moves, and growing at either end writes one.
+fn show(t: &mut Tracer, out: &[Item], lo: usize, hi: usize) {
+    let cells: Vec<Option<Item>> = (0..out.len())
+        .map(|k| (lo..hi).contains(&k).then(|| out[k]))
+        .collect();
+    t.aux_cells("output", &cells);
+}
+
 pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
     let n = v.len();
     if n < 2 {
@@ -21,7 +30,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
     let mut out = vec![Item::default(); 2 * n + 1];
     let (mut lo, mut hi) = (n, n + 1); // occupied [lo, hi)
     out[n] = t.read(v, 0);
-    t.aux("output", &out[lo..hi]);
+    show(t, &out, lo, hi);
     for i in 1..n {
         let x = t.read(v, i);
         // upper bound of x in out[lo..hi]
@@ -49,7 +58,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
             hi += 1;
             out[pos] = x;
         }
-        t.aux("output", &out[lo..hi]);
+        show(t, &out, lo, hi);
     }
     for k in 0..n {
         t.set(v, k, out[lo + k]);

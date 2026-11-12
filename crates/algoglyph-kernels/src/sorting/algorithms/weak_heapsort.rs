@@ -16,13 +16,8 @@ pub const META: Meta = Meta {
 };
 
 fn bits_aux(t: &mut Tracer, r: &[bool]) {
-    if t.tracing() {
-        let items: Vec<Item> = r.iter().map(|&b| Item::new(b as i32, 0)).collect();
-        t.aux("reverse bits", &items);
-    } else {
-        let items = vec![Item::default(); r.len()];
-        t.aux("reverse bits", &items);
-    }
+    let items: Vec<Item> = r.iter().map(|&b| Item::new(b as i32, 0)).collect();
+    t.aux("reverse bits", &items);
 }
 
 pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {

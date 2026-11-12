@@ -45,9 +45,10 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
             let flat: Vec<Item> = queues.iter().flatten().copied().collect();
             t.aux("queues", &flat);
             kit::write_back(t, v, 0, &flat);
+            // collected: the queues are empty again, and the next pass fills them anew
+            t.aux_clear("queues");
         }
         shift += bits;
     }
-    t.aux_clear("queues");
     Outcome::Sorted
 }

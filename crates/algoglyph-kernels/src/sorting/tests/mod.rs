@@ -74,6 +74,53 @@ fn write_fixture() {
 }
 
 #[test]
+fn the_checked_in_manifest_is_current() {
+    let want = engine::manifest();
+    let have = include_str!("../kernels.json");
+    assert!(
+        have == want,
+        "src/sorting/kernels.json is stale: run cargo test -- --ignored write_manifest"
+    );
+}
+
+#[test]
+#[ignore = "writes the manifest; run with --ignored after adding a kernel or changing its META"]
+fn write_manifest() {
+    std::fs::write(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/sorting/kernels.json"),
+        engine::manifest(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn aux_writes_count_the_cells_that_change() {
+    let mut t = Tracer::new(&Options::default());
+    let (a, b, c) = (Item::new(5, 0), Item::new(7, 1), Item::new(9, 2));
+    t.aux("q", &[a]); // a new cell: 1
+    t.aux("q", &[a, b]); // pushed: 1
+    t.aux("q", &[a]); // popped: an emptied cell writes nothing
+    t.aux("q", &[a, c]); // 1
+    t.aux("q", &[c, a]); // both cells change: 2
+    t.aux_cells("g", &[Some(a), None, Some(b)]); // a gap is no key: 2
+    t.aux_cells("g", &[Some(a), Some(c), Some(b)]); // the gap filled: 1
+    t.aux_clear("q"); // released: nothing
+    t.aux("q", &[c]); // refilled: 1
+    let c2 = t.counts();
+    assert_eq!(c2.aux_writes, 9);
+    assert_eq!(c2.aux, 5, "peak: q holds 2 while g holds 3");
+    let writes = t
+        .steps()
+        .iter()
+        .filter(|s| matches!(s, Step::AuxWrite { .. }))
+        .count();
+    assert_eq!(
+        writes as u64, c2.aux_writes,
+        "one recorded step per counted write"
+    );
+}
+
+#[test]
 fn meta_ids_match_file_stems_and_are_unique() {
     let mut seen = BTreeSet::new();
     for e in REGISTRY {
@@ -199,9 +246,15 @@ fn typed_words_decode_to_the_recorded_steps() {
                 to: 3,
                 label: "run".into()
             },
-            Step::Aux {
+            Step::AuxWrite {
                 name: "buffer".into(),
-                keys: vec![1, 3]
+                i: 0,
+                key: 1
+            },
+            Step::AuxWrite {
+                name: "buffer".into(),
+                i: 1,
+                key: 3
             },
             Step::Phase {
                 text: "merge".into()
@@ -213,10 +266,6 @@ fn typed_words_decode_to_the_recorded_steps() {
             },
             Step::Lane { lane: 5 },
             Step::Round { n: 1 },
-            Step::Aux {
-                name: "buffer".into(),
-                keys: vec![]
-            },
         ]
     );
     assert_eq!(t.recorded(), steps.len());

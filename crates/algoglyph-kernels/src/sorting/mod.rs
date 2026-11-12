@@ -1,4 +1,4 @@
-//! The sorting kernels, ported from the trideni crate of the Atlas třídicích algoritmů.
+//! The sorting kernels, ported from the sorting atlas's engine crate (trideni).
 //!
 //! Every algorithm is a plugin file in `algorithms/`; `build.rs` (this directory) discovers
 //! them and generates [`REGISTRY`]. A run records its operations through
@@ -20,8 +20,13 @@ use prelude::*;
 /// The crate version, which keys the browser's trace cache together with [`FINGERPRINT`].
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Largest accepted input.
+/// Largest accepted input; the C ABI exports it (`ag_sort_max_n`) so no caller restates it.
 pub const MAX_N: usize = 1 << 20;
+/// Largest accepted arc list of topological sort (`ag_sort_max_edges`).
+pub const MAX_EDGES: usize = 4 * MAX_N;
+/// The layout of the C ABI (`ag_sort_abi`): op codes, the result array, the exports. A
+/// browser cache keys traces by it.
+pub const ABI_VERSION: u32 = 2;
 
 pub fn find(id: &str) -> Option<&'static Entry> {
     REGISTRY.iter().find(|e| e.meta.id == id)
@@ -64,6 +69,29 @@ pub fn run(id: &str, input: Vec<Item>, opt: &Options) -> Result<Run, String> {
     Ok(run_entry(entry, input, opt))
 }
 
+/// The kernel manifest (`src/sorting/kernels.json`, checked in): every kernel id with its
+/// declared stability, in-place flag and kind, as the registry holds them. The catalogue gate
+/// reads it to refuse a sidecar record that names no kernel; the native tests refuse a stale
+/// copy.
+pub fn manifest() -> String {
+    let rows: Vec<String> = REGISTRY
+        .iter()
+        .map(|e| {
+            format!(
+                "    {{ \"id\": \"{}\", \"stable\": \"{}\", \"in_place\": {}, \"kind\": \"{}\" }}",
+                e.meta.id,
+                e.meta.stable.as_str(),
+                e.meta.in_place,
+                e.meta.kind.as_str()
+            )
+        })
+        .collect();
+    format!(
+        "{{\n  \"schema\": \"algoglyph-kernels/v1\",\n  \"version\": \"{VERSION}\",\n  \"abi\": {ABI_VERSION},\n  \"max_n\": {MAX_N},\n  \"kernels\": [\n{}\n  ]\n}}\n",
+        rows.join(",\n")
+    )
+}
+
 /// FNV-1a 64 over a stream of 32-bit words.
 pub struct Fnv(pub u64);
 
@@ -101,7 +129,7 @@ pub fn scenario_inputs() -> Vec<Vec<Item>> {
 
 /// The scenario the native tests and the wasm equivalence test both run
 /// (`src/sorting/fixture.json`): a hash of everything a run hands to the browser — outcome,
-/// counts, output, and every recorded word, pool key and string.
+/// counts, output, and every recorded word and string.
 pub fn scenario_checksum(entry: &Entry) -> u64 {
     let mut h = Fnv::new();
     for input in scenario_inputs() {
@@ -114,7 +142,15 @@ pub fn scenario_checksum(entry: &Entry) -> u64 {
         h.word(run.outcome.code());
         h.word(run.truncated as u32);
         let c = run.counts;
-        for x in [c.cmp, c.swap, c.write, c.read, c.aux, c.rounds] {
+        for x in [
+            c.cmp,
+            c.swap,
+            c.write,
+            c.read,
+            c.aux,
+            c.aux_writes,
+            c.rounds,
+        ] {
             h.wide(x);
         }
         h.word(run.output.len() as u32);
@@ -124,9 +160,6 @@ pub fn scenario_checksum(entry: &Entry) -> u64 {
         }
         for &w in run.tracer.words() {
             h.word(w as u32);
-        }
-        for &k in run.tracer.pool() {
-            h.word(k as u32);
         }
         for s in run.tracer.strings() {
             h.word(s.len() as u32);

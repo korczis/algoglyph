@@ -62,12 +62,11 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
     Outcome::Sorted
 }
 
-/// The tree's occupied nodes in level order (root first).
+/// The tree's nodes in level order (root first), an emptied node as an empty cell.
 fn snapshot(t: &mut Tracer, tree: &[usize], leaves: &[Item]) {
-    let items: Vec<Item> = tree[1..]
+    let cells: Vec<Option<Item>> = tree[1..]
         .iter()
-        .filter(|&&x| x != usize::MAX)
-        .map(|&x| leaves[x])
+        .map(|&x| (x != usize::MAX).then(|| leaves[x]))
         .collect();
-    t.aux("tournament", &items);
+    t.aux_cells("tournament", &cells);
 }

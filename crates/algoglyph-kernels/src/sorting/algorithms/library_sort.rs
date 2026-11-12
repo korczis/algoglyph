@@ -49,9 +49,9 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
     Outcome::Sorted
 }
 
+/// The shelf as laid out, gaps included: an insertion writes only the cells it shifts.
 fn snapshot(t: &mut Tracer, shelf: &[Option<Item>], end: usize) {
-    let items: Vec<Item> = shelf[..end].iter().flatten().copied().collect();
-    t.aux("shelf", &items);
+    t.aux_cells("shelf", &shelf[..end]);
 }
 
 /// Spreads the `count` elements so that element j sits at cell 2j + 1.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the Rust kernels (crates/algoglyph-kernels) for the browser, the majordomus-core way:
-# native tests first, then the wasm32 cdylib, copied to src/wasm/ where Vite imports it. The
-# .wasm is a build output and never committed (ADR 0004 §6).
+# native tests first, then the wasm32 cdylib, copied to src/wasm/ where Vite imports it, with
+# its SHA-256 beside it. Both are build outputs and never committed (ADR 0004 §6).
 #
 #   scripts/wasm.sh            native tests + wasm build
 #   scripts/wasm.sh --build    wasm build only (what dev, build and test run first)
@@ -22,4 +22,7 @@ cargo rustc --manifest-path "$CRATE/Cargo.toml" --release --quiet \
   --target wasm32-unknown-unknown --crate-type cdylib
 mkdir -p "$(dirname "$OUT")"
 cp "$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/algoglyph_kernels.wasm" "$OUT"
+# the module's content hash, which keys the browser's trace cache (src/kernels/sorting-wasm)
+if command -v sha256sum >/dev/null; then sha256sum "$OUT"; else shasum -a 256 "$OUT"; fi \
+  | cut -d' ' -f1 > "$OUT.sha256"
 echo "wasm.sh: $OUT ($(wc -c < "$OUT" | tr -d ' ') bytes)"

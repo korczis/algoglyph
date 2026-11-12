@@ -17,7 +17,7 @@ crate-type = ["rlib"]
 
 [features]
 default = ["sorting"]
-# The sorting kernels ported from the Atlas třídicích algoritmů (src/sorting/).
+# The sorting kernels (src/sorting/), ported from the sorting atlas.
 sorting = []
 
 [dependencies]
