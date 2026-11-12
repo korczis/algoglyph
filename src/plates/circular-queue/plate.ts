@@ -2,7 +2,10 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
 import { arrive, tick, traffic, type Traffic } from './ring';
-import { Pacer, paceParam } from '../../core/pace';
+import { Pacer, paceParam, type PaceDecl } from '../../core/pace';
+
+/** One tick every four frames, as before ADR 0008: a stream may run below its ceiling, never faster. */
+const QUEUE_PACE = { kind: 'stream', unit: 'ticks', per_s: 15 } satisfies PaceDecl;
 
 export const circularQueue: PlateCode = {
   id: 'circular-queue',
@@ -19,12 +22,12 @@ export const circularQueue: PlateCode = {
     paceParam(),
     paletteParam('riso'),
   ],
-  pace: { kind: 'stream', unit: 'ticks' },
+  pace: QUEUE_PACE,
   create(p, ctx) {
     const params = ctx.params;
     let t: Traffic;
     let acc = 0;
-    const pacer = new Pacer('stream', 'ticks', 4);
+    const pacer = new Pacer('stream', 'ticks', 4, QUEUE_PACE.per_s);
     const history: [number, number][] = [];
     const gate = chartGate();
 

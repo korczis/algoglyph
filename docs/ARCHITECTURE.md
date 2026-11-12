@@ -145,7 +145,9 @@ the plate's unit and how long the run lasts. A run too long to watch counts a co
 where the kernel has one (rounds, notes, key operations), else starts from the largest input
 whose calm run fits (`fitSize`). A plate declares how it is paced in `PlateCode.pace`; an
 integrator or an emergent pattern declares `emergent` with its reason and keeps its own controls,
-a progressively rendered picture declares `still`.
+a progressively rendered picture declares `still`. A ceiling is a maximum, not a target: a
+stream may declare a calmer rate (`per_s`), and `test/pacing.test.ts` refuses any default that
+shows more changes a second than it did before ADR 0008 (`test/fixtures/pacing/before.json`).
 
 ## Routes and shared links
 

@@ -33,7 +33,8 @@ kinds:
     run_s: [10, 60]
     max_per_s: 8
     min_per_s: 0.5
-  # An endless run: no length, so its calm rate is the ceiling itself. A stream whose pace is
+  # An endless run: no length, so its calm rate is the ceiling, or the calmer rate the plate
+  # declares (PaceDecl.per_s): a ceiling is a maximum, never a target. A stream whose pace is
   # simulated time (an integrator, an emergent pattern) declares why and keeps its own controls.
   stream:
     max_per_s: 30

@@ -3,6 +3,7 @@
 // plate and runnable lab declares its pace, and at its defaults (seed 4242, loop off) a paced run
 // lasts within its kind's window and shows no more changes a second than its ceiling. Driving
 // every run to its end is `npm run test:pacing` (test/pacing/, one process per wing).
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error -- plain ESM shared with the Vite plugin
 import { checkPacing, loadPacing } from '../scripts/lib/pacing.mjs';
@@ -111,6 +112,12 @@ describe('the derivation (src/core/pace.ts)', () => {
 const fixture = (over: Partial<PlateCode>): PlateCode => ({
   id: 'fixture', mode: '2d', aspect: 1, params: [], create: () => ({ setup() {}, draw() {} }), ...over,
 });
+function fasterErrors(label: string, before: { unit: string; per_s: number }, r: PaceReport): string[] {
+  const now = r.perFrame * FPS;
+  return now > before.per_s + 1e-9
+    ? [`${label}: ${now.toFixed(1)} ${r.unit}/s at its defaults, faster than the ${before.per_s}/s it showed at 4fe8360`] : [];
+}
+
 const report = (over: Partial<PaceReport>): PaceReport => ({
   kind: 'replay', unit: 'events', perFrame: 0.5, length: 600, seconds: 20, done: false, ...over,
 });
@@ -150,6 +157,16 @@ describe('the contract refuses', () => {
     expect(arithmeticErrors('short', report({ perFrame: 1 / 60, length: 5, seconds: 5 }), decl)).toEqual([]);
   });
 
+  it('a stream that declares a rate above the ceiling, or none at all, or runs above its own', () => {
+    const pace = [{ kind: 'range', key: 'pace', label: 'Pace (× calm)', min: 0.125, max: 4096, step: 0.125, value: 1 }] as PlateCode['params'];
+    expect(declarationErrors(fixture({ params: pace, pace: { kind: 'stream', unit: 'ticks', per_s: 45 } }))[0]).toContain('the ceiling is a maximum');
+    expect(declarationErrors(fixture({ params: pace, pace: { kind: 'stream', unit: 'ticks', per_s: 0 } }))[0]).toContain('must lie in');
+    expect(declarationErrors(fixture({ params: pace, pace: { kind: 'stream', unit: 'ticks', per_s: 15 } }))).toEqual([]);
+    const decl = { kind: 'stream', unit: 'ticks', per_s: 15 } as const;
+    expect(arithmeticErrors('queue', report({ kind: 'stream', unit: 'ticks', perFrame: 0.5, length: null, seconds: null }), decl)[0])
+      .toContain('above the 15/s it declares');
+  });
+
   it('a stream over the ceiling', () => {
     const decl = { kind: 'stream', unit: 'generations' } as const;
     expect(arithmeticErrors('life', report({ kind: 'stream', unit: 'generations', perFrame: 2, length: null, seconds: null }), decl)[0])
@@ -162,6 +179,34 @@ describe('the contract refuses', () => {
     expect(drivenErrors('hung', Infinity, report({}))[0]).toContain('did not end');
     expect(drivenErrors('calm', 1200, report({}))).toEqual([]);
   });
+});
+
+// What every subject showed at its defaults before ADR 0008, measured once and pinned to its
+// commit: the owner's complaint was "too fast", so no plate may show more changes a second now.
+// A subject whose counted unit changed (rounds, notes, key operations, lane changes) is listed
+// apart and not compared by number; a subject added since has no earlier rate to keep.
+const BEFORE = JSON.parse(readFileSync('test/fixtures/pacing/before.json', 'utf8')) as {
+  measured_at: string; same_unit: Record<string, { unit: string; per_s: number }>;
+  other_unit: Record<string, { unit: string; per_s: number | null }>;
+};
+
+describe('no default is faster than before', () => {
+  it('refuses a rate above the one it replaced', () => {
+    expect(fasterErrors('queue', { unit: 'ticks', per_s: 15 }, report({ kind: 'stream', unit: 'ticks', perFrame: 0.5 })))
+      .toEqual(['queue: 30.0 ticks/s at its defaults, faster than the 15/s it showed at 4fe8360']);
+    expect(fasterErrors('queue', { unit: 'ticks', per_s: 15 }, report({ kind: 'stream', unit: 'ticks', perFrame: 0.25 }))).toEqual([]);
+  });
+
+  for (const s of subjectsOf({ all: true }).filter((x) => x.label in BEFORE.same_unit)) {
+    it(`${s.label} shows no more changes a second than it did`, async () => {
+      const plate = (await s.load())!;
+      const { sim } = mount(plate);
+      const { report: r } = known(sim);
+      if (!r) return; // an emergent or still plate keeps its own controls
+      expect(r.unit, `${s.label}: the unit it counts`).toBe(BEFORE.same_unit[s.label].unit);
+      expect(fasterErrors(s.label, BEFORE.same_unit[s.label], r)).toEqual([]);
+    });
+  }
 });
 
 describe('every live plate and runnable lab, at its defaults', () => {

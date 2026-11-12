@@ -43,7 +43,9 @@ uncapped with a declared reason, the hold derived from the same file.
 1. **One file says how calm a default is: `config/pacing.yaml`.** Three kinds, each with its
    numbers: `replay` (a finite trace of counted changes: target 20 s, window [10, 60] s, ceiling
    30 changes a second, floor 1), `views` (a recorded run replayed view by view: the same window,
-   ceiling 8), `stream` (an endless run: ceiling 30). The frame rate the contract counts in, the
+   ceiling 8), `stream` (an endless run: ceiling 30). Every ceiling is a maximum, not a target:
+   a stream runs at it or at a calmer rate it declares (`per_s`), and no plate may show more
+   changes a second at its defaults than it did before this decision. The frame rate the contract counts in, the
    hold after a run and the pace control's range are in the same file. The site reads it through
    `virtual:pacing` (scripts/lib/vite-pacing.mjs), checked by scripts/lib/pacing.mjs; a broken
    file fails the build, the dev server and the unit suite with the same messages.
@@ -76,7 +78,10 @@ uncapped with a declared reason, the hold derived from the same file.
 7. **Enforced, counted, never timed.** `test/pacing.test.ts` checks the file, the derivation and,
    for every live plate and runnable lab at its defaults, the declaration and the arithmetic
    (a default run lasts within its window, unless it is shorter in content than the window's
-   start at the floor, and shows no more than its ceiling), each rule with a negative case.
+   start at the floor, and shows no more than its ceiling or its own declared rate), each rule
+   with a negative case; and that no default shows more changes a second than it did, against the
+   rates measured before this decision (test/fixtures/pacing/before.json, pinned to its commit;
+   a subject whose counted unit changed is listed apart and not compared by number).
    `npm run test:pacing` (test/pacing/, one process per wing, alone, its own CI step) drives every
    run to its end and counts its frames. The claims instrument (ADR 0007) reads a run at the pace
    control's top and waits for a paced run to report its end, so a calm run is never read as
@@ -94,6 +99,9 @@ uncapped with a declared reason, the hold derived from the same file.
 ## Consequences
 
 - Default runs take about 20 s and at most a minute; the pace control reaches the old speeds.
+- The coordinator, 2026-11-12, on reading the measured table: no plate may get faster, the
+  ceiling is a maximum; circular-queue and the binary and interpolation search plates keep the
+  15 changes a second they had.
 - Engines and plates carry no rate of their own: the per-kernel `speed` and `rate` fields are
   gone, and a new engine or plate derives its pace from config/pacing.yaml or fails the gate.
 - Old links with `?speed=` lose their speed; everything else they carry still applies.

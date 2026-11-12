@@ -1,0 +1,1497 @@
+{
+ "measured_at": "4fe83608e62ead0a0aa701628962fb55c2060a43",
+ "fps": 60,
+ "method": "headless at the defaults, seed 4242, loop off: the old speed default times its engine unit times 60",
+ "same_unit": {
+  "quick-find": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "quick-union": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "weighted-quick-union": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "path-compression": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "circular-queue": {
+   "unit": "ticks",
+   "per_s": 15
+  },
+  "infix-to-postfix": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "josephus-circle": {
+   "unit": "links",
+   "per_s": 120
+  },
+  "postfix-evaluation": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "ruler-drawing": {
+   "unit": "marks",
+   "per_s": 24
+  },
+  "towers-of-hanoi": {
+   "unit": "moves",
+   "per_s": 3.6
+  },
+  "tree-traversal": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "fibonacci-memo": {
+   "unit": "operations",
+   "per_s": 720
+  },
+  "knapsack-dp": {
+   "unit": "operations",
+   "per_s": 180
+  },
+  "longest-common-subsequence": {
+   "unit": "operations",
+   "per_s": 180
+  },
+  "matrix-chain": {
+   "unit": "operations",
+   "per_s": 240
+  },
+  "optimal-bst": {
+   "unit": "operations",
+   "per_s": 240
+  },
+  "n-queens": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "permutation-generation": {
+   "unit": "permutations",
+   "per_s": 60
+  },
+  "sort-tapestry": {
+   "unit": "operations",
+   "per_s": 1440
+  },
+  "binary-insertion-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "bubble-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "circle-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "shaker-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "comb-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "cycle-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "double-selection-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "exchange-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "gnome-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "insertion-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "library-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "odd-even-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "pair-insertion-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "selection-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "shellsort-knuth": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "shellsort-sedgewick": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "two-way-insertion-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "avl-tree-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "cartesian-tree-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "patience-sorting": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "splaysort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "tree-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "blockquicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "ipnsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "pdqsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "proportion-extend-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "quicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "dual-pivot-quicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "quicksort-median-of-three": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "multi-pivot-quicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "randomized-quicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "quicksort-three-way": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "adaptiveshiverssort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "block-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "driftsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "glidesort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "grailsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "mergesort-bottom-up": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "in-place-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "k-way-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "mergesort-top-down": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "mergesort-natural": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "peeksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "powersort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "quadsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "shiverssort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "strand-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "symmerge-based-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "timsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "wikisort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "binary-heap": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "binomial-queue": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "bottom-up-heapsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "d-ary-heapsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "heapsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "poplar-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "smoothsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "tournament-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "weak-heapsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "american-flag-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "binary-quicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "burstsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "counting-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "kirkpatrick-reisch-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "lsd-radix-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "msd-radix-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "postman-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "skasort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "spreadsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "three-way-radix-quicksort": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "address-calculation-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "bucket-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "flashsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "interpolation-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "learnedsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "pigeonhole-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "proxmap-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "blitsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "crumsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "fluxsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "introsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "ford-johnson": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "octosort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "quickxsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "weavesort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "wolfsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "aks-sorting-network": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "batcher-merge-exchange": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "bitonic-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "gpu-bitonic-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "columnsort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "perfect-shuffle-merge": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "pairwise-sorting-network": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "shear-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "simd-sorting-network": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "zig-zag-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "parallel-counting-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "enumeration-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "ips4o": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "gpu-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "parallel-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "psrs": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "ps4o": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "parallel-quicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "gpu-radix-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "parallel-radix-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "samplesort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "parallel-samplesort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "mapreduce-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "terasort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "balanced-multiway-merge": {
+   "unit": "records",
+   "per_s": 180
+  },
+  "buffer-tree-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "cascade-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "external-bucket-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "external-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "external-quicksort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "external-radix-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "external-samplesort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "funnel-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "oscillating-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "polyphase-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "replacement-selection": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "tape-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "two-phase-multiway-merge-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "quickselect": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "bead-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "burnt-pancake-sort": {
+   "unit": "kernel steps",
+   "per_s": 240
+  },
+  "pancake-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "spaghetti-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "tag-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "bogobogosort": {
+   "unit": "kernel steps",
+   "per_s": 960
+  },
+  "bogosort": {
+   "unit": "kernel steps",
+   "per_s": 960
+  },
+  "bozosort": {
+   "unit": "kernel steps",
+   "per_s": 960
+  },
+  "miracle-sort": {
+   "unit": "kernel steps",
+   "per_s": 240
+  },
+  "sleep-sort": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "slowsort": {
+   "unit": "kernel steps",
+   "per_s": 3840
+  },
+  "stalin-sort": {
+   "unit": "kernel steps",
+   "per_s": 240
+  },
+  "stooge-sort": {
+   "unit": "kernel steps",
+   "per_s": 3840
+  },
+  "worstsort": {
+   "unit": "kernel steps",
+   "per_s": 3840
+  },
+  "binary-search": {
+   "unit": "probes",
+   "per_s": 15
+  },
+  "interpolation-search": {
+   "unit": "probes",
+   "per_s": 15
+  },
+  "sequential-search": {
+   "unit": "probes",
+   "per_s": 360
+  },
+  "bst-search-insert": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "bst-delete-join": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "bst-root-insertion": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "bst-rotations": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "avl-tree": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "randomized-bst": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "red-black-tree": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "splay-tree": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "two-three-four-tree": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "binary-trie": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "digital-search-tree": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "multiway-trie": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "patricia-trie": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "ternary-search-trie": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "b-tree": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "boyer-moore": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "brute-force-search": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "knuth-morris-pratt": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "rabin-karp": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "recursive-descent-parser": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "regex-nfa": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "bpe-tokenisation": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "huffman-coding": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "lzw-compression": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "run-length-encoding": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "crc-division": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "ico-check-digit": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "lfsr-keystream": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "blocking-sorted-neighbourhood": {
+   "unit": "steps",
+   "per_s": 240
+  },
+  "source-family": {
+   "unit": "steps",
+   "per_s": 240
+  },
+  "jaro-winkler": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "levenshtein-matrix": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "union-find-entity-merge": {
+   "unit": "events",
+   "per_s": 60
+  },
+  "name-normalisation": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "double-metaphone": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "simhash": {
+   "unit": "steps",
+   "per_s": 1800
+  },
+  "trigram-similarity": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "myers-diff": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "diff3-merge": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "ccw-intersection": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "point-in-polygon": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "simple-closed-path": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "gift-wrapping": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "graham-scan": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "interior-elimination": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "quickhull": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "kd-tree": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "h3-hex-binning": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "r-tree": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "grid-method": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "general-sweep": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "orthogonal-sweep": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "closest-pair": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "bowyer-watson-delaunay": {
+   "unit": "points",
+   "per_s": 180
+  },
+  "voronoi-diagram": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "dbscan": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "k-means-plus-plus": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "haversine-hhi": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "map-projections": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "breadth-first-search": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "depth-first-search": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "maze-flood": {
+   "unit": "steps",
+   "per_s": 1800
+  },
+  "articulation-points": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "bridges": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "ownership-cycles": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "connected-components": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "euler-tour": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "hamilton-path": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "kosaraju-scc": {
+   "unit": "events",
+   "per_s": 240
+  },
+  "tarjan-scc": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "topological-sort": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "transitive-closure": {
+   "unit": "events",
+   "per_s": 240
+  },
+  "euclidean-mst": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "kruskal-mst": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "prim-mst": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "bellman-ford": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "pathfinding-terrain": {
+   "unit": "expansions",
+   "per_s": 3600
+  },
+  "dijkstra": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "floyd-warshall": {
+   "unit": "events",
+   "per_s": 240
+  },
+  "credible-path": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "dag-shortest-paths": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "yen-k-shortest": {
+   "unit": "events",
+   "per_s": 1200
+  },
+  "bipartite-matching": {
+   "unit": "events",
+   "per_s": 60
+  },
+  "preflow-push": {
+   "unit": "events",
+   "per_s": 960
+  },
+  "ego-network": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "fibonacci-sphere": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "sugiyama-layout": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "additive-congruential": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "box-muller": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "linear-congruential": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "horner-evaluation": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "karatsuba": {
+   "unit": "views",
+   "per_s": 12
+  },
+  "strassen": {
+   "unit": "views",
+   "per_s": 0.8
+  },
+  "gaussian-elimination": {
+   "unit": "views",
+   "per_s": 3
+  },
+  "pca-svd": {
+   "unit": "views",
+   "per_s": 2
+  },
+  "cubic-splines": {
+   "unit": "views",
+   "per_s": 1.5
+  },
+  "least-squares": {
+   "unit": "views",
+   "per_s": 1.2
+  },
+  "polynomial-interpolation": {
+   "unit": "views",
+   "per_s": 1.5
+  },
+  "adaptive-quadrature": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "simpson-quadrature": {
+   "unit": "views",
+   "per_s": 1
+  },
+  "particle-swarm": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "simplex-method": {
+   "unit": "views",
+   "per_s": 0.8
+  },
+  "simulated-annealing": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "pick-path-routing": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "euclid-gcd": {
+   "unit": "views",
+   "per_s": 1.2
+  },
+  "sieve-of-eratosthenes": {
+   "unit": "operations",
+   "per_s": 120
+  },
+  "daubechies-dwt": {
+   "unit": "views",
+   "per_s": 1.2
+  },
+  "fft-butterfly": {
+   "unit": "views",
+   "per_s": 1.5
+  },
+  "hilbert-analytic": {
+   "unit": "views",
+   "per_s": 10
+  },
+  "stft-spectrogram": {
+   "unit": "views",
+   "per_s": 12
+  },
+  "window-leakage": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "additive-gibbs": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "fm-synthesis": {
+   "unit": "views",
+   "per_s": 5
+  },
+  "noise-colours": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "biquad-filters": {
+   "unit": "views",
+   "per_s": 10
+  },
+  "xcorr-alignment": {
+   "unit": "views",
+   "per_s": 14
+  },
+  "sine-sweep-ir": {
+   "unit": "views",
+   "per_s": 8
+  },
+  "yin-pitch": {
+   "unit": "views",
+   "per_s": 14
+  },
+  "adsb-cpr": {
+   "unit": "views",
+   "per_s": 3
+  },
+  "lyapunov-exponent": {
+   "unit": "views",
+   "per_s": 30
+  },
+  "poincare-section": {
+   "unit": "views",
+   "per_s": 8
+  },
+  "takens-embedding": {
+   "unit": "views",
+   "per_s": 12
+  },
+  "hurst-dfa": {
+   "unit": "views",
+   "per_s": 1.5
+  },
+  "recurrence-plot": {
+   "unit": "views",
+   "per_s": 6
+  },
+  "drift-divergence": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "page-hinkley": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "kuramoto": {
+   "unit": "views",
+   "per_s": 20
+  },
+  "lissajous": {
+   "unit": "views",
+   "per_s": 15
+  },
+  "life-like-automata": {
+   "unit": "generations",
+   "per_s": 120
+  },
+  "rule-weaver": {
+   "unit": "generations",
+   "per_s": 120
+  },
+  "ising-model": {
+   "unit": "sweeps",
+   "per_s": 120
+  },
+  "ach-matrix": {
+   "unit": "items",
+   "per_s": 1.8
+  },
+  "bayes-update": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "dempster-shafer": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "noisy-or": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "transitive-support": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "isotonic-calibration": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "shapley-values": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "sobol-indices": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "tornado-sensitivity": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "pareto-front": {
+   "unit": "views",
+   "per_s": 20
+  },
+  "topsis": {
+   "unit": "views",
+   "per_s": 0.7
+  },
+  "base-rate-roc": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "bootstrap-ci": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "conformal-intervals": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "mc-verdict-stability": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "pert-monte-carlo": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "var-cvar": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "sir-cascade": {
+   "unit": "events",
+   "per_s": 720
+  },
+  "hegselmann-krause": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "bin-packing": {
+   "unit": "placements",
+   "per_s": 60
+  },
+  "critical-path": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "kahn-waves": {
+   "unit": "events",
+   "per_s": 120
+  },
+  "lab sorting": {
+   "unit": "operations",
+   "per_s": 360
+  },
+  "lab dynamic-programming": {
+   "unit": "operations",
+   "per_s": 480
+  },
+  "lab search-trees": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "lab union-find": {
+   "unit": "steps",
+   "per_s": 180
+  },
+  "lab stochastic-search": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "lab uncertainty": {
+   "unit": "recorded frames",
+   "per_s": 30
+  },
+  "lab graph-search": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "lab shortest-paths": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "lab spanning-trees": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "lab max-flow": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "lab strong-components": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "lab communities": {
+   "unit": "events",
+   "per_s": 360
+  }
+ },
+ "other_unit": {
+  "skip-list": {
+   "unit": "operations",
+   "per_s": 2.4
+  },
+  "double-hashing": {
+   "unit": "events",
+   "per_s": 720
+  },
+  "dynamic-hash-table": {
+   "unit": "events",
+   "per_s": 720
+  },
+  "linear-probing": {
+   "unit": "events",
+   "per_s": 720
+  },
+  "separate-chaining": {
+   "unit": "events",
+   "per_s": 720
+  },
+  "extendible-hashing": {
+   "unit": "events",
+   "per_s": 720
+  },
+  "indexed-sequential-access": {
+   "unit": "operations",
+   "per_s": 12
+  },
+  "entropy-map": {
+   "unit": "steps",
+   "per_s": 720
+  },
+  "vigenere-cipher": {
+   "unit": "steps",
+   "per_s": 360
+  },
+  "fellegi-sunter": {
+   "unit": "steps",
+   "per_s": 2400
+  },
+  "minhash-lsh": {
+   "unit": "steps",
+   "per_s": 2400
+  },
+  "boruvka-mst": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "ford-fulkerson": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "min-cost-flow": {
+   "unit": "events",
+   "per_s": 2400
+  },
+  "edmonds-karp": {
+   "unit": "events",
+   "per_s": 180
+  },
+  "brandes-betweenness": {
+   "unit": "events",
+   "per_s": 2400
+  },
+  "centrality-comparison": {
+   "unit": "events",
+   "per_s": 36000
+  },
+  "effective-ownership": {
+   "unit": "events",
+   "per_s": 1800
+  },
+  "label-propagation": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "louvain-leiden": {
+   "unit": "events",
+   "per_s": 240
+  },
+  "pagerank": {
+   "unit": "events",
+   "per_s": 3600
+  },
+  "personalised-pagerank": {
+   "unit": "events",
+   "per_s": 3600
+  },
+  "spreading-activation": {
+   "unit": "events",
+   "per_s": 240
+  },
+  "force-atlas2": {
+   "unit": "events",
+   "per_s": 8400
+  },
+  "geo-graph": {
+   "unit": "events",
+   "per_s": 7200
+  },
+  "resource-scheduling": {
+   "unit": "simulated ms",
+   "per_s": 420
+  },
+  "lamport-clocks": {
+   "unit": "simulated ms",
+   "per_s": 300
+  },
+  "vector-clocks": {
+   "unit": "simulated ms",
+   "per_s": 300
+  },
+  "anti-entropy": {
+   "unit": "simulated ms",
+   "per_s": 1020
+  },
+  "crdt-convergence": {
+   "unit": "simulated ms",
+   "per_s": 600
+  },
+  "lease-fencing": {
+   "unit": "simulated ms",
+   "per_s": 600
+  },
+  "raft-election": {
+   "unit": "simulated ms",
+   "per_s": 600
+  },
+  "backoff-jitter": {
+   "unit": "simulated ms",
+   "per_s": 1200
+  },
+  "circuit-breaker": {
+   "unit": "simulated ms",
+   "per_s": 720
+  },
+  "crawl-frontier": {
+   "unit": "simulated ms",
+   "per_s": 300
+  },
+  "ticket-lock-semaphore": {
+   "unit": "simulated ms",
+   "per_s": 600
+  },
+  "token-bucket": {
+   "unit": "simulated ms",
+   "per_s": 600
+  },
+  "merkle-tree": {
+   "unit": "simulated ms",
+   "per_s": 480
+  },
+  "lab quadrature": {
+   "unit": "per pane, no single rate",
+   "per_s": null
+  },
+  "lab interpolation": {
+   "unit": "per pane, no single rate",
+   "per_s": null
+  },
+  "lab hashing": {
+   "unit": "events",
+   "per_s": 720
+  },
+  "lab centrality": {
+   "unit": "events",
+   "per_s": 360
+  },
+  "lab string-search": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "lab name-similarity": {
+   "unit": "steps",
+   "per_s": 120
+  },
+  "lab hulls": {
+   "unit": "per pane, no single rate",
+   "per_s": null
+  },
+  "lab replication": {
+   "unit": "simulated ms",
+   "per_s": 1020
+  }
+ }
+}

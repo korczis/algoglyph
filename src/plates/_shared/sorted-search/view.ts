@@ -2,7 +2,10 @@
 // play and the probe being made; below, every probe ever made, placed at its key's position and
 // its step in the search, joined to the probe after it. For binary search that map is the
 // implicit decision tree; for interpolation search it shows how far each guess lands.
-import { Pacer, paceParam } from '../../../core/pace';
+import { Pacer, paceParam, type PaceDecl } from '../../../core/pace';
+
+/** One probe every four frames, as before ADR 0008: a stream may run below its ceiling, never faster. */
+const SEARCH_PACE = { kind: 'stream', unit: 'probes', per_s: 15 } satisfies PaceDecl;
 import { mix, paletteParam, ramp } from '../../../core/palette';
 import { num, str, type PlateCode } from '../../../core/plate';
 import { chartGate } from '../publish';
@@ -65,11 +68,11 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
       paceParam(),
       paletteParam(o.palette),
     ],
-    pace: { kind: 'stream', unit: 'probes' },
+    pace: SEARCH_PACE,
     create(p, ctx) {
       const params = ctx.params;
       // an endless stream of searches, one probe a change, at a stream's calm rate
-      const pacer = new Pacer('stream', 'probes', 30);
+      const pacer = new Pacer('stream', 'probes', 30, SEARCH_PACE.per_s);
       let keys: number[] = [];
       let present = new Set<number>();
       let current: { key: number; r: Result; shown: number } | null = null;

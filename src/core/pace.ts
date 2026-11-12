@@ -37,12 +37,15 @@ export const HOLD_FRAMES = Math.round(PACING.hold_s * FPS);
 
 /**
  * What a plate says about its pace. A paced plate (an engine's, or a bespoke one using Pacer)
- * names its kind and the unit it counts; an emergent stream (an integrator, a pattern that
+ * names its kind and the unit it counts (a stream may declare a rate below its ceiling, never
+ * above: the ceiling is a maximum, not a target); an emergent stream (an integrator, a pattern that
  * needs many steps to appear) keeps its own controls, whose unit is simulated time, and says
  * why; a still plate draws one picture progressively and says what it draws.
  */
 export type PaceDecl =
-  | { kind: PaceKind; unit: string }
+  | { kind: 'replay' | 'views'; unit: string }
+  /** A stream runs at its kind's ceiling, or at `per_s` when it declares a calmer rate. */
+  | { kind: 'stream'; unit: string; per_s?: number }
   | { kind: 'stream'; emergent: string }
   | { kind: 'still'; why: string };
 
@@ -131,7 +134,11 @@ export class Pacer {
    * @param maxPerFrame the engine's own per-frame maximum (its old slider's top): the pace
    * control never asks more, so the heaviest frame is what the budget gate has always measured
    */
-  constructor(readonly kind: PaceKind, public unit: string, readonly maxPerFrame: number) {}
+  /**
+   * @param perS a stream's own calm rate in changes a second, below the ceiling (PaceDecl.per_s)
+   */
+  constructor(readonly kind: PaceKind, public unit: string, readonly maxPerFrame: number,
+    readonly perS?: number) {}
 
   /** A new run, of `length` changes when known (null while it is being recorded). */
   start(length: number | null = null): void {
@@ -149,7 +156,8 @@ export class Pacer {
 
   /** The calm rate at 1×: the whole run's, or what is left of it once its length was learnt late. */
   private base(): number {
-    if (this.length === null || this.kind === 'stream' || this.from.frame === 0) return calm(this.kind, this.length);
+    if (this.kind === 'stream') return Math.min(calm('stream'), (this.perS ?? Infinity) / FPS);
+    if (this.length === null || this.from.frame === 0) return calm(this.kind, this.length);
     const k = PACING.kinds[this.kind];
     const left = calmSeconds(this.kind, this.length) * FPS - this.from.frame;
     const rest = this.length - this.from.at;

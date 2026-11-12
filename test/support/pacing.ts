@@ -65,6 +65,10 @@ export function declarationErrors(plate: Pick<PlateCode, 'id' | 'params' | 'pace
     out.push(`${plate.id}: ${own.map((p) => `"${p.label}"`).join(', ')} sets a rate of its own; a paced plate uses paceParam()`);
   }
   if (reason === undefined && !plate.params.some((p) => p.key === 'pace')) out.push(`${plate.id}: a paced plate carries the pace control (paceParam())`);
+  if ('per_s' in d && d.per_s !== undefined) {
+    const cap = PACING.kinds.stream.max_per_s;
+    if (!(d.per_s > 0) || d.per_s > cap) out.push(`${plate.id}: a stream's own rate of ${d.per_s}/s must lie in (0, ${cap}]: the ceiling is a maximum, not a target`);
+  }
   return out;
 }
 
@@ -89,6 +93,8 @@ export function arithmeticErrors(label: string, report: PaceReport | undefined, 
   const perSec = report.perFrame * FPS;
   const cap = PACING.kinds[report.kind].max_per_s;
   if (perSec > cap + 1e-9) out.push(`${label}: ${perSec.toFixed(1)} ${report.unit}/s at its defaults, above the ${cap}/s of a ${report.kind}`);
+  const own = 'per_s' in decl ? decl.per_s : undefined;
+  if (own !== undefined && perSec > own + 1e-9) out.push(`${label}: ${perSec.toFixed(1)} ${report.unit}/s at its defaults, above the ${own}/s it declares`);
   if (report.kind === 'stream') return out;
   if (report.length === null) return [...out, `${label}: its run's length was still unknown after ${KNOWN_WITHIN} frames`];
   const k = PACING.kinds[report.kind];

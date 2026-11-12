@@ -79,7 +79,8 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   between frames, never rounded up; the applied rate is clamped to the engine's own per-frame
   maximum, so the budget gate's heaviest corner does not move; the end-of-run hold is
   `HOLD_FRAMES`. At its defaults a paced run lasts within its kind's window and shows at most its
-  kind's ceiling of changes a second, proven by `test/pacing.test.ts` for every live plate and lab
+  kind's ceiling of changes a second (a stream may declare a calmer `per_s`, never a faster one),
+  and never more than it showed before ADR 0008 (`test/fixtures/pacing/before.json`), proven by `test/pacing.test.ts` for every live plate and lab
   and driven to its end by `npm run test:pacing`.
 
 # Failure behaviour
