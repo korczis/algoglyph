@@ -55,7 +55,8 @@ function toText(d: ParamDef, v: ParamValue): string {
  * order. The base is the plate's defaults; a figure page (ADR 0009) passes its setup over them,
  * so its clean link carries the seed alone.
  */
-export function serialise(defs: ParamDef[], params: Params, seed: number, base: Params = {}): string {
+export function serialise(defs: ParamDef[], params: Params, seed: number, base: Params = {},
+  data: Record<string, string> = {}): string {
   const q = new URLSearchParams();
   q.set('seed', String(seed));
   for (const d of defs) {
@@ -67,7 +68,25 @@ export function serialise(defs: ParamDef[], params: Params, seed: number, base: 
     if (same) continue;
     q.set(d.key, toText(d, v));
   }
+  // a reader's own data (ADR 0010): the token src/core/data.ts made, after every parameter
+  for (const [id, token] of Object.entries(data)) if (DATA_ID.test(id)) q.set(`d.${id}`, token);
   return q.toString();
+}
+
+const DATA_ID = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * The data tokens of a query, by declared id (`d.<id>`), as written: each is untrusted text that
+ * src/core/data.ts decodes and validates against the plate's declaration (ADR 0010).
+ */
+export function dataTokens(query: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of new URLSearchParams(query)) {
+    if (!k.startsWith('d.')) continue;
+    const id = k.slice(2);
+    if (DATA_ID.test(id)) out[id] = v;
+  }
+  return out;
 }
 
 /** Seed and parameters read from a query, each validated; unknown keys are ignored. */

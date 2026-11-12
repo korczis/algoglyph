@@ -6,7 +6,7 @@
 // rebuild, a restart or a chart measurement never blocks one frame.
 import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../core/palette';
-import { bool, num, type Chart, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
+import { bool, num, type Chart, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { OP, seeded, Tally, Tracer, type GridKernel, type Instance, type Trace } from './trace';
 import { count } from '../../core/format';
@@ -282,10 +282,15 @@ function drawGrid(p: p5, ctx: PlateContext, kernel: GridKernel, rp: Replay, box:
 const baseParams = (k: GridKernel, varies: boolean): ParamDef[] => [
   { kind: 'range', key: 'n', label: k.size.label, min: k.size.min, max: k.size.max, step: k.size.step,
     value: k.size.value, rebuild: true },
+  ...(k.params ?? []),
   paceParam(),
   loopParam(varies),
   paletteParam('abyss'),
 ];
+
+/** The values of a kernel's own controls, from the live parameters or their defaults. */
+const optsOf = (k: GridKernel, params: Params): Record<string, number> =>
+  Object.fromEntries((k.params ?? []).map((d) => [d.key, d.key in params ? num(params, d.key) : Number(d.value)]));
 
 /** A kernel whose instances ignore the seed would only re-trace the same input: it replays. */
 function loopParam(varies: boolean): ParamDef {
@@ -357,14 +362,15 @@ function plate(info: KernelInfo, kernel: GridKernel, frameBudget: number): Plate
       let generation = 0;
       // the trace builds before it replays: its length is known when the replay starts
       const pacer = new Pacer('replay', 'operations', MAX_OPS_PER_FRAME);
-      const instance = () => kernel.instance(num(ctx.params, 'n'), ctx.seed + generation * 7919);
+      const opts = optsOf(kernel, ctx.params);
+      const instance = () => kernel.instance(num(ctx.params, 'n'), ctx.seed + generation * 7919, opts);
       let build: Build | null = new Build(instance());
       let rp = Replay.empty(build.inst);
       let hold = 0;
       const spec = kernel.chart;
       const curves = spec.kind === 'scaling' ? spec.series.map(() => [] as [number, number][]) : [];
       const measurer = new Measurer(spec.kind === 'scaling' ? spec.ns.map((n) => [0, n]) : [],
-        (_, n) => kernel.instance(n, ctx.seed + n),
+        (_, n) => kernel.instance(n, ctx.seed + n, opts),
         (_, n, t) => { if (spec.kind === 'scaling') spec.series.forEach((m, i) => curves[i].push([n, m.of(t.tally)])); });
       // a kernel whose events walk a deep recursion records fewer of them per frame
       const events = Math.max(1, Math.floor(frameBudget / (kernel.eventCost ?? 1)));

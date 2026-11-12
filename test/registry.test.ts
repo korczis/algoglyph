@@ -59,6 +59,25 @@ describe('plate registry', () => {
     }
   });
 
+  it('adds every declared data input to the select it names (ADR 0010)', async () => {
+    const declaring = live.filter((e) => e.data.length);
+    expect(declaring.length).toBeGreaterThan(0);
+    for (const e of declaring) {
+      const p = await loadPlate(e.id);
+      for (const d of e.data) {
+        const sel = p!.params.find((x) => x.key === d.replaces);
+        expect(sel?.kind, `${e.id}: data ${d.id} replaces ${d.replaces}, which is not a select of the plate`).toBe('select');
+        if (sel?.kind === 'select') {
+          expect(sel.options.map((o) => o.value), `${e.id}.${d.replaces}`).toContain(`data:${d.id}`);
+          expect(sel.value, `${e.id}: the default is never a reader's data`).not.toBe(`data:${d.id}`);
+        }
+        for (const k of d.ignores ?? []) {
+          expect(p!.params.some((x) => x.key === k), `${e.id}: data ${d.id} ignores ${k}, which is not a control of the plate`).toBe(true);
+        }
+      }
+    }
+  });
+
   it('builds every runnable lab', async () => {
     for (const l of CATALOGUE.labs) {
       if (!labRunnable(l.id)) continue;

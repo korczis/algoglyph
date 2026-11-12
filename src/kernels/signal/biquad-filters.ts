@@ -3,7 +3,8 @@ import { chartPoints, MUL, type Meter, type SignalKernel, type View } from '../.
 import { fft } from './_fft';
 
 const FS = 16000;
-const IR = 16384;
+/** The impulse response's default length; the `irLen` control shortens it. */
+export const IR = 16384;
 
 export type Kind = 'lowpass' | 'highpass' | 'bandpass' | 'notch' | 'peaking';
 export interface Biquad { b: [number, number, number]; a: [number, number, number] }
@@ -45,13 +46,16 @@ export function roots(c0: number, c1: number, c2: number): [number, number][] {
   return [[-c1 / (2 * c0), Math.sqrt(-d) / (2 * c0)], [-c1 / (2 * c0), -Math.sqrt(-d) / (2 * c0)]];
 }
 
-/** |H| of the filter measured from its impulse response: bins 0..IR/2. */
-export function measuredResponse(f: Biquad, meter?: Meter): { ir: Float64Array; mag: Float64Array } {
-  const imp = new Float64Array(IR); imp[0] = 1;
+/**
+ * |H| of the filter measured from its first n impulse-response samples: bins 0..n/2. What the
+ * cut leaves out, Σ_{k≥n} |h[k]|, is the most the measurement can differ from H on the unit circle.
+ */
+export function measuredResponse(f: Biquad, meter?: Meter, n = IR): { ir: Float64Array; mag: Float64Array } {
+  const imp = new Float64Array(n); imp[0] = 1;
   const ir = filter(f, imp, meter);
-  const re = Float64Array.from(ir); const im = new Float64Array(IR);
+  const re = Float64Array.from(ir); const im = new Float64Array(n);
   fft(re, im, meter);
-  return { ir, mag: Float64Array.from({ length: IR / 2 + 1 }, (_, k) => Math.hypot(re[k], im[k])) };
+  return { ir, mag: Float64Array.from({ length: n / 2 + 1 }, (_, k) => Math.hypot(re[k], im[k])) };
 }
 
 const dB = (v: number) => 20 * Math.log10(Math.max(1e-9, v));
@@ -66,6 +70,9 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'f0', label: 'Corner or centre (Hz)', min: 50, max: 7000, step: 10, value: 1000 },
     { kind: 'range', key: 'q', label: 'Q', min: 0.3, max: 20, step: 0.1, value: 0.7 },
     { kind: 'range', key: 'gain', label: 'Peaking gain (dB)', min: -24, max: 24, step: 1, value: 9 },
+    // a shorter response leaves a tail of h out: with poles near the unit circle it shows
+    { kind: 'select', key: 'irLen', label: 'Impulse response length', value: String(IR),
+      options: [1024, 4096, IR].map((n) => ({ value: String(n), label: `${n} samples` })) },
   ],
   *run(params, _seed, meter): Generator<View | null> {
     const kind = str(params, 'type') as Kind;
@@ -73,12 +80,13 @@ export const kernel: SignalKernel = {
     const f = design(kind, f0, q, Number(params.gain));
     const poles = roots(1, f.a[1], f.a[2]);
     const zeros = roots(f.b[0], f.b[1], f.b[2]);
-    const { ir, mag } = measuredResponse(f, meter);
+    const n = Number(params.irLen ?? IR);
+    const { ir, mag } = measuredResponse(f, meter, n);
     yield null;
-    const df = FS / IR;
+    const df = FS / n;
     // the response evaluated on the unit circle, H(e^{jω}) = B(e^{jω}) / A(e^{jω})
     const exact = Float64Array.from(mag, (_, k) => {
-      const w = 2 * Math.PI * k / IR;
+      const w = 2 * Math.PI * k / n;
       const br = f.b[0] + f.b[1] * Math.cos(w) + f.b[2] * Math.cos(2 * w);
       const bi = -(f.b[1] * Math.sin(w) + f.b[2] * Math.sin(2 * w));
       const ar = 1 + f.a[1] * Math.cos(w) + f.a[2] * Math.cos(2 * w);

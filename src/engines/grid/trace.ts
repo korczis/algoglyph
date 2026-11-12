@@ -1,6 +1,7 @@
 // The grid engine's measurable core: a kernel fills or searches a table or board only through
 // these cell operations, every one is counted, and the run is recorded as a trace the plate
 // replays. Nothing here draws; readouts and charts are tallied from the trace alone.
+import type { ParamDef } from '../../core/plate';
 
 export const OP = {
   /** A call on a subproblem, or a position tried on a board. */
@@ -110,9 +111,12 @@ export interface GridKernel<D = unknown, R = unknown> {
    * about d. A frame records `BUILD_EVENTS_PER_FRAME / eventCost` events. Default 1.
    */
   eventCost?: number;
+  /** Controls of the kernel itself (rebuild ranges), passed to `instance` as `opts`. */
+  params?: ParamDef[];
   readouts: Measure[];
   chart: ChartSpec;
-  instance(n: number, seed: number): Instance<D, R>;
+  /** `opts` holds the kernel's own controls by key; a key it lacks takes the control's default. */
+  instance(n: number, seed: number, opts?: Record<string, number>): Instance<D, R>;
 }
 
 /** Counts of a trace, in total and by row, and the distinct cells written and crossed. */

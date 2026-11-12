@@ -7,7 +7,8 @@ import { paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type Chart, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { drawMarks, drawPacked, fit, type View } from './draw';
-import { DEFAULT_SHAPES, makeInput, SHAPE_LABELS } from './input';
+import { optionId } from '../../core/data';
+import { DEFAULT_SHAPES, fitToBox, makeInput, SHAPE_LABELS, type Fitted } from './input';
 import { buildNow, Scaling, SLICE_MS, startBuild, type Build, type Request } from './build';
 import { record, type Box, type GeometryKernel } from './trace';
 import type { Track } from './track';
@@ -64,8 +65,32 @@ function shapeOf(params: Params, shapes: string[]): string {
   return shapes.includes(s) ? s : shapes[0];
 }
 
-function request(info: KernelInfo, kernel: GeometryKernel, params: Params, seed: number, shapes: string[]): Request {
+/**
+ * A reader's points for a point input (ADR 0010), when the shape select picks a declared input
+ * and the page attached valid data for it; null otherwise, and the seeded input runs.
+ */
+function given(kernel: GeometryKernel, ctx: PlateContext): Fitted | null {
+  if (kernel.input !== 'points') return null;
+  const id = optionId(ctx.params.shape);
+  const table = id ? ctx.data?.(id) ?? null : null;
+  return table && table.columns.length >= 2 ? fitToBox(table) : null;
+}
+
+function request(info: KernelInfo, kernel: GeometryKernel, params: Params, seed: number, shapes: string[], mine: Fitted | null = null): Request {
+  if (mine) return { id: info.id, kernel, shape: 'data', n: mine.points.length, seed, params, points: mine.points };
   return { id: info.id, kernel, shape: shapeOf(params, shapes), n: kernel.input === 'none' ? 0 : num(params, 'n'), seed, params };
+}
+
+const g = (v: number) => String(Number(v.toPrecision(6)));
+
+/** What the readout says about a reader's points: how many, how mapped, how many merged. */
+function givenRows(mine: Fitted, ctx: PlateContext): Stat[] {
+  const t = ctx.data?.(optionId(ctx.params.shape) ?? '');
+  const [ux, uy] = t ? t.columns.map((c) => c.unit) : ['', ''];
+  return [
+    { label: 'Input', value: `your data, ${fmt(mine.points.length)} points${mine.merged ? ` (${fmt(mine.merged)} merged on the grid)` : ''}` },
+    { label: 'Mapped from', value: `x [${g(mine.lo.x)}, ${g(mine.hi.x)}] ${ux}, y [${g(mine.lo.y)}, ${g(mine.hi.y)}] ${uy}; ${g(mine.scale)} grid units each` },
+  ];
 }
 
 /** Draw a build in progress: its base and the latest frame recorded so far. */
@@ -91,10 +116,12 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
       // a run builds before it replays: its recorded steps are known when the replay starts
       const pacer = new Pacer('replay', 'steps', MAX_STEPS_PER_FRAME);
       const seedOf = () => ctx.seed + generation * 7919;
+      // a reader's points, fixed for the life of this plate: a new select or new data remounts it
+      const mine = given(kernel, ctx);
       // the first run is sliced like every other (a thumbnail builds it at once)
-      let t: Track | null = ctx.thumbnail ? buildNow(request(info, kernel, ctx.params, seedOf(), shapes)) : null;
+      let t: Track | null = ctx.thumbnail ? buildNow(request(info, kernel, ctx.params, seedOf(), shapes, mine)) : null;
       if (t) pacer.start(t.length - 1);
-      let pending: Build | null = t ? null : startBuild(request(info, kernel, ctx.params, seedOf(), shapes), false);
+      let pending: Build | null = t ? null : startBuild(request(info, kernel, ctx.params, seedOf(), shapes, mine), false);
       let at = 0;
       let hold = 0;
       let stride = 1;
@@ -125,11 +152,12 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
                 // the next input builds in the background (a worker when there is one, slices
                 // otherwise); the held frame stays on screen until it is ready
                 generation++;
-                pending = startBuild({ ...request(info, kernel, ctx.params, seedOf(), shapes), stride }, true);
+                pending = startBuild({ ...request(info, kernel, ctx.params, seedOf(), shapes, mine), stride }, true);
               }
             }
-            // scaling runs only in time the build left over
-            if (performance.now() < deadline) scaling.pump(deadline);
+            // scaling runs only in time the build left over, and only on seeded input: on a
+            // reader's points the chart would describe inputs they did not give
+            if (!mine && performance.now() < deadline) scaling.pump(deadline);
           }
           if (!t) {
             const steps = pending ? drawPartial(p, ctx, pending, fitIn) : 0;
@@ -148,10 +176,11 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
           rows.push({ label: 'Progress', value: `${Math.round((100 * shown) / Math.max(1, t.length - 1))}% of ${fmt(t.length)} recorded steps` });
           if (done) rows.push(...t.rows);
           if (pending) rows.push({ label: 'Next input', value: 'building' });
+          if (mine) rows.push(...givenRows(mine, ctx));
           rows.push(pacer.row(ctx.params));
           ctx.stats(rows);
           let chart: Chart | undefined = t.chart;
-          if (!chart && sizes.length) {
+          if (!chart && sizes.length && !mine) {
             const slope = exponent(scaling.points);
             chart = {
               title: `Measured ${primary[1].toLowerCase()} as n grows${Number.isFinite(slope) ? ` (slope ${slope.toFixed(2)})` : ''}`,
