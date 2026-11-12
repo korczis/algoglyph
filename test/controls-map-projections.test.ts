@@ -121,3 +121,32 @@ describe('map-projections h (difference step)', () => {
     expect(r.value! >= 6.9e-7 && r.value! <= 7.0e-7, r.text).toBe(true);
   }, 120_000);
 });
+
+describe('map-projections step (graticule step)', () => {
+  it('is a select of 0.25°, 0.5°, 1° whose default is the old constant 0.25°', async () => {
+    const d = (await def('step')) as SelectParam | undefined;
+    expect(d).toBeDefined();
+    expect({ kind: d!.kind, label: d!.label, value: d!.value, options: d!.options.map((o) => o.value) })
+      .toEqual({ kind: 'select', label: 'Graticule step (°)', value: '0.25', options: ['0.25', '0.5', '1'] });
+  });
+
+  it('round-trips through a shared link', async () => {
+    expect(await roundTrip('step', '1')).toBe('1');
+  });
+
+  it('measures (3/s + 1)(7/s + 1) nodes per projection, Křovák\'s least k within d²/2R² of 0.9999', () => {
+    // upper bounds in ppm from the cone's exact scale at half a node diagonal off the pseudo
+    // standard parallel (16.7, 33.4, 66.8 km at 48.5° N), lower from 0.9999 less the Gaussian
+    // sphere's 0.09 ppm below 1 over the band
+    const bound: Record<string, number> = { 0.25: -96.55, 0.5: -86.19, 1: -44.3 };
+    for (const step of ['0.25', '0.5', '1']) {
+      const s = Number(step);
+      const t = run({ step });
+      expect(t.counts.node, `step=${step}`).toBe(2 * (3 / s + 1) * (7 / s + 1));
+      const r = t.outcome.result as Result;
+      const ppm = (r.krovak.kmin - 1) * 1e6;
+      expect(ppm, `step=${step}`).toBeGreaterThanOrEqual(-100.1);
+      expect(ppm, `step=${step}`).toBeLessThanOrEqual(bound[step]);
+    }
+  });
+});

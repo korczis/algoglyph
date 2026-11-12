@@ -5,7 +5,7 @@ const D = Math.PI / 180;
 const LAT0 = 48.5; const LON0 = 12; const LON1 = 19;
 /** The band spans this many degrees of latitude north of its southern edge. */
 const BAND = 3;
-const STEP = 0.25;
+const STEP = '0.25';
 const DEFAULT_H = '1e-5'; // radians, for the central differences
 
 interface Proj {
@@ -39,16 +39,22 @@ export const kernel: GeometryKernel = {
       options: ['1e-6', '1e-5', '1e-4', '1e-3'].map((v) => ({ value: v, label: v })),
       hint: 'truncation error grows as H², rounding error as 1/H',
     },
+    {
+      kind: 'select', key: 'step', label: 'Graticule step (°)', value: STEP,
+      options: ['0.25', '0.5', '1'].map((v) => ({ value: v, label: `${v}°` })),
+      hint: 'the spacing of the measured nodes, in latitude and longitude',
+    },
   ],
   counters: [['proj', 'Projection evaluations'], ['node', 'Nodes measured']],
   *run(g) {
     const lat0 = Number(g.params.lat0 ?? LAT0); const lat1 = lat0 + BAND;
     const H = Number(g.params.h ?? DEFAULT_H);
+    const step = Number(g.params.step ?? STEP);
     const panels: Box[] = [{ x0: 0, y0: 0, x1: 1, y1: 0.78 }, { x0: 1.12, y0: 0, x1: 2.12, y1: 0.78 }];
     g.view({ x0: -0.04, y0: -0.12, x1: 2.16, y1: 0.9 });
     const lats: number[] = []; const lons: number[] = [];
-    for (let v = lat0; v <= lat1 + 1e-9; v += STEP) lats.push(Number(v.toFixed(4)));
-    for (let v = LON0; v <= LON1 + 1e-9; v += STEP) lons.push(Number(v.toFixed(4)));
+    for (let v = lat0; v <= lat1 + 1e-9; v += step) lats.push(Number(v.toFixed(4)));
+    for (let v = LON0; v <= LON1 + 1e-9; v += step) lons.push(Number(v.toFixed(4)));
     const P = (pj: Proj, lat: number, lon: number) => { g.count('proj'); return pj.f(lat, lon); };
     // fit each projection's graticule into its panel
     const fits = PROJ.map((pj, i) => {

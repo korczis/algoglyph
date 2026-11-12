@@ -144,6 +144,26 @@ claims:
     expect: { value: 0 }
     setup:
       params: { h: '1e-3' }
+  - id: krovak-smallest-scale-at-half-degree-nodes
+    statement: >-
+      With nodes every 0.5° the widest cell, at 48.5° N, is 55.6 km by 36.9 km, so every point of
+      the pseudo standard parallel lies within half its diagonal, 33.4 km, of a node; the cone's
+      exact scale that far off its standard parallel is 13.8 ppm above 0.9999 (d²/2R² = 13.7 ppm
+      with R = 6380.7 km, plus the cubic term), and the Gaussian sphere adds at most 0.01 ppm, so
+      the smallest k read is at most −86.19 ppm, −86 as printed; at least −100.5 ppm as before.
+    readout: Křovák scale k
+    expect: { range: [-100.5, -86] }
+    setup:
+      params: { step: '0.5' }
+  - id: krovak-smallest-scale-at-one-degree-nodes
+    statement: >-
+      With nodes every 1° the half diagonal is 66.8 km and the cone's exact scale there is 55.7
+      ppm above 0.9999 (d²/2R² alone gives 54.7 ppm), so the smallest k read is at most −44.30
+      ppm, −44 as printed, and at least −100.5 ppm.
+    readout: Křovák scale k
+    expect: { range: [-100.5, -44] }
+    setup:
+      params: { step: '1' }
 ---
 
 How two projections bend the same graticule, measured by their distortion at each point.
