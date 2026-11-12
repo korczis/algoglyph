@@ -32,6 +32,39 @@ claims:
       rounding: no sample is off by 10⁻⁹.
     readout: Perfect reconstruction, largest error
     expect: { below: 1.0e-9 }
+  - id: reconstruction-rounding-bound-at-128
+    statement: >-
+      Each level is orthogonal, and its outputs are sums of at most 2L products, each off by at
+      most 2L·u (u = 2⁻⁵³) times the same sum in absolute value, whose matrix has norm at most
+      ‖h‖₁ ≤ √L. Five levels there and five back with D4 (L = 4) on 128 samples of a signal never
+      above 2.4 add at most 2·5·2·4·u·√4·√128·2.4 = 4.82·10⁻¹³ to any sample.
+    readout: Perfect reconstruction, largest error
+    expect: { below: 4.82e-13 }
+    setup:
+      params: { n: '128' }
+  - id: reconstruction-rounding-bound-at-256
+    statement: >-
+      The same bound on 256 samples is 2·5·2·4·u·√4·√256·2.4 = 6.82·10⁻¹³.
+    readout: Perfect reconstruction, largest error
+    expect: { below: 6.82e-13 }
+    setup:
+      params: { n: '256' }
+  - id: multiplies-at-128
+    statement: >-
+      The run meters the analysis and two rebuilds (the full one and the compressed one), each n·L
+      multiplies at the first level and half that at each next, 2nL(1 − 2⁻ᴶ) apiece: on 128
+      samples with D4 and five levels, 6·128·4·(1 − 1/32) = 2976 multiplies exactly.
+    readout: Real multiplies
+    expect: { value: 2976 }
+    setup:
+      params: { n: '128' }
+  - id: multiplies-at-256
+    statement: >-
+      On 256 samples the same count is 6·256·4·(1 − 1/32) = 5952 multiplies exactly.
+    readout: Real multiplies
+    expect: { value: 5952 }
+    setup:
+      params: { n: '256' }
 ---
 
 A signal split into detail and approximation, octave by octave.
