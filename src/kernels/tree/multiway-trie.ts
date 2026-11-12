@@ -1,11 +1,10 @@
-import { NIL, WORD_LETTERS, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
-import { drive } from './_digital';
+import { NIL, wordLetters, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
+import { alphabetParams, drive } from './_digital';
 
-const R = WORD_LETTERS.length;
-const FIRST = WORD_LETTERS.charCodeAt(0);
+const FIRST = wordLetters().charCodeAt(0);
 const END = 1;
 
-function insert(t: TreeOps, s: string): void {
+function insert(t: TreeOps, s: string, R: number): void {
   if (t.root() === NIL) t.setRoot(0, t.make([], R));
   let x = t.root();
   for (let i = 0; i < s.length; i++) {
@@ -37,5 +36,10 @@ export const kernel: TreeKernel = {
   input: 'words',
   structure: 'rway-trie',
   colour: 'terminal',
-  run(t) { drive(t, (k) => insert(t, k as string), (k) => search(t, k as string)); },
+  params: alphabetParams(),
+  run(t) {
+    // one link per letter of the workload's alphabet
+    const R = wordLetters(t.w.opts.letters).length;
+    drive(t, (k) => insert(t, k as string, R), (k) => search(t, k as string));
+  },
 };

@@ -5,8 +5,8 @@
 import type p5 from 'p5';
 import { mix, ramp, type RGB } from '../../core/palette';
 import type { PlateContext } from '../../core/plate';
-import { EV, linksCreated, NIL, OP_KINDS, Store, WORD_LETTERS, type Counts, type Key, type Trace,
-  type TreeKernel } from './trace';
+import { EV, linksCreated, NIL, OP_KINDS, Store, WORD_LETTERS, wordLetters, type Counts, type Key,
+  type Trace, type TreeKernel } from './trace';
 
 export interface SceneNode {
   id: number;
@@ -35,14 +35,16 @@ export interface Scene {
   depth: number;
 }
 
-const valueOf = (k: Key, maxKey: number): number => {
+/** A key's colour position: a number by its size, a word by its first letter in the workload's
+ * alphabet, any other string by its code. */
+const valueOf = (k: Key, maxKey: number, letters = WORD_LETTERS): number => {
   if (typeof k === 'number') return maxKey > 0 ? k / maxKey : 0;
-  const i = WORD_LETTERS.indexOf(k[0]);
-  if (i >= 0) return i / Math.max(1, WORD_LETTERS.length - 1);
+  const i = letters.indexOf(k[0]);
+  if (i >= 0) return i / Math.max(1, letters.length - 1);
   return (k.charCodeAt(0) % 26) / 25;
 };
 
-function nodesScene(s: Store, kernel: TreeKernel, maxKey: number): Scene {
+function nodesScene(s: Store, kernel: TreeKernel, maxKey: number, letters?: string): Scene {
   const nodes: SceneNode[] = [];
   const edges: SceneEdge[] = [];
   const seen = new Set<number>();
@@ -54,7 +56,7 @@ function nodesScene(s: Store, kernel: TreeKernel, maxKey: number): Scene {
     depth = Math.max(depth, d);
     const ks = s.keys[x];
     const cs = s.kids[x];
-    const node: SceneNode = { id: x, x: 0, d, labels: ks.map(String), value: ks.length ? valueOf(ks[0], maxKey) : 0.5, tag: s.tag[x] };
+    const node: SceneNode = { id: x, x: 0, d, labels: ks.map(String), value: ks.length ? valueOf(ks[0], maxKey, letters) : 0.5, tag: s.tag[x] };
     if (kernel.infoLabel) node.info = s.info[x];
     nodes.push(node);
     const down = (i: number): number | undefined => {
@@ -144,10 +146,10 @@ function parentScene(s: Store): Scene {
   return { nodes, edges, slots: Math.max(1, slot), depth };
 }
 
-export function scene(s: Store, kernel: TreeKernel, maxKey: number): Scene {
+export function scene(s: Store, kernel: TreeKernel, maxKey: number, letters?: string): Scene {
   if (kernel.view === 'heap') return heapScene(s, kernel, maxKey);
   if (kernel.view === 'parent') return parentScene(s);
-  return nodesScene(s, kernel, maxKey);
+  return nodesScene(s, kernel, maxKey, letters);
 }
 
 /** The shape of the replayed structure: keys held, levels, and mean depth (root = 1) of a key. */
@@ -192,10 +194,13 @@ export class Replay {
   /** Per operation: [operations done, height, mean depth, lg(size + 1)]. */
   history: [number, number, number, number][] = [];
   readonly maxKey: number;
+  /** The workload's alphabet, which colours a word's letters (the word tries' control). */
+  readonly letters: string;
   constructor(readonly t: Trace, readonly kernel: TreeKernel) {
     this.s = new Store(t.store.arr.length);
     const nums = t.workload.keys.filter((k): k is number => typeof k === 'number');
     this.maxKey = Math.max(1, ...nums, t.workload.sites - 1);
+    this.letters = wordLetters(t.workload.opts.letters);
   }
   get done(): boolean { return this.at >= this.t.events.length; }
   private sample(): void {
@@ -267,7 +272,7 @@ export function ink(ctx: PlateContext, fill: RGB): RGB {
 
 /** Draw a replay's structure into box b; returns nothing, draws only through p and ctx colours. */
 export function drawScene(p: p5, ctx: PlateContext, r: Replay, m: Motion, b: Box, opts: { labels: boolean; snap?: boolean }): void {
-  const sc = scene(r.s, r.kernel, r.maxKey);
+  const sc = scene(r.s, r.kernel, r.maxKey, r.letters);
   const pal = ctx.palette();
   const fg = ctx.fg; const bg = ctx.bg;
   const levels = sc.depth + 1;

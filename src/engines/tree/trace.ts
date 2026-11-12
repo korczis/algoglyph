@@ -431,8 +431,13 @@ export const SHAPES: Record<InputKind, { value: string; label: string }[]> = {
 };
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-/** The letters words are drawn from; a small alphabet makes prefixes shared and tries deep. */
+/** The letters words are drawn from by default; a small alphabet makes prefixes shared and
+ * tries deep. */
 export const WORD_LETTERS = 'abcde';
+/** The largest alphabet the word tries' control offers (src/kernels/tree/_digital.ts). */
+export const WORD_ALPHABET = 'abcdefghij';
+/** The first r letters of the alphabet: a workload's words use exactly these. */
+export const wordLetters = (r: number = WORD_LETTERS.length): string => WORD_ALPHABET.slice(0, r);
 /** Largest alphabet a Huffman workload can label. */
 export const MAX_SYMBOLS = ALPHABET.length;
 
@@ -529,19 +534,22 @@ export function workload(kind: InputKind, shape: string, n: number, seed: number
     w.searches = order([...hits, ...miss], 'random', rnd);
     w.deletes = sample(chosen, Math.floor(n / 2), rnd);
   } else if (kind === 'words') {
+    // alphabet size: the word tries' control (src/kernels/tree/_digital.ts)
+    const letters = wordLetters(opts.letters);
     const set = new Set<string>();
-    const stems = Array.from({ length: 3 }, () => randomWord(rnd, WORD_LETTERS));
+    const stems = Array.from({ length: 3 }, () => randomWord(rnd, letters));
     let guard = 0;
     while (set.size < n && guard++ < n * 200) {
-      set.add(shape === 'prefixes' ? randomWord(rnd, WORD_LETTERS, stems[Math.floor(rnd() * stems.length)])
-        : randomWord(rnd, WORD_LETTERS));
+      set.add(shape === 'prefixes'
+        ? randomWord(rnd, letters, stems[Math.floor(rnd() * stems.length)])
+        : randomWord(rnd, letters));
     }
     const words = [...set];
     w.keys = shape === 'ascending' ? words.slice().sort() : sample(words, words.length, rnd);
     const misses: string[] = [];
     guard = 0;
     while (misses.length < Math.floor(n / 4) && guard++ < n * 200) {
-      const x = randomWord(rnd, WORD_LETTERS);
+      const x = randomWord(rnd, letters);
       if (!set.has(x) && !misses.includes(x)) misses.push(x);
     }
     w.searches = sample([...sample(words, Math.ceil(n / 4), rnd), ...misses], n, rnd);

@@ -10,6 +10,15 @@ export const keyBitsParams = (): ParamDef[] => [{
   rebuild: true, hint: 'Key width w = max(4, ⌈lg 4n⌉) + this; every key is below 2^w.',
 }];
 
+/** The control the word tries share, so they stay in step: words over the first R letters of
+ * 'abcdefghij' (src/engines/tree/trace.ts), and R links in every multiway-trie node. Two letters
+ * spell only 62 words of 1 to 5 letters, fewer than the plates' 120, and the draw would run to
+ * its guard; ten keeps a multiway node's fan-out legible in the drawing (judged, not measured). */
+export const alphabetParams = (): ParamDef[] => [{
+  kind: 'range', key: 'letters', label: 'Alphabet size R', min: 3, max: 10, step: 1, value: 5,
+  rebuild: true, hint: 'Words are drawn from the first R letters, a to j at most.',
+}];
+
 export function drive(t: TreeOps, insert: (k: Key) => void, search: (k: Key) => boolean): void {
   for (const k of t.w.keys) {
     t.begin('insert', `insert ${k}`);
