@@ -112,7 +112,9 @@ export interface Trace {
   marks: Marks;
 }
 
-/** Events a trace may hold; a quadratic sort at the largest n stays well inside it. */
+/** Events a trace may hold; a quadratic sort at the largest n stays well inside it. Phase, lane
+ * and round annotations take slots here too, so an annotated kernel reaches the cap slightly
+ * earlier than its operation count alone would say. */
 export const EVENT_CAP = 4_000_000;
 
 class Stop extends Error {}
