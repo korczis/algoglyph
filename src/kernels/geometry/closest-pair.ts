@@ -10,9 +10,10 @@ export const kernel: GeometryKernel = {
   task: 'closest-pair',
   input: 'points',
   n: { min: 2, max: 2000, value: 160, step: 1 },
-  // the default is also the top: any larger leaf costs more distance computations at 2000 points
+  // a larger leaf brute-forces more pairs (13 times the distances at 16 and 2000 points); the
+  // range ends where the main-thread budget does (test/budget/geometry.test.ts measures its top)
   params: [{
-    kind: 'range', key: 'leaf', label: 'Brute-force leaf size', min: 2, max: LEAF, step: 1, value: LEAF,
+    kind: 'range', key: 'leaf', label: 'Brute-force leaf size', min: 2, max: 16, step: 1, value: LEAF,
     hint: 'ranges of at most this many points compare every pair instead of splitting',
   }],
   counters: [['dist', 'Distance computations'], ['compare', 'Comparisons']],
