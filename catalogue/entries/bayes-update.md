@@ -49,6 +49,24 @@ claims:
       within the width of one of its 400 cells (0.0025).
     readout: Posterior mean
     expect: { against: Closed form Beta mean, tolerance: 0.0025 }
+  - id: coarse-grid-mean-matches-the-closed-form
+    statement: >-
+      On a grid of 100 cells the posterior mean still agrees with the closed-form
+      Beta(a + events, b + non-events) mean to within the width of one cell, 1/100 = 0.01: each
+      cell stands for the rate at its midpoint, which is never more than half a cell from any rate
+      in it.
+    readout: Posterior mean
+    expect: { against: Closed form Beta mean, tolerance: 0.01 }
+    setup:
+      params: { cells: "100" }
+  - id: medium-grid-mean-matches-the-closed-form
+    statement: >-
+      On a grid of 200 cells the posterior mean agrees with the closed-form
+      Beta(a + events, b + non-events) mean to within the width of one cell, 1/200 = 0.005.
+    readout: Posterior mean
+    expect: { against: Closed form Beta mean, tolerance: 0.005 }
+    setup:
+      params: { cells: "200" }
 ---
 
 A prior turned into a posterior one piece of evidence at a time.

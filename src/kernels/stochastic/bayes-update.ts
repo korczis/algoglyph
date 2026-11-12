@@ -13,7 +13,8 @@ export interface BayesResult {
   mean: number;
 }
 
-const G = 400;
+/** Cells the rate's belief is held in: the default is the old fixed grid. */
+const CELLS = ['100', '200', '400'];
 const FRAMES = 160;
 const PRIORS: Record<string, [number, number]> = { flat: [1, 1], sceptical: [2, 8], hopeful: [8, 2], jeffreys: [0.5, 0.5] };
 
@@ -23,10 +24,11 @@ function normalise(m: number[]): number[] {
   return m.map((v) => v / z);
 }
 
-/** Mean, standard deviation and the 5% and 95% ends of a distribution held as cell masses; an
+/** Mean, standard deviation and the 5% and 95% ends of a distribution held as G cell masses; an
  * end is the right edge of the cell where the cumulative mass crosses, so it is exact only to
  * the cell width 1 / G. */
 function summary(grid: number[], m: number[]) {
+  const G = grid.length;
   let mu = 0;
   let m2 = 0;
   for (let i = 0; i < G; i++) { mu += grid[i] * m[i]; m2 += grid[i] * grid[i] * m[i]; }
@@ -62,6 +64,10 @@ export const kernel: StochasticKernel<BayesResult> = {
     },
     { kind: 'range', key: 'truth', label: 'True rate', min: 0.02, max: 0.98, step: 0.01, value: 0.3, rebuild: true },
     { kind: 'range', key: 'n', label: 'Observations', min: 5, max: 500, step: 5, value: 120, rebuild: true },
+    {
+      kind: 'select', key: 'cells', label: 'Grid cells', value: '400', rebuild: true,
+      options: CELLS.map((value) => ({ value, label: `${value} cells` })),
+    },
   ],
   chart: { title: 'Posterior as evidence arrives', x: { label: 'observations' }, y: { label: 'rate' } },
   *run(ops, cfg) {
@@ -69,6 +75,7 @@ export const kernel: StochasticKernel<BayesResult> = {
     const [a, b] = PRIORS[str(cfg, 'prior')] ?? PRIORS.flat;
     const truth = num(cfg, 'truth');
     const n = num(cfg, 'n');
+    const G = CELLS.includes(str(cfg, 'cells')) ? num(cfg, 'cells') : 400;
     const grid = Array.from({ length: G }, (_, i) => (i + 0.5) / G);
     const prior = normalise(grid.map((_, i) => betaCdf((i + 1) / G, a, b) - betaCdf(i / G, a, b)));
     let post = prior.slice();
