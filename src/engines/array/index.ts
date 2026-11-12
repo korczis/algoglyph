@@ -131,6 +131,7 @@ export class Replay {
       else if (op === OP.write) this.c.writes++;
       else if (op === OP.swap) this.c.writes += 2;
       else if (op === OP.auxWrite) this.c.aux++;
+      if (this.colN && (op === OP.auxWrite || op === OP.auxClear)) this.column(op, i, ev[3 * this.at + 2]);
       apply(this.a, this.aux, this.t.events, this.at);
       if ((this.at + 1) % this.every === 0 || this.at + 1 === this.t.length) {
         this.history.push([this.at + 1, this.c.compares, this.c.writes, this.c.aux, this.c.rounds]);
@@ -139,6 +140,52 @@ export class Replay {
   }
   /** The counts up to the replayed position, counted from the events as they were replayed. */
   counts() { return { ...this.c }; }
+  // the auxiliary row folded into pixel columns, kept only once a plate drew it folded: the
+  // tallest key of every column, updated as cells are written and recomputed only for a column
+  // whose tallest key was overwritten or emptied
+  private colN = 0;
+  private colMax = new Float64Array(0);
+  private colDirty = new Uint8Array(0);
+  private dirty = false;
+  /** Keep the folded columns true for the auxiliary event about to be applied. */
+  private column(op: number, i: number, j: number): void {
+    const len = this.aux.length;
+    const of = (k: number) => Math.floor((k * this.colN) / len);
+    if (op === OP.auxWrite) {
+      const c = of(i);
+      if (j >= this.colMax[c]) this.colMax[c] = j;
+      else if (this.aux[i] === this.colMax[c]) { this.colDirty[c] = 1; this.dirty = true; }
+      return;
+    }
+    for (let c = of(i); c <= of(j); c++) {
+      if (this.colMax[c] > 0) { this.colDirty[c] = 1; this.dirty = true; }
+    }
+  }
+  /**
+   * The tallest key in each of `cols` equal columns of the auxiliary row (cell k in column
+   * floor(k * cols / cells)): what a row wider than its pixels is drawn from, one bar per column,
+   * so a frame costs the pixel width and never the row's cells.
+   */
+  auxColumns(cols: number): Float64Array {
+    const len = this.aux.length;
+    const first = (c: number) => Math.ceil((c * len) / cols);
+    const fill = (c: number) => {
+      let m = 0;
+      for (let k = first(c), e = first(c + 1); k < e; k++) if (this.aux[k] > m) m = this.aux[k];
+      this.colMax[c] = m;
+      this.colDirty[c] = 0;
+    };
+    if (cols !== this.colN) {
+      this.colN = cols;
+      this.colMax = new Float64Array(cols);
+      this.colDirty = new Uint8Array(cols);
+      for (let c = 0; c < cols; c++) fill(c);
+    } else if (this.dirty) {
+      for (let c = 0; c < cols; c++) if (this.colDirty[c]) fill(c);
+    }
+    this.dirty = false;
+    return this.colMax;
+  }
   private tickCols = -1;
   private ticks = new Int32Array(0);
   /** The pixel columns, of `cols`, that hold a round boundary: one mark per column at most. */
@@ -194,13 +241,18 @@ function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: 
     const ay = y0 + hh - auxH;
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 18);
     p.rect(x, ay, w, auxH);
-    for (let i = 0; i < r.aux.length; i++) {
-      const v = r.aux[i];
+    // a row of more cells than pixels is drawn one column per pixel, each its tallest key
+    const cols = Math.max(1, Math.floor(w));
+    const folded = r.aux.length > cols;
+    const cells = folded ? r.auxColumns(cols) : r.aux;
+    const cw = folded ? w / cols : abw;
+    for (let i = 0; i < cells.length; i++) {
+      const v = cells[i];
       if (!v) continue;
       const c = ramp(pal, (v - 1) / Math.max(1, max - 1));
       p.fill(c[0], c[1], c[2], 200);
       const bh = Math.max(1, (v / max) * auxH);
-      p.rect(x + i * abw, ay + auxH - bh, Math.max(1, abw - (abw > 3 ? 1 : 0)), bh);
+      p.rect(x + i * cw, ay + auxH - bh, Math.max(1, cw - (cw > 3 ? 1 : 0)), bh);
     }
   }
   if (r.last >= 0 && !r.done) {
