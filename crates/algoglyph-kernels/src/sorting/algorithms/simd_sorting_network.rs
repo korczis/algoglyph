@@ -14,6 +14,9 @@
 //! The input is padded with +infinity to a multiple of 16, as vector code pads; the real
 //! items are written back to the array after every step. Unstable: the min/max network
 //! does not preserve the order of equal keys. No simplification of the kernels.
+//!
+//! Rounds (`t.round()`): one per vector instruction, a min/max on all four lanes or one
+//! half-cleaner level of two pairs.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -42,6 +45,8 @@ fn cmp_cell(t: &mut Tracer, a: &Cell, b: &Cell) -> Ordering {
 
 /// One vector min/max: lane-wise (min, max) of two registers.
 fn minmax(t: &mut Tracer, a: &mut [Cell; W], b: &mut [Cell; W]) {
+    // one instruction on all W lanes at once: one round
+    t.round();
     for l in 0..W {
         t.lane(l as u32);
         if cmp_cell(t, &a[l], &b[l]) == Ordering::Greater {
@@ -52,7 +57,11 @@ fn minmax(t: &mut Tracer, a: &mut [Cell; W], b: &mut [Cell; W]) {
 
 /// Sorts a bitonic register of 4 with two half-cleaner levels.
 fn bitonic4(t: &mut Tracer, r: &mut [Cell; W]) {
-    for (i, j) in [(0, 2), (1, 3), (0, 1), (2, 3)] {
+    for (k, (i, j)) in [(0, 2), (1, 3), (0, 1), (2, 3)].into_iter().enumerate() {
+        // each half-cleaner level is one instruction over its two pairs: one round
+        if k % 2 == 0 {
+            t.round();
+        }
         t.lane(i as u32);
         if cmp_cell(t, &r[i], &r[j]) == Ordering::Greater {
             r.swap(i, j);

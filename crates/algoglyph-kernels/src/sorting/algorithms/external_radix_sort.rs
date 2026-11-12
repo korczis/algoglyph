@@ -10,6 +10,9 @@
 //! Keys are taken relative to the minimum key; the radix is `options.base` (2 ..= 1024),
 //! default 16. Distribution keeps the file order inside every bucket, so the sort is stable.
 //! No simplification.
+//!
+//! Passes (`t.round()`): one per digit; the concatenation into the array, which shows the
+//! pass, is part of it, and the scan for the key range writes nothing and is no pass.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -42,6 +45,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     let mut pass = 0;
     loop {
         pass += 1;
+        t.round();
         t.phase(&format!(
             "pass {pass}: distribute by digit {pass} into {base} bucket files"
         ));

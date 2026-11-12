@@ -1973,8 +1973,6 @@ entries:
     broader: null
   - id: "enumeration-sort"
     kernel: "enumeration-sort"
-    max_n: 440
-    max_n_of: "276c4a6f34c8e1cf"
     atlas_id: "TA-07.08"
     existing: false
     engine: "array"

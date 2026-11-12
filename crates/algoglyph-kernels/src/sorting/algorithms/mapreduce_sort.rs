@@ -16,6 +16,8 @@
 //! give its exact function); unlike TeraSort there is no sampling, so skewed keys give
 //! unequal partitions. The framework sort is a stable merge sort here, so this simulation
 //! happens to be stable; META declares it unstable, as nothing in the paper promises it.
+//!
+//! Rounds (`t.round()`): one per stage that every task runs: map, shuffle, sort.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -45,6 +47,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     }
     let span = (max - min) as u128 + 1;
     let part = |x: &Item| (((x.key as i64 - min) as u128 * reduces as u128) / span) as usize;
+    t.round();
     t.phase("map: emit every record to its key-range partition");
     let split = n.div_ceil(maps);
     let mut emitted: Vec<Vec<Vec<Item>>> = vec![vec![Vec::new(); reduces]; maps];
@@ -55,6 +58,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
             out[part(&x)].push(x);
         }
     }
+    t.round();
     t.phase("shuffle: reduce task r fetches partition r from every map task");
     let mut inbox: Vec<Vec<Item>> = vec![Vec::new(); reduces];
     for out in emitted {
@@ -66,6 +70,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
         t.lane(r as u32);
         t.aux(&format!("reduce task {r}"), b);
     }
+    t.round();
     t.phase("sort: the framework sorts every reduce task's pairs by key; reduce = identity");
     let mut pos = 0;
     for (r, b) in inbox.iter_mut().enumerate() {

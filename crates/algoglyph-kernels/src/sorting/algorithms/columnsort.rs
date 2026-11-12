@@ -11,6 +11,8 @@
 //! the real items are written back to the array in column-major order, so the trace shows
 //! the matrix as it changes. The columns themselves are sorted by a merge sort.
 //! No simplification of the eight steps; s is the largest value the bound allows.
+//!
+//! Rounds (`t.round()`): one per column-sorting step, where every column sorts at once.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -117,6 +119,8 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
 }
 
 fn sort_columns(t: &mut Tracer, m: &mut [Cell], r: usize, cols: usize) {
+    // the columns are sorted at once, one lane each: one parallel round
+    t.round();
     for c in 0..cols {
         t.lane(c as u32);
         let col = &mut m[c * r..(c + 1) * r];

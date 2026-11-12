@@ -9,6 +9,9 @@
 //! onto A, halving the number of runs. `aux` shows the three tapes. Run i of B and run i
 //! of C are consecutive runs of A and ties go to B, so the sort is stable.
 //! No simplification.
+//!
+//! Passes (`t.round()`): a pass reads and writes every item once: run generation, then every
+//! distribution and every merge; the closing copy into the array belongs to the last merge.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -24,6 +27,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
         return Outcome::Sorted;
     }
     let m = memory_size(n);
+    t.round();
     t.phase(&format!("run generation onto tape A, memory M = {m}"));
     let mut a = generate_runs(t, v, m);
     show_tape(t, "tape A", &a);
@@ -33,6 +37,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
             return Outcome::Truncated;
         }
         pass += 1;
+        t.round();
         t.phase(&format!(
             "pass {pass}: distribute the {} runs of A onto B and C",
             a.len()
@@ -48,6 +53,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
         show_tape(t, "tape A", &a);
         show_tape(t, "tape B", &b);
         show_tape(t, "tape C", &c);
+        t.round();
         t.phase(&format!("pass {pass}: merge B and C back onto A"));
         let mut cit = c.into_iter();
         for rb in b {

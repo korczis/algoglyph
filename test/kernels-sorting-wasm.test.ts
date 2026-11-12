@@ -126,10 +126,12 @@ function engineMarks(t: Trace): string[] {
 
 /**
  * The array engine replays every phase, lane and round word of the Rust run one to one, in order,
- * at every shape and at two sizes; with `counts`, its counted rounds, lanes and phases are also
- * the Rust run's own: its rounds counter, and the distinct lanes and phase words of its trace.
+ * at every shape and at two sizes, and its counted rounds, lanes and phases are the Rust run's
+ * own: its rounds counter (which every kernel keeps from round() calls, never from lanes:
+ * crates/algoglyph-kernels/src/sorting/tests/mod.rs), and the distinct lanes and the phase words
+ * of its trace.
  */
-function checkMarks(id: string, counts: boolean) {
+function checkMarks(id: string) {
   for (const shape of SHAPES) {
     for (const n of [16, 97]) {
       const at = `${shape} n=${n}`;
@@ -139,7 +141,6 @@ function checkMarks(id: string, counts: boolean) {
       const t = trace({ run: (a: ArrayOps) => replay(a, r) }, data);
       const want = rustMarks(r);
       expect(engineMarks(t), at).toEqual(want);
-      if (!counts) continue;
       expect(t.marks.rounds, `${at}: rounds`).toBe(r.counts.rounds);
       expect(t.marks.lanes, `${at}: lanes`).toBe(new Set(want.filter((m) => m.startsWith('lane '))).size);
       expect(t.marks.phases, `${at}: phases`).toBe(want.filter((m) => m.startsWith('phase ')).length);
@@ -315,7 +316,7 @@ for (const { e, kernel } of played) {
 
     it(`counts its phases, lanes and rounds (${kernel.roundUnit}) exactly as the Rust run does`, () => {
       expect(kernel.roundUnit).toBe(ROUND_UNIT[kernel.meta.kind]);
-      checkMarks(id, true);
+      checkMarks(id);
     });
 
     it('reproduces its native fixture in wasm', () => {
@@ -363,7 +364,7 @@ describe('sorting wasm auxiliary rows of every mapped array kernel, live or not'
     && ENTRIES.find((e) => e.id === r.id)?.engine === 'array');
   for (const r of pending) {
     it(`${r.kernel}: lanes inside the row at every size, and Rust's final auxiliary state`, () => checkAuxRow(r.kernel));
-    it(`${r.kernel}: every phase, lane and round replayed one to one`, () => checkMarks(r.kernel, false));
+    it(`${r.kernel}: every phase, lane and round replayed one to one, and counted as Rust counts them`, () => checkMarks(r.kernel));
   }
 
   it('lays out any number and width of structures on any row, never outside it', () => {

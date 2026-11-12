@@ -13,6 +13,8 @@
 //! Counting sort needs a key range of O(n): a range wider than 131 072 values returns
 //! `Outcome::Unsupported` with the array untouched. p = `options.k` when it is at least 2,
 //! otherwise 4. No simplification.
+//!
+//! Rounds (`t.round()`): one per step that every processor runs: local counts, scatter.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -65,6 +67,7 @@ fn counting_pass(
 ) {
     let n = v.len();
     let block = n.div_ceil(p);
+    t.round();
     t.phase("local counts");
     let mut count = vec![vec![0u32; values]; p];
     for (l, c) in count.iter_mut().enumerate() {
@@ -83,6 +86,7 @@ fn counting_pass(
             acc += here;
         }
     }
+    t.round();
     t.phase("scatter");
     let mut out = vec![Item::new(0, 0); n];
     for (l, c) in count.iter_mut().enumerate() {

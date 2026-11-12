@@ -10,6 +10,8 @@
 //! the number of sublists, about n / M, is below M / B. Here M = 2 ceil(sqrt n) (at least
 //! 4) and B = max(1, M / (sublists + 1)). `aux` shows the buffers and the output block.
 //! Ties go to the lower sublist, so the sort is stable. No simplification.
+//!
+//! Passes (`t.round()`): its two phases, each of which reads and writes every item once.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -25,6 +27,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
         return Outcome::Sorted;
     }
     let m = 2 * memory_size(n);
+    t.round();
     t.phase(&format!("phase 1: sort sublists of M = {m} items"));
     let lists = generate_runs(t, v, m);
     let b = (m / (lists.len() + 1)).max(1);
@@ -32,6 +35,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
     if !t.ok() {
         return Outcome::Truncated;
     }
+    t.round();
     t.phase(&format!(
         "phase 2: one {}-way merge with blocks of B = {b}",
         lists.len()

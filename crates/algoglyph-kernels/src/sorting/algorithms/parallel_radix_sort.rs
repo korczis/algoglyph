@@ -14,6 +14,9 @@
 //! Keys are taken relative to the minimum key (so negative keys work and the number of
 //! passes follows the key range). The radix is `options.base` (2 ..= 65536), default 16;
 //! p = `options.k` when it is at least 2, otherwise 4. No simplification.
+//!
+//! Rounds (`t.round()`): two per digit pass, the local histograms and the scatter, which
+//! every processor runs.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -52,6 +55,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     loop {
         pass += 1;
         let digit = |x: &Item| (((x.key as i64 - min) as u64 / div) % base) as usize;
+        t.round();
         t.phase(&format!("pass {pass}: local histograms"));
         let mut hist = vec![vec![0usize; base as usize]; p];
         for (l, h) in hist.iter_mut().enumerate() {
@@ -70,6 +74,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
                 acc += hist[l][d];
             }
         }
+        t.round();
         t.phase(&format!("pass {pass}: scatter"));
         let mut out = vec![Item::new(0, 0); n];
         for (l, off) in offset.iter_mut().enumerate() {
