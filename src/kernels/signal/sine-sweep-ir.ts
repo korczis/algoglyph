@@ -1,3 +1,4 @@
+import { str } from '../../core/plate';
 import { mulberry32 } from '../../engines/signal/input';
 import { addNoise } from '../../engines/signal/input';
 import { MUL, type Meter, type SignalKernel, type View } from '../../engines/signal/trace';
@@ -118,10 +119,12 @@ export const kernel: SignalKernel = {
   params: [
     { kind: 'range', key: 'nl', label: 'Second-order distortion', min: 0, max: 0.4, step: 0.02, value: 0.12 },
     { kind: 'range', key: 'snr', label: 'Recording SNR (dB)', min: 0, max: 80, step: 5, value: 50 },
+    { kind: 'select', key: 'sweepT', label: 'Sweep length (s)', value: String(T),
+      options: ['0.5', '1', '2'].map((v) => ({ value: v, label: `${v} s` })) },
   ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed ^ 0x5eed);
-    const { x, L } = sweep();
+    const { x, L } = sweep(FS, Number(str(params, 'sweepT')));
     const { taps, fir } = room(seed);
     const nl = Number(params.nl);
     const lag2 = Math.round(L * Math.log(2) * FS);

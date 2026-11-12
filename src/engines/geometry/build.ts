@@ -5,6 +5,7 @@
 // frames off screen, build at once.
 import type { Params } from '../../core/plate';
 import { makeInput } from './input';
+import type { Pt } from './trace';
 import { record, Recording, type Box, type GeometryKernel, type Mark } from './trace';
 import { fromEncoded, fromPacked, fromTrace, type Encoded, type Packed, type Track } from './track';
 import type { Job } from './worker';
@@ -17,6 +18,8 @@ const WORKER_TIMEOUT_MS = 15_000;
 
 export interface Request {
   id: string; kernel: GeometryKernel; shape: string; n: number; seed: number; params: Params;
+  /** A reader's points on the grid (ADR 0010), replacing the seeded ones. */
+  points?: Pt[];
   /** The stride a previous run of the same settings ended with. */
   stride?: number;
 }
@@ -35,11 +38,11 @@ export interface Build {
 }
 
 const recordingOf = (r: Request, recording = true) =>
-  new Recording(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params), r.params, r.seed, recording, recording, r.stride);
+  new Recording(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params, r.points), r.params, r.seed, recording, recording, r.stride);
 
 /** The whole run at once (thumbnails and tests). */
 export function buildNow(r: Request): Track {
-  return fromTrace(record(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params), r.params, r.seed, true, r.stride));
+  return fromTrace(record(r.kernel, makeInput(r.kernel.input, r.shape, r.n, r.seed, r.params, r.points), r.params, r.seed, true, r.stride));
 }
 
 class Sliced implements Build {
@@ -99,7 +102,7 @@ class Remote implements Build {
       clearTimeout(timer);
       if (enc) { this.track = fromEncoded(enc); this.ended = enc.stride; } else this.fail();
     });
-    const msg: Job = { job, id: r.id, kind: r.kernel.input, shape: r.shape, n: r.n, seed: r.seed, params: { ...r.params }, stride: r.stride ?? 1 };
+    const msg: Job = { job, id: r.id, kind: r.kernel.input, shape: r.shape, n: r.n, seed: r.seed, params: { ...r.params }, points: r.points, stride: r.stride ?? 1 };
     try { w.postMessage(msg); } catch { waiting.delete(job); clearTimeout(timer); this.fail(); }
   }
   private ended = 0;

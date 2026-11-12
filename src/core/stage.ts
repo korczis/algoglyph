@@ -3,6 +3,7 @@
 // export and the gallery thumbnails.
 import p5 from './p5';
 import { GROUNDS, palette as lookupPalette } from './palette';
+import type { DataTable } from './data';
 import type { Chart, Params, Plate, PlateContext, Sim, Stat, Theme } from './plate';
 import { RESET_BURST_FRAMES, shouldRun } from './loop';
 import { mulberry32 } from './random';
@@ -16,6 +17,8 @@ export interface MountOptions {
   onStats: (rows: Stat[]) => void;
   onChart?: (c: Chart) => void;
   onLoopChange: (running: boolean) => void;
+  /** A reader's own data by declared id (ADR 0010); never passed to thumbnails. */
+  data?: (id: string) => DataTable | null;
 }
 
 const MAX_HEIGHT_FRACTION = 0.72;
@@ -24,7 +27,7 @@ const CHART_EVERY_MS = 600;
 
 function context(plate: Plate, width: number, height: number, params: Params, seed: number,
   theme: Theme, thumbnail: boolean, onStats: (rows: Stat[]) => void,
-  onChart: (c: Chart) => void = () => {}): PlateContext {
+  onChart: (c: Chart) => void = () => {}, data?: (id: string) => DataTable | null): PlateContext {
   const ground = GROUNDS[theme];
   const fallback = String(plate.params.find((d) => d.key === 'palette')?.value ?? 'ember');
   let last = 0;
@@ -40,6 +43,7 @@ function context(plate: Plate, width: number, height: number, params: Params, se
     bg: ground.bg,
     fg: ground.fg,
     thumbnail,
+    ...(data && !thumbnail ? { data } : {}),
     palette: () => lookupPalette(String(params.palette ?? fallback)),
     stats(rows: Stat[]) {
       if (thumbnail) return;
@@ -109,7 +113,7 @@ export class Stage {
     this.onLoopChange = opts.onLoopChange;
     this.instance = new p5((p: p5) => {
       const ctx = context(plate, width, height, opts.params, opts.seed, opts.theme, false,
-        opts.onStats, opts.onChart);
+        opts.onStats, opts.onChart, opts.data);
       const sim = plate.create(p, ctx);
       this.sim = sim;
       const inside = () => p.mouseX >= 0 && p.mouseY >= 0 && p.mouseX < p.width

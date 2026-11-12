@@ -79,6 +79,9 @@ function testSignal(n: number, seed: number): Float64Array {
   });
 }
 
+/** The signal's default length; the `n` control shortens it. */
+export const N = 512;
+
 const energy = (x: ArrayLike<number>) => { let s = 0; for (let i = 0; i < x.length; i++) s += x[i] * x[i]; return s; };
 
 // Split octave by octave into details and a coarser approximation; then keep only the largest
@@ -88,9 +91,11 @@ export const kernel: SignalKernel = {
     { kind: 'select', key: 'wavelet', label: 'Wavelet', value: 'db2', options: Object.entries(FILTERS).map(([value, f]) => ({ value, label: f.label })) },
     { kind: 'range', key: 'levels', label: 'Levels', min: 1, max: 6, step: 1, value: 5 },
     { kind: 'range', key: 'keep', label: 'Coefficients kept for compression (%)', min: 1, max: 50, step: 1, value: 8 },
+    { kind: 'select', key: 'n', label: 'Signal length', value: String(N),
+      options: [128, 256, N].map((v) => ({ value: String(v), label: `${v} samples` })) },
   ],
   run(params, seed, meter): View[] {
-    const n = 512;
+    const n = Number(params.n ?? N);
     const h = FILTERS[str(params, 'wavelet')]?.h ?? FILTERS.db2.h;
     const levels = Number(params.levels);
     const x = testSignal(n, seed);

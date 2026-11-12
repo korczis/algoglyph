@@ -38,6 +38,40 @@ claims:
       nearest the tone: within half a bin (15.625 Hz at 256 samples) plus the readout's rounding.
     readout: Welch average peak
     expect: { against: Welch average peak, against_number: 2, tolerance: 0.0167 }
+  - id: frames-over-the-default-signal
+    statement: >-
+      Frames of M = 256 samples at hop H = 128 fit ⌊(n − M)/H⌋ + 1 times in n = 16000 samples,
+      with no padding: exactly 124 frames.
+    readout: Frames
+    expect: { value: 124 }
+  - id: frames-over-8000-samples
+    statement: Over n = 8000 samples the same frames fit ⌊7744/128⌋ + 1 = 61 times, exactly.
+    readout: Frames
+    expect: { value: 61 }
+    setup:
+      params: { len: '8000' }
+  - id: frames-over-4000-samples
+    statement: Over n = 4000 samples they fit ⌊3744/128⌋ + 1 = 30 times, exactly.
+    readout: Frames
+    expect: { value: 30 }
+    setup:
+      params: { len: '4000' }
+  - id: frames-long-and-overlapped-over-4000-samples
+    statement: >-
+      Frames of 1024 samples at 75 % overlap (hop 256) fit ⌊2976/256⌋ + 1 = 12 times in 4000
+      samples, exactly.
+    readout: Frames
+    expect: { value: 12 }
+    setup:
+      params: { len: '4000', frame: '1024', overlap: '0.75' }
+  - id: welch-peak-on-the-tone-over-4000-samples
+    statement: >-
+      A quarter of the signal still holds the tone in one bin while the chirp sweeps four times as
+      fast, so the Welch average peaks within half a bin of it plus the readout's rounding.
+    readout: Welch average peak
+    expect: { against: Welch average peak, against_number: 2, tolerance: 0.0167 }
+    setup:
+      params: { len: '4000' }
 ---
 
 Short windowed transforms over time, averaged by Welch's method into a waterfall.
