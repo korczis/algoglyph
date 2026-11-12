@@ -84,3 +84,34 @@ fields:
         title: { type: string, required: true }
         params: { type: any, doc: Parameter values by key. }
         observe: { type: string, min_length: 8, doc: What to look for. }
+  claims:
+    type: list
+    doc: >-
+      Outcomes the plate measures, each a statement with the value it predicts for one of the
+      plate's own readouts (ADR 0007). The evidence is never authored: test/claims.test.ts runs the
+      plate headless with the claim's setup and seed until its readouts settle, reads the named
+      readout and checks it against expect; a claim that fails, or names a readout the plate does
+      not publish, fails the gate.
+    of:
+      type: map
+      fields:
+        id: { type: id, required: true, doc: Unique within the entry. }
+        statement: { type: string, required: true, min_length: 12, doc: The claim in words, as a reader checks it. }
+        readout: { type: string, required: true, doc: The label of a readout the plate publishes; its value's first number is read. }
+        expect:
+          type: map
+          required: true
+          doc: What the statement predicts for that number, in the readout's own units (a percentage stays a percentage).
+          fields:
+            value: { type: number, doc: The predicted value; with tolerance, an interval around it. }
+            tolerance: { type: number, doc: Allowed distance from value; 0 when absent. }
+            range: { type: list, of: { type: number }, doc: '[lo, hi], inclusive.' }
+            below: { type: number, doc: A strict upper bound, for a one-sided claim. }
+            above: { type: number, doc: A strict lower bound, for a one-sided claim. }
+        setup:
+          type: map
+          doc: The run the claim is about; the plate's defaults otherwise, with loop off.
+          fields:
+            params: { type: any, doc: Parameter values by key; each must exist on the plate. }
+            seed: { type: integer, doc: The run's seed; 4242 when absent. }
+        source: { type: source, doc: The cited work the statement comes from, when it is not the entry's notes. }
