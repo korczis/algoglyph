@@ -708,7 +708,7 @@
                 <label :for="'data-file-' + s.id" @dragover.prevent @drop.prevent="dropFile(s.id, $event)" class="flex flex-col items-center justify-center w-full h-32 mb-3 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 focus-within:ring-2 focus-within:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500 dark:hover:bg-gray-600">
                   <svg class="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                   <span class="text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold">Choose a file</span> or drag and drop</span>
-                  <span class="text-xs text-gray-600 dark:text-gray-400" x-text="s.accepts"></span>
+                  <span class="text-xs text-gray-600 dark:text-gray-300" x-text="s.accepts"></span>
                   <input :id="'data-file-' + s.id" type="file" class="sr-only" :accept="s.formats" @change="attachFile(s.id, $event)">
                 </label>
                 <label :for="'data-paste-' + s.id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Or paste it</label>

@@ -343,10 +343,12 @@ try {
         if (!ran) fail(where, 'the plate did not report running on the attached data');
         const href = p.url();
         if (!href.includes(`d.${d.id}=`)) fail(where, 'the link does not carry the attached data');
-        if (!(await p.isVisible('[data-data-travels]'))) fail(where, 'the page does not say that a copied link carries the data');
+        const said = await p.waitForSelector('[data-data-travels]', { state: 'visible', timeout: 5000 }).then(() => true, () => false);
+        if (!said) fail(where, 'the page does not say that a copied link carries the data');
         if (i === 0) { await overflow(p, where); await axe(p, where); }
-        await p.goto('about:blank');
-        await p.goto(href, { waitUntil: 'load' });
+        // a new document on the same link (a query the server ignores), not about:blank: the
+        // context's init script touches localStorage, which about:blank refuses
+        await p.goto(`${base}?reopen=1${new URL(href).hash}`, { waitUntil: 'load' });
         const back = await p.waitForFunction(() => /from the link/.test(document.querySelector('[data-data-loaded]')?.textContent ?? ''),
           null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
         if (!back) fail(where, 'opening the link did not restore the data');

@@ -140,6 +140,8 @@ Alpine.data('app', () => ({
   thumbs: {} as Record<string, string>,
   copied: false,
   dataSlots: [] as DataView[],
+  /** True when a copied link of this plate carries a reader's data (said beside Copy link). */
+  dataTravels: false,
   pasted: {} as Record<string, string>,
   keys: [
     ['Space', 'Play / pause'], ['.', 'Step one frame'], ['R', 'Reseed'], ['D', 'Default parameters'],
@@ -315,6 +317,7 @@ Alpine.data('app', () => ({
       plateCode = null;
       store = null;
       this.dataSlots = [];
+      this.dataTravels = false;
       this.view = 'browse';
       this.figureKey = '';
       thumbs?.resume();
@@ -344,6 +347,7 @@ Alpine.data('app', () => ({
       plateCode = null;
       store = null;
       this.dataSlots = [];
+      this.dataTravels = false;
       stage?.unmount();
       const e = r.view === 'plate' ? entry(r.id) : undefined;
       if (e) this.open[e.path[0]] = true;
@@ -484,9 +488,11 @@ Alpine.data('app', () => ({
         same: s.same,
       };
     });
+    // a plain property, set here with the slots: a getter over them was not re-evaluated by the
+    // notice's x-show after a hash navigation from one plate to the next
+    this.dataTravels = this.dataSlots.some((s) => s.travels);
   },
-  /** True when a copied link of this plate carries a reader's data (said beside Copy link). */
-  get dataTravels(): boolean { return this.dataSlots.some((s) => s.travels); },
+
   /** Run on a table just accepted: pick it in its select, rewrite the link, remount. */
   useData(id: string) {
     const s = store?.get(id);
