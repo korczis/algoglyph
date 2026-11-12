@@ -27,6 +27,14 @@ related:
   - balanced-multiway-merge
   - external-merge-sort
   - replacement-selection
+claims:
+  - id: passes-at-memory-64
+    statement: >-
+      At 512 keys a memory of M = 64 leaves 8 runs on tape A, and each of the three halvings costs a distribution and a merge, seven passes in all: 1 + 2⌈log₂ 8⌉.
+    readout: Passes
+    expect: { value: 7 }
+    setup:
+      params: { shape: random, n: 512, memory: 64 }
 ---
 
 The oldest external sort: tapes allow only sequential reading and writing, so sort memory loads into runs, spread the runs over tapes, and merge runs from several tapes onto others, pass after pass, until one run is left.

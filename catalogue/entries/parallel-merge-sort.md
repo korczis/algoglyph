@@ -25,6 +25,21 @@ related:
   - k-way-merge-sort
   - mergesort-top-down
   - psrs
+claims:
+  - id: rounds-at-16-processors
+    statement: >-
+      With p = 16 processors at 512 keys the plate takes five rounds: the local sort of every block, then ⌈log₂ 16⌉ = 4 rounds of pairwise merges.
+    readout: Rounds
+    expect: { value: 5 }
+    setup:
+      params: { shape: random, n: 512, k: 16 }
+  - id: lanes-at-16-processors
+    statement: >-
+      The same run works in 16 lanes, one per processor, each sorting a block of 32 keys.
+    readout: Lanes
+    expect: { value: 16 }
+    setup:
+      params: { shape: random, n: 512, k: 16 }
 ---
 
 Mergesort with the merging itself split among workers: every worker sorts its share, then pairs of runs are merged in rounds, each merge cut into equal output pieces whose start points a binary search finds in both inputs at once.
