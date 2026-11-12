@@ -42,6 +42,49 @@ claims:
       order them, so the concurrent pairs given an order are above 0.
     readout: Concurrent pairs given an order
     expect: { above: 0 }
+  - id: one-integer-per-message-mostly-local
+    statement: >-
+      With 60% of the steps local, fewer messages are sent but each still carries only the
+      sender's counter: the clock integers carried equal the messages sent, an identity whose
+      difference is exactly 0.
+    readout: Clock integers carried
+    expect: { against: Messages, tolerance: 0 }
+    setup:
+      params: { localShare: 60 }
+  - id: happened-before-gives-a-smaller-timestamp-mostly-local
+    statement: >-
+      With 60% of the steps local, happened-before still gives a smaller timestamp: the causal
+      pairs whose timestamps are out of order number exactly 0.
+    readout: Causal pairs out of order
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { localShare: 60 }
+  - id: no-message-when-every-step-is-local
+    statement: >-
+      With every step local (100%), the draw that picks a local step is below 1 every time, so
+      no worker ever sends: exactly 0 messages, a count with no margin.
+    readout: Messages
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { localShare: 100 }
+  - id: happened-before-gives-a-smaller-timestamp-all-local
+    statement: >-
+      With every step local only program order is left, and each worker's counter rises by one
+      per step, so the causal pairs whose timestamps are out of order number exactly 0.
+    readout: Causal pairs out of order
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { localShare: 100 }
+  - id: the-converse-fails-all-local
+    statement: >-
+      With every step local no message links two workers, so every pair of events on different
+      workers is concurrent, yet the timestamps order it: all pairs minus those on one worker.
+      Each of the 4 workers takes its first step within 160 ms, long before the workload stops at
+      2,700 ms, so there are at least C(4, 2) = 6 such pairs: above 5.
+    readout: Concurrent pairs given an order
+    expect: { above: 5 }
+    setup:
+      params: { localShare: 100 }
 ---
 
 A counter on every process, advanced past every message received: a total order consistent with causality.

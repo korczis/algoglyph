@@ -1,6 +1,6 @@
 import { num } from '../../core/plate';
 import type { SystemsKernel } from '../../engines/systems/sim';
-import { happenedBefore, history, workers, type ClockRule, type HEvent } from './_history';
+import { happenedBefore, history, localShareParam, workers, type ClockRule, type HEvent } from './_history';
 
 // Each worker keeps one counter: +1 for a local or send event, and on receipt one past the
 // larger of its own and the message's. The counters then never contradict happened-before.
@@ -28,7 +28,10 @@ export function recount(events: HEvent<number>[]): Pairs {
 }
 
 export const kernel: SystemsKernel<LamportResult> = {
-  params: [{ kind: 'range', key: 'procs', label: 'Workers', min: 2, max: 6, step: 1, value: 4, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'procs', label: 'Workers', min: 2, max: 6, step: 1, value: 4, rebuild: true },
+    localShareParam(),
+  ],
   setup: (p) => ({ lanes: workers(num(p, 'procs')), horizon: 3000, net: { delay: [20, 260] } }),
   install(net, p) {
     let max = 0;
@@ -36,7 +39,7 @@ export const kernel: SystemsKernel<LamportResult> = {
       max = Math.max(max, e.clock);
       net.gauge('max', max);
       net.sample(`worker ${e.proc + 1}`, e.clock);
-    });
+    }, num(p, 'localShare') / 100);
     const res: LamportResult = { events };
     // the workload stops acting at 0.9 of the horizon and its last receipt lands before it ends,
     // so the pairs are recounted once, over the whole history, when the run reaches its horizon
