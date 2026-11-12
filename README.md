@@ -1288,8 +1288,10 @@ thumbnails. A plate draws only through the context it receives (`ctx.palette()`,
 (rule `project.viz-component-layer`).
 
 **Seeded, so a URL reproduces the picture.** A plate's only randomness is `ctx.rnd`, a
-`mulberry32` generator seeded from the route: `#/p/<id>?seed=<n>`. The same seed and parameters
-give the same frames.
+`mulberry32` generator seeded from the route, and the route also carries every parameter that
+differs from its default (`#/p/<id>?seed=<n>&<key>=<value>`, the same for `#/lab/<id>`), each
+checked against its control by `src/core/share.ts`. A copied link therefore gives the same
+frames.
 
 **Readouts are measured.** Every number a plate shows is computed from the simulation's own
 state, never a constant or an estimate; physics plates use a named integrator (RK4, leapfrog,
