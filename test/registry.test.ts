@@ -49,6 +49,12 @@ describe('plate registry', () => {
         } else if (d.kind === 'select') {
           expect(d.options.map((o) => o.value), `${e.id}.${d.key}`).toContain(d.value);
         }
+        if (d.when) {
+          const on = p!.params.find((x) => x.key === d.when!.key);
+          expect(on?.kind, `${e.id}.${d.key}: when names a select`).toBe('select');
+          const options = on?.kind === 'select' ? on.options.map((o) => o.value) : [];
+          for (const v of d.when.values) expect(options, `${e.id}.${d.key}: when ${v}`).toContain(v);
+        }
       }
     }
   });

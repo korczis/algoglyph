@@ -1,8 +1,9 @@
 import './styles/app.css';
 import Alpine from 'alpinejs';
 import 'flowbite';
-import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, linkGroups, node, prose, roots, search, source,
-  trail, under, type Entry, type Lab, type Status, type TaxNode } from './core/catalogue';
+import { CATALOGUE, children, collection as findCollection, entry, ENTRIES, figure as findFigure, lab as findLab,
+  labsUnder, linkGroups, liveCollections, node, prose, roots, routedChapters, search, source, trail, under,
+  type Chapter, type Collection, type Entry, type Figure, type Lab, type Status, type TaxNode } from './core/catalogue';
 import { type Claim, expectationText, setupText } from './core/claims';
 import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
@@ -92,6 +93,8 @@ Alpine.data('app', () => ({
   factCards: factCards(FACTS, CATALOGUE.labs.find((l) => labRunnable(l.id))?.id),
   wings: roots(),
   labs: CATALOGUE.labs,
+  // figure collections with a routed page (ADR 0009); none is shown before its source review
+  collections: liveCollections(),
   mosaic: spread(LIVE, MOSAIC_SIZE),
   open: Object.fromEntries(CATALOGUE.roots.map((k) => [k, false])) as Record<string, boolean>,
   query: '',
@@ -99,6 +102,8 @@ Alpine.data('app', () => ({
   view: 'browse' as View,
   nodeKey: '',
   currentId: '',
+  /** `<collection>/<vol>/<ch>/<fig>` on a figure page; the collection or chapter on its index. */
+  figureKey: '',
   defs: [] as ParamDef[],
   params: {} as Params,
   seed: 0,
@@ -150,7 +155,29 @@ Alpine.data('app', () => ({
   // ---- catalogue views -------------------------------------------------------------------
   get node(): TaxNode | undefined { return this.nodeKey ? node(this.nodeKey) : undefined; },
   get trail(): TaxNode[] { return this.nodeKey ? trail(this.nodeKey) : []; },
-  get current(): Entry | undefined { return this.view === 'plate' ? entry(this.currentId) : undefined; },
+  get current(): Entry | undefined {
+    return this.view === 'plate' || this.view === 'figure' ? entry(this.currentId) : undefined;
+  },
+  get currentFigure(): { chapter: Chapter; figure: Figure } | undefined {
+    return this.view === 'figure' ? findFigure(this.figureKey) : undefined;
+  },
+  get currentCollection(): Collection | undefined {
+    return this.view === 'figures' || this.view === 'figure'
+      ? findCollection(this.figureKey.split('/')[0]) : undefined;
+  },
+  /** The chapters an index page lists: the collection's, or one chapter's. */
+  figureChapters(): Chapter[] {
+    const [c, v, ch] = this.figureKey.split('/');
+    return routedChapters(CATALOGUE.chapters, c, v && ch ? `${v}/${ch}` : '');
+  },
+  figureClass(f: Figure): string {
+    return { experiment: 'Real experiment', 'thought-experiment': 'Thought experiment',
+      schematic: 'Schematic', plot: 'Plot' }[f.class];
+  },
+  /** The parameters a page opens with over the plate's defaults: a figure's setup, else none. */
+  base(): Params {
+    return this.view === 'figure' ? { ...(this.currentFigure?.figure.setup ?? {}) } : {};
+  },
   get currentLab(): Lab | undefined { return this.view === 'lab' ? findLab(this.currentId) : undefined; },
   get currentTrail(): TaxNode[] { return this.current ? trail(this.current.taxonomy) : []; },
   children(key: string): TaxNode[] { return children(key); },
@@ -205,6 +232,17 @@ Alpine.data('app', () => ({
     return LIVE[(Math.max(0, i) + offset + LIVE.length) % LIVE.length];
   },
 
+  /** Readout labels are set in capitals, unless a symbol in them would change meaning (σ is not
+   * Σ, ħ is not Ħ, λ is not Λ): those keep their case. */
+  caseOf(label: string): string {
+    return /[\u0370-\u03ff\u0127\u1d00-\u1dbf\u2090-\u209c]/.test(label) ? 'normal-case' : 'uppercase';
+  },
+
+  /** Whether a control applies in the plate's current mode (ParamBase.when). */
+  applies(d: ParamDef): boolean {
+    return !d.when || d.when.values.includes(String(this.params[d.when.key]));
+  },
+
   fmt(value: unknown, d: ParamDef): string {
     if (d.kind !== 'range') return String(value);
     const decimals = d.step < 1 ? Math.min(4, Math.ceil(-Math.log10(d.step))) : 0;
@@ -225,10 +263,23 @@ Alpine.data('app', () => ({
     hashWriter.cancel();
     closeDrawer();
     const r = parseRoute(location.hash);
+    if (r.view === 'figures') {
+      stage?.unmount();
+      plateCode = null;
+      thumbObserver?.disconnect();
+      this.view = 'figures';
+      this.figureKey = r.key;
+      this.nodeKey = '';
+      this.currentId = '';
+      document.title = `${findCollection(r.key.split('/')[0])?.title} · algoglyph`;
+      window.scrollTo({ top: 0 });
+      return;
+    }
     if (r.view === 'browse') {
       stage?.unmount();
       plateCode = null;
       this.view = 'browse';
+      this.figureKey = '';
       thumbs?.resume();
       this.nodeKey = r.key;
       this.currentId = '';
@@ -241,8 +292,11 @@ Alpine.data('app', () => ({
     // a plate or a lab owns the main thread: the gallery's queue stops and forgets its cards
     thumbObserver?.disconnect();
     thumbs?.close();
-    const changed = r.id !== this.currentId || r.view !== this.view;
+    const figureKey = r.view === 'figure' ? r.key : '';
+    // two figures can share one plate: a different figure is a different page
+    const changed = r.id !== this.currentId || r.view !== this.view || figureKey !== this.figureKey;
     this.view = r.view;
+    this.figureKey = figureKey;
     if (changed) {
       this.currentId = r.id;
       this.canReset = false;
@@ -254,7 +308,8 @@ Alpine.data('app', () => ({
       stage?.unmount();
       const e = r.view === 'plate' ? entry(r.id) : undefined;
       if (e) this.open[e.path[0]] = true;
-      document.title = `${(e?.title ?? findLab(r.id)?.title) ?? ''} · algoglyph`;
+      const fig = r.view === 'figure' ? findFigure(r.key)?.figure : undefined;
+      document.title = `${(fig?.title ?? e?.title ?? findLab(r.id)?.title) ?? ''} · algoglyph`;
       if (e?.status === 'planned') {
         window.scrollTo({ top: 0 });
         return;
@@ -264,7 +319,7 @@ Alpine.data('app', () => ({
     pendingQuery = r.query;
     let paramsDiffer = false;
     if (!changed && plateCode) {
-      const wanted = { ...defaults(plateCode), ...parseShared(plateCode.params, r.query).params };
+      const wanted = { ...defaults(plateCode), ...this.base(), ...parseShared(plateCode.params, r.query).params };
       paramsDiffer = plateCode.params.some((d) => wanted[d.key] !== this.params[d.key]);
       if (paramsDiffer) Object.assign(this.params, wanted);
     }
@@ -290,7 +345,7 @@ Alpine.data('app', () => ({
         if (!p) throw new Error(view === 'lab' ? `this lab needs at least ${CATALOGUE.labMin} live plates` : 'not runnable');
         plateCode = p;
         this.defs = p.params;
-        this.params = { ...defaults(p), ...parseShared(p.params, pendingQuery).params };
+        this.params = { ...defaults(p), ...this.base(), ...parseShared(p.params, pendingQuery).params };
         this.writeHash();
       } catch (err) {
         this.error = String(err instanceof Error ? err.message : err);
@@ -307,8 +362,9 @@ Alpine.data('app', () => ({
   },
 
   writeHash() {
-    const query = plateCode ? serialise(plateCode.params, this.params, this.seed) : `seed=${this.seed}`;
-    const hash = `#/${this.view === 'lab' ? 'lab' : 'p'}/${this.currentId}?${query}`;
+    const query = plateCode ? serialise(plateCode.params, this.params, this.seed, this.base()) : `seed=${this.seed}`;
+    const path = this.view === 'figure' ? this.figureKey : `${this.view === 'lab' ? 'lab' : 'p'}/${this.currentId}`;
+    const hash = `#/${path}?${query}`;
     if (location.hash !== hash) history.replaceState(null, '', hash);
   },
 
@@ -345,7 +401,7 @@ Alpine.data('app', () => ({
   reseed() { this.seed = freshSeed(); this.writeHash(); void this.mount(); },
   resetParams() {
     if (!plateCode) return;
-    Object.assign(this.params, defaults(plateCode));
+    Object.assign(this.params, defaults(plateCode), this.base());
     void this.mount();
   },
   save() { stage?.save(`algoglyph-${this.currentId}-${this.seed}`); },

@@ -50,15 +50,20 @@ function toText(d: ParamDef, v: ParamValue): string {
   return String(v);
 }
 
-/** The query for a plate: seed first, then the non-default parameters in definition order. */
-export function serialise(defs: ParamDef[], params: Params, seed: number): string {
+/**
+ * The query for a plate: seed first, then the parameters that differ from `base` in definition
+ * order. The base is the plate's defaults; a figure page (ADR 0009) passes its setup over them,
+ * so its clean link carries the seed alone.
+ */
+export function serialise(defs: ParamDef[], params: Params, seed: number, base: Params = {}): string {
   const q = new URLSearchParams();
   q.set('seed', String(seed));
   for (const d of defs) {
     const v = params[d.key];
     if (v === undefined) continue;
+    const b = base[d.key] ?? d.value;
     // compare on the control's grid, so float noise around a default is not a change
-    const same = d.kind === 'range' ? snap(d, Number(v)) === snap(d, d.value) : v === d.value;
+    const same = d.kind === 'range' ? snap(d, Number(v)) === snap(d, Number(b)) : v === b;
     if (same) continue;
     q.set(d.key, toText(d, v));
   }

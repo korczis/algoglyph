@@ -20,6 +20,25 @@ export function loadSchema(file) {
   return doc;
 }
 
+/**
+ * A spec with every `{ ref: '<schema>.<field>[.<field>…]' }` replaced by that field's spec in the
+ * named schema (`schemas` maps a name to a loaded schema): one field defined once, used by two
+ * documents. An unknown reference throws, so a broken schema never validates anything.
+ */
+export function resolveRefs(spec, schemas) {
+  if (!spec || typeof spec !== 'object') return spec;
+  if (typeof spec.ref === 'string') {
+    const [name, ...path] = spec.ref.split('.');
+    let at = schemas[name];
+    for (const k of path) at = at?.fields?.[k];
+    if (!at) throw new Error(`schema ref ${spec.ref}: no such field`);
+    return resolveRefs(at, schemas);
+  }
+  const out = Array.isArray(spec) ? [] : {};
+  for (const [k, v] of Object.entries(spec)) out[k] = resolveRefs(v, schemas);
+  return out;
+}
+
 const kind = (v) => (Array.isArray(v) ? 'list' : v === null ? 'null' : typeof v);
 
 /**

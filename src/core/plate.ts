@@ -18,6 +18,11 @@ interface ParamBase {
    */
   cosmetic?: boolean;
   hint?: string;
+  /**
+   * Shown only while the select `key` has one of `values`: a control that means nothing in the
+   * other modes of its plate. It still exists, keeps its value and travels in a shared link.
+   */
+  when?: { key: string; values: string[] };
 }
 
 export interface RangeParam extends ParamBase {

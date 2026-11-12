@@ -1,0 +1,190 @@
+# The Feynman Lectures on Physics, Volume III, chapter 1 (ADR 0009). Figure numbers, sections and
+# classes are to be confirmed against the online edition by the source review below; until the
+# review is recorded no page of this chapter is routed. Figure 1-2 (water waves) is recorded once
+# its plate, the ripple tank, carries the detector line it needs.
+schema: algoglyph.figures/v1
+collection: feynman
+volume: III
+chapter: 1
+title: Quantum Behavior
+url: https://www.feynmanlectures.caltech.edu/III_01.html
+same_as:
+  - { volume: I, chapter: 37, url: 'https://www.feynmanlectures.caltech.edu/I_37.html' }
+figures:
+  - id: 1-1
+    section: 1-2
+    class: thought-experiment
+    title: Bullets through two holes
+    paraphrase: >-
+      A gun that sprays bullets at a wall with two holes, a backstop with a movable counter, and the
+      arrival curves with either hole shut and with both open, the last the sum of the first two.
+    plate: two-slit-classical
+    pedagogy:
+      objectives:
+        - Predict the both-holes curve from the two one-hole curves before running it.
+        - Judge the prediction with a χ² band and a power check, not by eye.
+      questions:
+        - Why do the bullets' curves simply add, and what would it take for them not to?
+    claims:
+      - id: the-holes-add
+        statement: >-
+          On this page's apparatus the both-holes counts agree with the one-hole counts added: the
+          χ²/k of the difference stays under the 99.9 % point of χ²ₖ/k.
+        readout: χ²/k of N₁₂ against N₁ + N₂
+        expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, below: 0 }
+        setup:
+          params: { rate: 3.3, n: 40000 }
+      - id: enough-bins-for-the-band
+        statement: >-
+          At least ten bins pass the five-count floor, so the band's Wilson–Hilferty points are
+          within about 1 % of the exact ones.
+        readout: bins judged (tails merged to ≥ 5 expected)
+        expect: { above: 9 }
+        setup:
+          params: { rate: 3.3, n: 40000 }
+      - id: interference-would-be-seen
+        statement: >-
+          The same counts reject full-contrast fringes four bins apart by a χ²/k more than 5 above
+          that ceiling, and would reject such fringes down to a visibility of 0.2, so agreement with
+          the sum is a finding with a stated sensitivity, not a blind spot.
+        readout: χ²/k against full-contrast fringes, 4-bin period
+        expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
+        setup:
+          params: { rate: 3.3, n: 40000 }
+  - id: 1-3
+    section: 1-4
+    class: thought-experiment
+    title: Electrons through two slits
+    paraphrase: >-
+      An electron gun, a wall with two slits and a movable counter: electrons arrive one at a time,
+      yet with both slits open their arrival curve shows interference, unlike the sum of the curves
+      with one slit shut.
+    plate: two-slit-amplitudes
+    setup: { scenario: electrons }
+    pedagogy:
+      objectives:
+        - Add the two amplitudes, then square, and compare the centre with what adding probabilities gives.
+        - Watch single arrivals build up a distribution and test it against |ψ₁ + ψ₂|².
+      questions:
+        - Each electron arrives whole at one place; what then interferes?
+    claims:
+      - id: centre-holds-more-than-the-sum
+        statement: >-
+          With 60,000 electrons per run, the centre bin with both slits open holds more than 1.5
+          times what the two one-slit runs hold there together; probabilities that added would give 1.
+        readout: centre bin N₁₂ / (N₁ + N₂)
+        expect: { above: 1.5 }
+        setup:
+          params: { rate: 3.3, n: 60000 }
+      - id: lumps-follow-the-amplitudes
+        statement: >-
+          The single arrivals are distributed as |ψ₁ + ψ₂|²: their Kolmogorov–Smirnov distance from
+          its cumulative is under the 95 % bound 1.36/√N.
+        readout: KS distance of the hits from p(x)
+        expect: { against: 'KS 95 % bound, 1.36/√N', below: 0 }
+        setup:
+          params: { rate: 3.3, n: 60000 }
+  - id: 1-4
+    section: 1-6
+    class: thought-experiment
+    title: Watching the electrons with light
+    paraphrase: >-
+      The electron apparatus with a light source behind the wall, so that a flash near one slit or
+      the other shows which way each electron went; with the light on, the interference is lost.
+    plate: two-slit-amplitudes
+    setup: { scenario: watched, eta: 1, photon: 2.3, scatter: sphere }
+    pedagogy:
+      objectives:
+        - Relate the contrast left by the light to the overlap of the photon states the two paths leave.
+        - Find the wavelengths at which the light stops telling the slits apart, and the reversal between.
+      misconceptions:
+        - Longer light does not bring the fringes back steadily; between the zeros of J₀ they return reversed.
+        - This page splits the hits by whether a photon was scattered or not. Curves for electrons seen at one slit or the other would sort them by where the flash was seen, which needs the photon's detected direction; the model traces over it.
+      questions:
+        - Why do the electrons that scatter no photon keep their fringes in dim light?
+    claims:
+      - id: watched-electrons-lose-the-fringes
+        statement: >-
+          With every electron scattering a 200 nm photon isotropically in space, the visibility of
+          the hits is within 0.04 of zero: watched this closely, the electrons arrive as P₁ + P₂.
+        readout: visibility from all hits
+        expect: { range: [-0.04, 0.04] }
+        setup:
+          params: { rate: 3.3, n: 20000 }
+      - id: dim-light-keeps-what-it-misses
+        statement: >-
+          With the light dimmed so that half the electrons scatter a photon (isotropic in space),
+          the visibility of all hits agrees with (1 − η) + η·γ, about one half, within 0.04.
+        readout: visibility from all hits
+        expect: { against: 'γ_eff = (1 − η) + η·γ', tolerance: 0.04 }
+        setup:
+          params: { rate: 3.3, n: 20000, eta: 0.5 }
+  - id: 1-5
+    section: 1-6
+    class: schematic
+    title: Fringes too fine for any detector
+    paraphrase: >-
+      Two curves for bullets treated as waves: the true distribution, with fringes far too close to
+      resolve, and the smooth curve a detector of finite size actually records.
+    plate: two-slit-amplitudes
+    setup: { scenario: resolution }
+    pedagogy:
+      objectives:
+        - Compute how far apart a bullet's fringes would be, and how many a detector averages over.
+        - Tell fringes hidden by the detector from fringes removed by marking the path.
+      misconceptions:
+        - Smoothing by a coarse detector is not decoherence; the particles still arrive in fringes.
+      questions:
+        - What changes in the reading, and what in the arrivals, when the detector gets finer?
+    claims:
+      - id: a-coarse-detector-hides-them
+        statement: >-
+          Scaled to fringes a grid can resolve, a Gaussian detector a third of a fringe wide reads a
+          contrast within 1e−5 of exp(−2π²σ²/Λ²), about a tenth, from arrivals that keep it whole.
+        readout: contrast as the detector reads it, read on the grid
+        expect: { against: 'contrast factor, closed form', tolerance: 0.00001 }
+        setup:
+          params: { rate: 3.3, n: 20000, mass: -30.04, speed: 1000, width: -1 }
+      - id: the-arrivals-keep-them
+        statement: >-
+          In the same run the particles, drawn one by one from the fringe density, arrive with a
+          contrast of 1 within 0.03, four standard errors of 20,000 hits, measured from the hits: the
+          fringes are hidden by the reading, not removed from the particles.
+        readout: contrast of the arrivals, from the hits
+        expect: { value: 1, tolerance: 0.03 }
+        setup:
+          params: { rate: 3.3, n: 20000, mass: -30.04, speed: 1000, width: -1 }
+  - id: 1-6
+    section: 1-8
+    class: thought-experiment
+    title: A slit wall free to recoil
+    paraphrase: >-
+      A wall with two holes mounted so that it can move up and down, its recoil meant to show which
+      hole each particle passed; the uncertainty principle forbids knowing the recoil well enough
+      without blurring the wall's position and the fringes with it.
+    plate: two-slit-amplitudes
+    setup: { scenario: recoil }
+    pedagogy:
+      objectives:
+        - Trade the wall's momentum spread against its position spread and watch distinguishability and visibility trade.
+        - Check D² + V² ≤ 1 and see why a momentum reading stays below it.
+      questions:
+        - How sharp must the wall's momentum be to tell the paths apart, and what does that do to its position?
+    claims:
+      - id: knowing-costs-fringes
+        statement: >-
+          With the wall's momentum spread about half the kick, a momentum reading and the fringes
+          share less than the whole: D² + V² from the grid is within 3e−3 of its closed form, about
+          0.834, under the bound of 1 that only the optimal measurement reaches.
+        readout: D² + V²
+        expect: { against: 'D² + V², closed form', tolerance: 0.003 }
+        setup:
+          params: { rate: 3.3, n: 20000 }
+      - id: electrons-see-the-wall
+        statement: >-
+          Sixty thousand electrons, each meeting the wall at a position drawn from its state, land with
+          a visibility within 0.02 of the overlap of the two kicked wall states.
+        readout: visibility from the hits
+        expect: { against: 'visibility, overlap of the kicked wall states |γ|', tolerance: 0.02 }
+        setup:
+          params: { rate: 3.3, n: 60000 }
