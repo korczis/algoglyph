@@ -20,6 +20,27 @@ tags:
 complexity: n best, n·n! average, unbounded worst; extra space 1
 related:
   - permutation-generation
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites: [permutation-generation]
+  objectives:
+  - 'Read the this-run readout: every shuffle is n − 1 swaps, so a run''s swaps are always n − 1 times its shuffles.'
+  - 'Choose Already sorted: no shuffle, no swap and n − 1 comparisons, and the expected-on-this-input readout says 0.'
+  - 'Watch the mean shuffles per run approach the mean theory expects for the same inputs: n!/Πmᵢ! for each unsorted input, 120 for five distinct keys.'
+  misconceptions:
+  - 'Repeated keys make bogosort slower; they make more arrangements sorted, so the expected shuffles fall to n!/Πmᵢ!: 6 instead of 24 for four keys of two values, two of each.'
+algorithm:
+  paradigm: randomized
+  properties:
+    stable: false
+  postconditions:
+    - A run that ends leaves the keys ascending; it ends with probability 1, after no fixed number of shuffles.
+bounds:
+  model: 'per run (the this-run readout): shuffles, comparisons (the sortedness check stops at the first descent) and swaps (a shuffle of n keys is n − 1 swaps)'
+  best: 'Already sorted: n − 1 comparisons, no shuffle and no swap'
+  average: 'n!/Πmᵢ! expected shuffles from an unsorted input with key multiplicities mᵢ, n! for distinct keys (test/plate-bogosort.test.ts), hence (n − 1) times as many swaps; about (e − 1)·n! comparisons (Gruber, Holzer and Ruepp)'
+  worst: 'unbounded; in every run the swaps are n − 1 times the shuffles, and the comparisons lie between shuffles + n − 1 and (n − 1)(shuffles + 1)'
 ---
 
 Check whether the array is sorted; if it is not, shuffle it uniformly at random and check again, forgetting everything the previous attempts revealed.

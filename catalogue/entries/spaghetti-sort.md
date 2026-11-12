@@ -23,6 +23,32 @@ related:
   - bead-sort
   - counting-sort
   - selection-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites: [selection-sort]
+  objectives:
+  - 'Read Comparisons at 64 keys: 2,016 on every input, n(n − 1)/2, the price of simulating the hand by comparing every rod left.'
+  - 'Read the Phase readout: n + 1 phases, cutting the bundle and then one lowering of the hand per rod.'
+  - 'Compare Auxiliary writes on Already sorted and Reversed at 64 keys: 64 against 2,080, since every rod taken from the front shifts the rest of the bundle.'
+  misconceptions:
+  - 'Spaghetti sort beats the n log n lower bound on a computer; the plate pays n(n − 1)/2 comparisons on every input, because the hand''s parallel comparison has to be simulated.'
+algorithm:
+  properties:
+    in_place: false
+bounds:
+  model: 'comparisons (each lowering of the hand compares every rod left), array writes (each rod laid down) and auxiliary writes (the bundle drawn, then every rod shifted when one is taken out)'
+  best: 'n auxiliary writes on Already sorted'
+  average: 'n(n − 1)/2 comparisons, n array writes and n + 1 phases on every input; a linear number of steps on Dewdney''s analogue machine, the source''s model and not the plate''s'
+  worst: 'n(n + 1)/2 auxiliary writes on Reversed'
+claims:
+  - id: the-hand-costs-quadratic-comparisons
+    statement: >-
+      On Random permutation at 64 keys spaghetti sort makes 2,016 comparisons, n(n − 1)/2: every lowering of the hand is simulated by comparing all the rods left.
+    readout: Comparisons
+    expect: { value: 2016 }
+    setup:
+      params: { shape: random, n: 64 }
 ---
 
 Cut one rod of spaghetti to the length of each key, stand the bundle on the table, and lower a hand onto it: the first rod it touches is the longest. Take it out and lower the hand again until the bundle is gone.

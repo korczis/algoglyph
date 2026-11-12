@@ -16,6 +16,25 @@ related:
   - voronoi-relax
   - euclidean-mst
   - closest-pair
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+    - Insert points in x order, so each new one lies outside the triangulation so far, and join it to every hull edge it can see.
+    - Flip an edge while the point across lies inside the new triangle's circumcircle, until every circumcircle is empty of other points.
+    - Draw the Voronoi diagram as the dual, one circumcentre per triangle, one edge across every interior edge and a ray out of every hull edge.
+algorithm:
+  paradigm: incremental
+bounds:
+  model: edge flips
+  worst: O(n²) flips, in this plate's x order
+claims:
+  - id: one-voronoi-vertex-per-triangle
+    statement: >-
+      Each triangle gives its circumcentre, so the Voronoi diagram has exactly as many vertices
+      as the triangulation has triangles: the difference is 0.
+    readout: Voronoi vertices
+    expect: { against: Triangles, tolerance: 0 }
 ---
 
 The regions closest to each site, and the triangulation that is their dual.

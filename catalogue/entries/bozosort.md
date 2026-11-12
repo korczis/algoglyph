@@ -19,6 +19,25 @@ complexity: n best, n! to n·n! average, unbounded worst; extra space 1
 related:
   - bogobogosort
   - bogosort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [bogosort]
+  objectives:
+  - 'Read random pairs drawn against the swaps of this run: equal, since the kernel swaps every pair it draws, a position with itself included.'
+  - 'Read swaps that removed / added / kept inversions: the three add up to the swaps, and on five reversed keys every seed tried adds inversions at some swap.'
+  - 'Switch the Swap rule to only an inversion: no swap adds an inversion, and the swaps never exceed the inversions of the input.'
+  misconceptions:
+  - 'A random swap of a sorting walk is at least never harmful; the removed / added / kept readout counts the swaps that add inversions, which the repaired rule never makes.'
+algorithm:
+  paradigm: randomized
+  properties:
+    stable: false
+bounds:
+  model: 'per run: swaps (one per random pair drawn), comparisons (the sortedness check before every draw) and inversions (recounted after every swap)'
+  best: 'Already sorted: n − 1 comparisons and no swap'
+  average: 'the expected swaps solve the walk''s Markov chain on cycle types (test/plate-bozosort.test.ts, against the chain over all n! permutations and against seeded runs); n! + 2(n − 2)! plus lower-order terms for the version with distinct positions (Gruber, Holzer and Ruepp, after Flatto, Odlyzko and Wales); with the repair at most the input''s inversions'
+  worst: 'unbounded; in every run the swaps equal the pairs drawn, and the comparisons lie between pairs + n − 1 and (n − 1)(pairs + 1)'
 ---
 
 While the array is not sorted, swap the keys at two randomly chosen positions and test again.

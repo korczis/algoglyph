@@ -25,6 +25,32 @@ tags:
 complexity: n log n in every case; extra space n
 related:
   - samplesort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [samplesort]
+  objectives:
+  - 'Read the Rounds and Lanes readouts: 4 rounds (classify, exchange, local sort, concatenate) of 4 lanes at every size.'
+  - 'Count the classification: exactly 2 comparisons per key, a binary search among the 3 splitters.'
+  - 'Run Random permutation at 512 keys and compare the buckets the four processors receive in the auxiliary strip: 138, 144, 114 and 116 keys.'
+  misconceptions:
+  - 'A parallel sort moves the data once per level, like quicksort; the exchange moves every key once, and the rounds are the same 4 at 8 keys as at 512.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons (sample sort, classification, local merge sorts), array writes (the buckets concatenated), auxiliary writes (splitters and the processors'' buckets), rounds and lanes (four processors)'
+  average: 'on every input of n ≥ 2 keys 4 rounds, 4 lanes, 5 phases, n array writes and exactly 2n comparisons in the classification; the (n/p) log n parallel time is the sources'''
+claims:
+  - id: four-rounds
+    statement: >-
+      On Random permutation at 512 keys parallel samplesort takes 4 rounds, classify, exchange, local sort and concatenate, the same four it takes at every size: each key crosses the exchange once.
+    readout: Rounds
+    expect: { value: 4 }
+    setup:
+      params: { shape: random, n: 512 }
 ---
 
 Samplesort with one bucket per processor: sample the distributed input, pick p − 1 splitters, let every processor classify its own keys among them, exchange the buckets in a single all-to-all step, and let each processor sort what it received.

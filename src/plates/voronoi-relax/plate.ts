@@ -55,6 +55,17 @@ export function label(sites: Site[], w: number, h: number, owner: Int32Array, d2
   }
 }
 
+type Stop = '' | 'settled' | 'budget';
+
+/** Why the relaxation stopped, or that it has not; the first number is the steps taken. */
+function stopReadout(stopped: Stop, k: number, steps: number, shift: number): string {
+  const largest = Number.isFinite(shift) ? `, largest shift ${shift.toFixed(3)} px` : '';
+  if (stopped === 'settled') return `settled: largest shift below ε after ${steps} steps${largest}`;
+  if (stopped === 'budget') return `step budget reached: ${steps} steps${largest}`;
+  if (k <= 0) return 'paused: relaxation per frame is 0';
+  return `not yet: ${steps} steps${largest}`;
+}
+
 export const voronoiRelax: PlateCode = {
   id: 'voronoi-relax',
   mode: '2d',
@@ -65,6 +76,11 @@ export const voronoiRelax: PlateCode = {
       rebuild: true },
     { kind: 'range', key: 'relax', label: 'Relaxation per frame', min: 0, max: 1, step: 0.01,
       value: 0.08 },
+    // the relaxation stops at whichever comes first, so its readouts settle (ADR 0007)
+    { kind: 'range', key: 'epsilon', label: 'Stop below largest shift ε (px)', min: 0.001, max: 1,
+      step: 0.001, value: 0.05 },
+    { kind: 'range', key: 'budget', label: 'Step budget, then stop', min: 10, max: 10_000, step: 10,
+      value: 5_000 },
     { kind: 'range', key: 'res', label: 'Pixel size', min: 1, max: 6, step: 1, value: 3,
       rebuild: true },
     { kind: 'toggle', key: 'seeds', label: 'Show seeds', value: true },
@@ -80,6 +96,10 @@ export const voronoiRelax: PlateCode = {
     let d2: Float32Array;
     let res = 3;
     let iteration = 0;
+    // steps since the last (re)start: setup or a click, which resumes the relaxation
+    let steps = 0;
+    let shift = Infinity;
+    let startEnergy = NaN;
 
     const add = (x: number, y: number) => sites.push({ x, y, hue: ctx.rnd() });
 
@@ -101,9 +121,14 @@ export const voronoiRelax: PlateCode = {
             Math.min(raster.h - 1, Math.max(0, cy + Math.sin(a) * r)));
         }
         iteration = 0;
+        steps = 0;
+        shift = Infinity;
+        startEnergy = NaN;
       },
       pressed(x, y) {
         add(x / res, y / res);
+        steps = 0;
+        shift = Infinity;
       },
       draw() {
         const w = raster.w;
@@ -145,13 +170,32 @@ export const voronoiRelax: PlateCode = {
         p.background(...ctx.bg);
         raster.blit(p, true);
 
+        const meanEnergy = (energy / owner.length) * res * res;
+        if (Number.isNaN(startEnergy)) startEnergy = meanEnergy;
+
+        // one Lloyd step unless stopped: the step's largest seed shift fell below ε (in canvas
+        // pixels) or the step budget is spent, whichever came first. Judged every frame, so a
+        // smaller ε or a larger budget set after the stop resumes the relaxation.
         const k = num(params, 'relax');
-        for (let i = 0; i < sites.length; i++) {
-          if (!cnt[i]) continue;
-          sites[i].x += (sx[i] / cnt[i] - sites[i].x) * k;
-          sites[i].y += (sy[i] / cnt[i] - sites[i].y) * k;
+        const cause = (): Stop => shift < num(params, 'epsilon') ? 'settled'
+          : steps >= num(params, 'budget') ? 'budget' : '';
+        let stopped = cause();
+        if (!stopped && k > 0) {
+          let worst = 0;
+          for (let i = 0; i < sites.length; i++) {
+            if (!cnt[i]) continue;
+            const dx = (sx[i] / cnt[i] - sites[i].x) * k;
+            const dy = (sy[i] / cnt[i] - sites[i].y) * k;
+            sites[i].x += dx;
+            sites[i].y += dy;
+            const d = dx * dx + dy * dy;
+            if (d > worst) worst = d;
+          }
+          shift = Math.sqrt(worst) * res;
+          iteration++;
+          steps++;
+          stopped = cause();
         }
-        if (k > 0) iteration++;
 
         if (bool(params, 'seeds')) {
           p.noStroke();
@@ -161,7 +205,9 @@ export const voronoiRelax: PlateCode = {
         ctx.stats([
           { label: 'seeds', value: String(sites.length) },
           { label: 'Lloyd iterations', value: String(iteration) },
-          { label: 'quantisation energy', value: `${((energy / owner.length) * res * res).toFixed(1)} px²` },
+          { label: 'Stopped', value: stopReadout(stopped, k, steps, shift) },
+          { label: 'quantisation energy, start → now',
+            value: `${startEnergy.toFixed(1)} → ${meanEnergy.toFixed(1)} px²` },
           { label: 'labelled pixels', value: `${w}×${h}, pixel size ${bounded(res, num(params, 'res'), ' px')}` },
         ]);
       },

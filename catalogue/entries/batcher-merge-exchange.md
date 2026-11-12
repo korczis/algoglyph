@@ -41,7 +41,7 @@ claims:
     readout: Comparisons
     expect: { value: 9727 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Batcher's odd-even merge exchange: a fixed schedule of compare-exchanges that sorts any input.

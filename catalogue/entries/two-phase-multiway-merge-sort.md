@@ -27,6 +27,32 @@ related:
   - k-way-merge-sort
   - replacement-selection
   - tournament-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [external-merge-sort]
+  objectives:
+  - 'Read the Passes readout: 2 at every size, run generation and one merge of all the sublists.'
+  - 'Read the second phase at 512 keys: a memory of 2M = 46 keys makes 12 sublists, merged at once with blocks of B = ⌊46/13⌋ = 3 keys.'
+  - 'Run Already sorted at 512 keys: 4n = 2,048 auxiliary writes, each key loaded into memory, written to its sublist, read into an input buffer and moved to the output block once.'
+  misconceptions:
+  - 'Merging all runs at once is free; the head scan compares the live heads of all 12 sublists, so at 512 keys the merge makes 8,073 comparisons on Random, more than the 5,240 of four-way external mergesort, in half its passes.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    in_place: false
+bounds:
+  model: 'comparisons (memory sorts and the head scan of the merge), array writes (the output blocks written to the file), auxiliary writes (memory, sublists, input buffers and output block) and passes; memory 2M = 2·max(4, ⌈√n⌉) keys, blocks B = max(1, ⌊2M/(r + 1)⌋) for r sublists'
+  best: 'on Already sorted (n − r) + Σᵢ Lᵢ(r − i) comparisons for the sublist lengths Lᵢ, 3,536 at 512 keys, and exactly 4n auxiliary writes'
+  average: 'on every input of n ≥ 2 keys 2 passes and n array writes; comparisons at most the memory sorts'' bound plus (r − 1)·n, auxiliary writes at most 5n; about 4N/B block transfers is the I/O model''s count, not a readout'
+claims:
+  - id: two-passes
+    statement: >-
+      On Random permutation at 512 keys the two-phase mergesort takes 2 passes, where four-way external mergesort takes 4: its 12 sublists of 46 keys fit into memory one block each and are merged at once.
+    readout: Passes
+    expect: { value: 2 }
+    setup:
+      params: { shape: random, n: 512 }
 ---
 
 External mergesort with exactly one merging pass: phase 1 sorts memory loads into runs, phase 2 merges all of the runs at once with one input block per run and one output block in memory.

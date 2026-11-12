@@ -25,6 +25,34 @@ related:
   - insertion-sort
   - splay-tree
   - tree-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [tree-sort, splay-tree]
+  objectives:
+  - 'Run Already sorted or Reversed at 64 keys: 63 comparisons, n − 1, since each new key lands beside the root, where the last splay left its neighbour.'
+  - 'Run Organ pipe at 64 keys: 125 comparisons, 2n − 3, against 2,016 for plain tree sort on Already sorted.'
+  - 'Compare Nearly sorted with Random permutation at 512 keys: 597 comparisons against 5,135.'
+  misconceptions:
+  - 'A tree that rotates at every insertion must pay for the rotations in comparisons; the rotations compare nothing, and on Already sorted the whole sort costs n − 1 comparisons, the fewest any input can.'
+algorithm:
+  paradigm: incremental
+  properties:
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons (one per node passed on the way down; the splay rotations compare nothing), array writes (the in-order walk) and auxiliary writes (one node per key)'
+  best: 'n − 1 comparisons, the fewest of any input, on Already sorted, Reversed and keys all equal; 2n − 3 on Organ pipe'
+  worst: 'O(n log n) amortised (Sleator and Tarjan); O(n log(1 + Inv/n)) for Inv inversions (Moffat, Eddy and Petersson)'
+  space: 'n tree nodes: n auxiliary writes and n array writes on every input'
+claims:
+  - id: sorted-input-costs-n-minus-one
+    statement: >-
+      On Already sorted at 64 keys splaysort makes 63 comparisons, n − 1: every new key is compared only with the root, the key inserted before it.
+    readout: Comparisons
+    expect: { value: 63 }
+    setup:
+      params: { shape: sorted, n: 64 }
 ---
 
 Tree sort into a splay tree: every inserted key is rotated to the root by zig, zig-zig and zig-zag steps, and an in-order walk reads the keys out sorted at the end.

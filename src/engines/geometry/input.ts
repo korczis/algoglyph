@@ -40,17 +40,62 @@ export const DEFAULT_SHAPES: Record<InputKind, string[]> = {
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** n distinct points of the named shape (fewer if the shape has fewer positions), on the integer
- * grid; On a circle uses a grid of 1/1024, fine enough for every point to stay a corner, and
- * orientation tests on it are still exact. */
+ * grid. On a circle uses a grid of 1/1024, on which orientation tests are still exact (43 bits).
+ * Rounding to that grid alone does not keep every point a corner: two near neighbours can pull
+ * a point a hair inside their chord (seed 4242 at n = 160 lost one). So the circle keeps its
+ * points as a ring in angular order about the centre, and a rounded point joins only if the
+ * three turns it touches (before it, at it, after it) are strictly left, by the exact test;
+ * otherwise it is rejected and the next seeded draw is tried. The ring starts as a triangle,
+ * which is convex, and each such insertion leaves the total turning unchanged, so the ring
+ * stays a strictly convex polygon and every point is a strict hull corner. */
 export function points(shape: string, n: number, rnd: () => number): Pt[] {
   const seen = new Set<string>();
   const out: Pt[] = [];
   const unit = shape === 'circle' ? 1024 : 1;
+  // The ring, in angular order about the centre: `ring` holds indices into the flat angle and
+  // coordinate arrays, so an insertion shifts one array of 4-byte indices and 2000 points stay
+  // well inside a plate's rebuild budget.
+  const cap = shape === 'circle' ? n : 0;
+  const ring = new Int32Array(cap);
+  const rt = new Float64Array(cap);
+  const rx = new Float64Array(cap);
+  const ry = new Float64Array(cap);
+  let m = 0;
+  const left = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
+    (bx - ax) * (cy - ay) - (by - ay) * (cx - ax) > 0;
+  const convexWith = (p: Pt): boolean => {
+    const t = Math.atan2(p.y - H / 2, p.x - W / 2);
+    let i = 0; // the first ring position whose angle is not below t (the ring is sorted)
+    let hi = m;
+    while (i < hi) {
+      const mid = (i + hi) >> 1;
+      if (rt[ring[mid]] < t) i = mid + 1; else hi = mid;
+    }
+    if (m >= 2) {
+      // p goes between ring positions i - 1 (point a) and i (point b); z is before a, c after b
+      const at = (j: number) => ring[((j % m) + m) % m];
+      const a = at(i - 1), b = at(i);
+      if (!left(rx[a], ry[a], p.x, p.y, rx[b], ry[b])) return false;
+      if (m >= 3) {
+        const z = at(i - 2), c = at(i + 1);
+        if (!left(rx[z], ry[z], rx[a], ry[a], p.x, p.y)) return false;
+        if (!left(p.x, p.y, rx[b], ry[b], rx[c], ry[c])) return false;
+      }
+    }
+    rt[m] = t;
+    rx[m] = p.x;
+    ry[m] = p.y;
+    ring.copyWithin(i + 1, i, m);
+    ring[i] = m;
+    m++;
+    return true;
+  };
   const add = (x: number, y: number) => {
     const X = Math.round(clamp(x, M, W - M) * unit) / unit;
     const Y = Math.round(clamp(y, M, H - M) * unit) / unit;
     const key = `${X},${Y}`;
     if (seen.has(key)) return;
+    if (shape === 'circle' && !convexWith({ x: X, y: Y })) return;
     seen.add(key);
     out.push({ x: X, y: Y });
   };

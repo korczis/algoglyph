@@ -52,7 +52,7 @@ claims:
     readout: Comparisons
     expect: { value: 1663 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A stable bottom-up merge sort in constant extra memory: binary insertion sorts runs of 32 keys, then neighbouring runs are merged in pairs through a 32-key buffer when the shorter one fits it, and split by a binary search and a rotation when neither does; two runs already in order cost one comparison.

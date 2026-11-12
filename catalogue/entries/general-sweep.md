@@ -15,6 +15,32 @@ complexity: "O((n + k) log n) for k crossings with a balanced status tree; the s
 related:
   - ccw-intersection
   - orthogonal-sweep
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites:
+    - ccw-intersection
+  objectives:
+    - Run Bentley and Ottmann's sweep, in which left ends, right ends and discovered crossings leave one priority queue in x order and the status lists the segments the sweep line cuts, ordered by height.
+    - Explain why two segments that cross must be neighbours in the status just before the crossing, so that only neighbours are ever tested.
+    - Relate the orientation tests to n + k rather than n², and compare them on Short segments with the quadratic all-pairs test of ccw-intersection.
+bounds:
+  model: orientation tests and event pops, for n segments with k crossings
+  average: 'O((n + k) log n) time with a balanced status tree; 2n + k event pops (each pair is scheduled at most once) and at most 4(3n + 2k) orientation tests'
+  worst: 'O((n + k) log n) time with a balanced status tree (here a sorted array, so an insertion also moves O(n) entries); 2n + k event pops and at most 4(3n + 2k) orientation tests'
+claims:
+  - id: short-segments-below-all-pairs
+    statement: >-
+      On 300 Short segments the sweep makes fewer orientation tests than the 2n(n − 1) = 179400
+      the all-pairs test of ccw-intersection makes. The margin is a hard bound: a left end tests
+      its two neighbours, a right end the pair that closes up and a crossing its two new pairs, at
+      four orientation tests a pair, so at most 4(3n + 2k); segments of mean length 95 in the
+      1520 × 920 field cross about C(300, 2) · 2 · 95² / (π · 1520 · 920) ≈ 184 times, which puts
+      the bound near 5100.
+    readout: Orientation tests
+    expect: { below: 179400 }
+    setup:
+      params: { n: 300 }
 ---
 
 Every crossing among n segments found by a sweep that reorders neighbours at each intersection.

@@ -25,6 +25,34 @@ complexity: at most 2n − 3 flips; n² comparisons and moves in every case; ext
 related:
   - double-selection-sort
   - selection-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites: [selection-sort]
+  objectives:
+  - 'Read Comparisons at 64 keys: 2,016 on every input, n(n − 1)/2, the full search for the largest pancake left in every round, even on Already sorted.'
+  - 'Run Reversed at 64 keys: one flip of the whole stack, 64 array writes, 32 exchanges.'
+  - 'Read the Phase readout: it counts the flips, at most 2n − 3, and some stack of every size from 2 to 8 needs all of them.'
+  misconceptions:
+  - 'Fewer flips means less work; Already sorted makes no flip at all and still costs n(n − 1)/2 comparisons, as many as any other input.'
+algorithm:
+  paradigm: greedy
+  properties:
+    stable: false
+    in_place: true
+bounds:
+  model: 'comparisons (the search for the largest pancake left), array writes (a flip of k pancakes is ⌊k/2⌋ exchanges, two writes each) and flips (the Phase readout''s count)'
+  best: 'no flip and no array write on Already sorted; one flip and 2⌊n/2⌋ array writes on Reversed'
+  average: 'n(n − 1)/2 comparisons on every input'
+  worst: 'at most 2n − 3 flips by the simple method, reached at every n from 2 to 8; the bounds on the best method are the sources'' (Gates and Papadimitriou; Chitturi et al.)'
+claims:
+  - id: reversed-is-one-flip
+    statement: >-
+      On Reversed at 64 keys pancake sort makes 64 array writes: one flip of the whole stack, 32 exchanges, sorts it.
+    readout: Array writes
+    expect: { value: 64 }
+    setup:
+      params: { shape: reversed, n: 64 }
 ---
 
 Sort a stack when the only move is a flip: reverse the top k items, as a spatula turns over the top k pancakes. Bring the largest unsorted pancake to the top with one flip, then flip it down to the bottom of the unsorted part with a second.

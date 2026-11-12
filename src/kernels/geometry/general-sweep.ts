@@ -67,7 +67,9 @@ export const kernel: GeometryKernel = {
         status.splice(k, 1);
         test(at(k - 1), at(k), x);
       } else {
+        // a pair is scheduled at most once, so each crossing pops (and is counted) once
         found.push([e.s, e.t]);
+        g.count('found');
         hits.push({ x: e.x, y: e.y });
         const i = status.indexOf(e.s); const j = status.indexOf(e.t);
         if (i < 0 || j < 0) continue; // a touch at an end already passed: general position excludes it

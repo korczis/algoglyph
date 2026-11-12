@@ -16,6 +16,30 @@ complexity: "O(n log n) expected, O(n²) worst case"
 related:
   - gift-wrapping
   - graham-scan
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Find a hull corner as the point farthest from a dividing line, the one with the largest cross product.
+    - Drop the points inside the triangle that corner forms and solve the two groups outside its new edges the same way.
+    - Relate the cost to the splits, as in quicksort, and see why a circle, where nothing is discarded, still splits evenly while the quadratic case peels off one corner at a time.
+  prerequisites:
+    - quicksort
+algorithm:
+  paradigm: divide-and-conquer
+bounds:
+  model: orientation tests
+  average: O(n log n) expected
+  worst: O(n²)
+claims:
+  - id: nothing-discarded-on-a-circle
+    statement: >-
+      On 160 points of a circle nothing is ever discarded: every point is a corner, so the hull
+      has exactly n = 160 vertices.
+    readout: Hull vertices
+    expect: { value: 160 }
+    setup:
+      params: { shape: circle }
 ---
 
 The farthest point from a dividing line splits the problem in two, like quicksort.

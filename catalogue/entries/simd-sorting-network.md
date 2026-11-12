@@ -49,7 +49,7 @@ claims:
     readout: Rounds
     expect: { value: 4005 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 A mergesort whose comparators are vector instructions: sort small blocks inside registers with a fixed network of min and max operations, transpose them into sorted runs, and merge runs with a bitonic merge network executed register against register.

@@ -9,3 +9,5 @@ documented:
   - strings
   - systems
   - signals
+  - geometry
+  - sorting

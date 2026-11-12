@@ -21,6 +21,33 @@ complexity: n log n in every case; extra space n
 related:
   - k-way-merge-sort
   - parallel-samplesort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [external-merge-sort]
+  objectives:
+  - 'Read the Rounds readout: 3 stages every task runs, map, shuffle and sort.'
+  - 'Run Random permutation at 512 keys: the equal key intervals give every reduce task exactly 128 keys.'
+  - 'Run Already sorted at 512 keys: n − 4 = 508 comparisons, each reduce task''s merge sort finding its partition in order.'
+  misconceptions:
+  - 'The map and the shuffle compare keys to route them; the partitioner computes a key range arithmetically, so every comparison is in the reduce tasks'' sort.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons (the reduce tasks'' merge sorts only), array writes (their output), auxiliary writes (the shuffled partitions), rounds and lanes (four map and reduce tasks)'
+  best: 'on Already sorted n minus the non-empty partitions, 508 at 512 keys'
+  average: 'on every input of n ≥ 2 keys 3 rounds, 4 lanes, 4 phases, n array writes, n auxiliary writes and no comparison before the sort'
+claims:
+  - id: sorted-input
+    statement: >-
+      On Already sorted at 512 keys MapReduce sort makes 508 comparisons, n − 4: each of the four reduce tasks receives a key range already in order, and its merge sort confirms each split with one comparison.
+    readout: Comparisons
+    expect: { value: 508 }
+    setup:
+      params: { shape: sorted, n: 512 }
 ---
 
 In MapReduce sorting is almost free: map emits each record under its key, reduce copies its input unchanged, and the framework does the work, because within one partition it hands the intermediate pairs to reduce in increasing key order.
@@ -29,4 +56,4 @@ The catch is the partition function. By default it is a hash of the key modulo R
 
 The plate runs the map and reduce steps one after another and counts total work: order n log n comparisons in the reducers plus linear work for the maps, the spill and the shuffle, in which every record crosses the network once. Start with Random permutation at n = 256 and compare it with TeraSort, the same pipeline with a sampled range partitioner.
 
-The 2004 paper sorted 10^10 records of 100 bytes, about a terabyte, with fewer than 50 lines of user code on roughly 1800 machines in 891 seconds, its partitioner knowing the key distribution in advance. It is not stable: the ordering guarantee covers keys, not the order of values with equal keys. It fits data that already live in a distributed file system and do not fit on one machine; for data that do, a parallel sort on that one machine avoids the framework's overhead.
+The 2004 paper sorted 10^10 records of 100 bytes, about a terabyte, with fewer than 50 lines of user code on roughly 1800 machines in 891 seconds, its partitioner knowing the key distribution in advance. The model's ordering guarantee covers keys, not the order of values with equal keys, so it promises no stability; the plate's reduce sort is a stable merge sort, and no input its test tried had equal keys reordered. It fits data that already live in a distributed file system and do not fit on one machine; for data that do, a parallel sort on that one machine avoids the framework's overhead.

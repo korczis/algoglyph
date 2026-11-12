@@ -55,7 +55,7 @@ claims:
     readout: Comparisons
     expect: { below: 3932 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Pair the keys and compare within each pair, sort the larger keys recursively into a main chain, then binary-insert the smaller partners in an order chosen so that every search runs over 2^k − 1 keys and wastes no comparison.
