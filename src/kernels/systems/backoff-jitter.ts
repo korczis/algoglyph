@@ -9,7 +9,7 @@ import type { SystemsKernel } from '../../engines/systems/sim';
 // window; the jitter cohort sleeps a uniform random time in [0, base * 2^attempt) ("full
 // jitter"), which spreads the same retries out.
 
-/** The default of the backoff's base control, and its cap (ms). */
+/** The defaults of the backoff's base and cap controls (ms). */
 export const BASE = 100;
 export const CAP = 1600;
 export const WINDOW = 100;
@@ -32,8 +32,9 @@ export const kernel: SystemsKernel<BackoffResult> = {
   params: [
     { kind: 'range', key: 'clients', label: 'Clients per cohort', min: 5, max: 80, step: 1, value: 40, rebuild: true },
     { kind: 'range', key: 'capacity', label: 'Server capacity (requests per 100 ms)', min: 1, max: 30, step: 1, value: 6, rebuild: true },
-    // a smaller base means more retries, so the range starts at its default
+    // a smaller base or cap means more retries, so each range starts at its default
     { kind: 'range', key: 'base', label: 'Backoff base (ms)', min: BASE, max: 400, step: 50, value: BASE, rebuild: true },
+    { kind: 'range', key: 'cap', label: 'Backoff cap (ms)', min: CAP, max: 6400, step: 400, value: CAP, rebuild: true },
   ],
   setup: () => ({
     lanes: ['clients · lockstep', 'server · lockstep', 'clients · jitter', 'server · jitter'],
@@ -43,7 +44,7 @@ export const kernel: SystemsKernel<BackoffResult> = {
   }),
   install(net, p) {
     const N = num(p, 'clients'); const cap = num(p, 'capacity');
-    const base = num(p, 'base');
+    const base = num(p, 'base'); const most = num(p, 'cap');
     const outage: [number, number] = [300, 1400];
     const mk = (): Cohort => ({ attempts: Array.from({ length: N }, () => []), done: [], delays: [] });
     const res: BackoffResult = { lockstep: mk(), jitter: mk(), capacity: cap, outage };
@@ -72,7 +73,7 @@ export const kernel: SystemsKernel<BackoffResult> = {
               }
               return;
             }
-            const ceiling = Math.min(CAP, base * 2 ** k);
+            const ceiling = Math.min(most, base * 2 ** k);
             const sleep = co.jitter ? net.uniform(0, ceiling) : ceiling;
             co.c.delays.push({ attempt: k, sleep });
             net.after(sleep, () => attempt(i));

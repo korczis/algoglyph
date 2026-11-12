@@ -80,6 +80,7 @@ function control(key: string, want: Omit<RangeParam, 'kind' | 'key' | 'rebuild'>
 }
 
 control('base', { label: 'Backoff base (ms)', min: 100, max: 400, step: 50, value: 100 }, (v) => [v, 1600]);
+control('cap', { label: 'Backoff cap (ms)', min: 1600, max: 6400, step: 400, value: 1600 }, (v) => [100, v]);
 
 describe('backoff-jitter at its defaults is what it was before the controls', () => {
   // recorded on the code before the controls existed (main 23b65ad); the run draws only uniform
