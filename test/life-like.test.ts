@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import langtonTurmites from '../src/plates/langton-turmites/plate';
 import lifeLikeAutomata from '../src/plates/life-like-automata/plate';
-import { fadeTrace } from '../src/plates/life-like-automata/trace';
+import { fadeTrace } from '../src/plates/_shared/trace/trace';
 import {
   bounds, CELL_BUDGET, generationsPerFrame, Life, parseRule, PATTERNS, ruleString,
   type Pattern,

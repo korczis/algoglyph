@@ -1,7 +1,7 @@
 import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
-import { fadeTrace } from '../life-like-automata/trace';
+import { fadeTrace } from '../_shared/trace/trace';
 import { parseTurmite, Turmite, type Ant } from './ant';
 
 const TURMITES = ['RL', 'RLR', 'LLRR', 'LRRRRRLLR', 'RRLLLRLLLRRR'];

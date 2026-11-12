@@ -1,7 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
-import { fadeTrace } from './trace';
+import { fadeTrace } from '../_shared/trace/trace';
 import {
   bounds, generationsPerFrame, Life, parseRule, PATTERNS, ruleString, type Pattern, type Rule,
 } from './life';
