@@ -6,6 +6,7 @@ import { GROUNDS, palette as lookupPalette } from './palette';
 import type { Chart, Params, Plate, PlateContext, Sim, Stat, Theme } from './plate';
 import { RESET_BURST_FRAMES, shouldRun } from './loop';
 import { mulberry32 } from './random';
+import { keyedThrottle } from './throttle';
 
 export interface MountOptions {
   params: Params;
@@ -27,7 +28,8 @@ function context(plate: Plate, width: number, height: number, params: Params, se
   const ground = GROUNDS[theme];
   const fallback = String(plate.params.find((d) => d.key === 'palette')?.value ?? 'ember');
   let last = 0;
-  let lastChart = 0;
+  // each chart is throttled on its own title, so a plate's second chart is never dropped
+  const chartReady = keyedThrottle(CHART_EVERY_MS);
   return {
     width,
     height,
@@ -48,9 +50,7 @@ function context(plate: Plate, width: number, height: number, params: Params, se
     },
     chart(c: Chart) {
       if (thumbnail) return;
-      const now = performance.now();
-      if (now - lastChart < CHART_EVERY_MS) return;
-      lastChart = now;
+      if (!chartReady(c.title)) return;
       onChart(c);
     },
   };
