@@ -49,6 +49,8 @@ export class Board {
     this.every = Math.max(1, Math.floor(t.events.length / 120));
   }
   get done(): boolean { return this.at >= this.t.events.length; }
+  /** The replay's read cursor into the event log. */
+  private cur: Ev = { o: 0, p: 0, i: 0, j: 0, v: 0 };
   /**
    * Replay events until `budget` costed events have passed (ticks only when ticksOnly), and at
    * most `cap` events in all: marks and readouts cost no step of the speed, but they are work.
@@ -58,7 +60,7 @@ export class Board {
     let left = budget;
     const end = Math.min(ev.length, this.at + cap);
     while (this.at < end && left > 0) {
-      const e = ev[this.at++];
+      const e = ev.get(this.at++, this.cur);
       this.apply(e);
       if (ticksOnly ? e.o === OP.tick : COST.has(e.o)) left--;
       if (this.at % this.every === 0 || this.at === ev.length) this.history.push([this.at, ...this.counts]);
@@ -67,7 +69,7 @@ export class Board {
   /** Replay a fraction of the run at once (thumbnails). */
   seek(frac: number): void {
     const end = Math.floor(this.t.events.length * frac);
-    while (this.at < end) this.apply(this.t.events[this.at++]);
+    while (this.at < end) this.apply(this.t.events.get(this.at++, this.cur));
   }
   private anchor(p: number): number {
     const a = this.parts[p]?.align ?? -1;

@@ -25,6 +25,24 @@ sources:
     title: Stable Fluids (SIGGRAPH 1999)
     author: Jos Stam
     kind: paper
+  - id: johnson-1974-packing-bounds
+    title: Worst-Case Performance Bounds for Simple One-Dimensional Packing Algorithms (SIAM Journal on Computing 3(4), 299–325)
+    author: D. S. Johnson, A. Demers, J. D. Ullman, M. R. Garey, R. L. Graham
+    year: 1974
+    kind: paper
+    url: https://doi.org/10.1137/0203025
+  - id: dosa-sgall-2013-first-fit
+    title: 'First Fit bin packing: A tight analysis (STACS 2013, LIPIcs 20, 538–549)'
+    author: György Dósa, Jiří Sgall
+    year: 2013
+    kind: paper
+    url: https://doi.org/10.4230/LIPIcs.STACS.2013.538
+  - id: dosa-2007-ffd
+    title: The Tight Bound of First Fit Decreasing Bin-Packing Algorithm Is FFD(I) ≤ 11/9 OPT(I) + 6/9 (ESCAPE 2007, LNCS 4614, 1–11)
+    author: György Dósa
+    year: 2007
+    kind: paper
+    url: https://doi.org/10.1007/978-3-540-74450-4_1
   - id: pocorgtfo
     title: PoC||GTFO
     author: Manul Laphroaig (ed.)
@@ -58,6 +76,66 @@ sources:
   - id: practice-logistics
     title: Warehouse logistics
     kind: practice
+  - id: griffiths-qm
+    title: Introduction to Quantum Mechanics (second edition)
+    author: David J. Griffiths
+    publisher: Pearson Prentice Hall
+    year: 2005
+    kind: book
+  - id: feit-fleck-steiger
+    title: Solution of the Schrödinger equation by a spectral method (Journal of Computational Physics 47)
+    author: M. D. Feit, J. A. Fleck Jr., A. Steiger
+    year: 1982
+    kind: paper
+  - id: cooley-tukey
+    title: An algorithm for the machine calculation of complex Fourier series (Mathematics of Computation 19)
+    author: James W. Cooley, John W. Tukey
+    year: 1965
+    kind: paper
+  - id: manolopoulos-cap
+    title: Derivation and reflection properties of a transmission-free absorbing potential (Journal of Chemical Physics 117)
+    author: David E. Manolopoulos
+    year: 2002
+    kind: paper
+  - id: matyka-pressure-soft-body
+    title: Pressure Model of Soft Body Simulation
+    author: Maciej Matyka and Mark Ollila
+    publisher: SIGRAD 2003 (also arXiv physics/0407003)
+    year: 2003
+    kind: paper
+    url: https://arxiv.org/abs/physics/0407003
+  - id: gardner-life-1970
+    title: "Mathematical Games: The fantastic combinations of John Conway's new solitaire game \"life\""
+    author: Martin Gardner
+    publisher: Scientific American
+    year: 1970
+    kind: paper
+  - id: langton-artificial-life-1986
+    title: Studying artificial life with cellular automata
+    author: Christopher G. Langton
+    publisher: Physica D
+    year: 1986
+    kind: paper
+  - id: gale-further-travels-1995
+    title: Further travels with my ant
+    author: David Gale, James Propp, Scott Sutherland, Serge Troubetzkoy
+    publisher: The Mathematical Intelligencer
+    year: 1995
+    kind: paper
+  - id: bowyer-dirichlet
+    title: Computing Dirichlet tessellations (The Computer Journal 24(2), 1981)
+    author: Adrian Bowyer
+    kind: paper
+  - id: watson-delaunay
+    title: Computing the n-dimensional Delaunay tessellation with application to Voronoi polytopes (The Computer Journal 24(2), 1981)
+    author: David F. Watson
+    kind: paper
+  - id: de-berg-cgaa
+    title: 'Computational Geometry: Algorithms and Applications (third edition)'
+    author: Mark de Berg, Otfried Cheong, Marc van Kreveld, Mark Overmars
+    publisher: Springer
+    year: 2008
+    kind: book
 
   # Sorting: works cited by the entries folded in from the sorting atlas; each with a DOI,
   # arXiv, publisher or official locator.

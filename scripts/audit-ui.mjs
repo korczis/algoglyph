@@ -23,6 +23,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
+import { parse as parseYaml } from 'yaml';
 import { loadCatalogue } from './lib/catalogue.mjs';
 
 const args = process.argv.slice(2);
@@ -108,14 +109,21 @@ if (errors.length) {
 const live = model.entries.filter((e) => e.status === 'live');
 const planned = model.entries.filter((e) => e.status === 'planned');
 const labs = model.labs.filter((l) => l.entries.filter((id) => live.some((e) => e.id === id)).length >= 2);
-const THUMB_MS = 90000;
+// Waits are data (config/budgets.yaml, `browser`): they bound how long a page may take to show
+// its first picture and readout on the machine running the gate, a shared CI runner included.
+// A lab that took 45 s to show its first readout on the x86 runner, against about 2 s for its
+// neighbours (Pages run 43133085956), was a slow page, not a short wait: the readout wait stays a
+// gate, and a page that misses it is fixed.
+const BROWSER = parseYaml(readFileSync('config/budgets.yaml', 'utf8')).browser;
+const THUMB_MS = BROWSER.thumb_ms;
+const READOUT_MS = BROWSER.readout_ms;
 
 async function readout(p, where) {
   // plates load on demand: wait for the condition, not for a fixed time
   await p.waitForFunction(() => {
     const c = document.querySelector('#stage canvas');
     return c && c.clientWidth > 0 && document.querySelectorAll('#main dl dd.font-mono').length > 0;
-  }, null, { timeout: 30000, polling: 200 }).catch(() => {});
+  }, null, { timeout: READOUT_MS, polling: 200 }).catch(() => {});
   const state = await p.evaluate(() => {
     const c = document.querySelector('#stage canvas');
     return {

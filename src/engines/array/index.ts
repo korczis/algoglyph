@@ -39,9 +39,12 @@ function shapeParam(): ParamDef {
   };
 }
 
-const baseParams = (n: number): ParamDef[] => [
+/** The engine's own largest input; a kernel may play at a smaller one (ArrayKernel.maxN). */
+export const MAX_N = 512;
+
+const baseParams = (n: number, max = MAX_N): ParamDef[] => [
   shapeParam(),
-  { kind: 'range', key: 'n', label: 'Keys', min: 8, max: 512, step: 8, value: n, rebuild: true },
+  { kind: 'range', key: 'n', label: 'Keys', min: 8, max, step: 8, value: Math.min(n, max), rebuild: true },
   { kind: 'range', key: 'speed', label: 'Operations per frame', min: 1, max: 2000, step: 1, value: 6 },
   { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
   paletteParam('spectral'),
@@ -156,7 +159,9 @@ function run(kernel: ArrayKernel, ctx: PlateContext, generation: number): Trace 
 }
 
 function plate(info: KernelInfo, kernel: ArrayKernel): PlateCode {
-  const params = baseParams(64);
+  // a kernel's own bound, on the slider's grid and never below its minimum
+  const max = kernel.maxN ? Math.max(8, Math.min(MAX_N, Math.floor(kernel.maxN / 8) * 8)) : MAX_N;
+  const params = baseParams(64, max);
   if (kernel.goal === 'select') {
     params.splice(2, 0, { kind: 'range', key: 'k', label: 'Rank k (percent of n)', min: 0, max: 100, step: 1, value: 50, rebuild: true });
   }
@@ -224,7 +229,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
       kind: 'select', key: 'group', label: 'Compare', value: groups[0] ?? 'all', rebuild: true,
       options: [...groups.map((g) => ({ value: g, label: g })), { value: 'all', label: 'All kernels' }],
     },
-    ...baseParams(48).map((d) => (d.key === 'n' ? { ...d, max: 256 } as ParamDef : d)),
+    // the lab races every kernel on one input, so it stops at the smallest kernel bound
+    ...baseParams(48, Math.max(8, Math.floor(Math.min(256, ...kernels.map((k) => k.kernel.maxN ?? MAX_N)) / 8) * 8)),
   ];
   return {
     id: `lab-${id}`,

@@ -480,9 +480,9 @@ function sameStates(t: Trace, label: string): void {
   const stops = [0.25, 0.5, 0.75, 1].map((f) => Math.floor(f * t.events.length));
   for (const at of stops) {
     while (b.at < at) b.advance(1);
-    const want = naiveStates(t.events, b.at);
+    const want = naiveStates(t.events.toArray(0, b.at), b.at);
     // swapRows is not replayed by the naive version; tables that use it are compared by size only
-    const rowSwaps = t.events.slice(0, b.at).some((e) => e.o === OP.swapRows);
+    const rowSwaps = t.events.toArray(0, b.at).some((e) => e.o === OP.swapRows);
     b.parts.forEach((q, i) => {
       if (rowSwaps && q.kind === 'table') expect(q.states.length, label).toBe(want[i]?.length);
       else expect(q.states, `${label} part ${i} at event ${b.at}`).toEqual(want[i]);
