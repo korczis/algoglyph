@@ -18,7 +18,7 @@ export const doublePendulum: PlateCode = {
       value: 120, rebuild: true },
     { kind: 'range', key: 'dt', label: 'Step size (ms)', min: 0.5, max: 10, step: 0.5, value: 2 },
     { kind: 'range', key: 'substeps', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 8 },
-    { kind: 'range', key: 'g', label: 'Gravity (m/s²)', min: 1, max: 25, step: 0.1, value: 9.81 },
+    { kind: 'range', key: 'g', label: 'Gravity (m/s²)', min: 1, max: 25, step: 0.01, value: 9.81 },
     { kind: 'toggle', key: 'trails', label: 'Trails', value: true },
     paletteParam('ember'),
   ],

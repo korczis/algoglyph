@@ -78,3 +78,19 @@ entry leaves the plan the moment its code and its test exist.
   and the site's numbers are derived from the catalogue.
 - A branch that is green on its builder's machine but red on CI is not done: the gate's local
   headroom (`config/budgets.yaml`) exists so that local green predicts CI green.
+
+## Addendum, 2026-11-12: finish every open item
+
+The owner, verbatim: "dokonci veskere issues / milestones / steps z teto ci other sesssions
+souvisejicich s timto projektem".
+
+Open work is never a hand-kept list. It is derived from three places, and each closes the same way
+(reviewed, merged onto main, deployed):
+
+- **The plan** (`.ai/repo/project/`): milestones and issues are derived from planned catalogue
+  entries (`node scripts/catalogue.mjs plan`), so a lane that makes its entries live closes its
+  issues and milestones in the same merge.
+- **Lane branches**: `git branch -r --no-merged origin/main` lists every branch of this or another
+  session not yet on main; each is either reviewed into a batch or closed with the reason.
+- **Decisions in flight**: ADRs with `status: proposed` (`majordomus doctor` lists them); each is
+  accepted when its implementation lands on main and is deployed, never before.
