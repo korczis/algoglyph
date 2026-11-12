@@ -15,6 +15,19 @@ complexity: 'about lg(pages) index comparisons and one page read per search unti
 related:
   - b-tree
   - binary-search
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - binary-search
+  objectives:
+  - Find a key by binary-searching an index of first keys, then reading the one page that can hold it.
+  - See why a static index sends inserts into a full page to overflow chains that lengthen searches.
+algorithm:
+  paradigm: search
+bounds:
+  model: index comparisons and page reads
+  worst: 'at most ⌊lg P⌋ + 1 index comparisons over P primary pages; 1 page read, plus one per overflow page scanned'
 ---
 
 Keys in sorted pages with an index of their first keys, the ancestor of every database index.

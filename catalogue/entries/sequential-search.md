@@ -13,6 +13,17 @@ tags:
 complexity: 'O(n) per search; a hit costs its position, a miss the whole list'
 related:
   - binary-search
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Compare the key with every key in turn, the only way to search keys in no particular order.
+  - See how move-to-front and transpose exploit a skewed (Zipf) search pattern.
+algorithm:
+  paradigm: search
+bounds:
+  model: probes
+  worst: 'n probes on a miss; a hit at position i costs i'
 ---
 
 Look at every key until the one wanted turns up, or the list ends.

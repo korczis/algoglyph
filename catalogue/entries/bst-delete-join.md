@@ -14,6 +14,15 @@ complexity: proportional to the height of the tree per operation
 related:
   - bst-search-insert
   - randomized-bst
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - bst-search-insert
+  - bst-rotations
+  objectives:
+  - Delete a node by joining its two subtrees under the smallest key of the right one, rotated up.
+  - See why always replacing from the right makes deletion asymmetric, and what that does to the shape.
 ---
 
 Delete a key by joining its two subtrees, and see what repeated deletion does to the shape.

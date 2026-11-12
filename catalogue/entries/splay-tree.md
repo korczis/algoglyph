@@ -17,6 +17,19 @@ complexity: amortised lg n per operation
 related:
   - bst-root-insertion
   - randomized-bst
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites:
+  - bst-rotations
+  objectives:
+  - Bring every accessed key to the root two levels at a time, by zig-zig and zig-zag steps.
+  - See why one operation can be slow while any sequence costs O(lg n) per operation.
+algorithm:
+  paradigm: search
+bounds:
+  model: key comparisons
+  worst: amortised O(lg n) per operation over any sequence of operations
 ---
 
 Every access rotates the key to the root in pairs, which halves the path depth on the way.

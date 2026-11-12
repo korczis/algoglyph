@@ -17,6 +17,19 @@ complexity: height at most 2 lg n; lg n per insert and search
 related:
   - two-three-four-tree
   - avl-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites:
+  - two-three-four-tree
+  - bst-rotations
+  objectives:
+  - Encode 3-nodes and 4-nodes of a 2-3-4 tree as red links glued to their parents.
+  - Split 4-nodes on the way down by flipping colours, and rotate red links on the way up.
+  - See why equal black heights with no two reds in a row keep every path within twice another.
+bounds:
+  model: levels
+  worst: at most 2 lg(n+1)
 ---
 
 A binary tree that encodes 2-3-4 nodes with red links and stays within 2 lg n deep.

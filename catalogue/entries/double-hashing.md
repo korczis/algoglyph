@@ -15,6 +15,20 @@ tags:
 complexity: expected (1/α) ln(1/(1 − α)) probes per hit and 1/(1 − α) per miss (uniform probing)
 related:
   - linear-probing
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - linear-probing
+  objectives:
+  - Step by 1 + h2(k) mod (m − 1), with h2 unrelated to h1 and m prime, so every slot can be reached.
+  - See why keys with the same home slot take different steps, so clusters do not merge.
+  - See tombstones left by deletes lengthen later probe sequences.
+algorithm:
+  paradigm: search
+bounds:
+  model: probes
+  average: 'close to uniform probing: expected (1/α) ln(1/(1 − α)) per hit and 1/(1 − α) per miss'
 ---
 
 Probe with a step from a second hash, which breaks up the clusters of linear probing.

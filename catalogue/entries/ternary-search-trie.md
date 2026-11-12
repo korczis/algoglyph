@@ -14,6 +14,14 @@ tags:
 complexity: character comparisons in proportion to the key length plus lg n on random input
 related:
   - multiway-trie
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - multiway-trie
+  objectives:
+  - Follow the less and greater links at the same key position and the equal link to the next one.
+  - See why three links per node replace one per letter of the alphabet.
 ---
 
 One character per node with less, equal and greater links: a trie as compact as a search tree.

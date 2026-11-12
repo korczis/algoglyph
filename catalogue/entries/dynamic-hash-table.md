@@ -16,6 +16,20 @@ tags:
 complexity: O(1) amortised expected per operation
 related:
   - linear-probing
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - linear-probing
+  objectives:
+  - Double a linear-probing table once it is more than half full, halve it below one eighth, and rehash every key.
+  - See why geometric growth leaves each insert a constant amortised share of the rehashing.
+  - See why the gap between the grow and shrink thresholds stops a table resizing back and forth.
+algorithm:
+  paradigm: search
+bounds:
+  model: probes
+  average: 'O(1) amortised expected per operation; the load factor stays between 1/8 and 1/2 once the table has grown'
 ---
 
 Double the table once it is more than half full and rehash, keeping every operation constant on average.

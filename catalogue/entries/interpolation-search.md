@@ -14,6 +14,20 @@ tags:
 complexity: 'about lg lg n probes on uniformly spread keys, O(n) in the worst case'
 related:
   - binary-search
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - binary-search
+  objectives:
+  - Probe where the key would sit if the keys between the interval's ends were spread evenly.
+  - See why uniformly spread keys need about lg lg n probes, far fewer than lg n.
+  - See how keys spread on a log scale push the guess to one side, past the cost of binary search.
+algorithm:
+  paradigm: search
+bounds:
+  model: probes
+  average: about lg lg n on uniformly spread keys
 ---
 
 Guess where the key should be from its value, not the middle: lg lg n on uniform keys.

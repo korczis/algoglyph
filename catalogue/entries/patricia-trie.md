@@ -15,6 +15,21 @@ complexity: about lg n bit tests and one full comparison per search
 related:
   - binary-trie
   - digital-search-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites:
+  - binary-trie
+  objectives:
+  - Follow links while the bit index grows, then end the search with one full comparison.
+  - Insert by finding the first bit where the new key differs and splicing in a node that tests it.
+  - See why skipping one-way branching leaves exactly one node per key.
+algorithm:
+  paradigm: search
+bounds:
+  model: comparisons and bit tests
+  worst: exactly one key comparison per search, after at most w bit tests for w-bit keys
+  space: n nodes for n keys
 ---
 
 A trie that skips the bits where nothing branches, with exactly one node per key.

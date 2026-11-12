@@ -15,6 +15,17 @@ complexity: about lg n bit tests per search on random keys, at most the key widt
 related:
   - digital-search-tree
   - patricia-trie
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Branch on bit d of the key at depth d, with keys only in the leaves.
+  - See that the trie depends only on the set of keys, and why shared prefixes make one-way chains.
+algorithm:
+  paradigm: search
+bounds:
+  model: bit tests
+  worst: at most w per search for w-bit keys
 ---
 
 Keys only in the leaves, internal nodes branching on bits: the shape is independent of insertion order.

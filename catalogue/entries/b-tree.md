@@ -16,6 +16,19 @@ tags:
 complexity: about log_t n pages per search, each searched in lg t comparisons
 related:
   - two-three-four-tree
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - two-three-four-tree
+  objectives:
+  - Keep every page except the root between t − 1 and 2t − 1 keys, splitting full pages on the way down.
+  - Count the pages a search reads, and see how raising t trades pages for comparisons inside each.
+algorithm:
+  paradigm: search
+bounds:
+  model: nodes touched (pages read)
+  average: about log_t n pages per search, each searched by binary search
 ---
 
 Nodes the size of a disk page, split when full, so a search touches log_M n pages.

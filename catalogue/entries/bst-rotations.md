@@ -16,6 +16,17 @@ related:
   - avl-tree
   - red-black-tree
   - bst-root-insertion
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - bst-search-insert
+  objectives:
+  - Rotate a parent and child with two link changes while every key keeps its in-order position.
+  - Rebalance a tree by rotating the median to the root by rank, then each subtree the same way.
+bounds:
+  model: levels
+  worst: ⌈lg(n+1)⌉ after balancing, the minimal height, whatever the arrival order
 ---
 
 A rotation exchanges a parent and child and keeps the order, the move every balanced tree is built from.
