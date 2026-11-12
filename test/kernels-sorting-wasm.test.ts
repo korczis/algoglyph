@@ -23,7 +23,7 @@ import { p5Stub } from './support/p5-stub';
 interface SidecarRecord { id: string; kernel: string; existing?: boolean }
 interface Manifest {
   abi: number; max_n: number;
-  kernels: { id: string; stable: string; in_place: boolean; kind: string }[];
+  kernels: { id: string; stable: string; in_place: boolean; kind: string; options: string[] }[];
 }
 const RECORDS = (parse(readFileSync('catalogue/sorting-sidecar.yaml', 'utf8')) as { entries: SidecarRecord[] })
   .entries;
@@ -234,8 +234,8 @@ describe('sorting wasm module', () => {
   it('declares what its manifest says, and the limits it exports', () => {
     for (const m of MANIFEST.kernels) {
       const k = S.meta(m.id)!;
-      expect({ stable: k.stable, in_place: k.inPlace, kind: k.kind }, m.id)
-        .toEqual({ stable: m.stable, in_place: m.in_place, kind: m.kind });
+      expect({ stable: k.stable, in_place: k.inPlace, kind: k.kind, options: k.options }, m.id)
+        .toEqual({ stable: m.stable, in_place: m.in_place, kind: m.kind, options: m.options });
     }
     expect(S.maxN).toBe(MANIFEST.max_n);
     expect(S.build).toMatch(new RegExp(`\\|abi${MANIFEST.abi}$`));

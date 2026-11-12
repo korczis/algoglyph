@@ -18,6 +18,10 @@
 # manifest. family: the atlas family, an English id. time_* and space use the atlas notation
 # (n^2, log^2 n, "unknown"); stable may be "variant" where only some formulations are stable.
 # custom_plate: why an entry cannot be an array-engine plate and needs a bespoke one.
+# options: constants of the kernel its plate tunes, each a slider { name, label, min, max, step,
+# default, unit? }: the name is one the manifest says the kernel reads (its `options`), the
+# default the kernel's own value, so the plate's default run is the kernel's default run. The
+# catalogue gate checks every one; the array engine shows them as controls and a link carries them.
 version: 1
 
 entries:
@@ -601,6 +605,8 @@ entries:
     broader: null
   - id: "d-ary-heapsort"
     kernel: "d-ary-heapsort"
+    options:
+      - { name: "k", label: "Arity d (children per node)", min: 2, max: 16, step: 1, default: 3 }
     atlas_id: "TA-02.11"
     existing: false
     engine: "array"
@@ -939,6 +945,8 @@ entries:
     broader: "merge-sort"
   - id: "k-way-merge-sort"
     kernel: "k-way-merge-sort"
+    options:
+      - { name: "k", label: "Ways k", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-04.06"
     existing: false
     engine: "array"
@@ -2017,6 +2025,8 @@ entries:
     broader: "quicksort"
   - id: "parallel-samplesort"
     kernel: "parallel-samplesort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.10"
     existing: false
     engine: "array"
@@ -2038,6 +2048,8 @@ entries:
     broader: "samplesort"
   - id: "psrs"
     kernel: "psrs"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.11"
     existing: false
     engine: "array"
@@ -2080,6 +2092,8 @@ entries:
     broader: "samplesort"
   - id: "ps4o"
     kernel: "ps4o"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.13"
     existing: false
     engine: "array"
@@ -2101,6 +2115,8 @@ entries:
     broader: "samplesort"
   - id: "parallel-merge-sort"
     kernel: "parallel-merge-sort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.14"
     existing: false
     engine: "array"
@@ -2143,6 +2159,9 @@ entries:
     broader: "quicksort"
   - id: "parallel-radix-sort"
     kernel: "parallel-radix-sort"
+    options:
+      - { name: "base", label: "Radix b", min: 2, max: 64, step: 1, default: 16 }
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.16"
     existing: false
     engine: "array"
@@ -2164,6 +2183,8 @@ entries:
     broader: "radix-sort"
   - id: "parallel-counting-sort"
     kernel: "parallel-counting-sort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.17"
     existing: false
     engine: "array"
@@ -2269,6 +2290,8 @@ entries:
     broader: "parallel-merge-sort"
   - id: "terasort"
     kernel: "terasort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.22"
     existing: false
     engine: "array"
@@ -2290,6 +2313,8 @@ entries:
     broader: "mapreduce-sort"
   - id: "mapreduce-sort"
     kernel: "mapreduce-sort"
+    options:
+      - { name: "k", label: "Processors p", min: 2, max: 16, step: 1, default: 4 }
     atlas_id: "TA-07.23"
     existing: false
     engine: "array"
@@ -2311,6 +2336,9 @@ entries:
     broader: null
   - id: "external-merge-sort"
     kernel: "external-merge-sort"
+    options:
+      - { name: "k", label: "Fan-in k", min: 2, max: 16, step: 1, default: 4 }
+      - { name: "memory", label: "Memory M (0: ⌈√n⌉, at least 4)", min: 0, max: 64, step: 4, default: 0, unit: "keys" }
     atlas_id: "TA-08.01"
     existing: false
     engine: "array"
@@ -2437,6 +2465,8 @@ entries:
     broader: "tape-merge-sort"
   - id: "external-radix-sort"
     kernel: "external-radix-sort"
+    options:
+      - { name: "base", label: "Radix b", min: 2, max: 64, step: 1, default: 16 }
     atlas_id: "TA-08.07"
     existing: false
     engine: "array"
@@ -2563,6 +2593,8 @@ entries:
     broader: "tree-sort"
   - id: "tape-merge-sort"
     kernel: "tape-merge-sort"
+    options:
+      - { name: "memory", label: "Memory M (0: ⌈√n⌉, at least 4)", min: 0, max: 64, step: 4, default: 0, unit: "keys" }
     atlas_id: "TA-08.13"
     existing: false
     engine: "array"
