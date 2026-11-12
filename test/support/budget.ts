@@ -8,12 +8,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { CATALOGUE, ENTRIES } from '../src/core/catalogue';
-import { palette as lookupPalette, GROUNDS } from '../src/core/palette';
-import type { ParamDef, Params, Plate, PlateContext, Sim } from '../src/core/plate';
-import { mulberry32 } from '../src/core/random';
-import { labRunnable, loadLab, loadPlate } from '../src/registry';
-import { installBrowserStubs, p5Stub } from './support/p5-stub';
+import { CATALOGUE, ENTRIES } from '../../src/core/catalogue';
+import { palette as lookupPalette, GROUNDS } from '../../src/core/palette';
+import type { ParamDef, Params, Plate, PlateContext, Sim } from '../../src/core/plate';
+import { mulberry32 } from '../../src/core/random';
+import { labRunnable, loadLab, loadPlate } from '../../src/registry';
+import { installBrowserStubs, p5Stub } from './p5-stub';
 
 installBrowserStubs();
 
@@ -252,21 +252,38 @@ const CHECKS: Record<string, (label: string, plate: Plate) => void> = {
   },
 };
 
-const subjects: { label: string; load: () => Promise<Plate | undefined> | undefined }[] = [
-  ...ENTRIES.filter((x) => x.status === 'live').map((e) => ({ label: e.id, load: () => loadPlate(e.id) })),
-  ...CATALOGUE.labs.filter((x) => labRunnable(x.id)).map((l) => ({ label: `lab ${l.id}`, load: () => loadLab(l.id) })),
-];
+type Subject = { label: string; load: () => Promise<Plate | undefined> | undefined };
 
-describe('main-thread budget', () => {
-  for (const s of subjects) {
-    describe(s.label, () => {
-      for (const [name, check] of Object.entries(CHECKS)) {
-        it(name, async () => {
-          // calibrated before each check, so load that comes and goes on the runner is followed
-          factor = Math.max(1, referenceCpuMs() / budget.reference_cpu_ms);
-          check(s.label, (await s.load())!);
-        }, 300000);
-      }
-    });
+/** Every live plate of a wing, or every runnable lab: the subjects of one budget file. */
+function subjectsOf(pick: { wing: string } | { labs: true }): Subject[] {
+  if ('labs' in pick) {
+    return CATALOGUE.labs.filter((x) => labRunnable(x.id)).map((l) => ({ label: `lab ${l.id}`, load: () => loadLab(l.id) }));
   }
-});
+  return ENTRIES.filter((x) => x.status === 'live' && x.path[0] === pick.wing)
+    .map((e) => ({ label: e.id, load: () => loadPlate(e.id) }));
+}
+
+/**
+ * The budget gate for one wing (or for the labs), one test file each under test/budget/. Each
+ * file runs in a fresh process (vitest forks, isolated): one long process judged lab sorting
+ * after about 1100 other checks, where accumulated heap and code made its rebuild fail at 27 ms
+ * while it passed alone, on the same tree, every time (the sorting lane's isolation runs on
+ * 4fe8360 and 1a94d44). test/suite-contract.test.ts holds the files to the catalogue's wings.
+ */
+export function budgetSuite(pick: { wing: string } | { labs: true }): void {
+  const subjects = subjectsOf(pick);
+  describe(`main-thread budget: ${'labs' in pick ? 'labs' : pick.wing}`, () => {
+    it('has subjects', () => expect(subjects.length).toBeGreaterThan(0));
+    for (const s of subjects) {
+      describe(s.label, () => {
+        for (const [name, check] of Object.entries(CHECKS)) {
+          it(name, async () => {
+            // calibrated before each check, so load that comes and goes on the runner is followed
+            factor = Math.max(1, referenceCpuMs() / budget.reference_cpu_ms);
+            check(s.label, (await s.load())!);
+          }, 300000);
+        }
+      });
+    }
+  });
+}

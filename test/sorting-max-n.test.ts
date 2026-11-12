@@ -8,7 +8,7 @@
 //     npx vitest run test/sorting-max-n.test.ts
 //
 // and writes { kernel: { max_n, ms_at_512 } } for the kernels that need a bound. Times are CPU
-// time scaled to the reference machine of config/budgets.yaml, the way test/budget.test.ts
+// time scaled to the reference machine of config/budgets.yaml, the way test/budget/
 // scales its budgets, so the derived bounds do not depend on the machine that measured them.
 // With ALGOGLYPH_MAX_N_WRITE=1 it also writes them into catalogue/sorting-sidecar.yaml: each
 // record's max_n, with max_n_of, the kernel's source hash from its manifest, which the catalogue
@@ -56,7 +56,7 @@ const STEP = 8;
 
 const cpuMs = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
 
-/** The fixed workload of test/budget.test.ts (referenceCpuMs), best of five: the machine's speed. */
+/** The fixed workload of test/budget/ (referenceCpuMs), best of five: the machine's speed. */
 function referenceCpuMs(): number {
   const n = 192;
   const a = new Float64Array(n * n).map((_, i) => Math.sin(i));

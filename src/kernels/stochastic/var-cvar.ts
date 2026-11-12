@@ -85,7 +85,7 @@ export const kernel: StochasticKernel<RiskResult> = {
         if (done % 2000 === 1999) yield;
       }
       // each merge into a sorted sample is a piece of its own: at the largest n the merges cost
-      // more than a frame's share together (test/budget.test.ts, rebuild check)
+      // more than a frame's share together (test/budget/, rebuild check)
       histogram(fresh, lo, hi, 64, 0, fresh.length, bins);
       yield;
       all.add(fresh);

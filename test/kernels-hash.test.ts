@@ -455,7 +455,7 @@ describe('hash plates loop without a heavy frame', () => {
   }
 
   for (const e of live) {
-    // the frame's time is the budget gate's to judge (test/budget.test.ts, calibrated CPU time);
+    // the frame's time is the budget gate's to judge (test/budget/, calibrated CPU time);
     // what is claimed here is that a run ends and hands over to the next one
     it(`${e.id}: a run ends and hands over to the next`, () => {
       const code = engine.plate({ id: e.id, title: e.id, group: 'g' }, kernelOf(e.id));

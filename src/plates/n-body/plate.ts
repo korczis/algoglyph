@@ -96,7 +96,7 @@ export const nBody: PlateCode = {
       draw() {
         const dt = num(params, 'dt');
         // direct summation costs n² pair forces per step: the steps per frame are bounded by a
-        // pair budget so a frame never outgrows the main thread (test/budget.test.ts)
+        // pair budget so a frame never outgrows the main thread (test/budget/)
         const steps = stepsWithin(num(params, 'speed'), b.n * b.n, PAIRS_PER_FRAME);
         lastSteps = steps;
         for (let s = 0; s < steps; s++) {

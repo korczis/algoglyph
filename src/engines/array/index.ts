@@ -491,7 +491,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
       type Pane = { info: KernelInfo; kernel: ArrayKernel; r: Replay; finished: number };
       let panes: Pane[] = [];
       // the next generation's panes, traced one kernel per frame and shown once all are ready, so
-      // a lab of many kernels never traces them all inside one frame (test/budget.test.ts)
+      // a lab of many kernels never traces them all inside one frame (test/budget/)
       let incoming: { list: ReturnType<typeof chosen>; data: number[]; half: number; built: Pane[] } | null = null;
       let curves: { info: KernelInfo; unit: string; pts: [number, number][]; rounds: [number, number][]; slope: number }[] = [];
       let finishedCount = 0;

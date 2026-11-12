@@ -2,10 +2,11 @@
 // `testTimeout` (vite.config.ts) is sized for a loaded shared runner; a test that sets a shorter
 // limit of its own judges the machine, not the code. A quantum integrator test with its own 20 s
 // limit took 24.5 s on the x86 runner and failed a deploy (Pages run 43142783431) though its
-// physics passed. Time budgets belong to test/budget.test.ts, which measures CPU time.
+// physics passed. Time budgets belong to test/budget/, which measures CPU time.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ENTRIES } from '../src/core/catalogue';
 
 const config = readFileSync('vite.config.ts', 'utf8');
 const global = Number(/testTimeout:\s*([0-9_]+)/.exec(config)?.[1].replace(/_/g, ''));
@@ -42,6 +43,14 @@ export function rustBounds(source: string): number[] {
 }
 
 describe('the test suite', () => {
+  it('runs the budget gate in one file per wing, plus the labs, each in a process of its own', () => {
+    // one long budget process judged a lab after ~1100 other checks and failed it on accumulated
+    // state that it passed alone; the files are the catalogue's wings, derived, never chosen
+    const wings = [...new Set(ENTRIES.filter((e) => e.status === 'live').map((e) => e.path[0]))].sort();
+    const files = readdirSync('test/budget').filter((f) => f.endsWith('.test.ts')).map((f) => f.replace('.test.ts', '')).sort();
+    expect(files).toEqual([...wings, 'labs'].sort());
+  });
+
   it('finds a short Rust bound when one is set', () => {
     expect(rustBounds('if took >= Duration::from_secs(1) {')).toEqual([1]);
     expect(rustBounds('Duration::from_millis(500)')).toEqual([0.5]);
@@ -71,7 +80,7 @@ describe('the test suite', () => {
 
   for (const f of files.filter((x) => x !== 'budget.test.ts')) {
     it(`${f} leaves frame times to the budget gate`, () => {
-      // a frame budget judged outside test/budget.test.ts has none of its calibration or headroom:
+      // a frame budget judged outside test/budget/ has none of its calibration or headroom:
       // two such checks failed deploys on a loaded runner (42.2 ms against a raw 40, run 43173408443)
       expect(/\bframe_ms\b/.test(readFileSync(join('test', f), 'utf8')), f).toBe(false);
     });
