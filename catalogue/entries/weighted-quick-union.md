@@ -15,6 +15,19 @@ tags:
 complexity: at most lg n links per find
 relations:
   - { type: improves_on, target: quick-union, reason: "Linking the smaller tree under the larger bounds every tree's height by lg n." }
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - quick-union
+  objectives:
+  - Bound every tree's height by linking the smaller tree under the larger.
+  - 'Follow the argument: a site goes one level deeper only when its tree at least doubles.'
+algorithm:
+  paradigm: union-find
+bounds:
+  model: array accesses
+  worst: find O(lg n), at most lg n links
 ---
 
 Link the smaller tree under the larger, so no tree grows taller than lg n.

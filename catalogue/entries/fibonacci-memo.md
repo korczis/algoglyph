@@ -14,6 +14,17 @@ tags:
 complexity: "exponential calls naive (about φ^n), linear calls memoised"
 related:
   - knapsack-dp
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - See the naive recursion solve the same subproblem again and again.
+  - Turn exponential calls into linear ones by looking each argument up in a memo table first.
+algorithm:
+  paradigm: dynamic-programming
+bounds:
+  model: calls
+  worst: naive 2F(n+1) − 1 calls (about φⁿ); memoised 2n − 1 calls
 ---
 
 The naive recursion's exponential call tree next to the linear table that remembers it.

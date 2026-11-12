@@ -16,6 +16,13 @@ tags:
 complexity: "linear: each order visits every node once"
 related:
   - bst-search-insert
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Visit the same tree in preorder, inorder, postorder and level order.
+  - See why inorder emits a search tree's keys sorted.
+  - Compare the implicit stack of the recursive orders with the explicit queue of level order.
 ---
 
 Preorder, inorder, postorder and level order visiting the same tree.

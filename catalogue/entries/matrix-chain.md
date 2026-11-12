@@ -15,6 +15,18 @@ tags:
 complexity: "Θ(n³) time, Θ(n²) space"
 related:
   - optimal-bst
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Find the cheapest parenthesisation of a matrix product from every shorter chain.
+  - See why the table fills by chain length, one diagonal at a time.
+algorithm:
+  paradigm: dynamic-programming
+bounds:
+  model: cell reads
+  worst: 'Θ(n³): n(n−1)(n+1)/6 splits'
+  space: Θ(n²) cells
 ---
 
 The cheapest order to multiply a chain of matrices, from the costs of every shorter chain.

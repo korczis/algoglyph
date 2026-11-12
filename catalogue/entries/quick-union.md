@@ -15,6 +15,19 @@ tags:
 complexity: proportional to the tree height per find, n in the worst case
 relations:
   - { type: variant_of, target: quick-find, reason: "Cheap unions, at the price of finds that climb a tree." }
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites:
+  - quick-find
+  objectives:
+  - Make a union cheap by linking one root under the other.
+  - 'See why nothing keeps the trees short: the chain input turns the forest into a single path.'
+algorithm:
+  paradigm: union-find
+bounds:
+  model: array accesses
+  worst: find O(n) on the chain input; union is two finds and one write
 ---
 
 Each object points to a parent; a union links one root under the other and a find climbs to the root.

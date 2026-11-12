@@ -13,6 +13,15 @@ tags:
 complexity: '(N − 1)(M − 1) link steps and N − 1 removals'
 related:
   - circular-queue
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Remove every M-th person from a circular linked list with one relink each.
+  - Check the simulation against the closed form for M = 2.
+bounds:
+  model: links followed
+  worst: (N − 1)(M − 1) links and N − 1 removals
 ---
 
 People in a circle, every M-th one leaves, on a circular linked list until one is left.
