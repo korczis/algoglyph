@@ -9,6 +9,8 @@ import { apply, input, inversions, OP, SHAPE_LABELS, SHAPES, trace, type ArrayKe
   type Trace } from './trace';
 
 const SCALING_N = [16, 32, 64, 128, 256, 512];
+/** The sizes a kernel's growth is measured at: none past its own bound (ArrayKernel.maxN). */
+const scalingN = (kernel: ArrayKernel) => SCALING_N.filter((n) => n <= (kernel.maxN ?? MAX_N));
 const HOLD_FRAMES = 90;
 
 const fmt = (x: number) => x.toLocaleString('en-US');
@@ -26,7 +28,7 @@ export function exponent(points: [number, number][]): number {
 }
 
 export function scaling(kernel: ArrayKernel, shape: Shape, seed: number): [number, number][] {
-  return SCALING_N.map((n) => {
+  return scalingN(kernel).map((n) => {
     const t = trace(kernel, input(shape, n, seed + n), Math.floor(n / 2));
     return [n, t.truncated ? NaN : total(t)];
   });
@@ -274,7 +276,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         if (generation === 0) {
           // measured one point per frame, so building the lab never blocks a phone's main thread
           curves = chosen().map((k) => ({ info: k.info, pts: [], slope: NaN }));
-          pending = curves.flatMap((_, ci) => SCALING_N.map((n) => [ci, n] as [number, number]));
+          // a kernel's growth is measured up to its own bound, never past it in one frame
+          const list = chosen();
+          pending = curves.flatMap((_, ci) => scalingN(list[ci].kernel).map((n) => [ci, n] as [number, number]));
         }
       };
       let pending: [number, number][] = [];
