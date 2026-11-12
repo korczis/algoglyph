@@ -19,7 +19,7 @@
 // What exists is read from the catalogue (scripts/lib/catalogue.mjs), the source the site is
 // built from, never from a list kept here.
 //
-//   node scripts/audit-ui.mjs [--dist dist] [--screenshots <dir>] [--previews <dir>]
+//   node scripts/audit-ui.mjs [--dist dist] [--screenshots <dir>] [--previews <dir>] [--only data,plates,...]
 //
 // --previews also writes the published preview images in the same browser launch: every
 // plate's canvas at desktop width as <id>.jpg (dark) and <id>-light.jpg, the landing page as
@@ -42,6 +42,18 @@ const opt = (name, fallback) => {
 const DIST = resolve(opt('--dist', 'dist'));
 const SHOTS = opt('--screenshots', '');
 const PREVIEWS = opt('--previews', '');
+// --only collection,wings,planned,plates,data,labs,figures: run those sections alone (each still
+// in both themes and both widths). The default runs every section; CI and verify never pass it.
+const SECTIONS = ['collection', 'wings', 'planned', 'plates', 'data', 'labs', 'figures'];
+const ONLY = opt('--only', '').split(',').filter(Boolean);
+for (const s of ONLY) {
+  if (!SECTIONS.includes(s)) { console.error(`audit-ui: --only ${s}: not one of ${SECTIONS.join(', ')}`); process.exit(2); }
+}
+const section = (s) => ONLY.length === 0 || ONLY.includes(s);
+// The data section runs with the page's CPU slowed this many times (Chrome DevTools throttling), so
+// a fast machine meets the timing a slow runner has: Lundra's x86 runner failed plates of the
+// data loop that every fast machine passed (run 43317023187), and 8× here reproduced it.
+const DATA_CPU_THROTTLE = 8;
 const JPEG = { type: 'jpeg', quality: 82 };
 const AXE = readFileSync(resolve('node_modules/axe-core/axe.min.js'), 'utf8');
 const TYPES = {
@@ -222,6 +234,7 @@ try {
       });
       const p = await page(context, `${label} collection`);
       await p.goto(base, { waitUntil: 'load' });
+      if (section('collection')) {
       if (PREVIEWS && desktop) {
         await p.waitForFunction(() => [...document.querySelectorAll('main [data-thumb] img')]
           .every((i) => i.getAttribute('src')?.startsWith('data:image')), null, { timeout: 300000, polling: 500 })
@@ -241,11 +254,12 @@ try {
           await p.setViewportSize({ width: w, height: h });
         }
       }
+      }
 
       // the wings: each page audited for overflow; axe on the first; thumbnails proven card by
       // card in the dark desktop pass, so the wait is bounded per card and not per collection
       const proveThumbs = theme === 'dark' && desktop;
-      for (const [i, wing] of model.roots.entries()) {
+      for (const [i, wing] of (section('wings') ? model.roots : []).entries()) {
         const where = `${label} wing ${wing}`;
         await p.goto(`${base}#/c/${wing}`, { waitUntil: 'load' });
         await p.waitForSelector('#browse-title');
@@ -271,7 +285,7 @@ try {
       }
 
       // a planned entry: its page states what it will be
-      if (planned.length) {
+      if (section('planned') && planned.length) {
         const where = `${label} planned ${planned[0].id}`;
         await p.goto(`${base}#/p/${planned[0].id}`, { waitUntil: 'load' });
         await p.waitForSelector('#plate-title');
@@ -281,7 +295,7 @@ try {
 
       // the plates: each mounts, draws and reports; axe on the first one
       const only = desktop ? live : live.slice(0, 2);
-      for (const [i, e] of only.entries()) {
+      for (const [i, e] of (section('plates') ? only : []).entries()) {
         const where = `${label} plate ${e.id}`;
         log(where);
         const url = `${base}#/p/${e.id}?seed=4242`;
@@ -316,12 +330,15 @@ try {
       // carried by the link, restored from the link alone, and never sent anywhere. Every declaring
       // plate in the dark desktop pass, the first one elsewhere.
       const declaring = live.filter((e) => e.data?.length);
-      for (const [i, e] of (theme === 'dark' && desktop ? declaring : declaring.slice(0, 1)).entries()) {
+      const slow = section('data') && declaring.length ? await context.newCDPSession(p) : null;
+      const throttle = (rate) => slow?.send('Emulation.setCPUThrottlingRate', { rate });
+      for (const [i, e] of (section('data') ? (theme === 'dark' && desktop ? declaring : declaring.slice(0, 1)) : []).entries()) {
         const d = e.data[0];
         const where = `${label} data ${e.id}`;
         log(where);
         const url = `${base}#/p/${e.id}?seed=4242`;
         await p.goto(url, { waitUntil: 'load' });
+        await throttle(DATA_CPU_THROTTLE);
         await readout(p, where, url);
         const sent = [];
         const watch = (r) => {
@@ -339,6 +356,9 @@ try {
         const csv = [d.columns.map((c) => c.key).join(','),
           ...Array.from({ length: n }, (_, k) => d.columns.map((c, j) => (j === 0 ? k : (k * k * 7 + 3) % 23)).join(','))].join('\n');
         await p.setInputFiles(`#data-file-${d.id}`, { name: 'mine.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+        // a reader looks back at the plate to see it run: a plate scrolled out of view is paused
+        // (src/core/stage.ts), and filling the form scrolled it away
+        await p.locator('#stage').scrollIntoViewIfNeeded();
         const ran = await p.waitForFunction(() => [...document.querySelectorAll('#main dl > div')]
           .some((r) => r.querySelector('dt')?.textContent === 'Input' && /^your data/.test(r.querySelector('dd')?.textContent ?? '')),
         null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
@@ -351,15 +371,18 @@ try {
         // a new document on the same link (a query the server ignores), not about:blank: the
         // context's init script touches localStorage, which about:blank refuses
         await p.goto(`${base}?reopen=1${new URL(href).hash}`, { waitUntil: 'load' });
+        await throttle(DATA_CPU_THROTTLE);
         const back = await p.waitForFunction(() => /from the link/.test(document.querySelector('[data-data-loaded]')?.textContent ?? ''),
           null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
         if (!back) fail(where, 'opening the link did not restore the data');
         p.off('request', watch);
         for (const r of sent) fail(where, `a request left the page while it held a reader's data: ${r}`);
       }
+      await throttle(1);
+      await slow?.detach();
 
       // the labs: each runs its kernels side by side and reports per kernel
-      for (const [i, l] of labs.entries()) {
+      for (const [i, l] of (section('labs') ? labs : []).entries()) {
         const where = `${label} lab ${l.id}`;
         log(where);
         const url = `${base}#/lab/${l.id}?seed=4242`;
@@ -371,7 +394,7 @@ try {
       }
 
       // the figure pages: each mounts its plate with the figure's setup and reports
-      for (const [i, f] of figures.entries()) {
+      for (const [i, f] of (section('figures') ? figures : []).entries()) {
         const where = `${label} figure ${f.route}`;
         log(where);
         const url = `${base}${f.route}?seed=4242`;
@@ -390,7 +413,7 @@ try {
         if (!(await p.evaluate(() => location.hash)).endsWith('?seed=99')) fail(where, 'did not keep the seed of its link');
         if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `figure-${theme}-${f.route.replace(/[#/]/g, '_')}.png`), fullPage: false });
       }
-      for (const [i, route] of indexes.entries()) {
+      for (const [i, route] of (section('figures') ? indexes : []).entries()) {
         const where = `${label} figures ${route}`;
         await p.goto(`${base}${route}`, { waitUntil: 'load' });
         await p.waitForSelector('#figures-title');
