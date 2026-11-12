@@ -9,11 +9,40 @@ sources:
 tags:
   - shapley
   - attribution
-complexity: "d + 1 model evaluations per sampled ordering of d inputs"
+complexity: "2ᵈ + m(d + 1) model evaluations: the 2ᵈ exact values, then d + 1 per sampled ordering"
 related:
   - sobol-indices
   - tornado-sensitivity
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Value a coalition as the model's output with its inputs at the instance, the rest at a baseline.
+  - See why sampled orderings' contributions telescope, so the estimates add up to v(all) − v(none).
+  - Watch the largest error against the exact values fall like one over the square root of m.
+algorithm:
+  paradigm: randomized
+bounds:
+  model: model evaluations
+  best: 2ᵈ + m(d + 1)
+  worst: 2ᵈ + m(d + 1)
+claims:
+  - id: error-small-at-600-orderings
+    statement: >-
+      With 600 sampled orderings of seed 4242's five inputs the largest error against the exact
+      values is below three standard errors of the least certain input, 3σ/√600 = 0.0195, where
+      σ = 0.159 is that input's exact spread of marginal contributions over all 120 orderings.
+    readout: Largest error
+    expect: { below: 0.0195 }
+  - id: error-falls-like-one-over-root-m
+    statement: >-
+      With 4,000 sampled orderings of the same model the largest error falls below
+      3σ/√4000 = 0.00756, the same three standard errors shrunk by √(600/4000).
+    readout: Largest error
+    expect: { below: 0.00756 }
+    setup:
+      params: { m: 4000 }
 ---
 
 Each input's average marginal contribution over random orderings.

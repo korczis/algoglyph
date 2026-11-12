@@ -16,6 +16,23 @@ interaction: "Tap a claim to make it the conclusion."
 related:
   - ford-fulkerson
   - edmonds-karp
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Find everything that stands under a conclusion with one reverse search from it.
+  - Count independent lines of support rather than the evidence items under the conclusion.
+  - Explain how one intermediate claim shared by many items cuts them all off into a single line.
+algorithm:
+  paradigm: search
+claims:
+  - id: lines-capped-by-the-conclusions-supports
+    statement: >-
+      Shared support keeps the count of independent lines small: with 40 vertices the conclusion
+      rests on round(0.7 × 8) = 6 draws from the 8 claims below it, so at most 6 lines reach it
+      however many evidence items stand under it.
+    readout: Independent lines of support
+    expect: { range: [1, 6] }
 ---
 
 How much independent evidence ultimately stands under a conclusion in a reasoning graph.

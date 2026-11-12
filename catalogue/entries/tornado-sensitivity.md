@@ -9,10 +9,21 @@ sources:
 tags:
   - sensitivity
   - one at a time
-complexity: "2 d + 1 model evaluations for d inputs, plus the Monte Carlo runs"
+complexity: "2d + 1 model evaluations for d inputs, 11d for the spider plot, plus the Monte Carlo runs"
 related:
   - sobol-indices
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Swing each input from low to high, the others at the base case, and sort the bars widest first.
+  - Explain why one at a time is cheap and readable but blind to interactions.
+  - Read the joint Monte Carlo P10–P90 spread as what the swings add up to in combination.
+bounds:
+  model: model evaluations
+  best: 13d + 1 + n for d inputs and n Monte Carlo runs
+  worst: 13d + 1 + n for d inputs and n Monte Carlo runs
 ---
 
 Each input swung from low to high alone, sorted into a tornado.

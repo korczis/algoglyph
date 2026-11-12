@@ -15,6 +15,14 @@ tags:
 complexity: "one sort of the calibration residuals"
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
 schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Compute the split conformal radius as the ⌈(n + 1)(1 − α)⌉-th smallest absolute residual on calibration cases the model never saw.
+    - State the guarantee and its condition, coverage of at least 1 − α and at most 1 − α + 1/(n + 1) for exchangeable cases, whatever the model.
+    - Tell marginal coverage, averaged over cases, from coverage at each x, and see a constant-width band over- and under-cover where the noise changes.
+  misconceptions:
+    - A badly chosen model gives intervals that cover less often; it gives wider intervals that cover just as often.
 claims:
   - id: covers-at-the-guaranteed-rate
     statement: >-
@@ -23,6 +31,16 @@ claims:
       standard errors of the repetition (about 1.1 points).
     readout: 90% intervals covering
     expect: { range: [88.9, 92.7] }
+  - id: a-bad-model-is-no-less-honest
+    statement: >-
+      With a straight line fitted to the curved signal (degree 1), the 90% split conformal
+      interval still covers between 90% and 91.6% of test cases over 150 experiments with 60
+      calibration cases, give or take the same three standard errors (about 1.1 points): the
+      spread of coverage comes from the calibration rank and the test sample, not from the model.
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
+    setup:
+      params: { degree: 1 }
 ---
 
 Intervals from held-out residuals that cover the truth at the stated rate.

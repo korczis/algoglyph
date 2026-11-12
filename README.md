@@ -2240,7 +2240,7 @@ Pool adjacent violators until confidence rises with accuracy; the reliability di
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/shapley-values">341 · Shapley values by sampling</a></b><br>
 Each input's average marginal contribution over random orderings.<br>
-<sub>Attribution and sensitivity · d + 1 model evaluations per sampled ordering of d inputs · shapley, attribution</sub>
+<sub>Attribution and sensitivity · 2ᵈ + m(d + 1) model evaluations: the 2ᵈ exact values, then d + 1 per sampled ordering · shapley, attribution</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/sobol-indices">342 · Sobol sensitivity indices</a></b><br>
@@ -2252,7 +2252,7 @@ The share of output variance each input explains, alone and with the others.<br>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/tornado-sensitivity">343 · Tornado sensitivity</a></b><br>
 Each input swung from low to high alone, sorted into a tornado.<br>
-<sub>Attribution and sensitivity · 2 d + 1 model evaluations for d inputs, plus the Monte Carlo runs · sensitivity, one at a time</sub>
+<sub>Attribution and sensitivity · 2d + 1 model evaluations for d inputs, 11d for the spider plot, plus the Monte Carlo runs · sensitivity, one at a time</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/pareto-front">344 · Pareto front</a></b><br>

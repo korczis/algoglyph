@@ -14,6 +14,28 @@ complexity: "linear in tasks and dependencies per run"
 related:
   - var-cvar
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - critical-path
+  objectives:
+  - Give a task with optimistic, most likely and pessimistic durations its PERT-Beta distribution.
+  - Push sampled durations through the network's forward pass and read P50 to P90 off the finishes.
+  - Explain why the project waits longer on average than its tasks at their means suggest.
+algorithm:
+  paradigm: simulation
+claims:
+  - id: merging-paths-delay-the-mean-finish
+    statement: >-
+      Setting every task to its mean underestimates the expected finish where paths merge: over
+      6,000 simulated projects of seed 4242's network the mean length exceeds 206/6 ≈ 34.33, that
+      network's exact deterministic finish with every task at (a + 4m + b)/6. The threshold belongs
+      to this seed's network; the mean's standard error is about 0.05, a twentieth of the gap.
+    readout: Mean length
+    expect: { above: 34.34 }
+    setup:
+      seed: 4242
 ---
 
 Task durations drawn from Beta distributions, the critical path re-run each time, P50 to P90 read off.

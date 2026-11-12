@@ -16,6 +16,36 @@ interaction: "Tap a vertex to make it the seed."
 related:
   - spreading-activation
   - breadth-first-search
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites:
+  - breadth-first-search
+  objectives:
+  - Read susceptible, spreading and recovered vertices and the transmissions between them.
+  - See that with beta and gamma both 1 the cascade is a breadth-first search, one hop per step.
+  - Watch a lower beta or a higher gamma end the cascade sooner, its reach varying by seed.
+algorithm:
+  paradigm: simulation
+claims:
+  - id: certain-spread-reaches-everyone
+    statement: >-
+      With beta and gamma both 1 the cascade is a breadth-first search, so it reaches every vertex
+      of the seed's component: all 160 of the connected small-world graph, as a separate
+      breadth-first search of the same graph confirms.
+    readout: Final reach
+    expect: { value: 160 }
+    setup:
+      params: { beta: 1, gamma: 1 }
+  - id: certain-spread-moves-one-hop-per-step
+    statement: >-
+      With beta and gamma both 1 the cascade moves one hop per step: it takes the seed vertex's
+      eccentricity, 10 in seed 4242's graph by a separate breadth-first search, plus one last
+      round in which the farthest vertices find nobody new, so 11 rounds.
+    readout: Rounds
+    expect: { value: 11 }
+    setup:
+      params: { beta: 1, gamma: 1 }
 ---
 
 Susceptible, infected and recovered vertices: how far a narrative reaches.

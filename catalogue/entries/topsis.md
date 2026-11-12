@@ -13,6 +13,13 @@ motivation: Decisions made under uncertainty, and checked afterwards, rest on it
 complexity: 'O(m k) for m options and k criteria'
 related:
   - pareto-front
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Divide each criterion by its Euclidean norm so units do not matter, then weight it.
+  - Rank options by closeness D− / (D+ + D−) between the ideal and the anti-ideal.
+  - Find where the ranking flips as the weight of one criterion moves.
 ---
 
 Options ranked by closeness to the ideal and distance from the anti-ideal.

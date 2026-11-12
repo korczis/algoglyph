@@ -11,6 +11,13 @@ tags:
   - plausibility
 complexity: "quadratic in the number of focal sets per combination"
 motivation: Link analysis in investigations and due diligence leans on it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Represent ignorance as mass on the whole frame Θ rather than spread over single hypotheses.
+    - Read belief and plausibility as an interval, from the mass that implies a set to the mass that does not contradict it.
+    - Combine two sources by Dempster's rule, and explain how the conflict K is discarded by renormalising with 1 − K and why that magnifies what sharply disagreeing sources share.
 ---
 
 Belief and plausibility as an interval, and the rule that combines two sources.

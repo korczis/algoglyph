@@ -14,6 +14,15 @@ complexity: "linear after sorting the scores"
 related:
   - base-rate-roc
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Run pool adjacent violators with a stack of blocks, merging the top block while its frequency is below the one beneath it.
+    - Explain that the fit is the non-decreasing step function closest to the labels in squared error, so it never reverses two cases' order, though it may tie them.
+    - Measure calibration on held-out cases with the reliability diagram, the Brier score and the expected calibration error, so the fit does not grade itself.
+algorithm:
+  paradigm: incremental
 ---
 
 Pool adjacent violators until confidence rises with accuracy; the reliability diagram before and after.
