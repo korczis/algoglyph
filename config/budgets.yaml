@@ -21,6 +21,12 @@ drag_steps: 8         # steps of a slider swept from its minimum to its maximum,
 reference_cpu_ms: 2.9   # referenceCpuMs() in test/support/budget.ts on the reference machine (an M-series Mac,
                         # best of seven at 2026-11-12T00:21Z); budgets scale by measured / this, never below 1
 local_headroom: 0.6     # outside CI (no CI env var) the budgets are this fraction: local green predicts CI green
+# A capped sorting kernel's max_n (test/sorting-max-n.test.ts) is the largest n whose measured
+# rebuild costs at most this fraction of the measurement's budget, and n + 8 costs more. At the
+# budget itself (margin 1) the bound held no slack for load on the gate's machine: spaghetti-sort's
+# rebuild at its bound 448 {reversed, pace 4096, loop} failed the gate twice, 26.2 ms against
+# 26.0 (1.09x the reference, load average 31-36) and 27.7 against 26.5.
+max_n_margin: 0.9
 
 # The browser gate's waits (scripts/audit-ui.mjs): how long a page may take on the machine running
 # the gate before a missing picture or readout counts as a failure. Generous on purpose: a wait
