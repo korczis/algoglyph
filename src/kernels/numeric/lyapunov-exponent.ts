@@ -81,11 +81,19 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const sys = SYSTEMS[key] ?? SYSTEMS.lorenz;
   const est = key === 'lorenz' ? yield* lorenzSteps(seed) : yield* mapSteps(key as 'henon', seed);
   const N = est.running.length;
+  yield;
   const tail = est.running.slice(Math.floor(N * 0.1));
   const ry = span(tail.map((q) => q[1]), 0.3);
+  yield;
   const ox = span(est.orbit.map((q) => q[0])); const oy = span(est.orbit.map((q) => q[1]));
+  yield;
   const stride = Math.max(1, Math.ceil(N / 5000));
   const orbit = est.orbit.filter((_, i) => i % stride === 0);
+  // the chart's thinned running estimate, sampled once: each step shows its leading part and
+  // its own latest value, the same points as filtering the whole series at every step
+  const every = Math.max(1, Math.floor(N / 400));
+  const thinned = est.running.filter((_, i) => i % every === 0);
+  yield;
   const marks = Array.from({ length: 160 }, (_, i) => Math.max(1, Math.round(((i + 1) * N) / 160)));
   const steps = yield* mapSliced(marks, (n) => {
     const layers: Layer[] = [
@@ -105,7 +113,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
       ],
       chart: {
         title: 'Running estimate of the largest exponent', x: { label: key === 'lorenz' ? 'time' : 'iterations', log: true }, y: { label: 'λ' },
-        series: [{ name: 'Benettin', points: est.running.filter((_, i) => i < n && (i % Math.max(1, Math.floor(N / 400)) === 0 || i === n - 1)) }],
+        series: [{ name: 'Benettin', points: (n - 1) % every ? [...thinned.slice(0, Math.ceil(n / every)), est.running[n - 1]] : thinned.slice(0, Math.ceil(n / every)) }],
       },
     };
   }, 8);

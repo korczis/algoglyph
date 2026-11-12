@@ -2,7 +2,7 @@
 // operation per step, then back substitution; multiplications, swaps and the residual are
 // measured from the run itself.
 import { mulberry32 } from '../../core/random';
-import { fmt, int, logSlope, Meter, type Layer, type NumericKernel, type XY } from '../../engines/numeric/trace';
+import { drain, fmt, int, logSlope, mapSliced, Meter, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
 import type { Mat } from './_linalg';
 
 export interface Snapshot { M: Mat; row: number; col: number; pivot: number; swap: boolean }
@@ -59,6 +59,58 @@ export function system(kind: string, n: number, seed: number): { A: Mat; b: numb
   return { A, b, x };
 }
 
+function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
+  const n = Number(params.n ?? 8);
+  const pivot = params.pivot !== false;
+  const { A, b, x: truth } = system(String(params.system ?? 'random'), n, seed);
+  const s = gauss(A, b, pivot, true);
+  const other = gauss(A, b, !pivot);
+  yield;
+  const res = residual(A, s.x, b);
+  const fe = Math.max(...s.x.map((v, i) => Math.abs(v - truth[i])));
+  const work: XY[] = []; const expect: XY[] = [];
+  for (let k = 2; k <= 64; k *= 2) {
+    const q = system('random', k, seed + k);
+    work.push([k, gauss(q.A, q.b, true).mul]);
+    expect.push([k, (k ** 3) / 3]);
+    yield;
+  }
+  const chart = {
+    title: 'Multiplications against unknowns', x: { label: 'n', log: true }, y: { label: 'multiplications', log: true },
+    series: [{ name: 'Measured', points: work }, { name: 'n³ / 3', points: expect }],
+  };
+  const lim = Math.max(1, ...A.flat().map(Math.abs), ...b.map(Math.abs));
+  const growth = (M: Mat) => Math.max(...M.flatMap((r) => r.slice(0, n).map(Math.abs))) / Math.max(...A.flat().map(Math.abs));
+  const steps = yield* mapSliced(s.snapshots, (q, k) => {
+    const layers: Layer[] = [
+      // a signed log scale keeps tiny and huge entries apart
+      { kind: 'grid', rows: n, cols: n + 1, values: q.M.flat().map((v) => Math.sign(v) * Math.log10(1 + Math.abs(v) / (lim * 1e-3))), lo: -Math.log10(1 + 1e3) - 1, hi: Math.log10(1 + 1e3) + 1, clear: 0 },
+      { kind: 'segments', segs: [[n, 0, n, n]], alpha: 0.6, weight: 2 },
+    ];
+    if (q.col >= 0) {
+      layers.push({ kind: 'rects', rects: [[q.col, n - q.pivot - 1, 1, 1, -1]], outline: true });
+      layers.push({ kind: 'rects', rects: [[0, n - q.row - 1, n + 1, 1, 0.5]], alpha: 0.15 });
+    }
+    const last = k === s.snapshots.length - 1;
+    return {
+      layers,
+      stats: [
+        { label: 'Operation', value: q.col < 0 ? 'start' : q.swap ? `swap rows ${q.row + 1} and pivot row` : `row ${q.row + 1} −= f · row ${q.col + 1}` },
+        { label: 'Row swaps', value: int(s.snapshots.slice(0, k + 1).filter((t) => t.swap).length) },
+        { label: 'Growth of entries', value: fmt(growth(q.M)) },
+        { label: 'Residual max |Ax − b|', value: last ? fmt(res) : `after back substitution (${fmt(res)})` },
+        { label: 'Error against the planted solution', value: `${fmt(fe)} (${pivot ? 'without' : 'with'} pivoting: ${fmt(Math.max(...other.x.map((v, i) => Math.abs(v - truth[i]))))})` },
+        { label: 'Multiplications', value: `${int(s.mul)} in all (measured n^${fmt(logSlope(work), 3)})` },
+      ],
+    };
+  }, 8);
+  return {
+    panels: [{ title: 'Augmented matrix [A | b], signed log scale', x: [0, n + 1], y: [0, n], equal: true }],
+    steps,
+    chart,
+  };
+}
+
 export const kernel: NumericKernel = {
   params: [
     { kind: 'range', key: 'n', label: 'Unknowns', min: 3, max: 14, step: 1, value: 8, rebuild: true },
@@ -69,53 +121,6 @@ export const kernel: NumericKernel = {
   rate: 3,
   thumb: 0.6,
   aspect: 16 / 9,
-  run({ seed, params }) {
-    const n = Number(params.n ?? 8);
-    const pivot = params.pivot !== false;
-    const { A, b, x: truth } = system(String(params.system ?? 'random'), n, seed);
-    const s = gauss(A, b, pivot, true);
-    const other = gauss(A, b, !pivot);
-    const res = residual(A, s.x, b);
-    const fe = Math.max(...s.x.map((v, i) => Math.abs(v - truth[i])));
-    const work: XY[] = []; const expect: XY[] = [];
-    for (let k = 2; k <= 64; k *= 2) {
-      const q = system('random', k, seed + k);
-      work.push([k, gauss(q.A, q.b, true).mul]);
-      expect.push([k, (k ** 3) / 3]);
-    }
-    const chart = {
-      title: 'Multiplications against unknowns', x: { label: 'n', log: true }, y: { label: 'multiplications', log: true },
-      series: [{ name: 'Measured', points: work }, { name: 'n³ / 3', points: expect }],
-    };
-    const lim = Math.max(1, ...A.flat().map(Math.abs), ...b.map(Math.abs));
-    const growth = (M: Mat) => Math.max(...M.flatMap((r) => r.slice(0, n).map(Math.abs))) / Math.max(...A.flat().map(Math.abs));
-    const steps = s.snapshots.map((q, k) => {
-      const layers: Layer[] = [
-        // a signed log scale keeps tiny and huge entries apart
-        { kind: 'grid', rows: n, cols: n + 1, values: q.M.flat().map((v) => Math.sign(v) * Math.log10(1 + Math.abs(v) / (lim * 1e-3))), lo: -Math.log10(1 + 1e3) - 1, hi: Math.log10(1 + 1e3) + 1, clear: 0 },
-        { kind: 'segments', segs: [[n, 0, n, n]], alpha: 0.6, weight: 2 },
-      ];
-      if (q.col >= 0) {
-        layers.push({ kind: 'rects', rects: [[q.col, n - q.pivot - 1, 1, 1, -1]], outline: true });
-        layers.push({ kind: 'rects', rects: [[0, n - q.row - 1, n + 1, 1, 0.5]], alpha: 0.15 });
-      }
-      const last = k === s.snapshots.length - 1;
-      return {
-        layers,
-        stats: [
-          { label: 'Operation', value: q.col < 0 ? 'start' : q.swap ? `swap rows ${q.row + 1} and pivot row` : `row ${q.row + 1} −= f · row ${q.col + 1}` },
-          { label: 'Row swaps', value: int(s.snapshots.slice(0, k + 1).filter((t) => t.swap).length) },
-          { label: 'Growth of entries', value: fmt(growth(q.M)) },
-          { label: 'Residual max |Ax − b|', value: last ? fmt(res) : `after back substitution (${fmt(res)})` },
-          { label: 'Error against the planted solution', value: `${fmt(fe)} (${pivot ? 'without' : 'with'} pivoting: ${fmt(Math.max(...other.x.map((v, i) => Math.abs(v - truth[i]))))})` },
-          { label: 'Multiplications', value: `${int(s.mul)} in all (measured n^${fmt(logSlope(work), 3)})` },
-        ],
-      };
-    });
-    return {
-      panels: [{ title: 'Augmented matrix [A | b], signed log scale', x: [0, n + 1], y: [0, n], equal: true }],
-      steps,
-      chart,
-    };
-  },
+  build,
+  run: (inp) => drain(build(inp)),
 };

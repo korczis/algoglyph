@@ -116,7 +116,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
         { label: 'Sweeps to converge', value: int(svd.sweeps) },
       ],
     };
-  }, 4);
+  }, 1);
   return {
     panels: [
       { title: 'First two coordinates, current axes', x: [-lim, lim], y: [-lim, lim], equal: true, axes: true },

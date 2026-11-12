@@ -1,7 +1,7 @@
 // The numeric engine's plate loop: a finished run holds, then the next input is built in
 // slices across frames while the held run stays on screen, so a rebuild never freezes a frame
 // for a whole kernel run (rule project.viz-component-layer: heavy work is spread over frames).
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Params, Plate, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
@@ -12,8 +12,9 @@ installBrowserStubs();
 
 /** The kernels reviewers measured rebuilding for tens of milliseconds in one frame. */
 const HEAVY = [
-  'hurst-dfa', 'poincare-section', 'recurrence-plot', 'pca-svd',
-  'linear-congruential', 'takens-embedding', 'lyapunov-exponent',
+  'hurst-dfa', 'poincare-section', 'recurrence-plot', 'pca-svd', 'linear-congruential',
+  'takens-embedding', 'lyapunov-exponent', 'adaptive-quadrature', 'pareto-front',
+  'gaussian-elimination',
 ];
 
 function heaviest(plate: Plate): Params {
@@ -23,6 +24,12 @@ function heaviest(plate: Plate): Params {
 }
 
 describe('numeric engine rebuilds', () => {
+  // a clock that advances a millisecond per reading, so a build's slices span frames the same
+  // way on a fast machine as on a slow one: the test proves the build is sliced, not slow
+  let clock = 0;
+  beforeEach(() => { vi.spyOn(performance, 'now').mockImplementation(() => ++clock); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
   for (const id of HEAVY) {
     it(`${id} keeps the finished run on screen while the next one is built`, async () => {
       const plate = (await loadPlate(id))!;

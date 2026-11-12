@@ -1,5 +1,6 @@
 // Dynamical systems shared by the time-series kernels: the Lorenz flow (RK4), the logistic and
 // Hénon maps, and seeded noise. Each returns plain arrays; nothing here draws.
+import { drain } from '../../engines/numeric/trace';
 import { gaussian, mulberry32 } from '../../core/random';
 
 export type V3 = [number, number, number];
@@ -19,11 +20,20 @@ export function rk4(f: (v: V3) => V3, v: V3, h: number): V3 {
 
 /** n samples of the Lorenz flow every `every` RK4 steps of h, after a transient. */
 export function lorenzOrbit(seed: number, n: number, h = 0.01, every = 2, transient = 2000): V3[] {
+  return drain(lorenzOrbitSteps(seed, n, h, every, transient));
+}
+
+/** lorenzOrbit(), resumable: it yields every 1000 integration steps. */
+export function* lorenzOrbitSteps(seed: number, n: number, h = 0.01, every = 2, transient = 2000): Generator<void, V3[], void> {
   const rnd = mulberry32(seed);
   let v: V3 = [1 + rnd(), 1 + rnd(), 20 + rnd()];
-  for (let i = 0; i < transient; i++) v = rk4(lorenz, v, h);
+  for (let i = 0; i < transient; i++) { v = rk4(lorenz, v, h); if (i % 1000 === 999) yield; }
   const out: V3[] = [];
-  for (let i = 0; i < n * every; i++) { v = rk4(lorenz, v, h); if (i % every === every - 1) out.push(v); }
+  for (let i = 0; i < n * every; i++) {
+    v = rk4(lorenz, v, h);
+    if (i % every === every - 1) out.push(v);
+    if (i % 1000 === 999) yield;
+  }
   return out;
 }
 

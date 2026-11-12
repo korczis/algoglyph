@@ -3,23 +3,28 @@
 // mutual information; the dimension is where false nearest neighbours stop appearing.
 import { drain, fmt, int, mapSliced, span, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
 import { embed, falseNeighbourSteps, firstMinimum, mutualInformation } from './_embed';
-import { lorenzOrbit, noise } from './_systems';
+import { lorenzOrbitSteps, noise } from './_systems';
 
 const N = 1400;
 
 export function signal(kind: string, seed: number): { s: number[]; hidden: XY[] } {
+  return drain(signalSteps(kind, seed));
+}
+
+/** signal(), resumable: the Lorenz integration yields as it goes. */
+export function* signalSteps(kind: string, seed: number): Generator<void, { s: number[]; hidden: XY[] }, void> {
   if (kind === 'sine') {
     const s = Array.from({ length: N }, (_, i) => Math.sin(0.11 * i) + 0.5 * Math.sin(0.0353 * i + 1));
     return { s, hidden: s.map((_, i) => [Math.sin(0.11 * i), Math.sin(0.0353 * i + 1)] as XY) };
   }
   if (kind === 'noise') { const s = noise(N, seed); return { s, hidden: s.map((v, i) => [i, v] as XY) }; }
-  const o = lorenzOrbit(seed, N, 0.01, 4);
+  const o = yield* lorenzOrbitSteps(seed, N, 0.01, 4);
   return { s: o.map((v) => v[0]), hidden: o.map((v) => [v[0], v[2]] as XY) };
 }
 
 function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const kind = String(params.signal ?? 'lorenz');
-  const { s, hidden } = signal(kind, seed);
+  const { s, hidden } = yield* signalSteps(kind, seed);
   yield;
   const ami = yield* mapSliced(Array.from({ length: 41 }, (_, lag) => lag), (lag) => mutualInformation(s, lag), 10);
   const tau = Math.max(1, firstMinimum(ami));
