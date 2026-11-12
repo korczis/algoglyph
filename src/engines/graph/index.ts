@@ -47,6 +47,10 @@ class Replay {
   c = emptyCounts();
   byState = [0, 0, 0, 0, 0];
   maxFrontier = 0;
+  /** Marked vertices that were finished when marked: a mark highlights a result, it does not
+   * undo the work, so they still count as finished. */
+  markedDone = 0;
+  private wasDone: Uint8Array;
   tree = 0;
   treeWeight = 0;
   flowValue = 0;
@@ -61,6 +65,7 @@ class Replay {
     const g = t.g;
     this.g = g;
     this.vs = new Int8Array(g.n);
+    this.wasDone = new Uint8Array(g.n);
     this.grp = new Int32Array(g.n).fill(-1);
     this.val = new Float64Array(g.n).fill(NaN);
     this.es = new Int8Array(g.m);
@@ -76,11 +81,15 @@ class Replay {
   }
   /** Everything replayed, and nothing left to compute. */
   get done(): boolean { return this.at >= this.t.length && this.t.finished; }
+  /** Finished vertices, counting those marked after they finished. */
+  get finished(): number { return this.byState[V.done] + this.markedDone; }
   private setV(v: number, s: number) {
     const old = this.vs[v];
     if (old === s) return;
     this.byState[old]--; this.byState[s]++;
     this.vs[v] = s;
+    if (this.wasDone[v]) { this.wasDone[v] = 0; this.markedDone--; }
+    if (old === V.done && s === V.mark) { this.wasDone[v] = 1; this.markedDone++; }
     if (this.byState[V.frontier] > this.maxFrontier) this.maxFrontier = this.byState[V.frontier];
   }
   private setE(e: number, s: number) {
@@ -175,7 +184,7 @@ class Replay {
   series(k: SeriesKey): number {
     switch (k) {
       case 'frontier': return this.byState[V.frontier];
-      case 'done': return this.byState[V.done];
+      case 'done': return this.finished;
       case 'unseen': return this.byState[V.unseen];
       case 'marked': return this.byState[V.mark];
       case 'tree': return this.tree;
@@ -224,7 +233,7 @@ function readout(r: Replay, key: ReadoutKey): Stat {
     case 'rounds': return { label: 'Rounds', value: fmt(c.rounds) };
     case 'frontier': return { label: n.frontier ?? 'Frontier', value: fmt(r.byState[V.frontier]) };
     case 'maxFrontier': return { label: `Largest ${(n.frontier ?? 'frontier').toLowerCase()}`, value: fmt(r.maxFrontier) };
-    case 'done': return { label: n.done ?? 'Finished', value: `${fmt(r.byState[V.done])} of ${fmt(r.g.n)}` };
+    case 'done': return { label: n.done ?? 'Finished', value: `${fmt(r.finished)} of ${fmt(r.g.n)}` };
     case 'marked': return { label: n.marked ?? 'Marked', value: fmt(r.byState[V.mark]) };
     case 'tree': return { label: n.tree ?? 'Tree edges', value: fmt(r.tree) };
     case 'treeWeight': return { label: `Weight of the ${(n.tree ?? 'tree edges').toLowerCase()}`, value: fmt(r.treeWeight) };
