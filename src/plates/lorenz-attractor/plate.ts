@@ -1,5 +1,6 @@
 import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
+import { Rk4 } from '../_shared/ode/ode';
 
 type V3 = [number, number, number];
 
@@ -7,14 +8,21 @@ export function lorenz([x, y, z]: V3, sigma: number, rho: number, beta: number):
   return [sigma * (y - x), x * (rho - z) - y, x * y - beta * z];
 }
 
+const stepper = new Rk4(3);
+const state = new Float64Array(3);
+
+/** One RK4 step of the Lorenz flow, by the shared integrator library (src/plates/_shared/ode). */
 export function rk4Lorenz(s: V3, dt: number, sigma: number, rho: number, beta: number): V3 {
-  const f = (v: V3) => lorenz(v, sigma, rho, beta);
-  const add = (a: V3, b: V3, h: number): V3 => [a[0] + b[0] * h, a[1] + b[1] * h, a[2] + b[2] * h];
-  const k1 = f(s);
-  const k2 = f(add(s, k1, dt / 2));
-  const k3 = f(add(s, k2, dt / 2));
-  const k4 = f(add(s, k3, dt));
-  return [0, 1, 2].map((i) => s[i] + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])) as V3;
+  state[0] = s[0];
+  state[1] = s[1];
+  state[2] = s[2];
+  stepper.step((_t, y, out) => {
+    const d = lorenz([y[0], y[1], y[2]], sigma, rho, beta);
+    out[0] = d[0];
+    out[1] = d[1];
+    out[2] = d[2];
+  }, 0, state, dt);
+  return [state[0], state[1], state[2]];
 }
 
 export const lorenzAttractor: PlateCode = {

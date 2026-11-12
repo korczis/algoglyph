@@ -348,6 +348,8 @@ export function loadCatalogue(root, { code = true } = {}) {
     for (const d of e.declared) {
       const t = relTypes.get(d.type);
       if (!t || !known.has(d.target) || d.target === e.id) continue;
+      // a type whose content is its reason (analogue_of: the renaming) is refused without one
+      if (t.needs_reason && !String(d.reason ?? '').trim()) errors.push(`${e.file}: ${d.type} needs a reason (the mapping), relation to ${d.target}`);
       edges.push({ from: e.id, to: d.target, type: d.type, title: t.title, reason: d.reason, derived: false });
       edges.push({ from: d.target, to: e.id, type: t.symmetric ? d.type : (t.inverse ?? `${d.type}-of`),
         title: t.inverse_title ?? t.title, reason: d.reason, derived: true });

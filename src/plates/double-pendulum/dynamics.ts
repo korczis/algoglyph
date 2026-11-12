@@ -1,4 +1,6 @@
-// The planar double pendulum (two point masses on massless rods), integrated with classic RK4.
+// The planar double pendulum (two point masses on massless rods), integrated with classic RK4
+// from the shared integrator library (src/plates/_shared/ode).
+import { Rk4 } from '../_shared/ode/ode';
 // State: [θ1, θ2, ω1, ω2], angles from the downward vertical.
 
 export interface Pendulum {
@@ -23,19 +25,19 @@ export function derivative(s: State, k: Pendulum): State {
   return [w1, w2, a1, a2];
 }
 
+const stepper = new Rk4(4);
+const state = new Float64Array(4);
+
 export function rk4(s: State, k: Pendulum, dt: number): State {
-  const add = (a: State, b: State, h: number): State =>
-    [a[0] + b[0] * h, a[1] + b[1] * h, a[2] + b[2] * h, a[3] + b[3] * h];
-  const k1 = derivative(s, k);
-  const k2 = derivative(add(s, k1, dt / 2), k);
-  const k3 = derivative(add(s, k2, dt / 2), k);
-  const k4 = derivative(add(s, k3, dt), k);
-  return [
-    s[0] + (dt / 6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]),
-    s[1] + (dt / 6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]),
-    s[2] + (dt / 6) * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]),
-    s[3] + (dt / 6) * (k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3]),
-  ];
+  state.set(s);
+  stepper.step((_t, y, out) => {
+    const d = derivative([y[0], y[1], y[2], y[3]], k);
+    out[0] = d[0];
+    out[1] = d[1];
+    out[2] = d[2];
+    out[3] = d[3];
+  }, 0, state, dt);
+  return [state[0], state[1], state[2], state[3]];
 }
 
 export function energy(s: State, k: Pendulum): number {

@@ -55,6 +55,18 @@ describe('schema v2 refuses', () => {
   it('an entry related to itself', () => {
     expect(fixture({ a: 'related: [a]\n' }).join('\n')).toMatch(/an entry does not relate to itself/);
   });
+  it('an analogue with no mapping: analogue_of needs the reason that states the renaming', () => {
+    expect(fixture({ a: 'relations: [{ type: analogue_of, target: b }]\n', b: '' }).join('\n'))
+      .toMatch(/analogue_of needs a reason/);
+    expect(fixture({ a: 'relations: [{ type: analogue_of, target: b, reason: "charge for mass, the sign flipped" }]\n', b: '' }))
+      .toEqual([]);
+  });
+  it('and reads analogue_of the same both ways', () => {
+    const t = (JSON.parse(JSON.stringify(loadCatalogue(process.cwd()).model)) as Model).relationTypes
+      .find((x) => x.id === 'analogue_of');
+    expect(t?.symmetric).toBe(true);
+    expect(t?.inverse).toBeUndefined();
+  });
   it('and accepts a well-formed v2 entry', () => {
     expect(fixture({ a: 'schema: algoglyph.entry/v2\nrelations: [{ type: uses, target: b, reason: It calls it. }]\nbounds: { worst: O(n) }\n', b: '' })).toEqual([]);
   });

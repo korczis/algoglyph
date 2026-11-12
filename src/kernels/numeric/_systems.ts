@@ -1,5 +1,6 @@
 // Dynamical systems shared by the time-series kernels: the Lorenz flow (RK4), the logistic and
 // Hénon maps, and seeded noise. Each returns plain arrays; nothing here draws.
+import { Rk4 } from '../../plates/_shared/ode/ode';
 import { drain } from '../../engines/numeric/trace';
 import { gaussian, mulberry32 } from '../../core/random';
 
@@ -11,11 +12,21 @@ export function lorenz([x, y, z]: V3): V3 {
   return [LORENZ.sigma * (y - x), x * (LORENZ.rho - z) - y, x * y - LORENZ.beta * z];
 }
 
-/** One classical Runge–Kutta step of dv/dt = f(v). */
+const stepper = new Rk4(3);
+const state = new Float64Array(3);
+
+/** One classical Runge–Kutta step of dv/dt = f(v): the shared library's (src/plates/_shared/ode). */
 export function rk4(f: (v: V3) => V3, v: V3, h: number): V3 {
-  const add = (a: V3, b: V3, k: number): V3 => [a[0] + k * b[0], a[1] + k * b[1], a[2] + k * b[2]];
-  const k1 = f(v); const k2 = f(add(v, k1, h / 2)); const k3 = f(add(v, k2, h / 2)); const k4 = f(add(v, k3, h));
-  return [0, 1, 2].map((i) => v[i] + (h / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])) as V3;
+  state[0] = v[0];
+  state[1] = v[1];
+  state[2] = v[2];
+  stepper.step((_t, y, out) => {
+    const d = f([y[0], y[1], y[2]]);
+    out[0] = d[0];
+    out[1] = d[1];
+    out[2] = d[2];
+  }, 0, state, h);
+  return [state[0], state[1], state[2]];
 }
 
 /** n samples of the Lorenz flow every `every` RK4 steps of h, after a transient. */

@@ -1,5 +1,6 @@
 // Direct-summation softened gravity with a kick-drift-kick leapfrog (symplectic, second order).
 // Positions, velocities and accelerations are packed xyz arrays; m holds the masses.
+import { leapfrog as odeLeapfrog } from '../_shared/ode/ode';
 
 export interface Bodies {
   n: number;
@@ -45,13 +46,9 @@ export function accelerate(b: Bodies, G: number, eps: number): void {
   }
 }
 
-/** One leapfrog step; `a` must hold the accelerations of the current positions. */
+/** One leapfrog step (src/plates/_shared/ode); `a` must hold the accelerations of the current positions. */
 export function leapfrog(b: Bodies, dt: number, G: number, eps: number): void {
-  const { x, v, a } = b;
-  for (let k = 0; k < x.length; k++) v[k] += 0.5 * dt * a[k];
-  for (let k = 0; k < x.length; k++) x[k] += dt * v[k];
-  accelerate(b, G, eps);
-  for (let k = 0; k < x.length; k++) v[k] += 0.5 * dt * a[k];
+  odeLeapfrog(b.x, b.v, b.a, dt, () => accelerate(b, G, eps));
 }
 
 export function energy(b: Bodies, G: number, eps: number): number {
