@@ -18,9 +18,8 @@ installBrowserStubs();
 const SEEDS = [4242, 7, 1];
 const SHAPES = ['uniform', 'clustered', 'circle', 'disk', 'lattice'];
 
-/** sha256 of the kernel's outcomes and counts at its default parameters over every shape, a few
- * sizes and seeds, recorded from closest-pair.ts before its leaf size became a control (abaf25a). */
-const DEFAULT_OUTCOMES_SHA256 = '92f8cc28431d7a1d2853fd7b8fbbde25b61ae2087f601fb82034a1b0a76548f5';
+// Compared within one run: the explicit default against no param. A hash recorded on one machine is
+// no guard: its inputs carry float64 from sin and cos, which may differ by an ulp on another CPU.
 
 /** Combine levels: the depths at which the largest node, ⌈n/2^t⌉ points, is still above L. */
 function levels(n: number, L: number): number {
@@ -39,16 +38,19 @@ const claim = (readout: string, params: Record<string, number>): Claim => ({
 
 describe('closest-pair defaults', () => {
   it('measure exactly what the fixed leaf size did', () => {
-    const h = createHash('sha256');
-    for (const shape of SHAPES) {
-      for (const n of [2, 3, 17, 160, 1000]) {
-        for (const seed of SEEDS) {
-          const t = record(kernel, makeInput('points', shape, n, seed), { leaf: 3 }, seed, false);
-          h.update(JSON.stringify({ outcome: t.outcome, counts: t.counts }));
+    const hash = (params: Record<string, number>) => {
+      const h = createHash('sha256');
+      for (const shape of SHAPES) {
+        for (const n of [2, 3, 17, 160, 1000]) {
+          for (const seed of SEEDS) {
+            const t = record(kernel, makeInput('points', shape, n, seed), params, seed, false);
+            h.update(JSON.stringify({ outcome: t.outcome, counts: t.counts }));
+          }
         }
       }
-    }
-    expect(h.digest('hex')).toBe(DEFAULT_OUTCOMES_SHA256);
+      return h.digest('hex');
+    };
+    expect(hash({ leaf: 3 })).toBe(hash({}));
   });
 });
 

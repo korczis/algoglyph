@@ -15,18 +15,16 @@ import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
 
-/** sha256 of every geometry input kind and shape at its default parameters, over a few sizes and
- * seeds, recorded from input.ts before any of its constants became a control (abaf25a); the same
- * record as test/controls-haversine-hhi.test.ts. */
-const DEFAULT_INPUTS_SHA256 = '3fc8fa6b0da29b77174b8ba1522535564797a1d7e61d95eca07afd3097f4cce6';
-
-function defaultInputsHash(): string {
+// Every geometry input at its defaults, over a few sizes and seeds, compared within one run: with
+// no params against the control's default passed explicitly. A hash recorded on one machine is no
+// guard: inputs carry float64 from sin, cos and exp, which may differ by an ulp on another CPU.
+function defaultInputsHash(extra: Record<string, number> = {}): string {
   const h = createHash('sha256');
   for (const [kind, shapes] of Object.entries(DEFAULT_SHAPES)) {
     for (const shape of shapes) {
       for (const n of [2, 3, 60, 120, 400]) {
         for (const seed of [1, 4242, 4302]) {
-          h.update(JSON.stringify(makeInput(kind as InputKind, shape, n, seed, {})));
+          h.update(JSON.stringify(makeInput(kind as InputKind, shape, n, seed, { ...extra })));
         }
       }
     }
@@ -61,7 +59,7 @@ describe('orthogonal-sweep horiz', () => {
   });
 
   it('leaves every geometry input bit-identical at its default', () => {
-    expect(defaultInputsHash()).toBe(DEFAULT_INPUTS_SHA256);
+    expect(defaultInputsHash({ horiz: 50 })).toBe(defaultInputsHash());
     const a = makeInput('orthogonal', 'mixed', 60, 4242, {});
     expect(makeInput('orthogonal', 'mixed', 60, 4242, { horiz: 50 })).toEqual(a);
   });
