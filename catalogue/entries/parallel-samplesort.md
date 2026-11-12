@@ -2,7 +2,7 @@
 id: parallel-samplesort
 title: Samplesort, parallel
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

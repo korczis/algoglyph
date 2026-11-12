@@ -2,7 +2,7 @@
 id: parallel-counting-sort
 title: Counting sort, parallel
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

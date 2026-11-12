@@ -2,7 +2,7 @@
 id: gpu-merge-sort
 title: Mergesort on a GPU
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

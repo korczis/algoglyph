@@ -2,7 +2,7 @@
 id: gpu-radix-sort
 title: Radix sort on a GPU
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

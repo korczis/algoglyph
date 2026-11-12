@@ -2,7 +2,7 @@
 id: terasort
 title: TeraSort
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

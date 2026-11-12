@@ -2,7 +2,7 @@
 id: mapreduce-sort
 title: Sorting with MapReduce
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

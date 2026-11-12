@@ -2,7 +2,7 @@
 id: ps4o
 title: Parallel super scalar samplesort (PS⁴o)
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting

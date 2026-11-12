@@ -2,7 +2,7 @@
 id: parallel-quicksort
 title: Quicksort, parallel
 taxonomy: sorting/parallel
-status: planned
+status: live
 engine: array
 labs:
   - sorting
