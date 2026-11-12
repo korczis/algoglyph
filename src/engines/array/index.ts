@@ -67,7 +67,7 @@ class Replay {
   private every: number;
   constructor(readonly t: Trace) {
     this.a = t.input.slice();
-    this.aux = new Array(t.input.length).fill(0);
+    this.aux = new Array(t.auxN ?? t.input.length).fill(0);
     let aux = false;
     for (let e = 0; e < t.length && !aux; e++) aux = t.events[3 * e] === OP.auxWrite;
     this.usesAux = aux;
@@ -103,6 +103,8 @@ function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: 
   const auxH = r.usesAux ? Math.round(h * 0.22) : 0;
   const mainH = h - auxH - (auxH ? 4 : 0);
   const bw = w / n;
+  // the auxiliary row is as wide as the kernel reserved, drawn across the same width
+  const abw = w / Math.max(1, r.aux.length);
   if (r.lo >= 0 && !r.done) {
     p.noStroke();
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 22);
@@ -120,25 +122,27 @@ function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: 
     const ay = y + h - auxH;
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 18);
     p.rect(x, ay, w, auxH);
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < r.aux.length; i++) {
       const v = r.aux[i];
       if (!v) continue;
       const c = ramp(pal, (v - 1) / Math.max(1, max - 1));
       p.fill(c[0], c[1], c[2], 200);
       const bh = Math.max(1, (v / max) * auxH);
-      p.rect(x + i * bw, ay + auxH - bh, Math.max(1, bw - (bw > 3 ? 1 : 0)), bh);
+      p.rect(x + i * abw, ay + auxH - bh, Math.max(1, abw - (abw > 3 ? 1 : 0)), bh);
     }
   }
   if (r.last >= 0 && !r.done) {
     const e = r.last;
     const op = r.t.events[3 * e];
-    const marks = op === OP.swap || op === OP.compare
+    const marks = op === OP.swap || op === OP.compare || op === OP.auxClear
       ? [r.t.events[3 * e + 1], r.t.events[3 * e + 2]] : [r.t.events[3 * e + 1]];
+    const onAux = op === OP.auxWrite || op === OP.auxRead || op === OP.auxClear;
+    const cw = onAux ? abw : bw;
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2]);
     for (const i of marks) {
       if (i < 0) continue;
-      const my = op === OP.auxWrite || op === OP.auxRead ? y + h - auxH : y + mainH;
-      p.triangle(x + (i + 0.5) * bw, my - 2, x + (i + 0.5) * bw - 4, my + 5, x + (i + 0.5) * bw + 4, my + 5);
+      const my = onAux ? y + h - auxH : y + mainH;
+      p.triangle(x + (i + 0.5) * cw, my - 2, x + (i + 0.5) * cw - 4, my + 5, x + (i + 0.5) * cw + 4, my + 5);
     }
   }
 }

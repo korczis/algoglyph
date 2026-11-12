@@ -12,7 +12,12 @@ export const OP = {
   auxWrite: 5,
   /** A free annotation: the range [i, j] the kernel is working on (partition, merge, pass). */
   range: 6,
+  /** Auxiliary cells [i, j] emptied: free and uncounted (an emptied cell is not a write). */
+  auxClear: 7,
 } as const;
+
+/** The widest auxiliary row a kernel may reserve. */
+export const AUX_CAP = 1 << 20;
 
 export interface ArrayOps {
   readonly n: number;
@@ -28,9 +33,16 @@ export interface ArrayOps {
   lessAt(i: number, j: number): boolean;
   /** If a[j] < a[i], exchange them: the comparator of a sorting network. */
   exch(i: number, j: number): void;
-  /** Auxiliary array of length n, for merges and distributions. */
+  /** Auxiliary array, n cells unless reserveAux asked for more, for merges and distributions. */
   aux(k: number): number;
   setAux(k: number, v: number): void;
+  /**
+   * Make the auxiliary row `cells` wide (free; before the first auxiliary operation, for a kernel
+   * whose auxiliary structures are wider than n). It never narrows the row.
+   */
+  reserveAux(cells: number): void;
+  /** Empty the auxiliary cells [lo, hi]: free and uncounted, since emptying writes nothing. */
+  clearAux(lo: number, hi: number): void;
   /** Mark the range [lo, hi] as the one being worked on (free; drawing only). */
   range(lo: number, hi: number): void;
 }
@@ -66,6 +78,8 @@ export interface Trace {
   k: number;
   /** True when the run stopped at the event cap rather than at the kernel's end. */
   truncated: boolean;
+  /** Cells of the auxiliary row: n, or what the kernel reserved. */
+  auxN: number;
 }
 
 /** Events a trace may hold; a quadratic sort at the largest n stays well inside it. */
@@ -80,7 +94,7 @@ class Stop extends Error {}
 export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_CAP,
   order: (x: number, y: number) => boolean = (x, y) => x < y): Trace {
   const a = input.slice();
-  const aux = new Array<number>(a.length).fill(0);
+  let aux = new Array<number>(a.length).fill(0);
   let buf = new Int32Array(3 * 4096);
   let len = 0;
   const counts: Counts = { compares: 0, reads: 0, writes: 0, swaps: 0, auxReads: 0, auxWrites: 0 };
@@ -98,6 +112,9 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
   };
   const check = (i: number) => {
     if (!Number.isInteger(i) || i < 0 || i >= a.length) throw new RangeError(`index ${i} outside 0..${a.length - 1}`);
+  };
+  const checkAux = (i: number) => {
+    if (!Number.isInteger(i) || i < 0 || i >= aux.length) throw new RangeError(`aux index ${i} outside 0..${aux.length - 1}`);
   };
   const ops: ArrayOps = {
     n: a.length,
@@ -117,8 +134,20 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
       return order(a[i], a[j]);
     },
     exch(i, j) { if (ops.lessAt(j, i)) ops.swap(i, j); },
-    aux(k2) { check(k2); counts.auxReads++; push(OP.auxRead, k2, 0); return aux[k2]; },
-    setAux(k2, v) { check(k2); counts.auxWrites++; aux[k2] = v; push(OP.auxWrite, k2, v); },
+    aux(k2) { checkAux(k2); counts.auxReads++; push(OP.auxRead, k2, 0); return aux[k2]; },
+    setAux(k2, v) { checkAux(k2); counts.auxWrites++; aux[k2] = v; push(OP.auxWrite, k2, v); },
+    reserveAux(cells) {
+      if (!Number.isInteger(cells) || cells < 0 || cells > AUX_CAP) {
+        throw new RangeError(`aux row of ${cells} cells outside 0..${AUX_CAP}`);
+      }
+      if (cells > aux.length) aux = aux.concat(new Array<number>(cells - aux.length).fill(0));
+    },
+    clearAux(lo, hi) {
+      checkAux(lo); checkAux(hi);
+      if (hi < lo) throw new RangeError(`aux range [${lo}, ${hi}] is empty`);
+      aux.fill(0, lo, hi + 1);
+      push(OP.auxClear, lo, hi);
+    },
     range(lo, hi) { push(OP.range, Math.max(0, lo), Math.min(a.length - 1, hi)); },
   };
   let truncated = false;
@@ -128,7 +157,7 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
     if (!(e instanceof Stop)) throw e;
     truncated = true;
   }
-  return { events: buf, length: len, counts, input: input.slice(), output: a, k, truncated };
+  return { events: buf, length: len, counts, input: input.slice(), output: a, k, truncated, auxN: aux.length };
 }
 
 export const SHAPES = ['random', 'nearly-sorted', 'reversed', 'few-unique', 'organ-pipe', 'sorted'] as const;
@@ -202,4 +231,5 @@ export function apply(a: number[], aux: number[], events: Int32Array, e: number)
   const j = events[3 * e + 2];
   if (op === OP.write) a[i] = j;
   else if (op === OP.swap) { const t = a[i]; a[i] = a[j]; a[j] = t; } else if (op === OP.auxWrite) aux[i] = j;
+  else if (op === OP.auxClear) aux.fill(0, i, j + 1);
 }

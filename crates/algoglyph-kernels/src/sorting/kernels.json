@@ -20,7 +20,7 @@
     { "id": "bogobogosort", "stable": "no", "in_place": false, "kind": "joke", "source": "a872533fdfdd8193" },
     { "id": "bogosort", "stable": "no", "in_place": true, "kind": "joke", "source": "d88b572a2bd88a4b" },
     { "id": "bottom-up-heapsort", "stable": "no", "in_place": true, "kind": "comparison", "source": "24f9a80235874628" },
-    { "id": "bottom-up-merge-sort", "stable": "yes", "in_place": false, "kind": "comparison", "source": "03afaed6621a3779" },
+    { "id": "bottom-up-merge-sort", "stable": "yes", "in_place": false, "kind": "comparison", "source": "16b0588b88823c91" },
     { "id": "bozosort", "stable": "no", "in_place": true, "kind": "joke", "source": "b2bc0d51b1fbbf3e" },
     { "id": "bubble-sort", "stable": "yes", "in_place": true, "kind": "comparison", "source": "2d9367dfaaab5c95" },
     { "id": "bucket-sort", "stable": "variant", "in_place": false, "kind": "distribution", "source": "5c42237f19d66fc3" },
