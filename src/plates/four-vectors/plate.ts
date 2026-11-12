@@ -142,12 +142,17 @@ export const fourVectors: PlateCode = {
           for (const [i, F] of [[0, { E, B }], [1, f]] as const) {
             const cx = W * (0.27 + 0.46 * i); const cy = H * 0.5;
             p.noStroke(); p.fill(fg[0], fg[1], fg[2], 200); p.textAlign(p.CENTER, p.TOP);
-            p.text(i === 0 ? 'lab (y right, z up)' : 'moving observer', cx, H * 0.08);
+            p.text(i === 0 ? 'lab' : `observer at ${v.toFixed(2)} c`, cx, H * 0.08);
             p.stroke(fg[0], fg[1], fg[2], 60); p.strokeWeight(1);
             p.line(cx - k * 2, cy, cx + k * 2, cy); p.line(cx, cy - k * 2, cx, cy + k * 2);
             arrow(cx, cy, F.E[1] * k, -F.E[2] * k, cE);
             arrow(cx, cy, F.B[1] * k, -F.B[2] * k, cB);
+            p.noStroke(); p.textAlign(p.LEFT, p.CENTER);
+            p.fill(...cE); p.text(`E (${F.E[0].toFixed(2)} along x)`, cx - k * 2, cy + k * 2.3);
+            p.fill(...cB); p.text(`B (${F.B[0].toFixed(2)} along x)`, cx - k * 2, cy + k * 2.3 + 20);
           }
+          p.noStroke(); p.fill(fg[0], fg[1], fg[2], 170); p.textAlign(p.CENTER, p.BOTTOM);
+          p.text('y to the right, z up; the boost is along x, out of the page', W / 2, H - 8);
           const vs = sliderVelocities();
           const [d1, d2] = invariantDrift(E, B, vs);
           const fmtV = (x: V3) => `(${x.map((c) => c.toFixed(3)).join(', ')})`;

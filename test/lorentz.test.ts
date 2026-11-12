@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import {
   addVelocities, boost, boostFields, boostMatrix, boostMomentum, boostTensor, fieldsOf, fieldTensor,
-  gammaOf, hyperbolic, hyperbolicTau, interval, invariants, mass, multiply, properTime, rapidityOf,
+  gammaOf, hyperbolic, hyperbolicTau, interval, mass, multiply, properTime, rapidityOf,
   twin, twinTau, type V3,
 } from '../src/plates/_shared/lorentz/lorentz';
 import { compositionDefect, intervalDrift, rodInPrime, sceneEvents, sliderVelocities } from '../src/plates/minkowski-diagram/plate';

@@ -99,23 +99,27 @@ export const minkowskiDiagram: PlateCode = {
         const phi = rapidityOf(v);
         const events = sceneEvents(scene, a, T);
         const W = ctx.width; const H = ctx.height;
-        const span = scene === 'twins' ? Math.max(T, 4) * 1.1 : 4.4;
-        const s = Math.min(W, H) / (2 * span);
-        const ox = W / 2; const oy = scene === 'twins' ? H * 0.95 : H / 2;
+        const twins = scene === 'twins';
+        const span = twins ? Math.max(T, 4) * 1.1 : 4.4;
+        // the twins' trip runs upward from the bottom edge; the other scenes are centred
+        const s = twins ? (0.9 * H) / span : Math.min(W, H) / (2 * span);
+        const ox = W / 2; const oy = twins ? H * 0.95 : H / 2;
         const X = (x: number) => ox + x * s;
         const Y = (t: number) => oy - t * s;
         const pal = ctx.palette();
         const fg = ctx.fg;
+        // lines run past the canvas on every side
+        const reach = Math.max(W, H) / s;
         p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
         p.strokeWeight(1);
         // the light cone through the origin
         p.stroke(...ramp(pal, 0.15), 200);
-        p.line(X(-span), Y(-span), X(span), Y(span));
-        p.line(X(-span), Y(span), X(span), Y(-span));
+        p.line(X(-reach), Y(-reach), X(reach), Y(reach));
+        p.line(X(-reach), Y(reach), X(reach), Y(-reach));
         // S: t and x axes
         p.stroke(fg[0], fg[1], fg[2], 160);
-        p.line(X(-span), Y(0), X(span), Y(0));
-        p.line(X(0), Y(-span), X(0), Y(span));
+        p.line(X(-reach), Y(0), X(reach), Y(0));
+        p.line(X(0), Y(-reach), X(0), Y(reach));
         // S′: t′ axis is x = v t, x′ axis is t = v x; its grid of lines of constant t′ and x′
         const prime = ramp(pal, 0.85);
         const g = gammaOf(v);
@@ -123,9 +127,19 @@ export const minkowskiDiagram: PlateCode = {
           // t′ = k is the line t = v x + k/γ, and x′ = k the line x = v t + k/γ
           p.stroke(prime[0], prime[1], prime[2], k === 0 ? 230 : 55);
           const c = k / g;
-          p.line(X(-span), Y(v * -span + c), X(span), Y(v * span + c));
-          p.line(X(v * -span + c), Y(-span), X(v * span + c), Y(span));
+          p.line(X(-reach), Y(v * -reach + c), X(reach), Y(v * reach + c));
+          p.line(X(v * -reach + c), Y(-reach), X(v * reach + c), Y(reach));
         }
+        // axis names, where each axis leaves the picture
+        p.noStroke();
+        p.textSize(Math.max(12, Math.min(16, W * 0.02)));
+        p.fill(fg[0], fg[1], fg[2], 210);
+        p.text('t', X(0) + 6, 18);
+        p.text('x', W - 16, Y(0) - 6);
+        p.fill(prime[0], prime[1], prime[2]);
+        const top = (oy - 18) / s;
+        p.text('t′', Math.min(W - 20, X(v * top) + 6), 18);
+        p.text('x′', W - 22, Math.max(14, Y(v * ((W - 16 - ox) / s)) - 6));
         // the scene
         const ev = ramp(pal, 0.55);
         if (scene === 'twins') {
@@ -142,7 +156,7 @@ export const minkowskiDiagram: PlateCode = {
         if (scene === 'rod') {
           p.noStroke();
           p.fill(ev[0], ev[1], ev[2], 60);
-          p.quad(X(1), Y(-span), X(3), Y(-span), X(3), Y(span), X(1), Y(span));
+          p.quad(X(1), Y(-reach), X(3), Y(-reach), X(3), Y(reach), X(1), Y(reach));
         }
         p.noStroke();
         p.fill(ev[0], ev[1], ev[2]);
