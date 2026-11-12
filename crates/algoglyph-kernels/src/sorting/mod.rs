@@ -25,8 +25,9 @@ pub const MAX_N: usize = 1 << 20;
 /// Largest accepted arc list of topological sort (`ag_sort_max_edges`).
 pub const MAX_EDGES: usize = 4 * MAX_N;
 /// The layout of the C ABI (`ag_sort_abi`): op codes, the result array, the exports. A
-/// browser cache keys traces by it.
-pub const ABI_VERSION: u32 = 3;
+/// browser cache keys traces by it. 4: the tunable options travel as words
+/// (`ag_sort_options`, named by `ag_sort_option_name`), no longer as `ag_sort_run` arguments.
+pub const ABI_VERSION: u32 = 4;
 
 pub fn find(id: &str) -> Option<&'static Entry> {
     REGISTRY.iter().find(|e| e.meta.id == id)
@@ -69,21 +70,34 @@ pub fn run(id: &str, input: Vec<Item>, opt: &Options) -> Result<Run, String> {
     Ok(run_entry(entry, input, opt))
 }
 
+/// The tunable options entry `e` reads ([`Options::TUNABLE`] order): what its source reads
+/// (`Entry::reads`, derived by `build.rs`), so a sidecar can offer only a constant the kernel
+/// really takes from its options.
+pub fn options_of(e: &Entry) -> Vec<&'static str> {
+    Options::TUNABLE
+        .into_iter()
+        .filter(|name| e.reads.contains(name))
+        .collect()
+}
+
 /// The kernel manifest (`src/sorting/kernels.json`, checked in): every kernel id with its
-/// declared stability, in-place flag, kind and source hash, as the registry holds them. The gate
-/// reads it to refuse a sidecar record that names no kernel, or a max_n measured on another
-/// source; the native tests refuse a stale copy.
+/// declared stability, in-place flag, kind, source hash and the tunable options its source
+/// reads, as the registry holds them. The gate reads it to refuse a sidecar record that names
+/// no kernel, a max_n measured on another source, or an option the kernel does not read; the
+/// native tests refuse a stale copy.
 pub fn manifest() -> String {
     let rows: Vec<String> = REGISTRY
         .iter()
         .map(|e| {
+            let options: Vec<String> = options_of(e).iter().map(|o| format!("\"{o}\"")).collect();
             format!(
-                "    {{ \"id\": \"{}\", \"stable\": \"{}\", \"in_place\": {}, \"kind\": \"{}\", \"source\": \"{:016x}\" }}",
+                "    {{ \"id\": \"{}\", \"stable\": \"{}\", \"in_place\": {}, \"kind\": \"{}\", \"source\": \"{:016x}\", \"options\": [{}] }}",
                 e.meta.id,
                 e.meta.stable.as_str(),
                 e.meta.in_place,
                 e.meta.kind.as_str(),
-                e.source
+                e.source,
+                options.join(", ")
             )
         })
         .collect();
@@ -132,13 +146,30 @@ pub fn scenario_inputs() -> Vec<Vec<Item>> {
 /// (`src/sorting/fixture.json`): a hash of everything a run hands to the browser — outcome,
 /// counts, output, and every recorded word and string.
 pub fn scenario_checksum(entry: &Entry) -> u64 {
+    scenario_checksum_with(entry, &[0; Options::TUNABLE.len()])
+}
+
+/// The options a run takes from the C ABI's option words (`ag_sort_options`): word i sets
+/// tunable option i ([`Options::TUNABLE`]), and a word of 0 leaves the kernel's own default.
+pub fn with_option_words(mut opt: Options, words: &[u32]) -> Options {
+    for (name, &word) in Options::TUNABLE.iter().zip(words) {
+        opt.set_tunable(name, word);
+    }
+    opt
+}
+
+/// The shared scenario with the tunable options set from `words`, as the C ABI sets them.
+pub fn scenario_checksum_with(entry: &Entry, words: &[u32]) -> u64 {
     let mut h = Fnv::new();
     for input in scenario_inputs() {
-        let opt = Options {
-            seed: 7,
-            max_steps: 1_000_000,
-            ..Options::default()
-        };
+        let opt = with_option_words(
+            Options {
+                seed: 7,
+                max_steps: 1_000_000,
+                ..Options::default()
+            },
+            words,
+        );
         let run = run_entry(entry, input, &opt);
         h.word(run.outcome.code());
         h.word(run.truncated as u32);

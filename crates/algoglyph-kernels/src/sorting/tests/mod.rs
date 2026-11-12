@@ -57,6 +57,53 @@ fn every_kernel_reproduces_the_shared_fixture() {
 }
 
 #[test]
+fn zero_option_words_reproduce_the_shared_fixture() {
+    // the option words a run takes from the C ABI, all 0, leave every kernel's default run byte
+    // for byte the one the fixture records; and any other word reaches the field it names
+    let want = fixture();
+    let zero = [0u32; Options::TUNABLE.len()];
+    let failures = for_each_entry(|e| {
+        let got = engine::scenario_checksum_with(e, &zero);
+        match want.get(e.meta.id) {
+            Some(&w) if w == got => Ok(()),
+            w => Err(format!("checksum {got:016x} != fixture {w:x?}")),
+        }
+    });
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    for (i, name) in Options::TUNABLE.iter().enumerate() {
+        let mut words = zero;
+        words[i] = 7;
+        let o = engine::with_option_words(Options::default(), &words);
+        for other in Options::TUNABLE {
+            assert_eq!(o.tunable(other), Some(if other == *name { 7 } else { 0 }), "{name} -> {other}");
+        }
+    }
+    assert!(!Options::default().clone().set_tunable("edges", 1));
+}
+
+#[test]
+fn every_kernels_options_are_the_tunable_fields_its_source_reads() {
+    // build.rs derives Entry::reads from `opt.<field>` in the plugin's own code; each is a real
+    // field, and the manifest's options are the tunable ones, never a field the kernel ignores
+    const FIELDS: [&str; 6] = ["seed", "base", "k", "memory", "edges", "max_steps"];
+    for e in REGISTRY {
+        for r in e.reads {
+            assert!(FIELDS.contains(r) || *r == "trace", "{}: reads unknown field {r}", e.meta.id);
+        }
+        let opts = engine::options_of(e);
+        assert!(opts.iter().all(|o| e.reads.contains(o) && Options::TUNABLE.contains(o)));
+    }
+    let of = |id: &str| engine::options_of(engine::find(id).unwrap());
+    assert_eq!(of("external-merge-sort"), ["k", "memory"]);
+    assert_eq!(of("tape-merge-sort"), ["memory"]);
+    assert_eq!(of("parallel-radix-sort"), ["base", "k"]);
+    assert_eq!(of("d-ary-heapsort"), ["k"]);
+    // `_opt`, an unused parameter, reads nothing
+    assert!(of("bubble-sort").is_empty());
+    assert_eq!(engine::find("topological-sort").unwrap().reads, ["edges"]);
+}
+
+#[test]
 #[ignore = "writes the fixture; run with --ignored after changing a kernel or the tracer"]
 fn write_fixture() {
     let mut s = String::from("{\n  \"schema\": \"algoglyph-sorting-fixture/v1\",\n");
@@ -410,6 +457,7 @@ fn broken_variants_are_caught() {
         meta: &BROKEN_MERGE_META,
         sort: broken_merge,
         source: 0,
+        reads: &[],
     };
     assert!(
         check_sorts(&unstable_merge, 200).is_err(),
@@ -424,6 +472,7 @@ fn broken_variants_are_caught() {
         meta: &BROKEN_SELECTION_META,
         sort: broken_selection,
         source: 0,
+        reads: &[],
     };
     assert!(
         check_sorts(&bad_selection, 200).is_err(),
@@ -435,6 +484,7 @@ fn broken_variants_are_caught() {
         meta: &BROKEN_MERGE_META,
         sort: fixed_merge,
         source: 0,
+        reads: &[],
     };
     assert!(check_sorts(&fixed, 200).is_ok());
     assert!(check_stable(&fixed).is_ok());

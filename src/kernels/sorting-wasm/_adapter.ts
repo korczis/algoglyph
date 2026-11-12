@@ -54,7 +54,10 @@ export function seedOf(keys: ArrayLike<number>): number {
 /** Everything a trace depends on, as its cache key (the cache itself is per module build). */
 export function traceKey(id: string, keys: ArrayLike<number>, opt: RunOptions): string {
   const edges = hashWords((opt.edges ?? []).flat());
-  return `${id}|cap${opt.maxSteps ?? 0}|seed${opt.seed ?? ''}|b${opt.base ?? 0}|k${opt.k ?? 0}`
+  // every option by name, in name order, 0 left out: an option at 0 is the kernel's default
+  const options = Object.entries(opt.options ?? {}).filter(([, v]) => v !== 0)
+    .sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join(',');
+  return `${id}|cap${opt.maxSteps ?? 0}|seed${opt.seed ?? ''}|o${options}`
     + `|t${opt.trace === false ? 0 : 1}|e${edges}|${hashWords(keys)}`;
 }
 

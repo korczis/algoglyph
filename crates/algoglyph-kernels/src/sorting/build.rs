@@ -18,6 +18,32 @@ fn is_ident(stem: &str) -> bool {
     chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
 }
 
+/// The `Options` fields a plugin reads: every `opt.<field>` in its source before its test
+/// module (`#[cfg(test)]`), where the identifier `opt` is not part of a longer one (`_opt`, the
+/// name of an unused parameter, reads nothing). Sorted and unique.
+fn reads(text: &str) -> Vec<String> {
+    let code = text.split("#[cfg(test)]").next().unwrap_or("");
+    let b = code.as_bytes();
+    let ident = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+    let mut out: Vec<String> = Vec::new();
+    let mut at = 0;
+    while let Some(i) = code[at..].find("opt.") {
+        let start = at + i;
+        at = start + 4;
+        if start > 0 && ident(b[start - 1]) {
+            continue;
+        }
+        let end = (at..b.len()).find(|&j| !ident(b[j])).unwrap_or(b.len());
+        // a field, not a method call (`opt.step_limit()`)
+        if end > at && b.get(end) != Some(&b'(') {
+            out.push(code[at..end].to_string());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
 fn fnv(mut h: u64, bytes: &[u8]) -> u64 {
     for &b in bytes {
         h ^= b as u64;
@@ -79,11 +105,13 @@ fn main() {
         );
     }
     let mut sources: Vec<u64> = Vec::new();
+    let mut read: Vec<Vec<String>> = Vec::new();
     for (stem, path) in &plugins {
         let text = fs::read(path).unwrap_or_default();
         h = fnv(h, stem.as_bytes());
         h = fnv(h, &text);
         sources.push(fnv(shared_h, &text));
+        read.push(reads(&String::from_utf8_lossy(&text)));
     }
 
     let mut s = String::new();
@@ -101,14 +129,14 @@ fn main() {
     s.push_str("}\n\n");
     s.push_str("/// Every plugin, sorted by file stem.\n");
     s.push_str("pub static REGISTRY: &[crate::sorting::prelude::Entry] = &[\n");
-    for ((stem, _), source) in plugins.iter().zip(&sources) {
+    for (((stem, _), source), fields) in plugins.iter().zip(&sources).zip(&read) {
         s.push_str(&format!(
             concat!(
                 "    crate::sorting::prelude::Entry {{ stem: {0:?}, ",
                 "meta: &algorithms::{0}::META, sort: algorithms::{0}::sort, ",
-                "source: 0x{1:016x} }},\n"
+                "source: 0x{1:016x}, reads: &{2:?} }},\n"
             ),
-            stem, source
+            stem, source, fields
         ));
     }
     s.push_str("];\n\n");
