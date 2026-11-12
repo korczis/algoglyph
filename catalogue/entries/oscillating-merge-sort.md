@@ -2,7 +2,7 @@
 id: oscillating-merge-sort
 title: Oscillating merge
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

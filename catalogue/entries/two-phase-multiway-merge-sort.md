@@ -2,7 +2,7 @@
 id: two-phase-multiway-merge-sort
 title: Two-phase multiway mergesort
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

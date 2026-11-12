@@ -2,7 +2,7 @@
 id: cascade-merge-sort
 title: Cascade merge
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

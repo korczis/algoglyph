@@ -2,7 +2,7 @@
 id: external-bucket-sort
 title: External bucket sort
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

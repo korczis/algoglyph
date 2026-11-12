@@ -2,7 +2,7 @@
 id: buffer-tree-sort
 title: Buffer tree sort
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

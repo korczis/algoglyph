@@ -2,7 +2,7 @@
 id: external-quicksort
 title: External quicksort
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

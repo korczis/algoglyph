@@ -2,7 +2,7 @@
 id: external-radix-sort
 title: External radix sort
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

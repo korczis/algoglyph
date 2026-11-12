@@ -2,7 +2,7 @@
 id: polyphase-merge-sort
 title: Polyphase merge
 taxonomy: sorting/external
-status: planned
+status: live
 engine: array
 labs:
   - sorting

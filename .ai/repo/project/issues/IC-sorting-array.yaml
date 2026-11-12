@@ -6,7 +6,7 @@ title: "Sorting and selection: the array plates"
 slug: sorting-and-selection-array-plates
 priority: p2
 profile: implementation
-objective: "Make live: adaptiveshiverssort, block-merge-sort, driftsort, glidesort, grailsort, in-place-merge-sort, k-way-merge-sort, peeksort, powersort, quadsort, shiverssort, strand-sort, symmerge-based-sort, timsort, wikisort, american-flag-sort, burstsort, kirkpatrick-reisch-sort, postman-sort, skasort, spreadsort, address-calculation-sort, bucket-sort, flashsort, interpolation-sort, learnedsort, pigeonhole-sort, proxmap-sort, blitsort, crumsort, fluxsort, introsort, ford-johnson, octosort, quickxsort, weavesort, wolfsort, buffer-tree-sort, cascade-merge-sort, external-bucket-sort, external-merge-sort, external-quicksort, external-radix-sort, external-samplesort, funnel-sort, oscillating-merge-sort, polyphase-merge-sort, tape-merge-sort, two-phase-multiway-merge-sort, bead-sort, pancake-sort, spaghetti-sort, tag-sort, sleep-sort."
+objective: "Make live: adaptiveshiverssort, block-merge-sort, driftsort, glidesort, grailsort, in-place-merge-sort, k-way-merge-sort, peeksort, powersort, quadsort, shiverssort, strand-sort, symmerge-based-sort, timsort, wikisort, american-flag-sort, burstsort, kirkpatrick-reisch-sort, postman-sort, skasort, spreadsort, address-calculation-sort, bucket-sort, flashsort, interpolation-sort, learnedsort, pigeonhole-sort, proxmap-sort, blitsort, crumsort, fluxsort, introsort, ford-johnson, octosort, quickxsort, weavesort, wolfsort, bead-sort, pancake-sort, spaghetti-sort, tag-sort, sleep-sort."
 why: "Derived from the catalogue (ADR 0004): these entries are planned in this wing for this engine."
 scope:
   - src/kernels/array/adaptiveshiverssort.ts
@@ -46,18 +46,6 @@ scope:
   - src/kernels/array/quickxsort.ts
   - src/kernels/array/weavesort.ts
   - src/kernels/array/wolfsort.ts
-  - src/kernels/array/buffer-tree-sort.ts
-  - src/kernels/array/cascade-merge-sort.ts
-  - src/kernels/array/external-bucket-sort.ts
-  - src/kernels/array/external-merge-sort.ts
-  - src/kernels/array/external-quicksort.ts
-  - src/kernels/array/external-radix-sort.ts
-  - src/kernels/array/external-samplesort.ts
-  - src/kernels/array/funnel-sort.ts
-  - src/kernels/array/oscillating-merge-sort.ts
-  - src/kernels/array/polyphase-merge-sort.ts
-  - src/kernels/array/tape-merge-sort.ts
-  - src/kernels/array/two-phase-multiway-merge-sort.ts
   - src/kernels/array/bead-sort.ts
   - src/kernels/array/pancake-sort.ts
   - src/kernels/array/spaghetti-sort.ts
@@ -100,18 +88,6 @@ scope:
   - catalogue/entries/quickxsort.md
   - catalogue/entries/weavesort.md
   - catalogue/entries/wolfsort.md
-  - catalogue/entries/buffer-tree-sort.md
-  - catalogue/entries/cascade-merge-sort.md
-  - catalogue/entries/external-bucket-sort.md
-  - catalogue/entries/external-merge-sort.md
-  - catalogue/entries/external-quicksort.md
-  - catalogue/entries/external-radix-sort.md
-  - catalogue/entries/external-samplesort.md
-  - catalogue/entries/funnel-sort.md
-  - catalogue/entries/oscillating-merge-sort.md
-  - catalogue/entries/polyphase-merge-sort.md
-  - catalogue/entries/tape-merge-sort.md
-  - catalogue/entries/two-phase-multiway-merge-sort.md
   - catalogue/entries/bead-sort.md
   - catalogue/entries/pancake-sort.md
   - catalogue/entries/spaghetti-sort.md
