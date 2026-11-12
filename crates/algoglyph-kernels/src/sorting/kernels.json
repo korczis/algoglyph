@@ -1,7 +1,7 @@
 {
   "schema": "algoglyph-kernels/v1",
   "version": "0.1.0",
-  "abi": 2,
+  "abi": 3,
   "max_n": 1048576,
   "kernels": [
     { "id": "adaptiveshiverssort", "stable": "yes", "in_place": false, "kind": "comparison" },

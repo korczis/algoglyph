@@ -313,6 +313,9 @@ pub mod op {
     pub const LANE: i32 = 8;
     /// w1 = round number (1-based).
     pub const ROUND: i32 = 9;
+    /// Auxiliary cells emptied (not a write, not counted, recorded only for drawing): w0 = op |
+    /// structure name string id<<8, w1 = first cell, w2 = one past the last.
+    pub const AUXC: i32 = 10;
 }
 
 /// One recorded operation, decoded. Indices are array positions.
@@ -354,6 +357,12 @@ pub enum Step {
         name: String,
         i: u32,
         key: i32,
+    },
+    /// Cells `[from, to)` of the auxiliary structure `name` are empty now (no write).
+    AuxClear {
+        name: String,
+        from: u32,
+        to: u32,
     },
     Phase {
         text: String,
@@ -559,9 +568,13 @@ impl Tracer {
         let id = self.intern(name);
         let mut old = self.aux_cells.remove(&id).unwrap_or_default();
         let mut live = 0usize;
+        let mut emptied: Vec<usize> = Vec::new();
         for (i, c) in cells.enumerate() {
             if i >= old.len() {
                 old.push(None);
+            }
+            if c.is_none() && old[i].is_some() {
+                emptied.push(i);
             }
             if let Some((key, tag)) = c {
                 live += 1;
@@ -575,7 +588,9 @@ impl Tracer {
             }
             old[i] = c;
         }
+        emptied.extend((len..old.len()).filter(|&i| old[i].is_some()));
         old.truncate(len);
+        self.record_clears(id, &emptied);
         let before = self.aux_live.insert(id, live).unwrap_or(0);
         self.aux_now = self.aux_now - before + live;
         if self.aux_now > self.aux_peak {
@@ -586,6 +601,40 @@ impl Tracer {
         } else {
             self.aux_live.remove(&id);
         }
+    }
+
+    /// Records emptied cells (ascending) as ranges, for drawing: not a write and not a counted
+    /// step, so the counts and the step limit are those of the algorithm alone.
+    fn record_clears(&mut self, id: u32, cells: &[usize]) {
+        if !self.tracing() {
+            return;
+        }
+        let mut k = 0;
+        while k < cells.len() {
+            let from = cells[k];
+            let mut to = from + 1;
+            while k + 1 < cells.len() && cells[k + 1] == to {
+                k += 1;
+                to += 1;
+            }
+            self.push(op::AUXC, id, from as i32, to as i32);
+            k += 1;
+        }
+    }
+
+    /// Every live auxiliary structure as the tracer holds it now (name, keys by cell), sorted
+    /// by name: what replaying the recorded aux writes and clears must reproduce.
+    pub fn aux_state(&self) -> Vec<(String, Vec<Option<i32>>)> {
+        let mut out: Vec<(String, Vec<Option<i32>>)> = self
+            .aux_cells
+            .iter()
+            .map(|(&id, cells)| {
+                let keys = cells.iter().map(|c| c.map(|(k, _)| k)).collect();
+                (self.strings[id as usize].clone(), keys)
+            })
+            .collect();
+        out.sort();
+        out
     }
 
     /// Releases the auxiliary structure `name`.
@@ -748,6 +797,11 @@ pub fn decode(words: &[i32], strings: &[String]) -> Vec<Step> {
                 },
                 op::PHASE => Step::Phase { text: s(p) },
                 op::LANE => Step::Lane { lane: w[1] as u32 },
+                op::AUXC => Step::AuxClear {
+                    name: s(p),
+                    from: w[1] as u32,
+                    to: w[2] as u32,
+                },
                 _ => Step::Round {
                     n: w[1] as u32 as u64,
                 },

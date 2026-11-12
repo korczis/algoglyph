@@ -2,7 +2,7 @@
 id: cycle-sort
 title: Cycle sort
 taxonomy: sorting/elementary
-status: live
+status: planned
 engine: array
 labs:
   - sorting
