@@ -504,11 +504,13 @@ export const KINDS: Record<InputKind, KindDef> = {
     size: { label: 'Lines', min: 4, max: 40, step: 1, value: 12 },
     scale: [8, 16, 32, 64, 128, 256],
     shapes: [],
-    make(rnd, n) {
+    make(rnd, n, _shape, opts) {
       const base = Array.from({ length: n }, () => line(rnd));
       const tok = () => line(rnd);
-      const ours = edits(rnd, base, Math.max(1, Math.round(n / 6)), tok);
-      const theirs = edits(rnd, base, Math.max(1, Math.round(n / 6)), tok);
+      // one edit per `every` lines on each side, diff3-merge's control (6: the old constant)
+      const k = Math.max(1, Math.round(n / Number(opts.every ?? 6)));
+      const ours = edits(rnd, base, k, tok);
+      const theirs = edits(rnd, base, k, tok);
       return { base, ours, theirs };
     },
   },

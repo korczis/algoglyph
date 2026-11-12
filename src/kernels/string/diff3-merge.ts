@@ -25,6 +25,9 @@ const same = (x: string[], y: string[]) => x.length === y.length && x.every((s, 
 export const kernel: StringKernel<'merge', MergeResult> = {
   input: 'merge',
   counters: { compare: 'Line comparisons', chunk: 'Chunks resolved' },
+  // one edit per `every` ancestor lines on each side (src/engines/string/inputs.ts); fewer than 6
+  // would make the plate heavier than its default at its largest input
+  params: [{ kind: 'range', key: 'every', label: 'Lines per edit', min: 6, max: 12, step: 1, value: 6, rebuild: true }],
   run(ops, { base, ours, theirs }) {
     ops.list('base', base, { label: 'Ancestor', lines: 3 });
     ops.list('ours', ours, { label: 'Ours', lines: 3 });
