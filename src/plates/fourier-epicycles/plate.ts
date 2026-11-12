@@ -73,6 +73,7 @@ export const fourierEpicycles: PlateCode = {
     { kind: 'toggle', key: 'target', label: 'Show the target curve', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', emergent: 'the epicycles turn in continuous time: its speed scales simulated time' },
   create(p, ctx) {
     const params = ctx.params;
     let xs: Float64Array;

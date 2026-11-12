@@ -25,6 +25,7 @@ export const hashAvalanche: PlateCode = {
     { kind: 'range', key: 'gain', label: 'Gain around 1/2', min: 1, max: 40, step: 1, value: 8 },
     paletteParam('spectral'),
   ],
+  pace: { kind: 'stream', emergent: 'a statistic that emerges: each output bit settles towards 1/2 only over many thousands of trials, so the trials per frame are the time scale of the picture, not changes a reader follows' },
   create(p, ctx) {
     const params = ctx.params;
     let fn: Fn = 'sha256';

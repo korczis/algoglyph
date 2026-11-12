@@ -2,6 +2,7 @@ import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode, type Stat } from '../../core/plate';
 import { gaussian } from '../../core/random';
 import { circumcentre, Delaunay, LATTICE, minAngle, type Insertion } from './bowyer';
+import { Pacer, paceParam } from '../../core/pace';
 
 type Pt = [number, number];
 
@@ -114,7 +115,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
   params: [
     { kind: 'range', key: 'points', label: 'Points', min: 20, max: 3000, step: 10, value: 700,
       rebuild: true },
-    { kind: 'range', key: 'rate', label: 'Points per frame', min: 1, max: 60, step: 1, value: 3 },
+    paceParam(),
     {
       kind: 'select', key: 'distribution', label: 'Distribution', value: 'clustered',
       rebuild: true,
@@ -136,8 +137,10 @@ export const bowyerWatsonDelaunay: PlateCode = {
     },
     paletteParam('ember'),
   ],
+  pace: { kind: 'replay', unit: 'points' },
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = new Pacer('replay', 'points', 60);
     const W = ctx.width;
     const H = ctx.height;
     // lattice units per canvas pixel
@@ -170,10 +173,12 @@ export const bowyerWatsonDelaunay: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(next >= queue.length, params),
       setup() {
         mesh = new Delaunay();
         queue = scatter(str(params, 'distribution'), num(params, 'points'), W, H, ctx.rnd);
         next = 0;
+        pacer.start(queue.length);
         recent = [];
         age = FADE;
         clicks = 0;
@@ -185,7 +190,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
         insert(x, y);
       },
       draw() {
-        const rate = ctx.thumbnail ? Math.ceil(queue.length / 40) : num(params, 'rate');
+        const rate = ctx.thumbnail ? Math.ceil(queue.length / 40) : next < queue.length ? pacer.take(params) : 0;
         fresh = true;
         let inserted = false;
         for (let k = 0; k < rate && next < queue.length; k++, next++) {
@@ -358,6 +363,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
         const n = mesh.vertices;
         const { triangles, edges: e, hull } = mesh.counts();
         rows = [
+          pacer.row(params),
           { label: 'points inserted', value: `${n} / ${queue.length + clicks}` },
           { label: 'duplicates skipped', value: String(mesh.duplicates) },
           { label: 'triangles', value: `${triangles} (2n − 2 − h = ${2 * n - 2 - hull})` },

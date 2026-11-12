@@ -1,19 +1,22 @@
-// Controls the bespoke sorting plates share: how many of the kernel's steps a frame runs. A
-// select of powers of four rather than a slider, so that one step at a time and sixteen thousand
-// per frame are both one click away; every option is a heavy corner of the budget gate.
-import type { Params, SelectParam } from '../../../core/plate';
+// The pace the bespoke sorting plates share (ADR 0008): an endless stream of kernel steps (trials,
+// runs, checks), so their calm rate is a stream's ceiling (config/pacing.yaml), and the pace
+// control multiplies it up to the old select's top of sixteen thousand steps per frame, the
+// budget gate's heaviest corner. A thumbnail is drawn from a few frames and keeps its old speed.
+import { calm, Pacer, paceParam, type PaceDecl } from '../../../core/pace';
+import type { RangeParam } from '../../../core/plate';
 
-export const SPEEDS = [1, 4, 16, 64, 256, 1024, 4096, 16384] as const;
+/** The most kernel steps a frame runs: the old speed select's top. */
+export const MAX_STEPS_PER_FRAME = 16384;
 
-export function speedParam(value: (typeof SPEEDS)[number] = 16): SelectParam {
-  return {
-    kind: 'select', key: 'speed', label: 'Kernel steps per frame', value: String(value),
-    options: SPEEDS.map((s) => ({ value: String(s), label: s.toLocaleString('en-US') })),
-  };
+/** How these plates are paced. */
+export const STEP_PACE: PaceDecl = { kind: 'stream', unit: 'kernel steps' };
+
+/** The pace control, reaching MAX_STEPS_PER_FRAME at its top. */
+export function stepPaceParam(): RangeParam {
+  return { ...paceParam(), max: MAX_STEPS_PER_FRAME / calm('stream') };
 }
 
-/** The steps per frame the speed select names (16 when it names nothing valid). */
-export function speedOf(params: Params): number {
-  const s = Number(params.speed);
-  return SPEEDS.includes(s as (typeof SPEEDS)[number]) ? s : 16;
+/** One plate's pace: whole kernel steps per frame from the fractional calm rate. */
+export function stepPacer(): Pacer {
+  return new Pacer('stream', 'kernel steps', MAX_STEPS_PER_FRAME);
 }

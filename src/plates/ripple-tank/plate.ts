@@ -42,6 +42,7 @@ export const rippleTank: PlateCode = {
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 8, step: 1, value: 3 },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'stream', emergent: 'a wave-equation integrator: its steps per frame set simulated time per frame' },
   create(p, ctx) {
     const params = ctx.params;
     let res = 3;

@@ -11,7 +11,7 @@ import type p5 from 'p5';
 import { paletteParam, ramp } from '../../../core/palette';
 import { num, type PlateCode, type PlateContext } from '../../../core/plate';
 import { caption, drawBars, padding, slotWidth, type Box } from '../bars/bars';
-import { speedOf, speedParam } from '../kernel-mirror/controls';
+import { STEP_PACE, stepPaceParam, stepPacer } from '../kernel-mirror/controls';
 import type { Stepper } from '../kernel-mirror/tracer';
 import { countOnly, sortingNow, type WasmRun } from '../kernel-mirror/wasm';
 import { chartOf, fmt, Series } from '../live-chart/series';
@@ -62,11 +62,13 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
       { kind: 'range', key: 'n', label: 'Keys n', min: spec.n.min, max: spec.n.max, step: 1,
         value: spec.n.value, rebuild: true },
       shapeParam(SHAPES, 'random'),
-      speedParam(64),
+      stepPaceParam(),
       paletteParam('spectral'),
     ],
+    pace: STEP_PACE,
     create(p, ctx) {
       const params = ctx.params;
+      const pacer = stepPacer();
       const n = num(params, 'n');
       const shape = shapeOf(params.shape);
       let k = 0;
@@ -101,6 +103,7 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
       };
 
       return {
+        pace: () => pacer.report(false, params),
         setup() {
           p.textFont('monospace');
           next();
@@ -113,7 +116,7 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
               next();
             }
           } else {
-            run.stepper.advance(speedOf(params));
+            run.stepper.advance(ctx.thumbnail ? 64 : pacer.take(params));
             if (run.stepper.done) hold = ctx.thumbnail ? 1 : HOLD;
           }
           sweep();
@@ -164,7 +167,7 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
           rows.push({ label: 'result', value: run.stepper.outcome === 'sorted' && isSorted(run.keys)
             ? 'ascending, verified' : `NOT sorted (${run.stepper.outcome})` });
         }
-        ctx.stats(rows);
+        ctx.stats([...rows, pacer.row(params)]);
         const live = new Series('this run, counted live');
         live.push(n, 1);
         live.push(n, Math.max(1, t.counts.cmp));

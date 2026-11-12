@@ -71,6 +71,7 @@ export const voronoiRelax: PlateCode = {
     { kind: 'toggle', key: 'leading', label: 'Lead between panes', value: true },
     paletteParam('riso'),
   ],
+  pace: { kind: 'stream', emergent: 'a relaxation flow: each frame moves every seed part of the way to its cell\'s centroid, a continuous motion, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
     let sites: Site[] = [];

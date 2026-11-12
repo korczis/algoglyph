@@ -25,6 +25,7 @@ export const verletCloth: PlateCode = {
     { kind: 'toggle', key: 'wire', label: 'Wireframe', value: false },
     paletteParam('riso'),
   ],
+  pace: { kind: 'stream', emergent: 'a Verlet integrator: the cloth moves in simulated time, one step per frame' },
   create(p, ctx) {
     const params = ctx.params;
     let sheet: Cloth;

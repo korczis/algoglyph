@@ -8,7 +8,7 @@ import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../../core/palette';
 import { num, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../../core/plate';
 import { caption, drawBars, padding, type Box } from '../bars/bars';
-import { speedOf, speedParam } from '../kernel-mirror/controls';
+import { STEP_PACE, stepPaceParam, stepPacer } from '../kernel-mirror/controls';
 import type { Stepper } from '../kernel-mirror/tracer';
 import { chartOf, fmt, Trials } from '../live-chart/series';
 import { input, runSeed, shapeOf, shapeParam, type Shape } from '../sort-input/input';
@@ -59,11 +59,13 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
         value: spec.n.value, rebuild: true },
       shapeParam(spec.shapes, spec.shapes[0]),
       ...(spec.extra ?? []),
-      speedParam(16),
+      stepPaceParam(),
       paletteParam('spectral'),
     ],
+    pace: STEP_PACE,
     create(p, ctx) {
       const params = ctx.params;
+      const pacer = stepPacer();
       const theory = typeof spec.theory === 'string' ? spec.theory : spec.theory(params);
       const trials = new Trials(`mean ${spec.attempts} per run (measured)`, theory);
       let k = 0;
@@ -86,12 +88,13 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
       };
 
       return {
+        pace: () => pacer.report(false, params),
         setup() {
           p.textFont('monospace');
           next();
         },
         draw() {
-          let budget = speedOf(params);
+          let budget = ctx.thumbnail ? 16 : pacer.take(params);
           if (hold > 0) {
             hold--;
             if (hold === 0) next();
@@ -143,6 +146,7 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
         const t = run.stepper.t;
         const se = trials.stderr;
         ctx.stats([
+          pacer.row(params),
           { label: 'this run', value: `${fmt(run.attempts())} ${spec.attempts}, ${fmt(t.counts.cmp)} comparisons, ${fmt(t.counts.swap)} swaps` },
           { label: 'expected on this input', value: `${fmt(run.expected, 1)} ${spec.attempts}` },
           { label: 'finished runs', value: fmt(trials.count) },

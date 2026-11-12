@@ -2,6 +2,7 @@ import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { mulberry32, shuffle } from '../../core/random';
 import { ALGORITHMS, isSorted, type Counter, type Touch } from './algorithms';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 interface Row {
   a: number[];
@@ -24,16 +25,17 @@ export const sortTapestry: PlateCode = {
     { kind: 'range', key: 'rows', label: 'Rows', min: 4, max: 72, step: 1, value: 36, rebuild: true },
     { kind: 'range', key: 'n', label: 'Values per row', min: 16, max: 192, step: 8, value: 96,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Operations per frame', min: 1, max: 400, step: 1,
-      value: 24 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'Reshuffle when sorted', value: true },
     paletteParam('spectral'),
   ],
+  pace: { kind: 'replay', unit: 'operations' },
   create(p, ctx) {
     const params = ctx.params;
     let rows: Row[] = [];
     let hold = 0;
     let generation = 0;
+    const pacer = new Pacer('replay', 'operations', 400);
 
     const build = () => {
       const rnd = mulberry32(ctx.seed + generation * 7919);
@@ -45,15 +47,24 @@ export const sortTapestry: PlateCode = {
         return { a, c, gen: algo.run(a, c), done: false, touch: null };
       });
       hold = 0;
+      // every row advances alike; the run lasts as long as its longest row, counted on copies
+      pacer.start(Math.max(0, ...rows.map((row) => {
+        const gen = algo.run(row.a.slice(), { cmp: 0, wr: 0 });
+        let k = 0;
+        while (!gen.next().done) k++;
+        return k;
+      })));
     };
 
     return {
+      pace: () => pacer.report(rows.every((row) => row.done), params),
       setup() {
         p.noStroke();
         build();
       },
       draw() {
-        const speed = num(params, 'speed');
+        // a thumbnail is drawn from a few frames: it advances as fast as the old default did
+        const speed = ctx.thumbnail ? 24 : rows.some((row) => !row.done) ? pacer.take(params) : 0;
         let running = 0;
         for (const row of rows) {
           if (row.done) continue;
@@ -70,7 +81,7 @@ export const sortTapestry: PlateCode = {
         }
         if (running === 0) {
           hold++;
-          if (bool(params, 'loop') && hold > 90 && !ctx.thumbnail) {
+          if (bool(params, 'loop') && hold > HOLD_FRAMES && !ctx.thumbnail) {
             generation++;
             build();
           }
@@ -103,6 +114,7 @@ export const sortTapestry: PlateCode = {
           { label: 'comparisons / row', value: Math.round(total.cmp / rows.length).toLocaleString('en') },
           { label: 'writes / row', value: Math.round(total.wr / rows.length).toLocaleString('en') },
           { label: 'rows sorted', value: `${sorted} / ${rows.length}` },
+          pacer.row(params),
         ]);
       },
     };

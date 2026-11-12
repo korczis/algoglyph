@@ -38,6 +38,7 @@ export const boidsMurmuration: PlateCode = {
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate camera', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', emergent: 'a flocking simulation: the boids\' speed is simulated motion, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
     let flock = new Flock(1, HALF);

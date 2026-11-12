@@ -3,6 +3,7 @@ import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { mulberry32 } from '../../core/random';
 import { Search, terrain, type Kind, type Terrain } from './search';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 const LABELS: Record<Kind, string> = {
   dijkstra: 'Dijkstra',
@@ -24,14 +25,15 @@ export const pathfinding: PlateCode = {
       value: 1, rebuild: true },
     { kind: 'range', key: 'rough', label: 'Cost of climbing', min: 0, max: 3, step: 0.1, value: 1.2,
       rebuild: true },
-    { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 4, max: 16, step: 1, value: 7,
+    { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 4, max: 16, step: 1, value: 12,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Expansions per frame', min: 1, max: 400, step: 1,
-      value: 60 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New map when done', value: true },
     paletteParam('phosphor'),
   ],
+  pace: { kind: 'replay', unit: 'expansions' },
   create(p, ctx) {
+    const pacer = new Pacer('replay', 'expansions', 400);
     const params = ctx.params;
     let map: Terrain;
     let heights: Float64Array;
@@ -68,6 +70,11 @@ export const pathfinding: PlateCode = {
         optimum = reference.g[goal];
         const kind = (str(params, 'algorithm') in LABELS ? str(params, 'algorithm') : 'astar') as Kind;
         search = new Search(map, start, goal, kind, num(params, 'weight'));
+        // the expansions the whole search makes, counted on a copy
+        const copy = new Search(map, start, goal, kind, num(params, 'weight'));
+        let steps = 0;
+        while (copy.status === 'running') { copy.step(); steps++; }
+        pacer.start(steps);
         break;
       }
       raster = new Raster(w, h);
@@ -75,15 +82,16 @@ export const pathfinding: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(search.status !== 'running', params),
       setup() {
         build();
       },
       draw() {
-        const speed = ctx.thumbnail ? 120 : num(params, 'speed');
+        const speed = ctx.thumbnail ? 120 : search.status === 'running' ? pacer.take(params) : 0;
         for (let k = 0; k < speed && search.status === 'running'; k++) search.step();
         if (search.status !== 'running') {
           hold++;
-          if (bool(params, 'loop') && hold > 150 && !ctx.thumbnail) {
+          if (bool(params, 'loop') && hold > HOLD_FRAMES && !ctx.thumbnail) {
             generation++;
             build();
           }
@@ -141,6 +149,7 @@ export const pathfinding: PlateCode = {
             : cost.toFixed(1) },
           { label: 'vs optimum', value: Number.isNaN(cost) ? optimum.toFixed(1)
             : `${(((cost - optimum) / optimum) * 100).toFixed(1)} % above` },
+          pacer.row(params),
         ]);
       },
     };

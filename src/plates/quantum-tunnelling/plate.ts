@@ -47,6 +47,7 @@ export const quantumTunnelling: PlateCode = {
     { kind: 'toggle', key: 'parts', label: 'Show Re ψ and Im ψ', value: true },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'stream', emergent: 'a Schrödinger integrator: its steps per frame (Δt each) set simulated time per frame' },
   create(p, ctx) {
     const params = ctx.params;
     let run: Scattering;

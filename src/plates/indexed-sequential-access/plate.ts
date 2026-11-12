@@ -3,6 +3,7 @@ import { bool, num, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
 import { sortedKeys } from '../_shared/sorted-search/search';
 import { Isam, type Lookup } from './isam';
+import { Pacer, paceParam } from '../../core/pace';
 
 const WINDOW = 50;
 
@@ -20,9 +21,10 @@ export const indexedSequentialAccess: PlateCode = {
     { kind: 'range', key: 'inserts', label: 'Share of operations that insert', min: 0, max: 1, step: 0.05,
       value: 0.4 },
     { kind: 'toggle', key: 'hot', label: 'Inserts crowd into one key range', value: true },
-    { kind: 'range', key: 'speed', label: 'Operations per frame', min: 0.02, max: 10, step: 0.02, value: 0.2 },
+    paceParam(),
     paletteParam('abyss'),
   ],
+  pace: { kind: 'stream', unit: 'index probes and page reads' },
   create(p, ctx) {
     const params = ctx.params;
     let isam: Isam;
@@ -31,6 +33,7 @@ export const indexedSequentialAccess: PlateCode = {
     let stored: number[] = [];
     let top = 1;
     let acc = 0;
+    const pacer = new Pacer('stream', 'index probes and page reads', 80);
     let last: { insert: boolean; key: number; look: Lookup; ok: boolean } | null = null;
     let searches = 0;
     let reads = 0;
@@ -63,6 +66,7 @@ export const indexedSequentialAccess: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         const n = num(params, 'n');
         const keys = sortedKeys(n, 'uniform', ctx.rnd);
@@ -74,10 +78,11 @@ export const indexedSequentialAccess: PlateCode = {
       },
       draw() {
         if (!ctx.thumbnail) {
-          acc += num(params, 'speed');
+          // an operation lights its index probes and page reads at once: that many changes
+          acc += pacer.perFrame(params);
           while (acc >= 1) {
-            acc -= 1;
             operate();
+            acc -= Math.max(1, last ? last.look.indexProbes + last.look.pageReads : 1);
           }
         }
         const pal = ctx.palette();
@@ -137,6 +142,7 @@ export const indexedSequentialAccess: PlateCode = {
           { label: 'Index comparisons per search', value: searches ? (probes / searches).toFixed(2) : '–' },
           { label: 'Page reads per search, all', value: searches ? (reads / searches).toFixed(2) : '–' },
           { label: `Page reads per search, last ${recent.length}`, value: recent.length ? mean.toFixed(2) : '–' },
+          pacer.row(params),
         ]);
         if (curve.length > 1 && gate.open()) {
           ctx.chart({

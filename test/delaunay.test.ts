@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Params, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32, shuffle } from '../src/core/random';
@@ -377,7 +378,7 @@ describe('the plate', () => {
   it('readouts follow clicks that only add duplicates, after the queue has run out', () => {
     installBrowserStubs();
     let rows: Stat[] = [];
-    const params: Params = { points: 20, rate: 60, distribution: 'uniform', circles: true,
+    const params: Params = { points: 20, pace: PACING.pace.max, distribution: 'uniform', circles: true,
       voronoi: false, colour: 'area', palette: 'ember' };
     const ctx: PlateContext = {
       width: 960, height: 600, params, seed: 7, rnd: mulberry32(7), theme: 'dark',

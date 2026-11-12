@@ -2,6 +2,7 @@ import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { binary, neighbourhoods, next } from './rule';
+import { Pacer, paceParam } from '../../core/pace';
 
 export const ruleWeaver: PlateCode = {
   id: 'rule-weaver',
@@ -20,12 +21,14 @@ export const ruleWeaver: PlateCode = {
         { value: 'sparse', label: 'Random, 8 %' },
       ],
     },
-    { kind: 'range', key: 'speed', label: 'Generations per frame', min: 1, max: 8, step: 1, value: 2 },
+    paceParam(),
     { kind: 'toggle', key: 'legend', label: 'Show the rule legend', value: true },
     paletteParam('riso'),
   ],
+  pace: { kind: 'stream', unit: 'generations' },
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = new Pacer('stream', 'generations', 8);
     let raster: Raster;
     let row: Uint8Array;
     let hood: Uint8Array;
@@ -44,6 +47,7 @@ export const ruleWeaver: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         cell = num(params, 'cell');
         const cols = Math.floor(ctx.width / cell);
@@ -65,7 +69,7 @@ export const ruleWeaver: PlateCode = {
       },
       draw() {
         const rule = num(params, 'rule');
-        const steps = num(params, 'speed');
+        const steps = ctx.thumbnail ? 2 : pacer.take(params);
         for (let k = 0; k < steps; k++) {
           // hood keeps the parents' neighbourhoods, so paint() colours a cell by its birth
           neighbourhoods(row, hood);
@@ -113,6 +117,7 @@ export const ruleWeaver: PlateCode = {
           { label: 'generation', value: generation.toLocaleString('en') },
           { label: 'live cells', value: `${((100 * alive) / row.length).toFixed(1)} %` },
           { label: 'width', value: `${row.length} cells (ring)` },
+          pacer.row(params),
         ]);
       },
     };

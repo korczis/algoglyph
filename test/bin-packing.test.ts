@@ -2,6 +2,7 @@
 // defining property of each heuristic replayed from its placements, and the known worst-case
 // bounds checked on random small inputs.
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { mulberry32 } from '../src/core/random';
 import { ALGORITHMS, CAPACITY, decreasing, EXACT_MAX, items, lowerBound, optimum, pack, SHAPE_LABELS, SHAPES,
   type Algorithm, type Packing } from '../src/plates/bin-packing/packing';
@@ -220,7 +221,7 @@ describe('bin packing plate', () => {
   it('runs to the end of a run and into the next one, publishing its readouts', () => {
     const rows: string[][] = [];
     const params = Object.fromEntries(binPacking.params.map((d) => [d.key, d.value]));
-    params.speed = 32;
+    params.pace = PACING.pace.max;
     const sim = binPacking.create(p5Stub(), {
       width: 390, height: 219, params, seed: 1, rnd: mulberry32(1), theme: 'dark',
       bg: [0, 0, 0], fg: [255, 255, 255], thumbnail: false,

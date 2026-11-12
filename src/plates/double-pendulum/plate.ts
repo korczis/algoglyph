@@ -22,6 +22,7 @@ export const doublePendulum: PlateCode = {
     { kind: 'toggle', key: 'trails', label: 'Trails', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
     let states: State[] = [];

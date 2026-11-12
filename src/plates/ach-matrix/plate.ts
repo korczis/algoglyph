@@ -1,3 +1,4 @@
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
@@ -17,13 +18,14 @@ export const achMatrix: PlateCode = {
     { kind: 'range', key: 'e', label: 'Items of evidence', min: 3, max: 24, step: 1, value: 12, rebuild: true },
     { kind: 'range', key: 'noise', label: 'Evidence that misleads', min: 0, max: 0.6, step: 0.05,
       value: 0.15, rebuild: true, hint: 'Chance that an item contradicts the hypothesis that is true.' },
-    { kind: 'range', key: 'speed', label: 'Items weighed per frame', min: 0.005, max: 0.5, step: 0.005,
-      value: 0.03 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New case when done', value: true },
     paletteParam('spectral'),
   ],
+  pace: { kind: 'replay', unit: 'items' },
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = new Pacer('replay', 'items', 0.5);
     let m: Matrix;
     let truth = 0;
     let shown = 0;
@@ -44,21 +46,23 @@ export const achMatrix: PlateCode = {
       acc = 0;
       hold = 0;
       edits = 0;
+      pacer.start(m.evidence.length);
     };
 
     return {
+      pace: () => pacer.report(shown === m.evidence.length, params),
       setup() {
         build();
         if (ctx.thumbnail) shown = m.evidence.length;
       },
       draw() {
         if (!ctx.thumbnail) {
-          acc += num(params, 'speed');
+          acc += pacer.perFrame(params);
           while (acc >= 1 && shown < m.evidence.length) {
             acc -= 1;
             shown++;
           }
-          if (shown === m.evidence.length && ++hold > 300 && bool(params, 'loop') && edits === 0) {
+          if (shown === m.evidence.length && ++hold > HOLD_FRAMES && bool(params, 'loop') && edits === 0) {
             generation++;
             build();
             gate.reset();
@@ -140,6 +144,7 @@ export const achMatrix: PlateCode = {
         const margin = k > 1 && shown ? scores[order[1]] - scores[order[0]] : 0;
         ctx.stats([
           { label: 'Evidence weighed', value: `${shown} of ${rows}` },
+          pacer.row(params),
           { label: 'Least contradicted', value: shown ? leaders() : '–' },
           { label: 'Lead over the runner-up', value: shown ? margin.toFixed(1) : '–' },
           { label: 'Items that fit every hypothesis alike', value: String(flatRows) },

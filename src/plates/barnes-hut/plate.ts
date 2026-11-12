@@ -122,6 +122,7 @@ export const barnesHut: PlateCode = {
     { kind: 'toggle', key: 'tree', label: 'Show tree', value: true },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
     const tree = new QuadTree();

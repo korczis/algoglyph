@@ -5,8 +5,8 @@ import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type Chart, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import { ALGORITHM_LABELS, ALGORITHMS, CAPACITY, EXACT_MAX, items, lowerBound, optimum, pack,
   SHAPE_LABELS, SHAPES, type Algorithm, type Packing, type Shape } from './packing';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
-const HOLD_FRAMES = 90;
 const fmt = (x: number) => x.toLocaleString('en-US');
 
 interface Lane {
@@ -156,28 +156,39 @@ export const binPacking: PlateCode = {
       options: SHAPES.map((s) => ({ value: s, label: SHAPE_LABELS[s] })),
     },
     { kind: 'range', key: 'n', label: 'Items to pack', min: 8, max: 256, step: 4, value: 48, rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Placements per frame', min: 1, max: 32, step: 1, value: 1 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New items when done', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'replay', unit: 'placements' },
   create(p, ctx) {
     let generation = 0;
     let hold = 0;
     const make = () => build(str(ctx.params, 'shape') as Shape, num(ctx.params, 'n'), ctx.seed + generation * 7919);
     let run = make();
+    // every lane places alike; the run lasts as long as its longest packing
+    const pacer = new Pacer('replay', 'placements', 32);
+    const paced = () => pacer.start(Math.max(0, ...run.lanes.map((l) => l.packing.placements.length)));
+    paced();
+    const params = ctx.params;
     return {
+      pace: () => pacer.report(run.lanes.every(done), params),
       setup() {
         if (ctx.thumbnail) for (const l of run.lanes) advance(l, Math.ceil(l.packing.placements.length * 0.6));
       },
       draw() {
         p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
         if (!ctx.thumbnail) {
-          if (!run.lanes.every(done)) for (const l of run.lanes) advance(l, num(ctx.params, 'speed'));
+          if (!run.lanes.every(done)) {
+            const k = pacer.take(ctx.params);
+            if (k) for (const l of run.lanes) advance(l, k);
+          }
           else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
             // a new run costs O(n · bins) fit tests at most, well inside one frame
             generation++;
             hold = 0;
             run = make();
+            paced();
           }
         }
         const W = ctx.width; const H = ctx.height;
