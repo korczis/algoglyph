@@ -52,7 +52,7 @@ claims:
     readout: Comparisons
     expect: { above: 20260 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Compute from each key its expected address in a table larger than the input and store it there; when the address is taken, shift neighbours towards the nearest empty cell so the occupied cells stay in key order; finally read the table out, skipping the gaps.

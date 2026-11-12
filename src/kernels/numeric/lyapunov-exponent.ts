@@ -129,7 +129,6 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
 export const kernel: NumericKernel = {
   params: [{ kind: 'select', key: 'system', label: 'System', value: 'lorenz', rebuild: true,
     options: Object.entries(SYSTEMS).map(([value, s]) => ({ value, label: s.label })) }],
-  rate: 30,
   thumb: 1,
   build,
   run: (inp) => drain(build(inp)),

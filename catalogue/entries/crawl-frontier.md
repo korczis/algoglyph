@@ -38,6 +38,13 @@ claims:
       frontier is exactly empty.
     readout: Frontier size
     expect: { value: 0 }
+  - id: no-host-hit-before-the-delay
+    statement: >-
+      A host may be contacted again only once the politeness delay has passed since its previous
+      fetch started, so the closest two hits on one host are at least the delay apart: the
+      closest minus the delay is at least 0 (whole milliseconds as displayed, so above −1).
+    readout: Closest two hits on one host
+    expect: { against: Politeness delay per host, above: -1 }
 ---
 
 Breadth-first discovery of pages with a per-host rate, so no server is hammered.

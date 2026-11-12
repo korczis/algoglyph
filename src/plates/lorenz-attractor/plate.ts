@@ -34,6 +34,7 @@ export const lorenzAttractor: PlateCode = {
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
     let trails: V3[][] = [];

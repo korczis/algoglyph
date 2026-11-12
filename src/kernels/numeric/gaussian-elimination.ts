@@ -118,7 +118,6 @@ export const kernel: NumericKernel = {
       options: [{ value: 'random', label: 'Random' }, { value: 'tiny-pivot', label: 'Tiny first pivot' }] },
     { kind: 'toggle', key: 'pivot', label: 'Partial pivoting', value: true, rebuild: true },
   ],
-  rate: 3,
   thumb: 0.6,
   aspect: 16 / 9,
   build,

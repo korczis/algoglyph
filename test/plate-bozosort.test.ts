@@ -3,11 +3,15 @@
 // against many seeded runs, the inversion bookkeeping against recounting, the repair's bound,
 // and the plate headless at every extreme setting.
 import { describe, expect, it } from 'vitest';
+import { calm } from '../src/core/pace';
 import plate from '../src/plates/bozosort/plate';
 import { bozoChain, bozoRun, countInversions, expectedSwaps, KERNEL_ATTEMPTS } from '../src/plates/bozosort/bozosort';
 import { input, isSorted, runSeed } from '../src/plates/_shared/sort-input/input';
 import { factorial, solve } from '../src/plates/_shared/theory/combinatorics';
 import { extremes, headless, kernelRun, lead } from './support/esoteric';
+
+/** The pace that runs `k` kernel steps a frame (the old speed select's values). */
+const steps = (k: number) => k / calm('stream');
 
 function permutationsOf(n: number): number[][] {
   if (n === 0) return [[]];
@@ -123,14 +127,15 @@ describe('bozosort theory', () => {
 describe('bozosort plate', () => {
   it('runs headless at every extreme setting', () => {
     for (const params of extremes(plate)) {
-      const h = headless(plate, { speed: '16384', ...params });
+      const h = headless(plate, { pace: steps(16384), ...params });
       h.frames(60);
       expect(Object.keys(h.stats()).length, JSON.stringify(params)).toBeGreaterThan(5);
     }
   });
 
-  it('finishes runs at its defaults and charts their mean against the chain', () => {
-    const h = headless(plate);
+  it('finishes runs at the old default of 16 steps a frame and charts their mean against the chain', () => {
+    // the old default speed: the calm default (ADR 0008) finishes a run every few seconds
+    const h = headless(plate, { pace: steps(16) });
     h.frames(2400);
     const runs = lead(h.stats()['finished runs']);
     expect(runs).toBeGreaterThan(5);

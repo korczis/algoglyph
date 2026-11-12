@@ -38,6 +38,7 @@ export const langtonTurmites: PlateCode = {
       step: 0.005, value: 0.94 },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', emergent: 'a turmite\'s pattern appears only over thousands of steps (Langton\'s highway near step 10 000): its steps per frame are the time scale of an emergent picture' },
   create(p, ctx) {
     const params = ctx.params;
     const dark = ctx.theme === 'dark';

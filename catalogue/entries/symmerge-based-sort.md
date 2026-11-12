@@ -52,7 +52,7 @@ claims:
     readout: Comparisons
     expect: { value: 637 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Mergesort whose merge works in place by recursion: Kim and Kutzner's SymMerge finds a split point placed symmetrically around the middle of the two runs by binary search, rotates the two middle pieces past each other, and merges the two smaller pairs that result in the same way.

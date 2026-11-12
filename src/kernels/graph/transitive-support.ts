@@ -17,7 +17,6 @@ export const kernel: GraphKernel<SupportResult> = {
   names: { frontier: 'Found under the conclusion', done: 'Searched', tree: 'Edges drawn thick', marked: 'Evidence on a line' },
   readouts: ['scans', 'done', 'tree', 'rounds'],
   chart: { title: 'Search, then lines of support', x: 'rounds', y: 'count', series: ['done', 'tree'] },
-  speed: 2,
   *steps(ops, { t }) {
     const g = ops.g;
     const n = g.n;

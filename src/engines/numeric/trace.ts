@@ -72,8 +72,6 @@ export interface Probe {
 export interface NumericKernel {
   params?: ParamDef[];
   aspect?: number;
-  /** Steps per second at speed 1 (default 2). */
-  rate?: number;
   /** Fraction of the run the gallery thumbnail shows (default: the last step). */
   thumb?: number;
   palette?: string;

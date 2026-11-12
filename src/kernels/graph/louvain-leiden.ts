@@ -163,7 +163,6 @@ export const kernel: GraphKernel<CommunitiesResult> = {
   names: { groups: 'Communities' },
   readouts: ['rounds', 'groups', 'modularity', 'scans'],
   chart: { title: 'Modularity, sweep by sweep', x: 'rounds', y: 'Q', series: ['modularity'] },
-  speed: 4,
   *steps(ops, { p }) {
     const g = ops.g;
     const leiden = p.method === 'leiden';

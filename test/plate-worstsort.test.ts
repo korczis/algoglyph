@@ -3,6 +3,7 @@
 // definition, the bubble sort's comparisons and swaps against what the list itself determines,
 // and the plate headless at every extreme setting.
 import { describe, expect, it } from 'vitest';
+import { calm } from '../src/core/pace';
 import plate from '../src/plates/worstsort/plate';
 import {
   bubbleCost, bubbleItems, kernelLevels, permutations, worstRun, type Val,
@@ -10,6 +11,9 @@ import {
 import { input, runSeed, SHAPES } from '../src/plates/_shared/sort-input/input';
 import { factorial } from '../src/plates/_shared/theory/combinatorics';
 import { extremes, headless, kernelRun, lead } from './support/esoteric';
+
+/** The pace that runs `k` kernel steps a frame (the old speed select's values). */
+const steps = (k: number) => k / calm('stream');
 
 /** Lerma's badsort, transcribed plainly (recursion, no generators): the independent reference. */
 function reference(keys: number[], k: number): { out: number[]; cmp: number } {
@@ -106,7 +110,7 @@ describe('worstsort levels', () => {
 describe('worstsort plate', () => {
   it('runs headless at every extreme setting and finishes a run', () => {
     for (const params of extremes(plate)) {
-      const h = headless(plate, { speed: '16384', ...params });
+      const h = headless(plate, { pace: steps(16384), ...params });
       for (let f = 0; f < 4000 && !/^[1-9]/.test(h.stats()['runs finished'] ?? ''); f++) h.frames(1);
       expect(h.stats()['runs finished'], JSON.stringify(params)).toMatch(/^[1-9].*sorted \(checked\)/);
     }
@@ -119,7 +123,7 @@ describe('worstsort plate', () => {
   });
 
   it('counts what the kernel counts on the same input', async () => {
-    const h = headless(plate, { n: 4, speed: '16384' });
+    const h = headless(plate, { n: 4, pace: steps(16384) });
     await new Promise((r) => setTimeout(r, 0));
     for (let f = 0; f < 400 && !/^[1-9]/.test(h.stats()['runs finished'] ?? ''); f++) h.frames(1);
     const s = h.stats();

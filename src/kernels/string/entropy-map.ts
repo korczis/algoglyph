@@ -10,7 +10,6 @@ const f = (c: number) => (c > 0 ? c * Math.log2(c) : 0);
 export const kernel: StringKernel<'binary', { offsets: number[]; entropy: number[] }> = {
   input: 'binary',
   counters: { update: 'Histogram updates', window: 'Windows measured' },
-  speed: 12,
   aspect: 16 / 9,
   chart: { title: 'Entropy along the file', x: 'byte offset', y: 'bits per byte' },
   params: [{

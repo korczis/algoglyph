@@ -46,7 +46,7 @@ claims:
     readout: Comparisons
     expect: { value: 508 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Map every key to a subarray of the output with a monotone function, count the hits per subarray, turn the counts into start positions (the proximity map), then insert each key into its subarray by insertion among the keys already there.

@@ -3,6 +3,7 @@ import { num, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
 import { mulberry32 } from '../../core/random';
 import { SkipList } from './skiplist';
+import { Pacer, paceParam } from '../../core/pace';
 
 type Op = 'insert' | 'search' | 'remove';
 
@@ -20,9 +21,10 @@ export const skipList: PlateCode = {
         { value: '0.25', label: '1/4' },
       ],
     },
-    { kind: 'range', key: 'speed', label: 'Operations per frame', min: 0.01, max: 2, step: 0.01, value: 0.04 },
+    paceParam(),
     paletteParam('spectral'),
   ],
+  pace: { kind: 'stream', unit: 'comparisons' },
   create(p, ctx) {
     const params = ctx.params;
     const target = num(params, 'n');
@@ -31,6 +33,7 @@ export const skipList: PlateCode = {
     const sl = new SkipList(maxLevel, prob, mulberry32(ctx.seed ^ 0x5bd1e995));
     const span = target * 4;
     let acc = 0;
+    const pacer = new Pacer('stream', 'comparisons', 32);
     let last: { op: Op; key: number; ok: boolean; path: [number, number][]; node: number; cmp: number }
       | null = null;
     let churning = false;
@@ -75,16 +78,18 @@ export const skipList: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         const first = ctx.thumbnail ? target + 6 : Math.ceil(target / 2);
         for (let k = 0; k < first; k++) operate();
       },
       draw() {
         if (!ctx.thumbnail) {
-          acc += num(params, 'speed');
+          // an operation lights its whole search path at once: it shows that many changes
+          acc += pacer.perFrame(params);
           while (acc >= 1) {
-            acc -= 1;
             operate();
+            acc -= Math.max(1, last ? last.cmp : 1);
           }
         }
         const pal = ctx.palette();
@@ -155,6 +160,7 @@ export const skipList: PlateCode = {
           { label: 'Mean comparisons per search', value: searches ? (searchCmp / searches).toFixed(2) : '–' },
           { label: 'Mean comparisons per insert', value: inserts ? (insertCmp / inserts).toFixed(2) : '–' },
           { label: 'Comparisons of the last walk', value: last ? String(last.cmp) : '–' },
+          pacer.row(params),
         ]);
         if (curve.length > 1 && gate.open()) {
           ctx.chart({

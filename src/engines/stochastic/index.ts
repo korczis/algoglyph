@@ -4,13 +4,15 @@
 // side by side on the same seed and compares one measured series of each (ADR 0004 §4-5).
 import type p5 from 'p5';
 import { paletteParam, ramp } from '../../core/palette';
-import { bool, num, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
+import { bool, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { drawPanels } from './draw';
 import { fmt } from './sample';
 import { Runner, type Frame, type StochasticKernel } from './trace';
+import { HOLD_FRAMES, Pacer, paceParam, type PaceReport } from '../../core/pace';
 
-const HOLD_FRAMES = 150;
+/** The most recorded frames a frame steps, at the pace control's top: the old slider's maximum. */
+const MAX_FRAMES_PER_FRAME = 4;
 const GENERATION = 7919;
 /** Work a replay may do per drawn frame (ms): the run advances in pieces within it. */
 export const STEP_MS = 6;
@@ -20,7 +22,7 @@ export const PIECES_PER_FRAME = 2;
 export const THUMBNAIL_MS = 25;
 
 const replayParams = (): ParamDef[] => [
-  { kind: 'range', key: 'speed', label: 'Recorded frames per frame', min: 0.05, max: 4, step: 0.05, value: 0.5 },
+  paceParam(),
   { kind: 'toggle', key: 'loop', label: 'New seed when done', value: true },
 ];
 
@@ -45,6 +47,8 @@ export class Replay {
   generation = 0;
   run: Runner;
   next: Runner | null = null;
+  /** Replayed as it is recorded: at the ceiling until the run ends, then from its length. */
+  readonly pacer = new Pacer('views', 'recorded frames', MAX_FRAMES_PER_FRAME);
   constructor(private readonly kernel: StochasticKernel, private readonly ctx: PlateContext,
     private readonly budget = STEP_MS) {
     this.run = this.build(0);
@@ -65,8 +69,9 @@ export class Replay {
   }
   tick(): void {
     if (!this.run.done) this.run.step(this.budget, PIECES_PER_FRAME);
+    if (this.pacer.length === null && this.run.done) this.pacer.known(this.last, Math.floor(this.at));
     if (!this.done) {
-      this.at = Math.min(this.last, this.at + num(this.ctx.params, 'speed'));
+      this.at = Math.min(this.last, this.at + this.pacer.take(this.ctx.params as Params));
       return;
     }
     if (!bool(this.ctx.params, 'loop')) return;
@@ -78,6 +83,7 @@ export class Replay {
       this.at = 0;
       this.run = this.next;
       this.next = null;
+      this.pacer.start();
     }
   }
 }
@@ -89,6 +95,7 @@ function plate(info: KernelInfo, kernel: StochasticKernel): PlateCode {
     aspect: 16 / 9,
     thumbnailFrames: 2,
     params: [...(kernel.params ?? []), ...replayParams(), paletteParam(kernel.palette ?? 'abyss')],
+    pace: { kind: 'views', unit: 'recorded frames' },
     create(p: p5, ctx: PlateContext) {
       const r = new Replay(kernel, ctx);
       return {
@@ -105,9 +112,11 @@ function plate(info: KernelInfo, kernel: StochasticKernel): PlateCode {
             ...f.stats,
             ...counted(f),
             { label: 'Replay', value: `frame ${fmt(Math.floor(r.at) + 1)} of ${fmt(r.last + 1)}${r.run.done ? '' : ' recorded so far'}` },
+            r.pacer.row(ctx.params),
           ]);
           ctx.chart({ ...kernel.chart, series: seriesOf(f) });
         },
+        pace: () => r.pacer.report(r.done, ctx.params),
       };
     },
   };
@@ -124,10 +133,17 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StochasticKernel }
     aspect: 4 / 3,
     thumbnailFrames: 2,
     params: [...params, ...replayParams(), paletteParam(first?.palette ?? 'abyss')],
+    pace: { kind: 'views', unit: 'recorded frames' },
     create(p, ctx) {
       // the frame's work budget is shared between the panes
       const share = kernels.length ? STEP_MS / kernels.length : STEP_MS;
       const panes = kernels.map((k) => ({ ...k, r: new Replay(k.kernel, ctx, share) }));
+      // each pane replays its own run at its own calm pace; the lab lasts as long as the
+      // slowest, the one whose length is still unknown or whose run lasts longest
+      const slowest = () => panes.map((x) => x.r).reduce((a, b) => {
+        const sa = a.pacer.seconds(ctx.params); const sb = b.pacer.seconds(ctx.params);
+        return sa === null ? a : sb === null || sb > sa ? b : a;
+      });
       return {
         setup() {
           if (ctx.thumbnail) for (const pane of panes) pane.r.settle(THUMBNAIL_MS / panes.length);
@@ -161,7 +177,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StochasticKernel }
             const f = pane.r.frame;
             const head = f.stats.slice(0, 2).map((s) => `${s.label} ${s.value}`).join(' · ');
             return { label: pane.info.title, value: `${head} · ${fmt(f.draws)} draws` };
-          }));
+          }).concat(panes.length ? [slowest().pacer.row(ctx.params)] : []));
           if (first) {
             ctx.chart({
               ...first.chart,
@@ -173,6 +189,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StochasticKernel }
             });
           }
         },
+        pace: (): PaceReport => ({ ...slowest().pacer.report(panes.every((x) => x.r.done), ctx.params) }),
       };
     },
   };

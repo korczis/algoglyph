@@ -12,7 +12,6 @@ export const kernel: GraphKernel<CyclesResult> = {
   names: { frontier: 'Grey (on the stack)', done: 'Black (finished)', marked: 'On a cycle found', tree: 'DFS tree edges' },
   readouts: ['scans', 'frontier', 'done', 'marked'],
   chart: { title: 'Grey and black vertices', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 2,
   *steps(ops) {
     const g = ops.g;
     const colour = new Array<number>(g.n).fill(0);

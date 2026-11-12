@@ -2,11 +2,15 @@
 // the repeated checks counted and charted, nothing ever written, and the plate headless at every
 // extreme setting.
 import { describe, expect, it } from 'vitest';
+import { calm } from '../src/core/pace';
 import plate from '../src/plates/miracle-sort/plate';
 import { miracleCheck } from '../src/plates/miracle-sort/miracle';
 import { items, Stepper, Tracer } from '../src/plates/_shared/kernel-mirror/tracer';
 import { input, runSeed, SHAPES } from '../src/plates/_shared/sort-input/input';
 import { extremes, headless, kernelRun, lead } from './support/esoteric';
+
+/** The pace that runs `k` kernel steps a frame (the old speed select's values). */
+const steps = (k: number) => k / calm('stream');
 
 /** Position of the first descent, counted by a plain loop (0: none). */
 function firstDescent(a: readonly number[]): number {
@@ -48,7 +52,7 @@ describe('miracle sort plate', () => {
   });
 
   it('checks again and again, the same comparisons each time, and never writes', () => {
-    const h = headless(plate, { wait: 0, speed: '256' });
+    const h = headless(plate, { wait: 0, pace: steps(256) });
     h.frames(300);
     const s = h.stats();
     const checks = lead(s.checks);
@@ -65,7 +69,7 @@ describe('miracle sort plate', () => {
   });
 
   it('on Already sorted it finishes after one check of n − 1 comparisons', () => {
-    const h = headless(plate, { shape: 'sorted', n: 40, speed: '16384' });
+    const h = headless(plate, { shape: 'sorted', n: 40, pace: steps(16384) });
     h.frames(20);
     expect(lead(h.stats().checks)).toBe(1);
     expect(lead(h.stats()['comparisons, all checks'])).toBe(39);

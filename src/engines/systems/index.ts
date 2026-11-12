@@ -5,15 +5,15 @@
 // charts are counted from the recorded trace up to the replayed time (ADR 0004 §4-5).
 import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../core/palette';
-import { bool, num, type ParamDef, type Params, type PlateCode, type PlateContext,
+import { bool, type ParamDef, type Params, type PlateCode, type PlateContext,
   type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { defaultParams, NET_PARAMS, simulate, type MarkEv, type MsgEv, type Run,
   type SystemsKernel } from './sim';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 export type { SystemsKernel } from './sim';
 
-const HOLD_FRAMES = 120;
 const fmt = (x: number, digits = 0) => (Number.isFinite(x)
   ? x.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits }) : '–');
 
@@ -80,6 +80,8 @@ class Replay {
     }
   }
   get horizon() { return this.run.span; }
+  /** What the lanes show change: messages, marks and state bands; the run's paced length. */
+  get changes() { return this.msgs.length + this.marks.length + this.segments.length; }
   get done() { return this.t >= this.horizon; }
   advanceTo(t: number) {
     this.t = Math.min(this.horizon, t);
@@ -343,18 +345,26 @@ function drawMachine(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, 
   });
 }
 
-function speedParam(horizon: number): ParamDef {
-  const v = Math.max(1, Math.round(horizon / 600));
-  return { kind: 'range', key: 'speed', label: 'Simulated ms per frame', min: 1, max: Math.max(v * 8, 20), step: 1, value: v };
+/**
+ * Simulated time runs evenly, at the rate that shows the run's visible changes (messages, marks,
+ * state bands) at its calm pace: a run of many changes is slowed until they read at most at the
+ * ceiling. The old slider's top replayed a run in about 75 frames; the pace never asks more.
+ */
+function pacerFor(changes: number): Pacer {
+  const pacer = new Pacer('replay', 'changes', Math.max(1, changes / 75));
+  pacer.start(changes);
+  return pacer;
 }
 
+/** Simulated ms one frame advances: the changes it shows, spread evenly over the run. */
+const msPerFrame = (pacer: Pacer, params: Params, horizon: number, changes: number) =>
+  (pacer.perFrame(params) * horizon) / Math.max(1, changes);
+
 function plate(info: KernelInfo, kernel: SystemsKernel): PlateCode {
-  // the default replay speed follows what a default run actually spans
-  const horizon = simulate(kernel, defaultParams(kernel), 1).span;
   const params: ParamDef[] = [
     ...(kernel.network ? NET_PARAMS : []),
     ...(kernel.params ?? []),
-    speedParam(horizon),
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New run when done', value: true },
     paletteParam('spectral'),
   ];
@@ -364,10 +374,12 @@ function plate(info: KernelInfo, kernel: SystemsKernel): PlateCode {
     aspect: 3 / 2,
     thumbnailFrames: 2,
     params,
+    pace: { kind: 'replay', unit: 'changes' },
     create(p, ctx) {
       let generation = 0;
       const build = () => new Replay(simulate(kernel, ctx.params as Params, ctx.seed + generation * 7919), kernel);
       let r = build();
+      let pacer = pacerFor(r.changes);
       let hold = 0;
       return {
         setup() {
@@ -376,11 +388,12 @@ function plate(info: KernelInfo, kernel: SystemsKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            if (!r.done) r.advanceTo(r.t + num(ctx.params, 'speed'));
+            if (!r.done) r.advanceTo(r.t + msPerFrame(pacer, ctx.params, r.horizon, r.changes));
             else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
               hold = 0;
               r = build();
+              pacer = pacerFor(r.changes);
             }
           }
           const W = ctx.width; const H = ctx.height;
@@ -396,18 +409,18 @@ function plate(info: KernelInfo, kernel: SystemsKernel): PlateCode {
               series: r.chartSeries(),
             });
           }
-          ctx.stats(readouts(r));
+          ctx.stats([...readouts(r), pacer.row(ctx.params)]);
         },
+        pace: () => pacer.report(r.done, ctx.params),
       };
     },
   };
 }
 
 function lab(id: string, kernels: { info: KernelInfo; kernel: SystemsKernel }[]): PlateCode {
-  const horizon = Math.max(...kernels.map((k) => simulate(k.kernel, defaultParams(k.kernel), 1).span));
   const params: ParamDef[] = [
     ...NET_PARAMS,
-    speedParam(horizon),
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New run when done', value: true },
     paletteParam('spectral'),
   ];
@@ -417,10 +430,15 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: SystemsKernel }[])
     aspect: 4 / 3,
     thumbnailFrames: 2,
     params,
+    pace: { kind: 'replay', unit: 'changes' },
     create(p, ctx) {
       let generation = 0;
       let panes: { info: KernelInfo; r: Replay; sent: [number, number][] }[] = [];
       let hold = 0;
+      // every pane's simulated clock runs alike, at the rate the busiest run needs
+      let pacer = pacerFor(0);
+      let span = 1;
+      let most = 1;
       const build = () => {
         panes = kernels.map(({ info, kernel }) => {
           // every kernel runs on the same network controls and seed, with its own defaults
@@ -437,6 +455,12 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: SystemsKernel }[])
           while (next <= run.span + 1e-9) { sent.push([next, n]); next += step; }
           return { info, r, sent };
         });
+        // the busiest run, in changes per simulated ms, sets the clock; the lab lasts as long as
+        // its longest run at that clock
+        const busiest = panes.reduce((a, b) => (b.r.changes / b.r.horizon > a.r.changes / a.r.horizon ? b : a));
+        span = Math.max(...panes.map((x) => x.r.horizon));
+        most = Math.round((busiest.r.changes / busiest.r.horizon) * span);
+        pacer = pacerFor(most);
       };
       build();
       return {
@@ -446,7 +470,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: SystemsKernel }[])
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            const dt = num(ctx.params, 'speed');
+            const dt = msPerFrame(pacer, ctx.params, span, most);
             for (const x of panes) if (!x.r.done) x.r.advanceTo(x.r.t + dt);
             if (panes.every((x) => x.r.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
@@ -485,8 +509,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: SystemsKernel }[])
               label: x.info.title,
               value: `${fmt(r.count('net.sent'))} sent · ${fmt(r.count('net.dropped'))} dropped${verdict}`,
             };
-          }));
+          }).concat([pacer.row(ctx.params)]));
         },
+        pace: () => pacer.report(panes.every((x) => x.r.done), ctx.params),
       };
     },
   };

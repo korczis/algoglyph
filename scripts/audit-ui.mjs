@@ -8,6 +8,9 @@
 //   - every live entry's thumbnail renders on its wing page (dark, desktop; one wait per card)
 //   - every live plate and every runnable lab mounts a canvas of non-zero size and publishes a
 //     readout
+//   - every routed figure page (ADR 0009) mounts its plate with its setup, opens on its canonical
+//     link (the seed alone: the setup is the link's base), keeps a seed it is given and shows one
+//     card per figure claim, and the figure collection and chapter indexes pass axe
 //   - every documented field an entry declares is on its page (dark desktop pass, every plate):
 //     its objectives, prerequisites, paradigm, bounds model and difficulty, and one card per
 //     claim (ADR 0007; that a claim's readout exists is test/claims.test.ts's to prove)
@@ -114,6 +117,11 @@ if (errors.length) {
 const live = model.entries.filter((e) => e.status === 'live');
 const planned = model.entries.filter((e) => e.status === 'planned');
 const labs = model.labs.filter((l) => l.entries.filter((id) => live.some((e) => e.id === id)).length >= 2);
+// figure pages exist only once their chapter is reviewed and their plate is live and tested
+const figures = (model.chapters ?? []).flatMap((c) => c.figures.filter((f) => f.routed));
+const indexes = [...new Set(figures.map((f) => f.route.split('/').slice(0, 2).join('/')))]
+  .flatMap((c) => [c, ...new Set(figures.filter((f) => f.route.startsWith(`${c}/`))
+    .map((f) => f.route.split('/').slice(0, 4).join('/')))]);
 // Waits are data (config/budgets.yaml, `browser`): they bound how long a page may take to show
 // its first picture and readout on the machine running the gate, a shared CI runner included.
 // A lab that took 45 s to show its first readout on the x86 runner, against about 2 s for its
@@ -313,10 +321,38 @@ try {
         if (i === 0) await axe(p, where);
         if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `lab-${theme}-${l.id}.png`), fullPage: false });
       }
+
+      // the figure pages: each mounts its plate with the figure's setup and reports
+      for (const [i, f] of figures.entries()) {
+        const where = `${label} figure ${f.route}`;
+        log(where);
+        const url = `${base}${f.route}?seed=4242`;
+        await p.goto(url, { waitUntil: 'load' });
+        await readout(p, where, url);
+        await overflow(p, where);
+        if (i === 0) await axe(p, where);
+        // the canonical link of a figure at its setup is its seed alone; another seed is kept
+        await p.waitForTimeout(400);
+        const hash = await p.evaluate(() => location.hash);
+        if (hash !== `${f.route}?seed=4242`) fail(where, `opened as ${hash}, not ${f.route}?seed=4242`);
+        const cards = await p.evaluate(() => document.querySelectorAll('[data-doc="figure-claim"]').length);
+        if (cards !== f.claims.length) fail(where, `${cards} figure claim card(s) for ${f.claims.length} claim(s)`);
+        await p.goto(`${base}${f.route}?seed=99`, { waitUntil: 'load' });
+        await readout(p, where, `${base}${f.route}?seed=99`);
+        if (!(await p.evaluate(() => location.hash)).endsWith('?seed=99')) fail(where, 'did not keep the seed of its link');
+        if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `figure-${theme}-${f.route.replace(/[#/]/g, '_')}.png`), fullPage: false });
+      }
+      for (const [i, route] of indexes.entries()) {
+        const where = `${label} figures ${route}`;
+        await p.goto(`${base}${route}`, { waitUntil: 'load' });
+        await p.waitForSelector('#figures-title');
+        await overflow(p, where);
+        if (i === 0) await axe(p, where);
+      }
       await context.close();
     }
   }
-  console.log(`audit-ui: ${live.length} plates, ${labs.length} lab(s), ${model.roots.length} wings, 2 themes, 2 widths`);
+  console.log(`audit-ui: ${live.length} plates, ${labs.length} lab(s), ${figures.length} figure page(s), ${model.roots.length} wings, 2 themes, 2 widths`);
 } finally {
   await browser.close();
   server.close();

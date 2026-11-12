@@ -3,6 +3,7 @@
 // reference with a statistical tolerance and a fixed seed for each id (ADR 0004 §4). A live
 // entry without a reference check fails the harness.
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { ENTRIES } from '../src/core/catalogue';
 import type p5 from 'p5';
 import type { Params, PlateContext } from '../src/core/plate';
@@ -564,7 +565,7 @@ describe('stochastic engine budgets', () => {
 
   it('prepares the next seed’s run while the finished one is held, so no frame stalls', () => {
     const k = kernelOf('bootstrap-ci');
-    const params: Params = { ...config(k), speed: 4, loop: true };
+    const params: Params = { ...config(k), pace: PACING.pace.max, loop: true };
     const ctx = { params, seed: 11 } as unknown as PlateContext;
     const r = new Replay(k, ctx);
     const first = r.run;

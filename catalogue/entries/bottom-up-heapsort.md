@@ -52,7 +52,7 @@ claims:
     readout: Comparisons
     expect: { below: 5120 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Heapsort with a cheaper sift-down: after the root is exchanged with the last key, walk down the path of larger children to a leaf with one comparison per level, then climb back up to find where the displaced key belongs.

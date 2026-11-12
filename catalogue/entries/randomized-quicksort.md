@@ -55,7 +55,7 @@ claims:
     readout: Comparisons
     expect: { value: 4946, tolerance: 1000 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Quicksort with one change: the pivot is drawn uniformly at random from the subarray being partitioned, swapped to its end, and the usual partition follows.

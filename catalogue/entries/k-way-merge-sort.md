@@ -51,7 +51,7 @@ claims:
     readout: Array writes
     expect: { value: 2560 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Split the input into k parts, sort each recursively, then merge all k at once by repeatedly taking the smallest of the k front keys from a priority queue.

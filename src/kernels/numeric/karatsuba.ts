@@ -79,7 +79,6 @@ function measureCounts(): { k: XY[]; s: XY[] } {
 export const kernel: NumericKernel = {
   params: [{ kind: 'select', key: 'n', label: 'Coefficients per factor', value: '32', rebuild: true,
     options: ['4', '8', '16', '32', '64'].map((v) => ({ value: v, label: v })) }],
-  rate: 12,
   run({ seed, params }) {
     const rnd = mulberry32(seed);
     const n = Number(params.n ?? 32);

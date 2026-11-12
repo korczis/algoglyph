@@ -8,6 +8,7 @@ import type { ScalingRun } from '../../src/plates/_shared/scaling-plate/scaling-
 import { sortingNow } from '../../src/plates/_shared/kernel-mirror/wasm';
 import { input, isSorted, runSeed, SHAPES } from '../../src/plates/_shared/sort-input/input';
 import { extremes, headless, kernelRun, lead } from './esoteric';
+import { calm } from '../../src/core/pace';
 
 export interface Subject {
   kernel: string;
@@ -64,7 +65,7 @@ export function scalingSuite(s: Subject): void {
     sortingNow();
     await new Promise((r) => setTimeout(r, 0));
     for (const params of extremes(s.plate)) {
-      const h = headless(s.plate, { speed: '16384', ...params });
+      const h = headless(s.plate, { pace: 16384 / calm('stream'), ...params });
       h.frames(40);
       const st = h.stats();
       expect(lead(st['comparisons, counted live']), JSON.stringify(params)).toBeGreaterThan(0);
@@ -75,7 +76,7 @@ export function scalingSuite(s: Subject): void {
     sortingNow();
     await new Promise((r) => setTimeout(r, 0));
     const n = s.replayMax;
-    const h = headless(s.plate, { n, speed: '16384' });
+    const h = headless(s.plate, { n, pace: 16384 / calm('stream') });
     // run 1 to its end: its readouts are the kernel's counts on the same input
     for (let f = 0; f < 4000 && !h.stats().result; f++) h.frames(1);
     const st = h.stats();

@@ -5,7 +5,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
 import { caption, drawBars, padding, slotWidth, type Box } from '../_shared/bars/bars';
-import { speedOf, speedParam } from '../_shared/kernel-mirror/controls';
+import { STEP_PACE, stepPaceParam, stepPacer } from '../_shared/kernel-mirror/controls';
 import { chartOf, fmt, Series } from '../_shared/live-chart/series';
 import { input, isSorted, runSeed, SHAPES, shapeOf, shapeParam } from '../_shared/sort-input/input';
 import { harmonic } from '../_shared/theory/combinatorics';
@@ -21,11 +21,13 @@ const stalinSort: PlateCode = {
   params: [
     { kind: 'range', key: 'n', label: 'Keys n', min: 2, max: 512, step: 1, value: 64, rebuild: true },
     shapeParam(SHAPES, 'random'),
-    speedParam(4),
+    stepPaceParam(),
     paletteParam('spectral'),
   ],
+  pace: STEP_PACE,
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = stepPacer();
     const n = num(params, 'n');
     const shape = shapeOf(params.shape);
     let k = 0;
@@ -61,6 +63,7 @@ const stalinSort: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         p.textFont('monospace');
         next();
@@ -74,7 +77,7 @@ const stalinSort: PlateCode = {
           }
         } else {
           const before = run.state.at;
-          run.stepper.advance(speedOf(params));
+          run.stepper.advance(ctx.thumbnail ? 4 : pacer.take(params));
           if (run.state.at !== before || run.stepper.done) live.push(Math.max(1, run.state.at), run.state.kept);
           if (run.stepper.done) {
             finish();
@@ -141,6 +144,7 @@ const stalinSort: PlateCode = {
         { label: 'last result', value: runs
           ? `${fmt(lastKept)} survivors, ${lastSubsequence ? 'a sorted subsequence of the input (checked)' : 'NOT a sorted subsequence'}`
           : '–' },
+        pacer.row(params),
       ]);
       ctx.chart(chartOf('Survivors along the sweep', { label: 'keys judged' }, { label: 'survivors' },
         [live, mean, theory]));

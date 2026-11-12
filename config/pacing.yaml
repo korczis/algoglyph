@@ -1,0 +1,40 @@
+# The pace every plate's default run is drawn at (ADR 0008, rule project.viz-component-layer).
+# A default animation that shows hundreds of changes a second reads as chaos (owner,
+# 2026-11-12); this file is the one place that says how calm a default is, and every engine and
+# paced plate derives its rate from it (src/core/pace.ts), never from a number of its own.
+# Enforced, counted in frames at `fps`, never timed: test/pacing.test.ts (the arithmetic and the
+# contract at every live plate's defaults) and `npm run test:pacing` (every run driven to its end).
+version: 1
+# The frame rate the contract assumes. Frames are counted; nothing here is wall-clock time.
+fps: 60
+# Seconds a finished run stays on screen before a loop starts the next one.
+hold_s: 2
+# The control every paced plate carries: a multiplier of its calm rate, on a log slider. Its top
+# is high enough that every run still replays as fast as before, clamped to each engine's own
+# per-frame maximum, so the main-thread budget's heaviest corner is unchanged.
+pace:
+  min: 0.125
+  max: 4096
+  step: 0.125
+kinds:
+  # A finite trace of counted changes replayed (array, graph, grid, tree, string, hash,
+  # geometry, systems; bespoke plates that replay a known run).
+  replay:
+    target_s: 20     # a default run is paced to last this long...
+    run_s: [10, 60]  # ...and lands in this window, unless its whole run is shorter than
+                     # run_s[0] × min_per_s changes (short by content)
+    max_per_s: 30    # the owner's ceiling: counted changes a default shows per second
+    min_per_s: 1     # a short run still moves at least this often
+    fit_s: 40        # an engine whose default input runs longer than this at the ceiling
+                     # starts from the largest smaller input that fits (src/core/pace.ts fitSize)
+  # A recorded run replayed view by view (numeric, signal, stochastic).
+  views:
+    target_s: 20
+    run_s: [10, 60]
+    max_per_s: 8
+    min_per_s: 0.5
+  # An endless run: no length, so its calm rate is the ceiling, or the calmer rate the plate
+  # declares (PaceDecl.per_s): a ceiling is a maximum, never a target. A stream whose pace is
+  # simulated time (an integrator, an emergent pattern) declares why and keeps its own controls.
+  stream:
+    max_per_s: 30

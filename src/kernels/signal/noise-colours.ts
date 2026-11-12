@@ -68,7 +68,6 @@ export function slope(psd: Float64Array, fs: number, frame: number, from = BANDS
 // Three noises from one seed: white, pink by Voss–McCartney, brown by a leaky integrator. Welch's
 // average over more and more frames shows the slopes of 0, −3 and −6 dB per octave emerge.
 export const kernel: SignalKernel = {
-  rate: 6,
   params: [{ kind: 'range', key: 'rows', label: 'Voss–McCartney rows', min: 4, max: 20, step: 1, value: 16 }],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);

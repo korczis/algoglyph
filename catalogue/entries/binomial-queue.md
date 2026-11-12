@@ -35,7 +35,7 @@ claims:
     readout: Cost per insert
     expect: { below: 1 }
     setup:
-      params: { shape: random, n: 255, speed: 2000 }
+      params: { shape: random, n: 255 }
 ---
 
 A forest of power-of-two trees that merges like binary addition.

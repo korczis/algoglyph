@@ -87,6 +87,15 @@ if (verb === 'validate') {
   }
   console.log(`catalogue: ${model.entries.length} entries (${live} live, ${model.entries.length - live} planned), `
     + `${model.roots.length} wings, ${model.nodes.length - model.roots.length} shelves, ${model.labs.length} lab(s)`);
+  // figure occurrences (ADR 0009): what is recorded, what is routed, and what waits for a review
+  for (const c of model.collections ?? []) {
+    const chapters = model.chapters.filter((x) => x.collection === c.id);
+    const figures = chapters.flatMap((x) => x.figures);
+    const waiting = chapters.filter((x) => !x.review).map((x) => x.key);
+    console.log(`catalogue: ${c.title}: ${figures.length} figure(s) in ${chapters.length} chapter(s), `
+      + `${figures.filter((f) => f.routed).length} routed`
+      + (waiting.length ? `; awaiting a source review: ${waiting.join(', ')}` : ''));
+  }
   if (stale) die(1, `${stale} derived plan file(s) are stale; run npm run catalogue -- plan --write`);
 } else if (verb === 'stats') {
   const model = load();

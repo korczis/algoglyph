@@ -4,6 +4,7 @@
 // every input shape the kernel accepts, at several sizes and seeds (ADR 0004 §4).
 import type p5 from 'p5';
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { ENTRIES } from '../src/core/catalogue';
 import { GROUNDS, palette } from '../src/core/palette';
 import type { Params, PlateContext } from '../src/core/plate';
@@ -902,7 +903,7 @@ describe('graph plates', () => {
       const code = engine.plate({ id: e.id, title: e.title, group: e.taxonomy }, kernelOf(e.id));
       const params: Params = {};
       for (const d of code.params) params[d.key] = d.value;
-      params.speed = 2000;
+      params.pace = PACING.pace.max;
       const ctx = fakeContext(params, 7);
       const sim = code.create(fakeP5(), ctx);
       sim.setup();
@@ -923,7 +924,8 @@ describe('graph plates', () => {
     const sim = code.create(fakeP5(), ctx);
     sim.setup();
     for (let f = 0; f < 40; f++) sim.draw();
-    expect(ctx.rows).toBe(ids.length);
+    // a row per pane, and the lab's pace
+    expect(ctx.rows).toBe(ids.length + 1);
   });
 });
 

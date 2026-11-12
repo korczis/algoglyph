@@ -58,7 +58,6 @@ export function simulate(n: number, K: number, width: number, steps: number, see
 // Phase oscillators pulled toward the population's mean phase; above the critical coupling a
 // cluster locks and the order parameter r rises from the incoherent level of about 1/√N.
 export const kernel: SignalKernel = {
-  rate: 20,
   aspect: 16 / 9,
   params: [
     { kind: 'range', key: 'n', label: 'Oscillators', min: 16, max: 512, step: 16, value: 192, rebuild: true },

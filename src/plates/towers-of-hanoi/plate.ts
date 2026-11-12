@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { apply, hanoi, pegs, type Move } from './hanoi';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 export const towersOfHanoi: PlateCode = {
   id: 'towers-of-hanoi',
@@ -9,10 +10,11 @@ export const towersOfHanoi: PlateCode = {
   thumbnailFrames: 30,
   params: [
     { kind: 'range', key: 'n', label: 'Discs', min: 1, max: 14, step: 1, value: 6, rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Moves per frame', min: 0.01, max: 4, step: 0.01, value: 0.06 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'Start again when done', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'replay', unit: 'moves' },
   create(p, ctx) {
     const params = ctx.params;
     let n = 6;
@@ -24,6 +26,8 @@ export const towersOfHanoi: PlateCode = {
     let deepest = 0;
     let hold = 0;
     const perDisc: number[] = [];
+    // each move is tweened over the frames its share of the pace gives it
+    const pacer = new Pacer('replay', 'moves', 4);
 
     const build = () => {
       n = num(params, 'n');
@@ -35,6 +39,7 @@ export const towersOfHanoi: PlateCode = {
       deepest = 0;
       hold = 0;
       perDisc.length = 0;
+      pacer.start(2 ** n - 1);
       for (let d = 0; d <= n; d++) perDisc.push(0);
     };
     const take = (): boolean => {
@@ -52,6 +57,7 @@ export const towersOfHanoi: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(done === 2 ** n - 1, params),
       setup() {
         build();
         if (ctx.thumbnail) {
@@ -64,7 +70,7 @@ export const towersOfHanoi: PlateCode = {
       draw() {
         const total = 2 ** n - 1;
         if (!ctx.thumbnail) {
-          let budget = num(params, 'speed');
+          let budget = pacer.perFrame(params);
           while (budget > 0) {
             if (!current && !take()) break;
             const use = Math.min(budget, 1 - phase);
@@ -75,7 +81,7 @@ export const towersOfHanoi: PlateCode = {
               phase = 0;
             }
           }
-          if (done === total && ++hold > 150 && bool(params, 'loop')) build();
+          if (done === total && ++hold > HOLD_FRAMES && bool(params, 'loop')) build();
         }
         const pal = ctx.palette();
         const pad = Math.max(12, ctx.width * 0.03);
@@ -135,6 +141,7 @@ export const towersOfHanoi: PlateCode = {
           { label: 'Moves of the smallest disc', value: perDisc[1] ? perDisc[1].toLocaleString('en') : '0' },
           { label: 'Moves of the largest disc', value: String(perDisc[n] ?? 0) },
           { label: 'Deepest call so far', value: String(deepest) },
+          pacer.row(params),
         ]);
       },
     };

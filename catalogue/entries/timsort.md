@@ -60,7 +60,7 @@ claims:
     readout: Comparisons
     expect: { below: 2304 }
     setup:
-      params: { shape: nearly-sorted, n: 512, speed: 2000 }
+      params: { shape: nearly-sorted, n: 512 }
 ---
 
 Tim Peters's adaptive, stable natural mergesort: one left-to-right pass finds runs (reversing strictly descending ones), extends short runs to a minimum length with binary insertion, pushes them on a stack and merges neighbours whenever the stack's lengths break an invariant; merges gallop past long stretches won by one run.

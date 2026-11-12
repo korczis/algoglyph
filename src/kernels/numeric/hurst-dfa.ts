@@ -150,7 +150,6 @@ export const kernel: NumericKernel = {
       options: [{ value: 'white', label: 'White noise' }, { value: 'fgn-0.8', label: 'Persistent noise, H 0.8' },
         { value: 'fgn-0.3', label: 'Anti-persistent noise, H 0.3' }, { value: 'walk', label: 'Random walk' }] },
   ],
-  rate: 1.5,
   thumb: 0.5,
   build,
   run: (inp) => drain(build(inp)),

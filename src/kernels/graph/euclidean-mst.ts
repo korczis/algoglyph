@@ -13,7 +13,6 @@ export const kernel: GraphKernel<MstResult> = {
   ...MST_VIEW,
   view: { colour: 'group', hidden: true },
   names: { tree: 'Tree edges', groups: 'Fragments' },
-  speed: 2,
   *steps(ops) {
     const g = ops.g;
     const id = new Map<number, number>();

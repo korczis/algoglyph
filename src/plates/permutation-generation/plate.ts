@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { permutations, type Method, type Step } from './perm';
+import { Pacer, paceParam } from '../../core/pace';
 
 function factorial(n: number): number {
   let f = 1;
@@ -22,15 +23,17 @@ export const permutationGeneration: PlateCode = {
         { value: 'johnson-trotter', label: 'Johnson–Trotter (neighbours only)' },
       ],
     },
-    { kind: 'range', key: 'speed', label: 'Permutations per frame', min: 0.1, max: 120, step: 0.1,
-      value: 1 },
+    paceParam(),
     // the picture is painted once, column by column, so a new palette repaints it from the start
     { ...paletteParam('spectral'), rebuild: true },
   ],
+  pace: { kind: 'replay', unit: 'permutations' },
   create(p, ctx) {
     const params = ctx.params;
     const n = num(params, 'n');
     const total = factorial(n);
+    const pacer = new Pacer('replay', 'permutations', 120);
+    pacer.start(total);
     const gen = permutations(n, str(params, 'method') as Method);
     const seen = new Set<string>();
     let made = 0;
@@ -90,6 +93,7 @@ export const permutationGeneration: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(made >= total, params),
       setup() {
         p.background(...ctx.bg);
         layout();
@@ -97,7 +101,7 @@ export const permutationGeneration: PlateCode = {
       },
       draw() {
         if (ctx.thumbnail) return;
-        acc += num(params, 'speed');
+        acc += pacer.perFrame(params);
         while (acc >= 1) {
           acc -= 1;
           if (!next()) break;
@@ -109,6 +113,7 @@ export const permutationGeneration: PlateCode = {
           { label: 'Exchanges', value: exchanges.toLocaleString('en') },
           { label: 'Of them between neighbours', value: adjacent.toLocaleString('en') },
           { label: 'Widest exchange (positions apart)', value: String(longest) },
+          pacer.row(params),
         ]);
       },
     };

@@ -46,7 +46,7 @@ claims:
     readout: Comparisons
     expect: { above: 1708 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Classify every key into one of m classes by linear interpolation between the minimum and the maximum, count the classes, permute the keys into their classes in place by following cycles, and finish the nearly sorted result with insertion sort.

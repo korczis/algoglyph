@@ -115,7 +115,6 @@ const mag = (h: ArrayLike<number>, n: number, meter?: Meter) => {
 // filter collapses the recording into the linear impulse response, with the distortion's own
 // response arriving L·ln 2 earlier.
 export const kernel: SignalKernel = {
-  rate: 8,
   params: [
     { kind: 'range', key: 'nl', label: 'Second-order distortion', min: 0, max: 0.4, step: 0.02, value: 0.12 },
     { kind: 'range', key: 'snr', label: 'Recording SNR (dB)', min: 0, max: 80, step: 5, value: 50 },

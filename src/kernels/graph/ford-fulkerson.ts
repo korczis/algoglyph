@@ -10,7 +10,6 @@ export const kernel: GraphKernel<FlowResult> = {
   ...FLOW_VIEW,
   readouts: ['flow', 'rounds', 'scans', 'flows'],
   chart: { title: 'Flow value per augmentation', x: 'rounds', y: 'flow', series: ['flow'] },
-  speed: 3,
   *steps(ops, { s, t }) {
     return yield* augmentingPaths(ops, s, t, 'dfs');
   },

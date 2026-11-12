@@ -2,6 +2,10 @@
 // play and the probe being made; below, every probe ever made, placed at its key's position and
 // its step in the search, joined to the probe after it. For binary search that map is the
 // implicit decision tree; for interpolation search it shows how far each guess lands.
+import { Pacer, paceParam, type PaceDecl } from '../../../core/pace';
+
+/** One probe every four frames, as before ADR 0008: a stream may run below its ceiling, never faster. */
+const SEARCH_PACE = { kind: 'stream', unit: 'probes', per_s: 15 } satisfies PaceDecl;
 import { mix, paletteParam, ramp } from '../../../core/palette';
 import { num, str, type PlateCode } from '../../../core/plate';
 import { chartGate } from '../publish';
@@ -61,12 +65,14 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
       },
       { kind: 'range', key: 'hit', label: 'Share of searches for a present key', min: 0, max: 1,
         step: 0.05, value: 0.75 },
-      { kind: 'range', key: 'speed', label: 'Probes per frame', min: 0.05, max: 30, step: 0.05,
-        value: 0.25 },
+      paceParam(),
       paletteParam(o.palette),
     ],
+    pace: SEARCH_PACE,
     create(p, ctx) {
       const params = ctx.params;
+      // an endless stream of searches, one probe a change, at a stream's calm rate
+      const pacer = new Pacer('stream', 'probes', 30, SEARCH_PACE.per_s);
       let keys: number[] = [];
       let present = new Set<number>();
       let current: { key: number; r: Result; shown: number } | null = null;
@@ -103,6 +109,7 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
       };
 
       return {
+        pace: () => pacer.report(false, params),
         setup() {
           keys = sortedKeys(num(params, 'n'), str(params, 'spread') as Spread, ctx.rnd);
           present = new Set(keys);
@@ -118,7 +125,7 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
         },
         draw() {
           if (!ctx.thumbnail) {
-            acc += num(params, 'speed');
+            acc += pacer.perFrame(params);
             while (acc >= 1) {
               acc -= 1;
               if (!current) begin();
@@ -211,7 +218,7 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
                 + 'unmapped points not drawn)' : String(map.points) },
           ];
           if (o.compare) rows.push({ label: `Mean probes, ${o.compare.name} on the same keys`, value: mean(other) });
-          ctx.stats(rows);
+          ctx.stats([...rows, pacer.row(params)]);
           if (curve.length > 1 && gate.open()) {
             const series = [{ name: o.name, points: curve.slice() }];
             if (o.compare) series.push({ name: o.compare.name, points: curveOther.slice() });

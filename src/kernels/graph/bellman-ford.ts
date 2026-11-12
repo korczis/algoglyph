@@ -16,7 +16,6 @@ export const kernel: GraphKernel<BellmanResult> = {
   names: { done: 'Reached', tree: 'Shortest-path tree', value: 'Distance', marked: 'On the negative cycle' },
   readouts: ['relaxations', 'rounds', 'done', 'change'],
   chart: { title: 'Distance improvements per round', x: 'rounds', y: 'total decrease', series: ['change'] },
-  speed: 6,
   *steps(ops, { s }) {
     const g = ops.g;
     const dist = new Array<number>(g.n).fill(Infinity);

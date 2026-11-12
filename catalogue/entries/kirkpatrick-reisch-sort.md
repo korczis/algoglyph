@@ -48,7 +48,7 @@ claims:
     readout: Comparisons
     expect: { value: 1019 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Sort b-bit integers by range reduction: split every key into its high and low halves, group the keys by high half, and reduce the problem in linear time to sorting n keys of b/2 bits; repeat until the keys are short enough for a counting sort.

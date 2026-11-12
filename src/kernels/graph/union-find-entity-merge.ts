@@ -17,7 +17,6 @@ export const kernel: GraphKernel<MergeResult> = {
   names: { groups: 'Clusters', tree: 'Merging matches' },
   readouts: ['scans', 'tree', 'groups'],
   chart: { title: 'Clusters as matches are merged', y: 'count', series: ['groups', 'tree'] },
-  speed: 1,
   *steps(ops, { p }) {
     const g = ops.g;
     const th = Number(p.threshold);

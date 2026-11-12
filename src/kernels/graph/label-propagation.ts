@@ -15,7 +15,6 @@ export const kernel: GraphKernel<LabelsResult> = {
   names: { groups: 'Labels in use' },
   readouts: ['rounds', 'groups', 'modularity', 'scans'],
   chart: { title: 'Labels in use', x: 'rounds', y: 'labels', series: ['groups'] },
-  speed: 6,
   *steps(ops) {
     const g = ops.g;
     const label = Array.from({ length: g.n }, (_, v) => v);

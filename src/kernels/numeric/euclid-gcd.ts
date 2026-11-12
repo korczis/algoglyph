@@ -56,7 +56,6 @@ export const kernel: NumericKernel = {
       options: [{ value: 'random', label: 'Random pair' }, { value: 'common', label: 'Random pair with a common factor' }, { value: 'fibonacci', label: 'Consecutive Fibonacci numbers' }] },
     { kind: 'range', key: 'digits', label: 'Digits', min: 2, max: 7, step: 1, value: 4, rebuild: true },
   ],
-  rate: 1.2,
   aspect: 16 / 9,
   run({ seed, params }) {
     const rnd = mulberry32(seed);

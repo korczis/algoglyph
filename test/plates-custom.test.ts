@@ -1,5 +1,6 @@
 import type p5 from 'p5';
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { PALETTES } from '../src/core/palette';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32, shuffle } from '../src/core/random';
@@ -525,8 +526,9 @@ describe('custom plates run headless', () => {
       expect(code.id).toBe(id);
       for (const [thumbnail, fastest] of [[true, false], [false, false], [false, true]]) {
         const { ctx, params, stats } = context(code, thumbnail, 42);
-        // the fastest setting exercises the most steps per frame
-        if (fastest) for (const d of code.params) if (d.kind === 'range' && d.key === 'speed') params.speed = d.max;
+        // the fastest setting exercises the most steps per frame: the pace control's top, or an
+        // emergent stream's own rate control
+        if (fastest) for (const d of code.params) if (d.kind === 'range' && (d.key === 'pace' || d.key === 'speed')) params[d.key] = d.max;
         const sim = code.create(stub, ctx);
         sim.setup();
         for (let f = 0; f < (thumbnail ? (code.thumbnailFrames ?? 90) : 400); f++) {
@@ -586,7 +588,7 @@ describe('ruler readouts', () => {
     for (const d of code.params) params[d.key] = d.value;
     params.order = order;
     params.n = 5;
-    params.speed = 8;
+    params.pace = PACING.pace.max;
     params.loop = false;
     const stats: Stat[][] = [];
     const ctx: PlateContext = {
@@ -644,7 +646,7 @@ describe('chart gate and restarts', () => {
 
   it('a looped merge replaces the last run\'s chart with the new, empty one', async () => {
     const code = (await import('../src/plates/balanced-multiway-merge/plate')).default;
-    const { sim, charts } = mount(code, { records: 20, memory: 4, ways: 2, speed: 60, loop: true });
+    const { sim, charts } = mount(code, { records: 20, memory: 4, ways: 2, pace: PACING.pace.max, loop: true });
     let restartAt = -1;
     for (let f = 0; f < 400 && restartAt < 0; f++) {
       const before = charts.length;
@@ -657,7 +659,7 @@ describe('chart gate and restarts', () => {
 
   it('a looped ACH case survives a change of size without a remount and clears its chart', async () => {
     const code = (await import('../src/plates/ach-matrix/plate')).default;
-    const { sim, params, charts } = mount(code, { e: 12, h: 5, speed: 0.5, loop: true });
+    const { sim, params, charts } = mount(code, { e: 12, h: 5, pace: PACING.pace.max, loop: true });
     for (let f = 0; f < 40; f++) sim.draw();
     params.e = 3;
     params.h = 2;

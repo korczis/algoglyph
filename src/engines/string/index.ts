@@ -6,12 +6,16 @@ import type p5 from 'p5';
 import { paletteParam } from '../../core/palette';
 import { bool, num, str, type Chart, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
-import { Board, drawBoard } from './board';
+import { Board, drawBoard, type StepUnit } from './board';
 import { input, KINDS, type InputKind } from './inputs';
 import { Recording, traceSteps, work, type StringKernel } from './trace';
 import { count } from '../../core/format';
+import { fits, HOLD_FRAMES, Pacer, paceParam, PACING } from '../../core/pace';
 
-const HOLD_FRAMES = 120;
+/** A run paced by its notes has at least as many as a run at the floor rate fills its window with. */
+const MIN_NOTES = PACING.kinds.replay.run_s[0] * PACING.kinds.replay.min_per_s;
+/** The per-frame maximum the old steps slider allowed: the pace never asks more. */
+const MAX_STEPS_PER_FRAME = 2000;
 /**
  * Work per frame, in recorded events: a recording resumes until RECORD_EVENTS more are recorded
  * (a kernel pauses at least every STEP_EVENTS), and a replay applies at most REPLAY_EVENTS,
@@ -44,8 +48,8 @@ function inputParams(kind: InputKind, k: StringKernel, labMax?: number): ParamDe
   return out;
 }
 
-const tail = (k: StringKernel): ParamDef[] => [
-  { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 2000, step: 1, value: k.speed ?? 3 },
+const tail = (): ParamDef[] => [
+  paceParam(),
   { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
   paletteParam('spectral'),
 ];
@@ -82,15 +86,30 @@ function plate(info: KernelInfo, kernel: StringKernel): PlateCode {
     mode: '2d',
     aspect: kernel.aspect ?? 4 / 3,
     thumbnailFrames: 2,
-    params: [...inputParams(kernel.input, kernel), ...(kernel.params ?? []), ...tail(kernel)],
+    params: [...inputParams(kernel.input, kernel), ...(kernel.params ?? []), ...tail()],
+    pace: { kind: 'replay', unit: 'steps, or notes for a long run' },
     create(p: p5, ctx) {
+      // recorded before it replays: the run's length is known when its board is taken
+      const pacer = new Pacer('replay', 'steps', MAX_STEPS_PER_FRAME);
       // the run is recorded across frames (RECORD_EVENTS each), the first one before anything is
       // shown and each new input while the finished board is held on screen
       let generation = 0;
       let b: Board | null = null;
       let next: Recording | null = record(kernel, ctx, generation);
       let hold = 0;
-      const take = () => { b = new Board(next!.trace!); next = null; hold = 0; };
+      let unit: StepUnit = 'cost';
+      const take = () => {
+        b = new Board(next!.trace!);
+        next = null;
+        hold = 0;
+        // a run of too many costed events to watch is paced by its notes, the kernel's own
+        // narrative steps (a window measured, an EM iteration), when it has enough of them
+        const cost = b.steps('cost');
+        const notes = b.steps('note');
+        unit = !fits('replay', cost) && notes >= MIN_NOTES ? 'note' : 'cost';
+        pacer.unit = unit === 'note' ? 'notes' : 'steps';
+        pacer.start(unit === 'note' ? notes : cost);
+      };
       return {
         setup() {
           if (ctx.thumbnail) { next!.pump(Infinity); take(); b!.seek(0.45); }
@@ -102,7 +121,10 @@ function plate(info: KernelInfo, kernel: StringKernel): PlateCode {
             const ready = next?.done ?? false;
             if (!ready) next?.pump(RECORD_EVENTS);
             if (!b) { if (ready) take(); }
-            else if (!b.done) b.advance(num(ctx.params, 'speed'), false, REPLAY_EVENTS);
+            else if (!b.done) {
+              const k = pacer.take(ctx.params);
+              if (k) b.advance(k, unit, REPLAY_EVENTS);
+            }
             else if (bool(ctx.params, 'loop')) {
               if (!next && hold === 0) next = record(kernel, ctx, ++generation);
               if (++hold > HOLD_FRAMES && ready) take();
@@ -114,9 +136,11 @@ function plate(info: KernelInfo, kernel: StringKernel): PlateCode {
           const rows: Stat[] = [...counterStats(b), ...[...b.stats].map(([label, value]) => ({ label, value }))];
           rows.push({ label: 'Progress', value: `${Math.round((100 * b.at) / Math.max(1, b.t.events.length))}% of ${fmt(b.t.events.length)} events` });
           if (b.t.truncated) rows.push({ label: 'Run', value: 'stopped at the event cap' });
+          rows.push(pacer.row(ctx.params));
           ctx.stats(rows);
           ctx.chart(chartOf(kernel, b));
         },
+        pace: () => pacer.report(b !== null && b.done, ctx.params),
       };
     },
   };
@@ -131,8 +155,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
     mode: '2d',
     aspect: 4 / 3,
     thumbnailFrames: 2,
-    params: [...inputParams(kind, first, 512), ...tail({ ...first, speed: 2 })],
+    params: [...inputParams(kind, first, 512), ...tail()],
+    pace: { kind: 'replay', unit: 'ticks' },
     create(p, ctx) {
+      // one pace for every pane, from the longest run in ticks: the same ticks per frame each
+      const pacer = new Pacer('replay', 'ticks', MAX_STEPS_PER_FRAME);
       let generation = 0;
       let panes: { info: KernelInfo; kernel: StringKernel; b: Board; finished: number }[] = [];
       const curves = same.map((k) => ({ info: k.info, pts: [] as [number, number][], slope: NaN }));
@@ -151,6 +178,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
         hold = 0;
         panes = same.map((k, i) => ({ ...k, b: new Board(incoming![i].trace!), finished: 0 }));
         incoming = null;
+        pacer.start(Math.max(0, ...panes.map((x) => x.b.steps('tick'))));
       };
       /** Resume the incoming runs, one after another, for `events` recorded events in all. */
       const pumpIncoming = (events: number): boolean => {
@@ -189,10 +217,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
             measure();
-            const steps = num(ctx.params, 'speed');
+            const steps = panes.some((x) => !x.b.done) ? pacer.take(ctx.params) : 0;
             for (const pane of panes) {
-              if (!pane.b.done) {
-                pane.b.advance(steps, true, REPLAY_EVENTS / panes.length);
+              if (!pane.b.done && steps) {
+                pane.b.advance(steps, 'tick', REPLAY_EVENTS / panes.length);
                 if (pane.b.done) pane.finished = ++finishedCount;
               }
             }
@@ -236,8 +264,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: StringKernel }[]):
               label: pane.info.title,
               value: `${c} · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
             };
-          }));
+          }).concat([pacer.row(ctx.params)]));
         },
+        pace: () => pacer.report(panes.length > 0 && panes.every((x) => x.b.done), ctx.params),
       };
     },
   };

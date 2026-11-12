@@ -117,8 +117,6 @@ export interface GraphKernel<R = unknown> {
   names?: { frontier?: string; done?: string; marked?: string; tree?: string; groups?: string; value?: string; total?: string };
   readouts?: ReadoutKey[];
   chart?: { title: string; y: string; x?: 'ops' | 'rounds'; series: SeriesKey[]; log?: boolean };
-  /** Events replayed per frame by default. */
-  speed?: number;
   /** Mark the source (circled), the target (boxed) or both on the drawing. */
   endpoints?: 's' | 't' | 'st';
   /**

@@ -10,8 +10,10 @@ import { drawArray, drawOutputs, drawScene, Motion, Replay, shape, type Box } fr
 import { costOf, MAX_SYMBOLS, NIL, opGroups, SHAPES, trace, workload, type InputKind, type OpKind, type Trace,
   type TreeKernel } from './trace';
 import { count } from '../../core/format';
+import { downFrom, fitSize, HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
-const HOLD_FRAMES = 120;
+/** The per-frame maximum the old steps slider allowed: the pace never asks more. */
+const MAX_STEPS_PER_FRAME = 2000;
 const SCALING_N = [16, 32, 64, 128, 256, 512, 1024];
 const LAB_MAX_N = 128;
 const fmt = count;
@@ -31,7 +33,7 @@ function baseParams(kind: InputKind, extra: ParamDef[] = [], n?: number): ParamD
     { kind: 'select', key: 'shape', label: 'Input', value: SHAPES[kind][0].value, rebuild: true, options: SHAPES[kind] },
     { kind: 'range', key: 'n', label: sz.label, min: sz.min, max: sz.max, step: 1, value: n ?? sz.value, rebuild: true },
     ...extra,
-    { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 2000, step: 1, value: 3 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
     paletteParam('spectral'),
   ];
@@ -159,9 +161,12 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
     aspect: 16 / 9,
     thumbnailFrames: 2,
     params: baseParams(kernel.input, kernel.params),
+    pace: { kind: 'replay', unit: 'steps' },
     create(p, ctx) {
       let generation = 0;
       let r = new Replay(run(kernel, ctx, generation), kernel);
+      const pacer = new Pacer('replay', 'steps', MAX_STEPS_PER_FRAME);
+      pacer.start(r.t.events.length);
       let m = new Motion();
       let hold = 0;
       const digitsWord = kernel.input === 'words' ? 'character tests' : 'bit tests';
@@ -174,11 +179,14 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            if (!r.done) r.advance(num(ctx.params, 'speed'));
-            else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
+            if (!r.done) {
+              const k = pacer.take(ctx.params);
+              if (k) r.advance(k);
+            } else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
               hold = 0;
               r = new Replay(run(kernel, ctx, generation), kernel);
+              pacer.start(r.t.events.length);
               m = new Motion();
             }
           }
@@ -215,6 +223,7 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
           if (r.done && ['bst', 'avl', 'red-black', 'traversal'].includes(kernel.structure)) {
             rows.push({ label: 'Result', value: inorderOK(r) ? 'in-order ascending, verified' : 'NOT in order' });
           }
+          rows.push(pacer.row(ctx.params));
           ctx.stats(rows);
           const h = r.history;
           ctx.chart({
@@ -228,9 +237,19 @@ function plate(info: KernelInfo, kernel: TreeKernel): PlateCode {
             ],
           });
         },
+        pace: () => pacer.report(r.done, ctx.params),
       };
     },
   };
+}
+
+/** The lab's default n: `want`, or the largest smaller one whose longest run fits the calm window. */
+function labN(kernels: TreeKernel[], kind: InputKind, want: number): number {
+  const length = (n: number) => Math.max(0, ...kernels.map((k) => {
+    const opts = optsOf(k, Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value])));
+    return trace(k, workload(kind, SHAPES[kind][0].value, n, 4242, opts)).events.length;
+  }));
+  return fitSize('replay', downFrom(want, SIZE[kind].min, 4), length);
 }
 
 function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): PlateCode {
@@ -241,8 +260,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
       kind: 'select', key: 'group', label: 'Compare', value: 'all', rebuild: true,
       options: [{ value: 'all', label: 'All kernels' }, ...groups.map((g) => ({ value: g, label: g }))],
     },
-    // every pane replays a recorded trace, so the lab keeps n where a quadratic case stays light
-    ...baseParams(kind, [], kind === 'pairs' ? 32 : 40)
+    // every pane replays a recorded trace, so the lab keeps n where a quadratic case stays light,
+    // and no larger than its longest run can be watched at the calm pace (config/pacing.yaml)
+    ...baseParams(kind, [], labN(kernels.map((k) => k.kernel), kind, kind === 'pairs' ? 32 : 40))
       .map((d) => (d.key === 'n' && d.kind === 'range' ? { ...d, max: Math.min(d.max, LAB_MAX_N) } : d)),
   ];
   return {
@@ -251,8 +271,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
     aspect: 4 / 3,
     thumbnailFrames: 2,
     params,
+    pace: { kind: 'replay', unit: 'steps' },
     create(p, ctx) {
       let generation = 0;
+      // one pace for every pane, from the longest run: the same steps per frame each
+      const pacer = new Pacer('replay', 'steps', MAX_STEPS_PER_FRAME);
       let panes: { info: KernelInfo; kernel: TreeKernel; r: Replay; m: Motion; finished: number }[] = [];
       let curves: { info: KernelInfo; pts: [number, number][]; heights: [number, number][]; steps: number[];
         stopped: number; why: string }[] = [];
@@ -266,6 +289,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
       const build = () => {
         finishedCount = 0;
         panes = chosen().map((k) => ({ ...k, r: new Replay(run(k.kernel, ctx, generation), k.kernel), m: new Motion(), finished: 0 }));
+        pacer.start(Math.max(0, ...panes.map((x) => x.r.t.events.length)));
         if (generation === 0) {
           curves = chosen().map((k) => ({ info: k.info, pts: [], heights: [], steps: [], stopped: 0, why: '' }));
           pending = SCALING_N.flatMap((n) => curves.map((_, ci) => [ci, n] as [number, number]));
@@ -299,9 +323,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
             measure();
-            const steps = num(ctx.params, 'speed');
+            const steps = panes.some((x) => !x.r.done) ? pacer.take(ctx.params) : 0;
             for (const pane of panes) {
-              if (!pane.r.done) {
+              if (!pane.r.done && steps) {
                 pane.r.advance(steps);
                 if (pane.r.done) pane.finished = ++finishedCount;
               }
@@ -363,8 +387,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: TreeKernel }[]): P
                 + (cv?.stopped ? ` · curve stops before n=${cv.stopped}: ${cv.why} the per-frame budget` : '')
                 + (pane.finished ? ` · finished #${pane.finished}` : ''),
             };
-          }));
+          }).concat([pacer.row(ctx.params)]));
         },
+        pace: () => pacer.report(panes.length > 0 && panes.every((x) => x.r.done), ctx.params),
       };
     },
   };

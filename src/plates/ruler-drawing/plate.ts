@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { recursive, ruler, type Mark, type Order } from './ruler';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 export const rulerDrawing: PlateCode = {
   id: 'ruler-drawing',
@@ -18,10 +19,11 @@ export const rulerDrawing: PlateCode = {
         { value: 'bottom-up', label: 'Bottom-up: all short marks first' },
       ],
     },
-    { kind: 'range', key: 'speed', label: 'Marks per frame', min: 0.05, max: 8, step: 0.05, value: 0.4 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'Start again when done', value: true },
     paletteParam('spectral'),
   ],
+  pace: { kind: 'replay', unit: 'marks' },
   create(p, ctx) {
     const params = ctx.params;
     let n = 6;
@@ -33,6 +35,7 @@ export const rulerDrawing: PlateCode = {
     let acc = 0;
     let hold = 0;
     let maxDepth = 0;
+    const pacer = new Pacer('replay', 'marks', 8);
 
     const build = () => {
       n = num(params, 'n');
@@ -43,6 +46,7 @@ export const rulerDrawing: PlateCode = {
       acc = 0;
       hold = 0;
       maxDepth = 0;
+      pacer.start(2 ** n - 1);
     };
     const next = (): boolean => {
       const r = gen.next();
@@ -57,6 +61,7 @@ export const rulerDrawing: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(marks.length === 2 ** n - 1, params),
       setup() {
         build();
         if (ctx.thumbnail) while (next());
@@ -64,12 +69,12 @@ export const rulerDrawing: PlateCode = {
       draw() {
         const total = 2 ** n - 1;
         if (!ctx.thumbnail) {
-          acc += num(params, 'speed');
+          acc += pacer.perFrame(params);
           while (acc >= 1) {
             acc -= 1;
             if (!next()) break;
           }
-          if (marks.length === total && ++hold > 150 && bool(params, 'loop')) build();
+          if (marks.length === total && ++hold > HOLD_FRAMES && bool(params, 'loop')) build();
         }
         const pal = ctx.palette();
         const pad = Math.max(14, ctx.width * 0.04);
@@ -128,12 +133,14 @@ export const rulerDrawing: PlateCode = {
               : { label: 'Calls made so far', value: last ? last.calls.toLocaleString('en') : '0' },
             { label: 'Recursion depth now', value: last ? String(last.depth) : '–' },
             { label: 'Deepest recursion seen', value: String(maxDepth) },
+            pacer.row(params),
           ]);
         } else {
           // the bottom-up version makes no calls and keeps no stack: one pass per height
           ctx.stats([
             { label: 'Marks drawn', value: `${marks.length} of ${total}` },
             { label: 'Height being drawn', value: last ? `${last.h} of ${n}` : '–' },
+            pacer.row(params),
           ]);
         }
       },

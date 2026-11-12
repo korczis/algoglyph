@@ -27,6 +27,7 @@ export const grayScott: PlateCode = {
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 14 },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'stream', emergent: 'a reaction-diffusion integrator: its steps per frame set simulated time per frame' },
   create(p, ctx) {
     const params = ctx.params;
     let fl: Field;

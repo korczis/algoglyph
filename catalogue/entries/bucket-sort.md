@@ -44,7 +44,7 @@ claims:
     readout: Comparisons
     expect: { value: 508 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Divide the key range into n equal intervals, drop every key into the bucket of its interval, sort each bucket by insertion, and concatenate the buckets in order.

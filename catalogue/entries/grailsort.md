@@ -48,14 +48,14 @@ claims:
     readout: Phase
     expect: { value: 2 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
   - id: sorted-still-writes
     statement: >-
       On Already sorted at 512 keys GrailSort's array writes exceed its comparisons by more than 3,000 (5,504 against 1,669): the block merges skip runs already in order, but the runs are still built through the buffer by exchanges.
     readout: Array writes
     expect: { against: Comparisons, above: 3000 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A stable in-place block mergesort with an O(n log n) worst case, built on Huang and Langston's stable merging in constant extra space: it collects distinct keys from the input to act as an internal buffer and sorts the rest by block merges.

@@ -12,7 +12,6 @@ export const kernel: GraphKernel<ComponentsResult> = {
   names: { frontier: 'On the stack', done: 'Labelled', groups: 'Components', tree: 'Search tree edges' },
   readouts: ['scans', 'done', 'groups'],
   chart: { title: 'Labelling progress', y: 'vertices', series: ['done', 'frontier'] },
-  speed: 3,
   *steps(ops) {
     const g = ops.g;
     const comp = new Array<number>(g.n).fill(-1);

@@ -10,7 +10,6 @@ export interface Candidates { pairs: [number, number][]; method: string; window:
 export const kernel: StringKernel<'records', Candidates> = {
   input: 'records',
   counters: { compare: 'Key comparisons', pair: 'Candidate pairs' },
-  speed: 4,
   params: [
     { kind: 'select', key: 'method', label: 'Method', value: 'sorted', rebuild: true,
       options: [{ value: 'sorted', label: 'Sorted neighbourhood' }, { value: 'blocking', label: 'Standard blocking' }] },

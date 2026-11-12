@@ -47,7 +47,7 @@ claims:
     readout: Comparisons
     expect: { value: 2038 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Estimate each key's rank by linear interpolation between the minimum and the maximum, send it to the bucket of that estimate, and sort each bucket the same way until every bucket holds equal keys.

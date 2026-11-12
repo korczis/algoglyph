@@ -49,7 +49,7 @@ claims:
     readout: Comparisons
     expect: { value: 638 }
     setup:
-      params: { shape: reversed, n: 512, speed: 2000 }
+      params: { shape: reversed, n: 512 }
 ---
 
 A stable, adaptive bottom-up mergesort written to avoid conditional branches in its inner loops: it uses the outcome of a comparison as a number for computing an index instead of as a jump, because on random data a mispredicted branch is the costliest thing a modern processor does.

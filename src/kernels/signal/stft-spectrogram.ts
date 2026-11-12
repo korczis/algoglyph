@@ -24,7 +24,6 @@ const dbOf = (a: number) => (a > 0 ? Math.max(-120, 20 * Math.log10(a)) : -120);
 // A chirp over a steady tone in noise: each frame's peak follows the chirp, while Welch's average
 // of all frames keeps the tone and lowers the noise's variance.
 export const kernel: SignalKernel = {
-  rate: 12,
   params: [
     { kind: 'select', key: 'frame', label: 'Frame length', value: '256', options: ['128', '256', '512', '1024'].map((v) => ({ value: v, label: `${v} samples` })) },
     { kind: 'select', key: 'overlap', label: 'Overlap', value: '0.5', options: [

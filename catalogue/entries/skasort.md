@@ -48,7 +48,7 @@ claims:
     readout: Array writes
     expect: { value: 2046 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 An in-place MSD radix sort on bytes: count the 256 bucket sizes of the current byte, swap every key of each unfinished bucket straight into the next free slot of its own bucket until all buckets are complete, then recurse on the next byte, finishing small buckets with a comparison sort.

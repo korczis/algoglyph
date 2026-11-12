@@ -54,7 +54,7 @@ claims:
     readout: Comparisons
     expect: { below: 2304 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 A stable sort that marries Timsort-style run detection with pattern-defeating quicksort's strength on duplicates: it scans for sorted runs as powersort does but leaves unsorted stretches unsorted, as lazy logical runs, and only sorts one with a stable quicksort when it must be merged with a sorted run.

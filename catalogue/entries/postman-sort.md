@@ -47,7 +47,7 @@ claims:
     readout: Array writes
     expect: { value: 512 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Sort the way mail is sorted: distribute the records into buckets by the most significant part of the key, then sort each bucket the same way by the next part, and concatenate the buckets in order.

@@ -3,11 +3,15 @@
 // geometric mean the definition gives, and the plate runs headless at every extreme setting with
 // readouts that equal independently counted values.
 import { describe, expect, it } from 'vitest';
+import { calm } from '../src/core/pace';
 import plate from '../src/plates/bogosort/plate';
 import { bogoRun, expectedShuffles, KERNEL_ATTEMPTS } from '../src/plates/bogosort/bogosort';
 import { input, isSorted, runSeed } from '../src/plates/_shared/sort-input/input';
 import { factorial } from '../src/plates/_shared/theory/combinatorics';
 import { extremes, headless, kernelRun, lead } from './support/esoteric';
+
+/** The pace that runs `k` kernel steps a frame (the old speed select's values). */
+const steps = (k: number) => k / calm('stream');
 
 const sorted = (a: readonly number[]) => [...a].sort((x, y) => x - y);
 
@@ -76,7 +80,7 @@ describe('bogosort theory', () => {
 describe('bogosort plate', () => {
   it('runs headless at every extreme setting and its readouts are counted', () => {
     for (const params of extremes(plate)) {
-      const h = headless(plate, { ...params, speed: params.speed ?? '16384' });
+      const h = headless(plate, { ...params, pace: params.pace ?? steps(16384) });
       h.frames(60);
       const s = h.stats();
       expect(Object.keys(s).length, JSON.stringify(params)).toBeGreaterThan(4);
@@ -84,8 +88,9 @@ describe('bogosort plate', () => {
     }
   });
 
-  it('finishes runs at its defaults, each sorted, and charts measured against expected', () => {
-    const h = headless(plate);
+  it('finishes runs at the old default of 16 steps a frame, each sorted, and charts measured against expected', () => {
+    // the old default speed: the calm default (ADR 0008) finishes a run every few seconds
+    const h = headless(plate, { pace: steps(16) });
     h.frames(2400);
     const s = h.stats();
     const runs = lead(s['finished runs']);

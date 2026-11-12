@@ -35,6 +35,7 @@ export const collatzCoral: PlateCode = {
       rebuild: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'still', why: 'draws every orbit once, progressively, into one still picture' },
   create(p, ctx) {
     const params = ctx.params;
     let starts: number[] = [];

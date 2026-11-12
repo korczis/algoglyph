@@ -106,7 +106,6 @@ export const kernel: NumericKernel = {
     { kind: 'select', key: 'rule', label: 'Entering variable', value: 'bland', rebuild: true,
       options: [{ value: 'bland', label: "Bland's rule (first improving)" }, { value: 'dantzig', label: "Dantzig's rule (largest improvement)" }] },
   ],
-  rate: 0.8,
   run({ seed, params }) {
     const m = Number(params.constraints ?? 12);
     const rule = params.rule === 'dantzig' ? 'dantzig' : 'bland';

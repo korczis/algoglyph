@@ -13,7 +13,6 @@ export const kernel: GraphKernel<SccResult> = {
   names: { frontier: 'On the stack', done: 'Assigned', groups: 'Strong components', value: 'Low link' },
   readouts: ['scans', 'frontier', 'done', 'groups'],
   chart: { title: 'Vertices waiting on the component stack', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 3,
   *steps(ops) {
     const g = ops.g;
     const disc = new Array<number>(g.n).fill(-1);

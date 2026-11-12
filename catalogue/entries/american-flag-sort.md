@@ -49,7 +49,7 @@ claims:
     readout: Comparisons
     expect: { value: 0 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 An in-place MSD radix sort: count how many keys fall into each of the 256 piles of the current byte, compute where the piles begin, permute the keys home by following cycles, then sort every pile on the next byte.

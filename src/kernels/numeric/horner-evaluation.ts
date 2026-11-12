@@ -46,7 +46,6 @@ const POINTS = 48;
 
 export const kernel: NumericKernel = {
   params: [{ kind: 'range', key: 'degree', label: 'Degree n', min: 2, max: 16, step: 1, value: 9, rebuild: true }],
-  rate: 6,
   thumb: 0.65,
   run({ seed, params }) {
     const rnd = mulberry32(seed);

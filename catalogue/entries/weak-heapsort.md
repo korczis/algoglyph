@@ -51,7 +51,7 @@ claims:
     readout: Comparisons
     expect: { below: 4764 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Heapsort on a weak heap: every node only has to dominate its right subtree, and one reverse bit per node decides which child counts as right, so flipping a bit swaps two subtrees without moving any data.

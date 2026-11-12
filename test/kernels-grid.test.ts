@@ -2,6 +2,7 @@
 // references: brute force, enumeration, trial division and known sequences, never the code
 // under test (rule project.no-fake-science).
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { ENTRIES } from '../src/core/catalogue';
 import type p5 from 'p5';
 import { GROUNDS, palette } from '../src/core/palette';
@@ -347,7 +348,7 @@ describe('grid kernels', () => {
 
       it('never traces more than one frame budget in create, setup or one draw', () => {
         const plate = engine.plate({ id: e.id, title: e.title, group: 'g' }, counting(kernel));
-        const params = { ...defaultsOf(plate), n: kernel.size.max, speed: 2000, loop: true };
+        const params = { ...defaultsOf(plate), n: kernel.size.max, pace: PACING.pace.max, loop: true };
         const run = drive(plate, params, 800);
         expect(run.maxPerCall, `${e.id}: events traced in one call`).toBeLessThanOrEqual(BUILD_EVENTS_PER_FRAME + SLACK);
         expect(run.stats.some((rows) => rows.some((x) => x.label === 'Result')), 'reaches its result').toBe(true);
@@ -389,13 +390,13 @@ describe('grid kernels against known growth', () => {
     const plate = engine.plate({ id: 'n-queens', title: 'q', group: 'g' }, counting(k));
     expect(plate.params.find((d) => d.key === 'loop')?.label).toBe('Replay when done');
     const before = traced;
-    const run = drive(plate, { ...defaultsOf(plate), speed: 2000, loop: true }, 600);
+    const run = drive(plate, { ...defaultsOf(plate), pace: PACING.pace.max, loop: true }, 600);
     const results = run.stats.filter((rows) => rows.some((x) => x.label === 'Result')).length;
     const restarts = run.stats.filter((rows, i) => i > 0 && rows.some((x) => x.label === 'Progress' && x.value.startsWith('0%'))
       && run.stats[i - 1].some((x) => x.label === 'Result')).length;
     expect(results).toBeGreaterThan(0);
     expect(restarts, 'it restarted').toBeGreaterThan(0);
-    expect(traced - before, 'traced once').toBe(trace(k.instance(8, 0)).length);
+    expect(traced - before, 'traced once').toBe(trace(k.instance(k.size.value, 0)).length);
   });
 
   it('a kernel whose input depends on the seed offers new input', () => {
@@ -410,10 +411,10 @@ describe('grid kernels against known growth', () => {
   it.runIf(has('n-queens'))('the per-row chart numbers rows as the board labels them', () => {
     const k = kernelOf('n-queens');
     const plate = engine.plate({ id: 'n-queens', title: 'q', group: 'g' }, k);
-    const run = drive(plate, { ...defaultsOf(plate), speed: 2000, loop: false }, 60);
+    const run = drive(plate, { ...defaultsOf(plate), pace: PACING.pace.max, loop: false }, 60);
     const chart = run.charts[run.charts.length - 1];
-    const labels = k.instance(8, 0).rowLabels!;
-    const placed = trace(k.instance(8, 0)).tally;
+    const labels = k.instance(k.size.value, 0).rowLabels!;
+    const placed = trace(k.instance(k.size.value, 0)).tally;
     for (const s of chart.series) {
       expect(s.points.map((q) => q[0])).toEqual(labels.map(Number));
     }
@@ -454,9 +455,10 @@ describe('grid kernels against known growth', () => {
     const lab = gridEngine(budget).lab('dynamic-programming', kernels);
     const n = (lab.params[0] as { max: number }).max;
     expect(Math.min(...dp.map((e) => trace(kernelOf(e.id).instance(n, 3)).length))).toBeGreaterThan(budget + SLACK);
-    const run = drive(lab, { ...defaultsOf(lab), n, speed: 2000, loop: false }, 1500);
+    const run = drive(lab, { ...defaultsOf(lab), n, pace: PACING.pace.max, loop: false }, 1500);
     expect(run.maxPerCall).toBeLessThanOrEqual(budget + SLACK);
-    const last = run.stats[run.stats.length - 1];
+    // the pace row is the lab's, not a pane's
+    const last = run.stats[run.stats.length - 1].filter((x) => x.label !== 'Pace');
     const ranks = last.map((x) => Number(/finished #(\d+)/.exec(x.value)?.[1]));
     expect(ranks.slice().sort((a, b) => a - b)).toEqual(dp.map((_, i) => i + 1));
     // the measured curves are complete: every pane reports a fitted exponent
@@ -472,7 +474,7 @@ describe('grid kernels against known growth', () => {
     expect(cost).toBeGreaterThan(1);
     const budget = 4000;
     const plate = gridEngine(budget).plate({ id: 'fibonacci-memo', title: 'F', group: 'g' }, k);
-    const run = drive(plate, { ...defaultsOf(plate), n: 24, speed: 2000, loop: true }, 60);
+    const run = drive(plate, { ...defaultsOf(plate), n: 24, pace: PACING.pace.max, loop: true }, 60);
     // a step finishes the kernel's work up to its next yield: a visit and the writes before it
     expect(Math.max(...run.perFrame)).toBeLessThanOrEqual(Math.floor(budget / cost) + 4);
   });
@@ -482,7 +484,7 @@ describe('grid kernels against known growth', () => {
       const k = kernelOf(e.id);
       if (!seeded(k)) continue;
       const plate = gridEngine(200).plate({ id: e.id, title: e.title, group: 'g' }, k);
-      const run = drive(plate, { ...defaultsOf(plate), speed: 2000, loop: true }, 900);
+      const run = drive(plate, { ...defaultsOf(plate), pace: PACING.pace.max, loop: true }, 900);
       const names = new Set(k.readouts.map((m) => m.name));
       let restarts = 0;
       run.stats.forEach((rows, i) => {

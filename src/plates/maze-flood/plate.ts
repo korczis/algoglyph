@@ -2,6 +2,7 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
 import { backtracker, E, flood, floodStep, grid, path, prim, S, type Flood, type Grid } from './maze';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 type Phase = 'carve' | 'flood' | 'path' | 'hold';
 
@@ -18,14 +19,16 @@ export const mazeFlood: PlateCode = {
         { value: 'prim', label: 'Randomised Prim' },
       ],
     },
-    { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 8, max: 48, step: 1, value: 16,
+    { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 8, max: 48, step: 1, value: 32,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 200, step: 1, value: 30 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'Regenerate when done', value: true },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'replay', unit: 'steps' },
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = new Pacer('replay', 'steps', 200);
     let g: Grid;
     let carver: Generator<number>;
     let fl: Flood;
@@ -44,8 +47,20 @@ export const mazeFlood: PlateCode = {
       const rows = Math.max(4, Math.floor(ctx.height / cell));
       g = grid(cols, rows);
       source = Math.floor(rows / 2) * cols + Math.floor(cols / 2);
-      const rnd = mulberry32(ctx.seed + generation * 104729);
-      carver = str(params, 'generator') === 'prim' ? prim(g, rnd, source) : backtracker(g, rnd, source);
+      const carve = (into: Grid) => {
+        const rnd = mulberry32(ctx.seed + generation * 104729);
+        return str(params, 'generator') === 'prim' ? prim(into, rnd, source) : backtracker(into, rnd, source);
+      };
+      carver = carve(g);
+      // the steps of the whole run (carve, flood, path), counted on a copy of the maze
+      const copy = grid(cols, rows);
+      const c2 = carve(copy);
+      let steps = 1;
+      while (!c2.next().done) steps++;
+      const f2 = flood(copy, source);
+      steps++;
+      while (floodStep(copy, f2)) steps++;
+      pacer.start(steps + path(copy, f2, f2.far).length);
       phase = 'carve';
       route = [];
       shown = 0;
@@ -74,15 +89,17 @@ export const mazeFlood: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(phase === 'hold', params),
       setup() {
         p.strokeCap(p.ROUND);
         build();
       },
       draw() {
-        advance(num(params, 'speed'));
+        // a thumbnail is drawn from a few frames: it advances as fast as the old default did
+        if (phase !== 'hold') advance(ctx.thumbnail ? 30 : pacer.take(params));
         if (phase === 'hold') {
           hold++;
-          if (bool(params, 'loop') && hold > 150 && !ctx.thumbnail) {
+          if (bool(params, 'loop') && hold > HOLD_FRAMES && !ctx.thumbnail) {
             generation++;
             build();
           }
@@ -129,6 +146,7 @@ export const mazeFlood: PlateCode = {
           { label: 'cells', value: (g.cols * g.rows).toLocaleString('en') },
           { label: 'flood frontier', value: phase === 'carve' ? '–' : String(fl.tail - fl.head) },
           { label: 'longest shortest path', value: phase === 'carve' ? '–' : String(fl.max) },
+          pacer.row(params),
         ]);
       },
     };

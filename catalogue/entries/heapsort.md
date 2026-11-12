@@ -43,7 +43,7 @@ claims:
     readout: Comparisons
     expect: { above: 7604 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Build a max-heap bottom-up, then repeatedly exchange the maximum to the end and restore the heap.

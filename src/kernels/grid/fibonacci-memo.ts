@@ -10,7 +10,6 @@ export interface FibResult {
 // computes it only on a miss.
 export const kernel: GridKernel<{ n: number }, FibResult> = {
   size: { label: 'n', min: 2, max: 24, step: 1, value: 12 },
-  speed: 12,
   colour: 'log',
   // the naive recursion is up to n deep, and every event resumes the whole yield* chain
   eventCost: 4,

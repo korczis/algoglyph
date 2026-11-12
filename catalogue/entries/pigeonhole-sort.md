@@ -49,7 +49,7 @@ claims:
     readout: Array writes
     expect: { value: 512 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Make one pigeonhole for every possible key value, move each record into the hole of its key, then empty the holes in key order.

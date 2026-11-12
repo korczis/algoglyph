@@ -40,7 +40,6 @@ export function read(x: Float64Array, y: Float64Array, meter?: Meter): { a: numb
 // Two sinusoids on two axes, as on an oscilloscope in X-Y mode; the figure's frequency ratio and
 // phase are read back from the samples, and a slow phase drift makes the figure turn.
 export const kernel: SignalKernel = {
-  rate: 15,
   aspect: 16 / 9,
   params: [
     { kind: 'range', key: 'a', label: 'x frequency a', min: 1, max: 9, step: 1, value: 3 },

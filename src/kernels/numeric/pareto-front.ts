@@ -144,7 +144,6 @@ export const kernel: NumericKernel = {
     { kind: 'select', key: 'shape', label: 'Criteria', value: 'anti', rebuild: true,
       options: [{ value: 'independent', label: 'Independent' }, { value: 'correlated', label: 'Correlated' }, { value: 'anti', label: 'Anti-correlated (a trade-off)' }] },
   ],
-  rate: 20,
   thumb: 1,
   build,
   run: (inp) => drain(build(inp)),

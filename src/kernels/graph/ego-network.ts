@@ -16,7 +16,6 @@ export const kernel: GraphKernel<EgoResult> = {
   names: { frontier: 'Newest ring', done: 'Expanded', groups: 'Rings', tree: 'Discovery edges' },
   readouts: ['scans', 'done', 'frontier', 'rounds'],
   chart: { title: 'Vertices revealed, ring by ring', x: 'rounds', y: 'vertices', series: ['done', 'frontier'] },
-  speed: 2,
   *steps(ops, { s, p }) {
     const g = ops.g;
     const k = Number(p.k);

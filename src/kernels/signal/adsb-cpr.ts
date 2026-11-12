@@ -29,7 +29,6 @@ function receive(f: Uint8Array, snrDb: number, rnd: () => number): Float64Array 
 // An aircraft flies a seeded track and squitters even and odd position reports in turn. Each frame is received in noise, sliced into bits, checked (and if one bit is damaged,
 // repaired) by its CRC-24, and every fresh even/odd pair is decoded into a global position.
 export const kernel: SignalKernel = {
-  rate: 3,
   params: [{ kind: 'range', key: 'snr', label: 'Receiver SNR (dB)', min: 4, max: 30, step: 1, value: 11 }],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);

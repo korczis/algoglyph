@@ -48,7 +48,7 @@ claims:
     readout: Array writes
     expect: { value: 512 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Learn the keys' cumulative distribution from a sample, use the model's prediction to place every key in a bucket near its final position, and repair the remaining mistakes with insertion sort.

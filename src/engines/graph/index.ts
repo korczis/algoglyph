@@ -9,8 +9,10 @@ import { makeGraph, SHAPE_LABELS, type Graph, type Shape } from './graph';
 import { defaultParams, E, emptyCounts, modularity, OP, start, V, work, type GraphKernel, type Options,
   type ReadoutKey, type Running, type SeriesKey, type Trace } from './trace';
 import { count } from '../../core/format';
+import { downFrom, fits, fitSize, HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
-const HOLD_FRAMES = 90;
+/** The per-frame maximum the old events slider allowed: the pace never asks more. */
+const MAX_EVENTS_PER_FRAME = 2000;
 const SCALING_N = [16, 32, 64, 128];
 const RECENT = 6;
 const W = 5;
@@ -47,6 +49,10 @@ class Replay {
   c = emptyCounts();
   byState = [0, 0, 0, 0, 0];
   maxFrontier = 0;
+  /** Marked vertices that were finished when marked: a mark highlights a result, it does not
+   * undo the work, so they still count as finished. */
+  markedDone = 0;
+  private wasDone: Uint8Array;
   tree = 0;
   treeWeight = 0;
   flowValue = 0;
@@ -61,6 +67,7 @@ class Replay {
     const g = t.g;
     this.g = g;
     this.vs = new Int8Array(g.n);
+    this.wasDone = new Uint8Array(g.n);
     this.grp = new Int32Array(g.n).fill(-1);
     this.val = new Float64Array(g.n).fill(NaN);
     this.es = new Int8Array(g.m);
@@ -76,11 +83,15 @@ class Replay {
   }
   /** Everything replayed, and nothing left to compute. */
   get done(): boolean { return this.at >= this.t.length && this.t.finished; }
+  /** Finished vertices, counting those marked after they finished. */
+  get finished(): number { return this.byState[V.done] + this.markedDone; }
   private setV(v: number, s: number) {
     const old = this.vs[v];
     if (old === s) return;
     this.byState[old]--; this.byState[s]++;
     this.vs[v] = s;
+    if (this.wasDone[v]) { this.wasDone[v] = 0; this.markedDone--; }
+    if (old === V.done && s === V.mark) { this.wasDone[v] = 1; this.markedDone++; }
     if (this.byState[V.frontier] > this.maxFrontier) this.maxFrontier = this.byState[V.frontier];
   }
   private setE(e: number, s: number) {
@@ -160,6 +171,28 @@ class Replay {
       this.sample(byRounds ? this.c.rounds : this.t.length);
     }
   }
+  /** Rounds in the run, a trailing part after the last round counting as one: its paced unit. */
+  rounds(): number {
+    const ev = this.t.events;
+    let n = 0;
+    let tail = false;
+    for (let i = 0; i < this.t.length; i++) {
+      if (ev[W * i] === OP.round) { n++; tail = false; } else tail = true;
+    }
+    return n + (tail ? 1 : 0);
+  }
+  /** Replay `rounds` whole rounds, but at most `cap` events this frame (a long round spans frames). */
+  advanceRounds(rounds: number, cap: number): void {
+    const ev = this.t.events;
+    const limit = Math.min(this.t.length, this.at + cap);
+    let end = this.at;
+    let left = rounds;
+    while (end < limit && left > 0) {
+      if (ev[W * end] === OP.round) left--;
+      end++;
+    }
+    this.advance(end - this.at);
+  }
   groups(): number {
     const s = new Set<number>();
     for (let v = 0; v < this.g.n; v++) if (this.grp[v] >= 0) s.add(this.grp[v]);
@@ -175,7 +208,7 @@ class Replay {
   series(k: SeriesKey): number {
     switch (k) {
       case 'frontier': return this.byState[V.frontier];
-      case 'done': return this.byState[V.done];
+      case 'done': return this.finished;
       case 'unseen': return this.byState[V.unseen];
       case 'marked': return this.byState[V.mark];
       case 'tree': return this.tree;
@@ -224,7 +257,7 @@ function readout(r: Replay, key: ReadoutKey): Stat {
     case 'rounds': return { label: 'Rounds', value: fmt(c.rounds) };
     case 'frontier': return { label: n.frontier ?? 'Frontier', value: fmt(r.byState[V.frontier]) };
     case 'maxFrontier': return { label: `Largest ${(n.frontier ?? 'frontier').toLowerCase()}`, value: fmt(r.maxFrontier) };
-    case 'done': return { label: n.done ?? 'Finished', value: `${fmt(r.byState[V.done])} of ${fmt(r.g.n)}` };
+    case 'done': return { label: n.done ?? 'Finished', value: `${fmt(r.finished)} of ${fmt(r.g.n)}` };
     case 'marked': return { label: n.marked ?? 'Marked', value: fmt(r.byState[V.mark]) };
     case 'tree': return { label: n.tree ?? 'Tree edges', value: fmt(r.tree) };
     case 'treeWeight': return { label: `Weight of the ${(n.tree ?? 'tree edges').toLowerCase()}`, value: fmt(r.treeWeight) };
@@ -460,18 +493,31 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
     ...inputParam(kernel),
     sizeParam(kernel),
     ...(kernel.params ?? []),
-    { kind: 'range', key: 'speed', label: 'Events per frame', min: 1, max: 2000, step: 1, value: kernel.speed ?? 3 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New graph when done', value: true },
     paletteParam('spectral'),
   ];
   const shapeOf = (ctx: PlateContext) => (kernel.inputs.length > 1 ? str(ctx.params, 'shape') : kernel.inputs[0]) as Shape;
+  // a kernel charted by rounds whose events are too many to watch is paced by rounds: one
+  // iteration is then the change a reader follows (decided per run, once its length is known)
+  const canRound = kernel.chart?.x === 'rounds';
   return {
     id: info.id,
     mode: '2d',
     aspect: 16 / 9,
     thumbnailFrames: 2,
     params,
+    pace: { kind: 'replay', unit: canRound ? 'events, or rounds for a long run' : 'events' },
     create(p, ctx) {
+      const pacer = new Pacer('replay', 'events', MAX_EVENTS_PER_FRAME);
+      let byRounds = false;
+      // the run computes in slices while it replays: at the ceiling until its length is known
+      const measured = () => {
+        if (pacer.length !== null || !r.t.finished) return;
+        byRounds = canRound && !fits('replay', r.t.length) && r.rounds() > 0;
+        pacer.unit = byRounds ? 'rounds' : 'events';
+        pacer.known(byRounds ? r.rounds() : r.t.length, byRounds ? r.c.rounds : r.at);
+      };
       let generation = 0;
       let pick = -1;
       let g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed, aspectOf(kernel));
@@ -483,6 +529,7 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
         return new Replay(running.t, kernel);
       };
       let r = run();
+      measured();
       let hold = 0;
       let angle = 0.6;
       let proj: Projection | null = null;
@@ -495,13 +542,21 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
             if (!r.t.finished) running.step(FRAME_UNITS);
-            if (!r.done) r.advance(num(ctx.params, 'speed'));
-            else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
+            measured();
+            if (!r.done) {
+              const k = pacer.take(ctx.params);
+              if (k) {
+                if (byRounds) r.advanceRounds(k, MAX_EVENTS_PER_FRAME);
+                else r.advance(k);
+              }
+            } else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
               hold = 0;
               pick = -1;
               g = makeGraph(shapeOf(ctx), num(ctx.params, 'n'), ctx.seed + generation * 7919, aspectOf(kernel));
               r = run();
+              pacer.start();
+              measured();
             }
             if (kernel.view?.sphere) angle += 0.006;
           }
@@ -523,6 +578,7 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
                 ? `${Math.round((100 * r.at) / Math.max(1, r.t.length))}% of ${fmt(r.t.length)} events${r.t.truncated ? ' (stopped at the event cap)' : ''}`
                 : `${fmt(r.at)} of ${fmt(r.t.length)} events so far (still computing)`,
             },
+            pacer.row(ctx.params),
           ];
           if (r.done && r.t.result !== undefined && kernel.report) rows.push(...kernel.report(r.t.result, g, r.t.opts));
           ctx.stats(rows);
@@ -551,10 +607,40 @@ function plate(info: KernelInfo, kernel: GraphKernel): PlateCode {
           pick = best;
           hold = 0;
           r = run();
+          pacer.start();
+          measured();
         },
+        pace: () => pacer.report(r.done, ctx.params),
       };
     },
   };
+}
+
+/** A lab whose every kernel is charted by rounds can be paced by rounds, as its plates are. */
+const allRound = (kernels: { kernel: GraphKernel }[]) => kernels.every((k) => k.kernel.chart?.x === 'rounds');
+
+/** What a lab's run is paced in: the longest pane's events, or its rounds when those are too many. */
+function labLength(kernels: { kernel: GraphKernel }[], events: number[], rounds: () => number[]): { unit: string; length: number } {
+  const most = Math.max(0, ...events);
+  if (fits('replay', most) || !allRound(kernels)) return { unit: 'events', length: most };
+  return { unit: 'rounds', length: Math.max(0, ...rounds()) };
+}
+
+/**
+ * The lab's default number of vertices: `want`, or the largest smaller one whose run, counted at
+ * the canonical seed, is still watchable at the calm pace (config/pacing.yaml).
+ */
+function labN(kernels: { kernel: GraphKernel }[], shape: Shape, min: number, want: number): number {
+  const lengthAt = (n: number) => {
+    const g = makeGraph(shape, n, 4242, 4 / 3);
+    const runs = kernels.map((k) => {
+      const run = start(k.kernel, g, { s: g.s, t: g.t, p: defaultParams(k.kernel) }, 4242, 2_000_000, false);
+      run.step(Infinity);
+      return run.t;
+    });
+    return labLength(kernels, runs.map((t) => t.length), () => runs.map((t) => t.counts.rounds + 1)).length;
+  };
+  return fitSize('replay', downFrom(want, min, 4), lengthAt);
 }
 
 function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): PlateCode {
@@ -568,8 +654,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
       kind: 'select', key: 'shape', label: 'Input', value: shapes[0], rebuild: true,
       options: shapes.map((s) => ({ value: s, label: SHAPE_LABELS[s] })),
     } as ParamDef] : []),
-    { kind: 'range', key: 'n', label: 'Vertices', min: nmin, max: Math.max(nmin, nmax), step: 1, value: Math.max(nmin, Math.min(nmax, 40)), rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Events per frame', min: 1, max: 2000, step: 1, value: 6 },
+    { kind: 'range', key: 'n', label: 'Vertices', min: nmin, max: Math.max(nmin, nmax), step: 1, value: labN(kernels, shapes[0], nmin, Math.max(nmin, Math.min(nmax, 40))), rebuild: true },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New graph when done', value: true },
     paletteParam('spectral'),
   ];
@@ -580,8 +666,12 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
     aspect: 4 / 3,
     thumbnailFrames: 2,
     params,
+    pace: { kind: 'replay', unit: allRound(kernels) ? 'events, or rounds for a long run' : 'events' },
     create(p, ctx) {
       let generation = 0;
+      // one pace for every pane, from the longest run once all are computed: the same events
+      // per frame each, so the race stays fair
+      const pacer = new Pacer('replay', 'events', MAX_EVENTS_PER_FRAME);
       let panes: { info: KernelInfo; kernel: GraphKernel; run: Running; r: Replay; finished: number }[] = [];
       const curves = kernels.map((k) => ({ info: k.info, pts: [] as [number, number][], slope: NaN }));
       let pending = curves.flatMap((_, ci) => SCALING_N.map((n) => [ci, n] as [number, number]));
@@ -630,10 +720,17 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
             // the scaling runs wait until the panes' own runs are computed, so the two never
             // share a frame
             if (panes.every((x) => x.run.t.finished)) measure();
+            if (pacer.length === null && panes.every((x) => x.run.t.finished)) {
+              const { unit, length } = labLength(kernels, panes.map((x) => x.r.t.length), () => panes.map((x) => x.r.rounds()));
+              pacer.unit = unit;
+              pacer.known(length, unit === 'rounds' ? Math.max(0, ...panes.map((x) => x.r.c.rounds)) : Math.max(0, ...panes.map((x) => x.r.at)));
+            }
+            const steps = panes.some((x) => !x.r.done) ? pacer.take(ctx.params) : 0;
             for (const pane of panes) {
               if (!pane.run.t.finished) pane.run.step(FRAME_UNITS / panes.length);
-              if (!pane.r.done) {
-                pane.r.advance(num(ctx.params, 'speed'));
+              if (!pane.r.done && steps) {
+                if (pacer.unit === 'rounds') pane.r.advanceRounds(steps, MAX_EVENTS_PER_FRAME);
+                else pane.r.advance(steps);
                 if (pane.r.done) pane.finished = ++finishedCount;
               }
             }
@@ -641,6 +738,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
               generation++;
               hold = 0;
               build();
+              pacer.start();
+              pacer.unit = 'events';
             }
           }
           const Wd = ctx.width; const Ht = ctx.height;
@@ -676,8 +775,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GraphKernel }[]): 
               label: pane.info.title,
               value: `${fmt(work(pane.r.c))} counted operations in ${fmt(pane.r.at)} events replayed · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished} (same events per frame)` : ''}`,
             };
-          }));
+          }).concat([pacer.row(ctx.params)]));
         },
+        pace: () => pacer.report(panes.length > 0 && panes.every((x) => x.r.done), ctx.params),
       };
     },
   };

@@ -46,7 +46,7 @@ claims:
     readout: Array writes
     expect: { value: 512 }
     setup:
-      params: { shape: reversed, n: 512, speed: 2000 }
+      params: { shape: reversed, n: 512 }
 ---
 
 Radix exchange: partition on the leading bit, then recurse on the next bit.

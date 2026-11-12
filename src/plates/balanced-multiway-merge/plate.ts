@@ -3,6 +3,7 @@ import { bool, num, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
 import { mulberry32 } from '../../core/random';
 import { machine, runs, step, type Machine } from './merge';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 export const balancedMultiwayMerge: PlateCode = {
   id: 'balanced-multiway-merge',
@@ -16,17 +17,18 @@ export const balancedMultiwayMerge: PlateCode = {
       value: 8, rebuild: true },
     { kind: 'range', key: 'ways', label: 'Ways (P), on 2P tapes', min: 2, max: 6, step: 1, value: 3,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Records moved per frame', min: 0.2, max: 60, step: 0.2,
-      value: 3 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'Start again when sorted', value: true },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'replay', unit: 'records' },
   create(p, ctx) {
     const params = ctx.params;
     let s: Machine;
     let acc = 0;
     let hold = 0;
     let generation = 0;
+    const pacer = new Pacer('replay', 'records', 60);
     let range = 1;
     const gate = chartGate();
     let charted = -1;
@@ -41,9 +43,15 @@ export const balancedMultiwayMerge: PlateCode = {
       s = machine(input, num(params, 'memory'), num(params, 'ways'));
       acc = 0;
       hold = 0;
+      // the steps a whole sort takes, counted on a copy of the machine
+      const copy = machine(input, num(params, 'memory'), num(params, 'ways'));
+      let steps = 0;
+      while (step(copy)) steps++;
+      pacer.start(steps);
     };
 
     return {
+      pace: () => pacer.report(s.phase === 'done', params),
       setup() {
         build();
         if (ctx.thumbnail) {
@@ -54,12 +62,12 @@ export const balancedMultiwayMerge: PlateCode = {
       },
       draw() {
         if (!ctx.thumbnail) {
-          acc += num(params, 'speed');
+          acc += pacer.perFrame(params);
           while (acc >= 1) {
             acc -= 1;
             if (!step(s)) break;
           }
-          if (s.phase === 'done' && ++hold > 180 && bool(params, 'loop')) {
+          if (s.phase === 'done' && ++hold > HOLD_FRAMES && bool(params, 'loop')) {
             generation++;
             build();
             gate.reset();
@@ -140,6 +148,7 @@ export const balancedMultiwayMerge: PlateCode = {
           { label: 'Merge passes done', value: String(s.pass) },
           { label: 'Records written', value: s.writes.toLocaleString('en') },
           { label: 'Key comparisons', value: s.comparisons.toLocaleString('en') },
+          pacer.row(params),
         ]);
         if (s.runsAfter.length !== charted) gate.mark();
         if ((s.runsAfter.length || restarted) && gate.open()) {

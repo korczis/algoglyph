@@ -57,7 +57,7 @@ claims:
     readout: Comparisons
     expect: { below: 2304 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Rust's stable sort since 1.81.0: a derivative of glidesort that finds sorted runs lazily, sorts the stretches between them with a stable quicksort, and merges the resulting runs in powersort's order.

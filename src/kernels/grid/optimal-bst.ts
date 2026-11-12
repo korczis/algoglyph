@@ -21,7 +21,6 @@ export interface BstResult {
 // cheapest tree on each side of r; both sides are shorter ranges already in the table.
 export const kernel: GridKernel<BstData, BstResult> = {
   size: { label: 'Keys', min: 2, max: 12, step: 1, value: 7 },
-  speed: 4,
   colour: 'linear',
   readouts: DP_READOUTS,
   chart: { kind: 'scaling', ns: [2, 4, 6, 8, 12, 16, 24, 32], x: 'keys n', y: 'operations',

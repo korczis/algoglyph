@@ -3,6 +3,7 @@ import { num, str, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
 import { shuffle } from '../../core/random';
 import { SequentialList, draw as drawRank, zipf, type Strategy } from './sequential';
+import { Pacer, paceParam } from '../../core/pace';
 
 const WINDOW = 100;
 
@@ -25,9 +26,10 @@ export const sequentialSearch: PlateCode = {
       value: 1, rebuild: true },
     { kind: 'range', key: 'hit', label: 'Share of searches for a present key', min: 0, max: 1,
       step: 0.05, value: 0.9 },
-    { kind: 'range', key: 'speed', label: 'Probes per frame', min: 1, max: 400, step: 1, value: 6 },
+    paceParam(),
     paletteParam('phosphor'),
   ],
+  pace: { kind: 'stream', unit: 'probes' },
   create(p, ctx) {
     const params = ctx.params;
     let n = 0;
@@ -37,6 +39,7 @@ export const sequentialSearch: PlateCode = {
     let shownList: number[] = [];
     let current: { key: number; index: number; probes: number; shown: number } | null = null;
     let acc = 0;
+    const pacer = new Pacer('stream', 'probes', 400);
     let searches = 0;
     let probes = 0;
     let hits = 0;
@@ -69,6 +72,7 @@ export const sequentialSearch: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         n = num(params, 'n');
         cdf = zipf(n, num(params, 'skew'));
@@ -84,7 +88,7 @@ export const sequentialSearch: PlateCode = {
       },
       draw() {
         if (!ctx.thumbnail) {
-          acc += num(params, 'speed');
+          acc += pacer.perFrame(params);
           while (acc >= 1) {
             acc -= 1;
             if (!current) begin();
@@ -131,6 +135,7 @@ export const sequentialSearch: PlateCode = {
           { label: 'Mean probes, all searches', value: searches ? (probes / searches).toFixed(2) : '–' },
           { label: `Mean probes, last ${recent.length}`, value: recent.length ? mean.toFixed(2) : '–' },
           { label: 'Probes of the search shown', value: current ? `${current.shown} of ${current.probes}` : '–' },
+          pacer.row(params),
         ]);
         if (curve.length > 1 && gate.open()) {
           ctx.chart({

@@ -51,7 +51,7 @@ claims:
     readout: Comparisons
     expect: { value: 510 }
     setup:
-      params: { shape: organ-pipe, n: 256, speed: 2000 }
+      params: { shape: organ-pipe, n: 256 }
 ---
 
 A cross of Timsort and ShiversSort: keep Timsort's loop over a stack of runs and its habit of merging the second and third runs from the top, but compare run levels ⌊log₂ r⌋ instead of lengths. While three runs are stacked and the third from the top has a level no larger than the bigger of the two above it, merge the third and second; otherwise push the next run.
