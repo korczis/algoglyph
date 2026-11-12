@@ -71,6 +71,7 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a heavy kernel | Rust in `crates/algoglyph-kernels`, a C ABI in `crates/algoglyph-kernels/src/wasm.rs`, a plate that imports `src/wasm/algoglyph_kernels.wasm?init` | built by `scripts/wasm.sh` |
 | a classification level | a node in `taxonomy.yaml` (any depth) | the tree |
 | a check of the facts gate | `tools/checks/<name>.rhai` defining `fn check(file)` + a refused fixture | file name; `algoglyph facts` |
+| a tunable constant of a compiled sorting kernel | the plugin reads `opt.<field>` of `Options::TUNABLE`; the sidecar record's `options` | the manifest (`build.rs`); a range control of the array engine; its law in `test/sorting-options.test.ts` |
 | a measured claim on a page | `claims:` in the entry (`statement`, `readout`, `expect`, `setup`), ADR 0007 | `test/claims.test.ts` runs the plate and reads the readout |
 | a control that applies in one mode | `when: { key: <select>, values: [...] }` on the parameter | the controls panel hides it otherwise; `test/registry.test.ts` checks the select and its values |
 | a figure of a cited work | a figure in `catalogue/figures/<coll>-<vol>-<ch>.yaml` naming a live entry's plate and a `setup` of its parameters (ADR 0009) | routed once the chapter has a `review` and the plate is live and tested; `test/figures.test.ts` checks the setup; its `claims` (an entry claim's form) run in `test/claims.test.ts` with the setup under each claim's own |
@@ -102,6 +103,19 @@ Some operations annotate the trace without costing a compare or a write:
 - `ArrayKernel.maxN` caps the plate's n slider and the lab's sizes for a kernel whose rebuild
   would not fit the frame budget at the engine's largest n; a sorting kernel takes it from the
   measured `max_n` in `catalogue/sorting-sidecar.yaml`.
+
+A compiled sorting kernel's constants (the fan-in k and memory M of an external merge, the
+processors p of a parallel sort, a radix b, a heap's arity d) are tunable without a line of
+kernel-specific code. The Rust `Options` names them (`Options::TUNABLE`), `build.rs` derives
+from each plugin's source which ones it reads, and the manifest lists them per kernel. A sidecar
+record offers some of them as `options` (`{ name, label, min, max, step, default, unit? }`), which
+the catalogue gate checks against the manifest, the default being the kernel's own value. The
+adapter makes them the kernel's `ArrayKernel.options` and sends each value as the module's option
+word of that name (ABI 4, `ag_sort_options`), keyed into the trace cache; the array engine turns
+them into range controls beside the pace control, so a link carries them and the budget gate
+measures their extremes. `test/sorting-options.test.ts` holds each option to its algorithm's
+counted law across its range, and `test/sorting-max-n.test.ts` measures `max_n` at the costliest
+option corner.
 
 A lab gives each kernel the same input and the same operation budget per frame, ranks them by
 when they finish, and measures each one's work for n = 16 … 512, one size per frame, fitting the
