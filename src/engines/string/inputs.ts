@@ -247,9 +247,11 @@ export const KINDS: Record<InputKind, KindDef> = {
     size: { label: 'Text length', min: 8, max: 200, step: 4, value: 36 },
     scale: [16, 32, 64, 128, 256, 512],
     shapes: [],
-    make(rnd, n) {
-      let re = regex(rnd, 3);
-      for (let t = 0; t < 50 && (new RegExp(`^(?:${re.s})$`).test('') || re.s.length < 4); t++) re = regex(rnd, 3);
+    make(rnd, n, _shape, opts) {
+      // the pattern's tree depth, regex-nfa's Pattern nesting
+      const depth = Number(opts.depth ?? 3);
+      let re = regex(rnd, depth);
+      for (let t = 0; t < 50 && (new RegExp(`^(?:${re.s})$`).test('') || re.s.length < 4); t++) re = regex(rnd, depth);
       const chars = Array.from({ length: n }, () => pick(rnd, 'abc'));
       for (let k = 0; k < 2; k++) {
         const s = re.sample(rnd).slice(0, n);
