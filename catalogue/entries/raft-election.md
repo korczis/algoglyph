@@ -58,6 +58,23 @@ claims:
     expect: { against: Leaders elected, tolerance: 0 }
     setup:
       params: { heal: 90 }
+  - id: one-leader-per-term-at-a-600-ms-timeout
+    statement: >-
+      With election timeouts drawn from 150 up to 600 ms, still at most one leader per term: the
+      terms that elected a leader minus the leaders elected is exactly 0, since the timeout only
+      decides when a node stands, never how votes are granted or counted.
+    readout: Result
+    expect: { against: Leaders elected, tolerance: 0 }
+    setup:
+      params: { timeoutMax: 600 }
+  - id: one-leader-per-term-at-a-900-ms-timeout
+    statement: >-
+      With election timeouts drawn from 150 up to 900 ms, the widest setting, the same identity
+      holds: the difference is exactly 0.
+    readout: Result
+    expect: { against: Leaders elected, tolerance: 0 }
+    setup:
+      params: { timeoutMax: 900 }
 ---
 
 Randomised timeouts, terms and votes until one leader holds a majority.

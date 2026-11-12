@@ -81,3 +81,46 @@ describe('raft-election: partition heals at', () => {
     }
   });
 });
+
+describe('raft-election: election timeout up to', () => {
+  it('is a range control of the plate, the old constant its default', () => {
+    // from 300: a shorter top means more elections, each n² messages, and a heavier trace than
+    // the plate's heaviest setting today; a longer one only means fewer elections
+    expect(defOf('timeoutMax')).toMatchObject({ kind: 'range', label: 'Election timeout up to (ms)', min: 300, max: 900, step: 10, value: 300, rebuild: true });
+  });
+
+  it('round-trips through a shared link', () => {
+    const defs = plateOf(ID).params;
+    const d: Params = Object.fromEntries(defs.map((x) => [x.key, x.value]));
+    for (const v of [310, 450, 600, 900]) {
+      expect(parse(defs, serialise(defs, { ...d, timeoutMax: v }, 7))).toEqual({ seed: 7, params: { timeoutMax: v } });
+    }
+  });
+
+  it('draws the first timeout in [150, timeoutMax), with one leader per term at every setting', () => {
+    const d = defOf('timeoutMax');
+    expect(d, 'the plate declares the control').toBeDefined();
+    const k = kernelOf(ID) as SystemsKernel<RaftResult>;
+    for (const timeoutMax of [300, 310, 450, 600, 750, 900]) for (const seed of SEEDS) {
+      for (const net of [{}, { delay: 120, loss: 40 }, { delay: 5, loss: 0, partition: false }] as Params[]) {
+        const label = `timeoutMax ${timeoutMax} seed ${seed} ${JSON.stringify(net)}`;
+        const { net: tr, result } = simulate(k, defaultParams(k, { ...net, timeoutMax }), seed);
+        // every node's timer starts at 0, so the first candidacy is the least of n draws in
+        // [150, timeoutMax): nothing else makes a node stand
+        const first = tr.events.find((e) => e.k === 'mark' && /^T\d+\?$/.test(e.label)) as { t: number } | undefined;
+        expect(first, label).toBeDefined();
+        expect(first!.t, label).toBeGreaterThanOrEqual(150);
+        expect(first!.t, label).toBeLessThan(timeoutMax);
+        safe(result, label);
+      }
+    }
+  });
+
+  it('drives the plate\'s readouts', async () => {
+    for (const timeoutMax of [600, 900]) {
+      const r = await read(ID, claim('Result', { timeoutMax }, { against: 'Leaders elected', tolerance: 0 }));
+      expect(r.reason, `timeoutMax ${timeoutMax}`).toBeUndefined();
+      expect(r.value, `timeoutMax ${timeoutMax}: terms that elected a leader − leaders elected`).toBe(0);
+    }
+  });
+});
