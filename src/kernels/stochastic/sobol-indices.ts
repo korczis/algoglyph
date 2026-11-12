@@ -53,13 +53,17 @@ export const kernel: StochasticKernel<SobolResult> = {
     // 0 takes the second input out of f; past 10 its share a²/8 crowds out the other two
     // inputs' bars. The cost is the same at every a
     { kind: 'range', key: 'a', label: 'Ishigami a', min: 0, max: 10, step: 0.5, value: 7, rebuild: true, when: { key: 'model', values: ['ishigami'] } },
+    // 0 takes the third input out of f; past 0.3 the interaction b x₃⁴ sin x₁ dominates the
+    // variance (V₁₃ grows as b²) and the first two inputs' bars shrink. The cost is the same at
+    // every b
+    { kind: 'range', key: 'b', label: 'Ishigami b', min: 0, max: 0.3, step: 0.01, value: 0.1, rebuild: true, when: { key: 'model', values: ['ishigami'] } },
   ],
   chart: { title: 'First-order indices as samples grow', x: { label: 'evaluations', log: true }, y: { label: 'S_i' } },
   *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const m = str(cfg, 'model') === 'additive'
       ? additive(Array.from({ length: 4 }, () => s.uniform(0.2, 3)))
-      : ishigami(num(cfg, 'a'));
+      : ishigami(num(cfg, 'a'), num(cfg, 'b'));
     const n = num(cfg, 'n');
     const d = m.d;
     const draw = () => Array.from({ length: d }, () => s.uniform(m.lo, m.hi));

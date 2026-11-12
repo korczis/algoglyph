@@ -127,6 +127,45 @@ describe('sobol-indices: Ishigami a', () => {
   });
 });
 
+describe('sobol-indices: Ishigami b', () => {
+  const KEY = 'b';
+
+  it('is a range control with the old constant as its default, shown for the Ishigami function', () => {
+    expect(defOf(KEY)).toMatchObject({
+      kind: 'range', label: 'Ishigami b', min: 0, max: 0.3, step: 0.01, value: 0.1, rebuild: true,
+      when: { key: 'model', values: ['ishigami'] },
+    });
+  });
+
+  it('round-trips through a shared link', async () => {
+    await roundTrip(KEY, [0, 0.17, 0.3]);
+  });
+
+  it('the analytic indices are the quadrature at every b', () => {
+    for (const b of [0, 0.05, 0.2, 0.3]) {
+      const r = trace(k, { model: 'ishigami', n: 200, [KEY]: b }, 1).result!;
+      const q = quadrature(7, b);
+      r.analyticFirst.forEach((v, i) => expect(v, `b=${b} first x${i + 1}`).toBeCloseTo(q.first[i], 3));
+      r.analyticTotal.forEach((v, i) => expect(v, `b=${b} total x${i + 1}`).toBeCloseTo(q.total[i], 3));
+    }
+  });
+
+  it('drives the readouts: at b = 0 the third input drops out exactly, elsewhere the analytic values', async () => {
+    const x3 = await read(ID, claim('Indices of x3', { [KEY]: 0 }));
+    expect(x3.reason).toBeUndefined();
+    expect(x3.value).toBe(0);
+    const both = await read(ID, claim('Indices of x3', { [KEY]: 0 }, { against: 'Indices of x3', against_number: 2, tolerance: 0 }));
+    expect(both.value).toBe(0);
+    const r = trace(k, { model: 'ishigami', n: 4000, [KEY]: 0 }, 9).result!;
+    expect([r.first[2], r.total[2]]).toEqual([0, 0]);
+    for (const b of [0, 0.3]) {
+      const e = await read(ID, claim('Largest error against analytic', { [KEY]: b }));
+      expect(e.reason).toBeUndefined();
+      expect(e.value!, `b=${b}: ${e.text}`).toBeLessThan(replicated({ [KEY]: b }, 50));
+    }
+  });
+});
+
 describe('sobol-indices at its defaults is what it was before the controls', () => {
   // readout texts (strings), recorded on the code before the controls existed (5f091c7)
   const READOUTS = '460813e21be059af';
