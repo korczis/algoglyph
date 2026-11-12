@@ -15,7 +15,6 @@ complexity: "O(E) per round"
 interaction: "Tap a vertex to make it the seed."
 related:
   - personalised-pagerank
-  - sir-cascade
 ---
 
 Relevance flows from a seed along weighted edges and fades, choosing what to look at.

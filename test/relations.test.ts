@@ -76,3 +76,26 @@ describe('relations: typed links the notes state', () => {
     for (const [from, , to] of STATED) expect(declared(from).related, `${from} related`).not.toContain(to);
   });
 });
+
+// pairs both sides declared: kept on one side, the reverse derived
+const COLLAPSED: [string, string][] = [
+  ['pareto-front', 'simplex-method'],
+  ['sir-cascade', 'spreading-activation'],
+  ['recursive-descent-parser', 'infix-to-postfix'],
+  ['union-find-entity-merge', 'connected-components'],
+];
+
+describe('relations: a pair is declared on one side', () => {
+  it.each(COLLAPSED)('%s declares %s, which does not declare it back, and both show it', (a, b) => {
+    const da = declared(a);
+    const db = declared(b);
+    expect([...da.related, ...da.relations.map((r) => r.target)]).toContain(b);
+    expect([...db.related, ...db.relations.map((r) => r.target)]).not.toContain(a);
+    expect(linked(a, b)).toBe(true);
+    expect(linked(b, a)).toBe(true);
+  });
+
+  it('union-find-entity-merge reads weighted-quick-union once, as its prerequisite', () => {
+    expect(declared('union-find-entity-merge').related).not.toContain('weighted-quick-union');
+  });
+});

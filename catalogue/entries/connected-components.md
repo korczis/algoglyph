@@ -12,7 +12,6 @@ tags:
   - dfs
 complexity: "O(V + E)"
 related:
-  - union-find-entity-merge
   - kosaraju-scc
 ---
 
