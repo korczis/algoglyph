@@ -137,7 +137,7 @@ describe.runIf(Boolean(OUT))('sorting rebuild cost per n', () => {
       writeFileSync(SIDECAR, withMaxN(readFileSync(SIDECAR, 'utf8'), new Set(records.map((r) => r.kernel)), bounds));
     }
     expect(Object.keys(out).every((k) => out[k].max_n >= STEP)).toBe(true);
-  }, 3_600_000);
+  });
 });
 
 describe('derived max_n', () => {
