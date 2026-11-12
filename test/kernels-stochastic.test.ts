@@ -8,7 +8,7 @@ import type p5 from 'p5';
 import type { Params, PlateContext } from '../src/core/plate';
 import { GROUNDS, palette } from '../src/core/palette';
 import { drawPanels, layout } from '../src/engines/stochastic/draw';
-import { engine, Replay, STEP_MS } from '../src/engines/stochastic/index';
+import { engine, PIECES_PER_FRAME, Replay, STEP_MS } from '../src/engines/stochastic/index';
 import { config, Runner, trace, type StochasticKernel } from '../src/engines/stochastic/trace';
 import type { BayesResult } from '../src/kernels/stochastic/bayes-update';
 import type { BoxMullerResult } from '../src/kernels/stochastic/box-muller';
@@ -542,8 +542,20 @@ describe('stochastic engine budgets', () => {
       let worst = 0;
       for (let i = 0; i < n; i++) worst = Math.max(worst, Math.min(...times.map((t) => t[i])));
       expect(worst, `${e.id}: longest piece`).toBeLessThan(PIECE_MS);
-    }, 60000);
+    });
   }
+
+  it('a live frame resumes a counted number of pieces, however long its wall-clock slice', () => {
+    // a slice alone always finishes the piece it started, and under load a frame's CPU outgrows
+    // its wall time; the count is the bound (var-cvar sat over the frame budget with a slice alone)
+    const k = kernelOf('var-cvar');
+    const capped = new Runner(k, maxParams(k), 5);
+    capped.step(Infinity, PIECES_PER_FRAME);
+    const single = new Runner(k, maxParams(k), 5);
+    for (let i = 0; i < PIECES_PER_FRAME; i++) single.step(0);
+    expect(capped.done).toBe(false);
+    expect(capped.counts).toEqual(single.counts);
+  });
 
   it('prepares the next seed’s run while the finished one is held, so no frame stalls', () => {
     const k = kernelOf('bootstrap-ci');

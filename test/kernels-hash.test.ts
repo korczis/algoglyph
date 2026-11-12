@@ -462,15 +462,14 @@ describe('hash plates loop without a heavy frame', () => {
       const code = engine.plate({ id: e.id, title: e.id, group: 'g' }, kernelOf(e.id));
       const worst = drive(code, (s) => s.startsWith('100%'));
       expect(worst, `${e.id}: ${worst.toFixed(1)} ms`).toBeLessThanOrEqual(frameMs);
-    }, 120000);
+    });
   }
 
   it('the hashing lab hands over to its next run within the frame budget', () => {
     const code = engine.lab('hashing', live.map((e) => ({ info: { id: e.id, title: e.id, group: 'g' }, kernel: kernelOf(e.id) })));
     const worst = drive(code, (s) => s.split('|').every((v) => v.includes('finished')));
     expect(worst, `${worst.toFixed(1)} ms`).toBeLessThanOrEqual(frameMs);
-  }, 120000);
-
+  });
   it('traces a next run in slices of bounded events', () => {
     const n = 512;
     const r = new Rebuild(live.map((e) => kernelOf(e.id)), workload('adversarial', n, 90, 1), { n, m: Math.ceil(n / 0.95), pageSize: 4 });

@@ -136,9 +136,20 @@ export function gate(root, model) {
   const ignored = (p) => [p, `${p}/`].some((q) => spawnSync('git', ['check-ignore', '-q', '--no-index', q], { cwd: root }).status === 0);
   const exists = (p) => existsSync(join(root, p)) || ignored(p);
   const findings = [];
+  const scanned = [];
   for (const f of files) {
     if (!existsSync(join(root, f))) continue;
-    findings.push(...scan(relative(root, join(root, f)), readFileSync(join(root, f), 'utf8'), { policy, model, exists }));
+    const path = relative(root, join(root, f));
+    scanned.push(path);
+    findings.push(...scan(path, readFileSync(join(root, f), 'utf8'), { policy, model, exists }));
   }
-  return { findings, files: files.length, exempt: policy.exempt ?? [] };
+  return { findings, files: files.length, exempt: policy.exempt ?? [], scanned,
+    applied: applied(policy, scanned) };
+}
+
+/** The declared exemptions each scanned file falls under: what the gate did not judge, and why. */
+export function applied(policy, scanned) {
+  return scanned.flatMap((file) => (policy.exempt ?? [])
+    .filter((x) => matches(file, [x.path]))
+    .map((x) => ({ file, path: x.path, checks: x.checks })));
 }

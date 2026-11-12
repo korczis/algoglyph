@@ -409,6 +409,7 @@ fn broken_variants_are_caught() {
         stem: "broken_merge",
         meta: &BROKEN_MERGE_META,
         sort: broken_merge,
+        source: 0,
     };
     assert!(
         check_sorts(&unstable_merge, 200).is_err(),
@@ -422,6 +423,7 @@ fn broken_variants_are_caught() {
         stem: "broken_selection",
         meta: &BROKEN_SELECTION_META,
         sort: broken_selection,
+        source: 0,
     };
     assert!(
         check_sorts(&bad_selection, 200).is_err(),
@@ -432,6 +434,7 @@ fn broken_variants_are_caught() {
         stem: "fixed",
         meta: &BROKEN_MERGE_META,
         sort: fixed_merge,
+        source: 0,
     };
     assert!(check_sorts(&fixed, 200).is_ok());
     assert!(check_stable(&fixed).is_ok());

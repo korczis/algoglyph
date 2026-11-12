@@ -138,7 +138,8 @@ export const kernel: GraphKernel<LayeredResult> = {
       const c = crossings(segs, layer, pos);
       if (c < best) { best = c; bestOrders = orders.map((o) => o.slice()); }
       place();
-      yield;
+      // the sweep's sorting and the crossing count's pair tests, which record nothing
+      yield (segs.length * segs.length) / 2 + next;
     }
     for (let l = 0; l < L; l++) orders[l] = bestOrders[l];
     index();

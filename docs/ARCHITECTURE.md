@@ -66,6 +66,8 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a chart | `ctx.chart({ title, x, y, series })` from any plate or engine | rendered by `src/core/charts.ts` |
 | a heavy kernel | Rust in `crates/algoglyph-kernels`, a C ABI in `crates/algoglyph-kernels/src/wasm.rs`, a plate that imports `src/wasm/algoglyph_kernels.wasm?init` | built by `scripts/wasm.sh` |
 | a classification level | a node in `taxonomy.yaml` (any depth) | the tree |
+| a check of the facts gate | `tools/checks/<name>.rhai` defining `fn check(file)` + a refused fixture | file name; `algoglyph facts` |
+| a task | a recipe in `justfile` with `[group]` and `[doc]` | `just --list` |
 
 ### Engine and kernel
 
@@ -134,17 +136,63 @@ pointer.
 
 ## Tooling
 
+Three layers, each the entry point of the next (ADR 0005 §6):
+
+1. **`just`** — the root `justfile` is where every task starts. `just --list` documents it:
+   recipes are grouped (gates, catalogue, site, rust, delivery) and each carries a `[doc]`. A
+   recipe delegates to the npm script or tool that does the work, so `just verify` and
+   `npm run verify` cannot behave differently; `test/justfile.test.ts` reads `package.json` and
+   the justfile and refuses an npm script no recipe runs, a recipe that runs a missing script or
+   names a crate outside the workspace, and a `just <recipe>` in the docs that is no recipe. CI
+   installs just, so the checks that read the justfile through just run there too.
+2. **The CLI** — `crates/algoglyph-cli`, the binary `algoglyph`, a member of the Cargo workspace
+   at the root beside `crates/algoglyph-kernels` (one lockfile, one release profile, build output
+   in the ignored `target/`). The Node scripts are ported to it one at a time; each port is
+   proven equivalent by running both on the same input, and the Node script stays the gate until
+   its port replaces it. Ported so far: the derived-facts gate (`just facts-rs`), which reads
+   the same `config/derived-facts.yaml`; `crates/algoglyph-cli/tests/equivalence.rs` runs both
+   gates on the repository and on `test/fixtures/derived-facts/` and asserts the same findings,
+   the same files read and the same exemptions applied to each.
+3. **Rhai checks** — a check of the facts gate that is not built in is a script under
+   `tools/checks/`, found by its file name: `tools/checks/<name>.rhai` is the check `<name>`,
+   and the policy's exemptions apply to it by that name. The `plate-number` family is one. A
+   check runs inside the limits of the policy's `rhai` block (operations, call depth, string,
+   array and map sizes) and is refused with exit 2 when it reaches one; it cannot `import`
+   another script, and its `print` and `debug` go to stderr, never into the `--json` report.
+
+To add a check, drop a file there:
+
+```rhai
+// tools/checks/<name>.rhai: file.path, file.text, file.lines (#{ number, text }: derived
+// regions blanked, YAML record subtrees left out); returns #{ line, text } per finding
+fn check(file) {
+    let found = [];
+    for line in file.lines {
+        for m in find_all(line.text, `\bTODO\b`, "i") {   // JavaScript regex syntax
+            found.push(#{ line: line.number, text: m.text });
+        }
+    }
+    found
+}
+```
+
+then add a refused case to `test/fixtures/derived-facts/`: the equivalence test asks for one
+per check. The host contract is documented in `crates/algoglyph-cli/src/plugins.rs`.
+
 ```bash
-npm run catalogue                  # validate; print what the collection holds
-npm run catalogue -- --check       # and refuse a stale derived plan
-npm run catalogue -- stats         # counts by wing, engine and status
-npm run catalogue -- list --status planned --engine graph
-npm run catalogue -- new <id> --title "<t>" --taxonomy <wing/shelf> --engine <e> [--kernel]
-npm run catalogue -- plan --write  # regenerate the MC-*/IC-* plan from the planned entries
-npm run wasm                       # Rust tests + wasm32 build
-npm run readme                     # regenerate the README's derived regions
-npm run facts                      # no hand-typed counts, plate numbers or dangling links
-npm run verify                     # everything CI runs, in CI's order
+just                               # the recipes, by group
+just catalogue                     # validate; print what the collection holds
+just catalogue --check             # and refuse a stale derived plan
+just catalogue stats               # counts by wing, engine and status
+just catalogue list --status planned --engine graph
+just catalogue new <id> --title "<t>" --taxonomy <wing/shelf> --engine <e> [--kernel]
+just plan --write                  # regenerate the MC-*/IC-* plan from the planned entries
+just wasm                          # Rust tests + wasm32 build
+just readme                        # regenerate the README's derived regions
+just facts                         # no hand-typed counts, plate numbers or dangling links
+just facts-rs                      # the same gate, Rust port with the Rhai checks
+just test-rs                       # every crate's tests, the port's equivalence included
+just verify                        # everything CI runs, in CI's order
 ```
 
 ## Enforcement
@@ -152,9 +200,10 @@ npm run verify                     # everything CI runs, in CI's order
 | Rule | Checked by | Runs in |
 |------|------------|---------|
 | `project.catalogue-integrity` | `scripts/catalogue.mjs --check`, `build-readme.mjs --check`, the Vite plugin | verify, CI, every build |
-| `project.derived-facts` | `scripts/check-facts.mjs` (policy `config/derived-facts.yaml`), `test/derived-facts.test.ts` | pre-commit, verify, CI |
+| `project.derived-facts` | `scripts/check-facts.mjs` (policy `config/derived-facts.yaml`), `test/derived-facts.test.ts`; its Rust port's equivalence, `crates/algoglyph-cli/tests/equivalence.rs` | pre-commit, verify, CI; the port in CI |
 | `project.viz-component-layer` | the live↔code check, `test/registry.test.ts`, the browser gate | verify, CI |
 | `project.no-fake-science` | the engine harness tests, `cargo test`, the wasm fixture test | verify, CI |
 | main-thread budget (`project.viz-component-layer`) | `test/budget.test.ts` over every live plate and lab: every width and heavy corner, past the end of a run, during a slider drag; CPU time calibrated by a reference workload; budgets in `config/budgets.yaml`; run alone (`npm run test:budget`) | verify, CI |
-| `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail) | verify, CI before every deploy |
+| no wall-clock judgement in correctness tests (`project.viz-component-layer`) | `test/suite-contract.test.ts`: no test sets a limit shorter than `testTimeout` | verify, CI |
+| `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail); its waits and retries are data (`config/budgets.yaml`, `browser`): a page that misses its readout is opened again once and logged, a page that misses twice fails, and more retries than `max_retries` fail the run | verify, CI before every deploy |
 | the plan | `majordomus plan validate`, `majordomus doctor` | the commit hook, CI |

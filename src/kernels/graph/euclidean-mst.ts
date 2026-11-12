@@ -18,7 +18,7 @@ export const kernel: GraphKernel<MstResult> = {
     const g = ops.g;
     const id = new Map<number, number>();
     for (let e = 0; e < g.m; e++) id.set(Math.min(g.eu[e], g.ev[e]) * g.n + Math.max(g.eu[e], g.ev[e]), e);
-    const cand = delaunayEdges(g.x, g.y).map(([a, b]) => id.get(a * g.n + b) as number);
+    const cand = (yield* delaunayEdges(g.x, g.y)).map(([a, b]) => id.get(a * g.n + b) as number);
     for (const e of cand) ops.edge(e, E.seen);
     ops.round();
     yield;

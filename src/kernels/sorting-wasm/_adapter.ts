@@ -11,24 +11,23 @@
 //   aux write s i k -> setAux(cell, k): structure s, cell i, at its cell of the auxiliary row
 //                     (auxLayout). The array engine's auxiliary writes are therefore exactly
 //                     the writes the Rust tracer counted.
-//   aux clear s [f,t) -> clearAux(cells), when the array engine offers that free operation;
-//                     an emptied cell is not a write, so it is never replayed as setAux.
+//   aux clear s [f,t) -> clearAux(cell, cell) for each emptied cell: free and uncounted, since
+//                     an emptied cell is not a write.
 //   phase, lane, round: no ArrayOps counterpart; they stay in the Rust trace.
 // Copying the array into the module costs n reads, recorded first: that is the adapter's own
 // work, and the array engine shows it as a first pass.
 //
 // The auxiliary row: each structure gets its own lane, side by side in order of first
-// appearance, never wrapping. When the structures together are wider than the row, each lane
-// gets its share of the row and folds its cells into it by scale, so two structures never share
-// a cell. An array engine that offers reserveAux(cells) gets a row as wide as the structures
-// need, and then every cell is drawn exactly.
+// appearance, never wrapping, on a row as wide as the structures need (reserveAux), so every
+// cell is drawn exactly. Only past the array engine's widest row (AUX_CAP) is a lane folded
+// into its share of the row by scale (auxLayout).
 //
 // A run truncated at the step limit is passed on as the array engine's own truncation (its
 // event cap reached), so it never becomes a point of a growth fit.
-import { EVENT_CAP, type ArrayKernel, type ArrayOps } from '../../engines/array/trace';
+import { AUX_CAP, EVENT_CAP, type ArrayKernel, type ArrayOps } from '../../engines/array/trace';
 import { loadSorting, SOP, STRIDE, type KernelMeta, type RunOptions, type Sorting, type WasmRun } from './_abi';
 import { hashWords, TraceCache } from './_cache';
-import { kernelOf } from './_sidecar';
+import { kernelOf, maxNOf } from './_sidecar';
 
 const sizeOf = (r: WasmRun) => r.steps.byteLength + r.output.byteLength + r.tags.byteLength
   + r.strings.reduce((s, x) => s + 2 * x.length, 0) + 256;
@@ -120,28 +119,22 @@ export function auxLayout(r: WasmRun, row: number): Map<number, AuxLane> {
   return lanes;
 }
 
-/** The free operations an array engine may offer for the auxiliary row (feature-detected). */
-interface AuxRowOps {
-  /** Make the auxiliary row `cells` wide (free; before the first auxiliary operation). */
-  reserveAux?(cells: number): void;
-  /** Empty the auxiliary cells [lo, hi] (free: not a write; drawing only). */
-  clearAux?(lo: number, hi: number): void;
-}
-
 /**
  * Replay a Rust trace through ArrayOps (see the table at the top of this file). `emitted` is
  * the number of events the run has recorded before the replay (the copy into the module).
  */
 export function replay(a: ArrayOps, r: WasmRun, emitted = 0): void {
   const s = r.steps;
-  const extra = a as ArrayOps & AuxRowOps;
+  // a row as wide as the structures need (reserveAux), so every cell is drawn exactly; folded
+  // only past the array engine's widest row
   const wanted = auxLayout(r, Number.MAX_SAFE_INTEGER);
   const total = [...wanted.values()].reduce((x, l) => x + l.width, 0);
-  if (total > a.n && extra.reserveAux) extra.reserveAux(total);
-  const lanes = extra.reserveAux && total > a.n ? wanted : auxLayout(r, a.n);
+  const row = Math.max(a.n, Math.min(total, AUX_CAP));
+  if (row > a.n) a.reserveAux(row);
+  const lanes = row >= total ? wanted : auxLayout(r, row);
   // live source cells behind each row cell, so a folded cell is emptied only when all are
   const live = new Map<number, Uint8Array>();
-  const behind = new Int32Array(Math.max(a.n, extra.reserveAux ? total : 0));
+  const behind = new Int32Array(row);
   let events = emitted;
   for (let e = 0; e < s.length; e += STRIDE) {
     const w0 = s[e];
@@ -173,7 +166,7 @@ export function replay(a: ArrayOps, r: WasmRun, emitted = 0): void {
           if (!on[i]) continue;
           on[i] = 0;
           const cell = auxCell(lane, i);
-          if (--behind[cell] === 0 && extra.clearAux) { extra.clearAux(cell, cell); events++; }
+          if (--behind[cell] === 0) { a.clearAux(cell, cell); events++; }
         }
         break;
       }
@@ -187,27 +180,36 @@ export function replay(a: ArrayOps, r: WasmRun, emitted = 0): void {
   }
 }
 
+const NO_STEPS = new Int32Array(0);
+
 export interface WasmArrayKernel extends ArrayKernel {
   /** The atlas kernel id. */
   readonly kernelId: string;
   readonly meta: KernelMeta;
-  /** The last run's Rust result (outcome, note, the Rust counts), for readouts and tests. */
+  /** The last run's Rust result (outcome, note, counts, output; not its steps), for readouts and tests. */
   last?: WasmRun;
 }
 
-/** Kernel `id` of a loaded module as an array-engine kernel. */
-export function wasmKernel(s: Sorting, id: string): WasmArrayKernel {
+/**
+ * Kernel `id` of a loaded module as an array-engine kernel, playing at most `maxN` keys when its
+ * measured rebuild cost bounds it (the sidecar's max_n, through the catalogue model).
+ */
+export function wasmKernel(s: Sorting, id: string, maxN?: number): WasmArrayKernel {
   const meta = s.meta(id);
   if (!meta) throw new Error(`sorting-wasm: the module has no kernel ${id}`);
   const k: WasmArrayKernel = {
     goal: 'sort',
     kernelId: id,
     meta,
+    ...(maxN ? { maxN } : {}),
     run(a: ArrayOps) {
       const keys = new Int32Array(a.n);
       for (let i = 0; i < a.n; i++) keys[i] = a.get(i);
-      k.last = traceOf(s, id, keys);
-      replay(a, k.last, a.n);
+      const r = traceOf(s, id, keys);
+      // what the run reported, without its steps: a lab of many kernels keeps every kernel's
+      // last run, and the steps are already in the array engine's own trace
+      k.last = { ...r, steps: NO_STEPS };
+      replay(a, r, a.n);
     },
   };
   return k;
@@ -221,7 +223,7 @@ export async function sidecarKernel(entryId: string): Promise<WasmArrayKernel> {
   const id = kernelOf(entryId);
   if (!id) throw new Error(`sorting-wasm: no sidecar maps a kernel to ${entryId}`);
   const s = await loadSorting();
-  const k = wasmKernel(s, id);
+  const k = wasmKernel(s, id, maxNOf(entryId));
   await traceCache(s).prefetch(`${id}|`);
   return k;
 }

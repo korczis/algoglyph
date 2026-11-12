@@ -21,3 +21,16 @@ drag_steps: 8         # steps of a slider swept from its minimum to its maximum,
 reference_cpu_ms: 2.9   # referenceCpuMs() in test/budget.test.ts on the reference machine (an M-series Mac,
                         # best of seven at 2026-11-12T00:21Z); budgets scale by measured / this, never below 1
 local_headroom: 0.6     # outside CI (no CI env var) the budgets are this fraction: local green predicts CI green
+
+# The browser gate's waits (scripts/audit-ui.mjs): how long a page may take on the machine running
+# the gate before a missing picture or readout counts as a failure. Generous on purpose: a wait
+# costs time only when something is genuinely missing.
+browser:
+  readout_ms: 30000       # a plate or lab mounts its canvas and publishes its first readout; a page
+                          # slower than this is a finding to fix, not a wait to raise
+  thumb_ms: 90000         # each gallery thumbnail of a wing (the wing's budget is this × its cards)
+  # A page that misses readout_ms is opened again this many times: a page that never publishes
+  # misses every visit, a stall of the gate's machine does not (Pages runs 43133085956: identical
+  # code gave long tasks of 0.1-5.7 s on the x86 runner while its host swapped 13 GB).
+  readout_retries: 1
+  max_retries: 6          # more retries than this in one run fail it: too slow a machine to judge

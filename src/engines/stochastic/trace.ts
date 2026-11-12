@@ -167,9 +167,16 @@ export class Runner<R = unknown> {
     this.it = kernel.run(this.ops, config(kernel as StochasticKernel, params));
   }
   /** Advance by pieces until the budget (ms) is spent or the run ends; at least one piece. */
-  step(budget: number): boolean {
+  /**
+   * Advance by pieces until `budget` ms of wall time or `pieces` pieces, whichever comes first.
+   * The piece count is what bounds a live frame: a wall-clock slice always finishes the piece it
+   * started, and under load a frame's CPU outgrows its wall time (noise-colours and var-cvar sat
+   * over the frame budget with a slice alone).
+   */
+  step(budget: number, pieces = Infinity): boolean {
     if (this.done) return true;
     const end = now() + budget;
+    let taken = 0;
     do {
       const r = this.it.next();
       if (r.done) {
@@ -178,7 +185,7 @@ export class Runner<R = unknown> {
         if (!this.frames.length) this.ops.frame([], []);
         break;
       }
-    } while (now() < end);
+    } while (++taken < pieces && now() < end);
     return this.done;
   }
   get counts() { return { draws: this.draws, evals: this.evals }; }

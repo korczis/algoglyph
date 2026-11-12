@@ -181,6 +181,9 @@ pub struct Entry {
     pub stem: &'static str,
     pub meta: &'static Meta,
     pub sort: SortFn,
+    /// FNV-1a of the plugin's source and the shared code it runs on (prelude, kit): what a
+    /// measured cost of the kernel (the sidecar's max_n) belongs to.
+    pub source: u64,
 }
 
 /// Default step limit when the trace is recorded.

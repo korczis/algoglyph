@@ -504,7 +504,7 @@ describe('geometry kernels', () => {
       });
       it(`matches the independent reference for ${k.task}`, () => {
         CHECKS[k.task]?.(k, e.id);
-      }, 60_000);
+      });
       it('counts its declared work and replays to its final counts', () => {
         const shape = (k.shapes ?? [])[0];
         const input = makeInput(k.input, shape ?? defaultShape(k), k.input === 'none' ? 0 : (k.n?.value ?? 50), 5);
@@ -552,7 +552,7 @@ describe('geometry plates draw', () => {
       for (const r of last) expect(r.value, `${e.id} ${r.label}`).not.toMatch(/NaN|undefined|NO\b/);
       for (const c of charts) for (const s of c.series) for (const [x, y] of s.points) expect(Number.isFinite(x) && Number.isFinite(y), `${e.id} chart ${c.title}`).toBe(true);
       if (kernelOf(e.id).scaling || charts.length) expect(charts.length).toBeGreaterThan(0);
-    }, 60_000);
+    });
   }
 
   it('the hull lab ranks every hull kernel on one input', () => {
@@ -564,7 +564,7 @@ describe('geometry plates draw', () => {
     expect(last.map((r) => r.label).sort()).toEqual(hulls.map((e) => e.title).sort());
     for (const r of last) expect(r.value).toMatch(/finished #\d/);
     expect(charts[charts.length - 1].series.every((s) => s.points.length > 0)).toBe(true);
-  }, 60_000);
+  });
 });
 
 describe('geometry runs built off the main thread', () => {

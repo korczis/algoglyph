@@ -10,7 +10,7 @@ import { mulberry32 } from '../src/core/random';
 import { engine } from '../src/engines/string';
 import { input, KINDS, type InputKind } from '../src/engines/string/inputs';
 import type { ParamDef } from '../src/core/plate';
-import { STEP_EVENTS, trace, traceSteps, type StringKernel } from '../src/engines/string/trace';
+import { EventLog, STEP_EVENTS, trace, traceSteps, type StringKernel } from '../src/engines/string/trace';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 installBrowserStubs();
@@ -51,7 +51,7 @@ describe('string engine: recording off create()', () => {
       for (let g = 0; g < 400 && !/^0%|^\d%/.test(progress()); g++) sim.draw();
       expect(runs, 'one run per new input').toBe(2);
       expect(progress()).not.toMatch(/^100%/);
-    }, 120000);
+    });
   }
 
   it(`every kernel pauses at least every ${STEP_EVENTS} recorded events, at its largest inputs`, () => {
@@ -82,6 +82,22 @@ describe('string engine: recording off create()', () => {
     expect(over).toEqual([]);
   }, 300000);
 
+  it('the event log keeps every field through its growth, and reads without allocating', () => {
+    const log = new EventLog();
+    const n = 5000;
+    for (let k = 0; k < n; k++) log.push(k % 17, k - 1, 3 * k, -k | 0, k / 7, k % 5 ? undefined : `s${k}`, k % 9 ? undefined : [`a${k}`, 'b']);
+    expect(log.length).toBe(n);
+    const cur = { o: 0, p: 0, i: 0, j: 0, v: 0 };
+    for (const k of [0, 1, 1023, 1024, 2047, 4096, n - 1]) {
+      const e = log.get(k, cur);
+      expect(e).toBe(cur);
+      expect([e.o, e.p, e.i, e.j, e.v]).toEqual([k % 17, k - 1, 3 * k, -k | 0, k / 7]);
+      expect(e.s).toBe(k % 5 ? undefined : `s${k}`);
+      expect(e.ss).toEqual(k % 9 ? undefined : [`a${k}`, 'b']);
+    }
+    expect(log.toArray(10, 12)).toEqual([{ o: 10, p: 9, i: 30, j: -10, v: 10 / 7, s: 's10' }, { o: 11, p: 10, i: 33, j: -11, v: 11 / 7 }]);
+  });
+
   it('a trace recorded in steps equals the trace recorded at once, for every kernel that yields', () => {
     for (const e of live) {
       const kernel = modules[`../src/kernels/string/${e.id}.ts`];
@@ -92,11 +108,11 @@ describe('string engine: recording off create()', () => {
       let r = steps.next();
       for (; !r.done; r = steps.next()) pauses++;
       const whole = trace(kernel, x as never, {});
-      expect(r.value.events, e.id).toEqual(whole.events);
+      expect(r.value.events.toArray(), e.id).toEqual(whole.events.toArray());
       expect(r.value.counts, e.id).toEqual(whole.counts);
       if (['fellegi-sunter', 'minhash-lsh', 'levenshtein-matrix', 'brute-force-search'].includes(e.id)) {
         expect(pauses, `${e.id} pauses inside its run`).toBeGreaterThan(1);
       }
     }
-  }, 120000);
+  });
 });

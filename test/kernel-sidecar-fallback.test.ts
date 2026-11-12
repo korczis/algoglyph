@@ -159,6 +159,18 @@ describe('sidecar fallback: what it refuses', () => {
       + 'its kernel fixture-wasm-kernel declares in_place false (crates/algoglyph-kernels/src/sorting/kernels.json)']);
   });
 
+  it('a max_n measured on another source of its kernel, or off the slider grid', () => {
+    const set = (r: string, maxN: string) => writeFileSync(join(r, SIDECAR), 'version: 1\n\nentries:\n'
+      + `  - { id: fixture-wasm-sort, kernel: fixture-wasm-kernel, engine: array, ${maxN} }\n`);
+    expect(load(tree((r) => set(r, 'max_n: 64, max_n_of: "00000000000000aa"'))).errors).toEqual([]);
+    expect(load(tree((r) => set(r, 'max_n: 64, max_n_of: "00000000000000bb"'))).errors[0]).toMatch(
+      /fixture-wasm-sort -> kernel fixture-wasm-kernel: max_n 64 was measured on source 00000000000000bb, the kernel is now 00000000000000aa/);
+    expect(load(tree((r) => set(r, 'max_n: 60, max_n_of: "00000000000000aa"'))).errors[0])
+      .toMatch(/max_n must be a multiple of 8/);
+    const ok = load(tree((r) => set(r, 'max_n: 64, max_n_of: "00000000000000aa"'))).model.sidecar;
+    expect(ok['fixture-wasm-sort']).toMatchObject({ kernel: 'fixture-wasm-kernel', maxN: 64 });
+  });
+
   it('a record without its id, kernel or engine', () => {
     const root = tree((r) => append(r, '  - { id: fixture-wasm-sort }'));
     expect(load(root).errors).toEqual([`${SIDECAR} record #5: kernel, engine required`]);

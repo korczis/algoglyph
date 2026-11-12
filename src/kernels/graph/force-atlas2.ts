@@ -73,7 +73,8 @@ export const kernel: GraphKernel<LayoutResult> = {
       }
       px = fx; py = fy;
       ops.round();
-      yield;
+      // the iteration’s all-pairs repulsion, which records nothing
+      yield (n * (n - 1)) / 2;
     }
     return { x, y, swing };
   },
