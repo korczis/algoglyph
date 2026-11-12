@@ -1,5 +1,5 @@
 import { NIL, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
-import { drive } from './_digital';
+import { drive, keyBitsParams } from './_digital';
 
 // Internal nodes are make([], 2) and branch on one bit per level; keys live in leaves, make([k], 0).
 const isLeaf = (t: TreeOps, x: number) => t.degree(x) === 0;
@@ -48,6 +48,7 @@ function search(t: TreeOps, k: number): boolean {
 // alone in its subtree. The trie depends only on the set of keys, never on their order.
 export const kernel: TreeKernel = {
   input: 'bits',
+  params: keyBitsParams(),
   structure: 'binary-trie',
   run(t) { drive(t, (k) => insert(t, k as number), (k) => search(t, k as number)); },
 };

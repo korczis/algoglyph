@@ -30,6 +30,22 @@ algorithm:
 bounds:
   model: nodes touched
   worst: at most w + 1 per search for w-bit keys, whatever the insertion order
+claims:
+  - id: default-width-height-bound
+    statement: >-
+      With no extra key bits the 24 keys are w = max(4, ⌈lg 96⌉) = 7 bits wide and the tree is at
+      most w + 1 = 8 levels high, a hard bound: a key at depth d agrees with its path on its first
+      d bits, so only the key itself could sit at depth w and nothing sits deeper.
+    readout: Height
+    expect: { below: 9 }
+  - id: six-extra-bits-height-bound
+    statement: >-
+      With 6 extra key bits (w = 13) the bound rises to w + 1 = 14 levels, a hard bound from the
+      same argument; ascending input still builds no path, the bound being the width, not n.
+    readout: Height
+    expect: { below: 15 }
+    setup:
+      params: { shape: ascending, spare: 6 }
 ---
 
 Branch on the key's bits, one per level, with keys stored in the internal nodes.

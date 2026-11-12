@@ -26,6 +26,35 @@ algorithm:
 bounds:
   model: bit tests
   worst: at most w per search for w-bit keys
+claims:
+  - id: clustered-three-extra-bits-height-exact
+    statement: >-
+      On the clustered input with 3 extra key bits the 24 keys are w = max(4, ⌈lg 96⌉) + 3 = 10
+      bits wide and the trie is exactly 11 levels high: the 24 keys are four whole blocks of 6
+      consecutive integers, each block holds a pair 2j, 2j + 1 that differs only in its last bit,
+      so that pair's leaves sit at depth w, and no leaf can sit deeper, internal nodes branching
+      only on bits 0 to w − 1.
+    readout: Height
+    expect: { value: 11 }
+    setup:
+      params: { shape: clustered, spare: 3 }
+  - id: clustered-six-extra-bits-height-exact
+    statement: >-
+      With 6 extra key bits the clustered keys are w = 7 + 6 = 13 bits wide and the trie is exactly
+      w + 1 = 14 levels high, by the same pair of consecutive keys that differ only in the last bit:
+      each extra bit adds exactly one level to their shared one-way chain.
+    readout: Height
+    expect: { value: 14 }
+    setup:
+      params: { shape: clustered, spare: 6 }
+  - id: random-six-extra-bits-height-bound
+    statement: >-
+      On random keys with 6 extra key bits (w = 13) the trie is at most w + 1 = 14 levels high, a
+      hard bound: an internal node at depth d branches on bit d, so a leaf sits at depth w at most.
+    readout: Height
+    expect: { below: 15 }
+    setup:
+      params: { spare: 6 }
 ---
 
 Keys only in the leaves, internal nodes branching on bits: the shape is independent of insertion order.

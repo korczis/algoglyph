@@ -458,6 +458,24 @@ function sample<T>(pool: T[], k: number, rnd: () => number): T[] {
   return a.slice(0, Math.min(k, a.length));
 }
 
+/** sample() of the array [at(0), ..., at(len − 1)] without building it: the same draws in the
+ * same order and the same result, for a pool of 2^w keys that only a few draws ever touch. */
+function sampleRange(len: number, k: number, rnd: () => number,
+  at: (i: number) => number): number[] {
+  const moved = new Map<number, number>();
+  const get = (i: number) => moved.get(i) ?? at(i);
+  const out: number[] = [];
+  for (let i = 0; i < Math.min(k, len); i++) {
+    const j = i + Math.floor(rnd() * (len - i));
+    const vi = get(i);
+    const vj = get(j);
+    moved.set(i, vj);
+    moved.set(j, vi);
+    out.push(vj);
+  }
+  return out;
+}
+
 function randomWord(rnd: () => number, letters: string, prefix = ''): string {
   const len = 1 + Math.floor(rnd() * 4) + (rnd() < 0.3 ? 1 : 0);
   let s = prefix;
@@ -472,28 +490,42 @@ export function workload(kind: InputKind, shape: string, n: number, seed: number
   const w: Workload = { kind, shape, keys: [], searches: [], deletes: [], pairs: [], sites: 0, bits: 0,
     symbols: [], weights: [], opts, seed };
   if (kind === 'keys' || kind === 'bits') {
-    let pool: number[];
+    let chosen: number[];
+    let missesOf: (inSet: Set<number>, k: number) => number[];
     if (kind === 'keys') {
       // keys 1..2n: n of them inserted, the rest available as misses
-      pool = Array.from({ length: 2 * n }, (_, i) => i + 1);
+      const pool = Array.from({ length: 2 * n }, (_, i) => i + 1);
+      chosen = sample(pool, n, rnd);
+      missesOf = (inSet, k) => sample(pool.filter((x) => !inSet.has(x)), k, rnd);
     } else {
-      w.bits = Math.max(4, Math.ceil(Math.log2(Math.max(2, 4 * n))));
+      // extra key bits: the bit tries' control (src/kernels/tree/_digital.ts)
+      w.bits = Math.max(4, Math.ceil(Math.log2(Math.max(2, 4 * n)))) + (opts.spare ?? 0);
       const span = 2 ** w.bits;
-      pool = Array.from({ length: span }, (_, i) => i);
       if (shape === 'clustered') {
         // a few dense blocks: keys that agree on their leading bits
         const block = Math.max(4, Math.ceil(n / 4));
-        const starts = sample(Array.from({ length: Math.floor(span / block) }, (_, i) => i * block), 4, rnd);
-        pool = starts.flatMap((s) => Array.from({ length: block }, (_, i) => s + i));
+        const starts = sampleRange(Math.floor(span / block), 4, rnd, (i) => i * block);
+        const pool = starts.flatMap((s) => Array.from({ length: block }, (_, i) => s + i));
+        chosen = sample(pool, n, rnd);
+      } else {
+        chosen = sampleRange(span, n, rnd, (i) => i);
       }
+      // the misses are 0..span − 1 without the chosen keys, ascending: the i-th of them is i
+      // stepped past every chosen key at or below it
+      missesOf = (inSet, k) => {
+        const sorted = [...inSet].sort((x, y) => x - y);
+        return sampleRange(span - inSet.size, k, rnd, (i) => {
+          let v = i;
+          for (const c of sorted) { if (c <= v) v++; else break; }
+          return v;
+        });
+      };
     }
-    const chosen = sample(pool, n, rnd);
     const inSet = new Set(chosen);
     w.keys = order(chosen, shape === 'clustered' ? 'random' : shape, rnd);
-    const misses = (kind === 'keys' ? pool : Array.from({ length: 2 ** w.bits }, (_, i) => i)).filter((x) => !inSet.has(x));
     const m = Math.max(1, Math.floor(n / 2));
     const hits = sample(chosen, Math.ceil(m / 2), rnd);
-    const miss = sample(misses, Math.floor(m / 2), rnd);
+    const miss = missesOf(inSet, Math.floor(m / 2));
     w.searches = order([...hits, ...miss], 'random', rnd);
     w.deletes = sample(chosen, Math.floor(n / 2), rnd);
   } else if (kind === 'words') {
