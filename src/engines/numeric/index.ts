@@ -4,17 +4,19 @@
 // side by side and overlays the series each one measures (ADR 0004 §4-5).
 import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../core/palette';
-import { bool, num, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
+import { bool, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import type { Engine, KernelInfo } from '../types';
 import { building, drain, resume, type NumericKernel, type NumericRun, type Panel, type XY } from './trace';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
-const HOLD_FRAMES = 150;
+/** The most views a frame steps, at the pace control's top: the old speed slider's maximum. */
+const MAX_VIEWS_PER_FRAME = 4;
 /** Main-thread milliseconds a frame may spend building the next input while the last one holds. */
 const SLICE_MS = 4;
 
 const controls = (): ParamDef[] => [
-  { kind: 'range', key: 'speed', label: 'Speed', min: 0.25, max: 8, step: 0.25, value: 1 },
+  paceParam(),
   { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
 ];
 
@@ -201,15 +203,11 @@ function fit(p: p5, text: string, w: number): string {
 /** One kernel's run as the plate replays it. */
 class Replay {
   at = 0;
-  private acc = 0;
   constructor(readonly run: NumericRun) {}
   get last(): number { return this.run.steps.length - 1; }
   get done(): boolean { return this.at >= this.last; }
-  advance(perFrame: number): void {
-    this.acc += perFrame;
-    while (this.acc >= 1 && !this.done) { this.at++; this.acc -= 1; }
-    if (this.done) this.acc = 0;
-  }
+  /** Step `views` whole views (the pace carries the fraction between frames). */
+  advance(views: number): void { this.at = Math.min(this.last, this.at + views); }
 }
 
 function merged(kernel: NumericKernel, ctx: PlateContext): Params {
@@ -223,15 +221,18 @@ function plate(info: KernelInfo, kernel: NumericKernel): PlateCode {
     aspect: kernel.aspect ?? 16 / 9,
     thumbnailFrames: 2,
     params: [...(kernel.params ?? []), ...controls(), paletteParam(kernel.palette ?? 'spectral')],
+    pace: { kind: 'views', unit: 'views' },
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
       let r = new Replay(kernel.run({ seed: ctx.seed, params: merged(kernel, ctx) }));
+      const pacer = new Pacer('views', 'views', MAX_VIEWS_PER_FRAME);
+      pacer.start(r.last);
       // the next input, built a slice per frame while the finished run stays on screen
       let next: Generator<void, NumericRun, void> | null = null;
       const advanceBuild = () => {
         const run = next && resume(next, SLICE_MS);
-        if (run) { r = new Replay(run); next = null; }
+        if (run) { r = new Replay(run); next = null; pacer.start(r.last); }
       };
       return {
         setup() {
@@ -241,7 +242,7 @@ function plate(info: KernelInfo, kernel: NumericKernel): PlateCode {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
             if (next) advanceBuild();
-            else if (!r.done) r.advance(((kernel.rate ?? 2) * num(ctx.params, 'speed')) / 60);
+            else if (!r.done) r.advance(pacer.take(ctx.params));
             else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
               hold = 0;
@@ -254,8 +255,9 @@ function plate(info: KernelInfo, kernel: NumericKernel): PlateCode {
           const step = r.run.steps[r.at];
           const chart = step?.chart ?? r.run.chart;
           if (chart) ctx.chart(chart);
-          ctx.stats([...(step?.stats ?? []), { label: 'Step', value: `${r.at + 1} of ${r.run.steps.length}` }]);
+          ctx.stats([...(step?.stats ?? []), { label: 'Step', value: `${r.at + 1} of ${r.run.steps.length}` }, pacer.row(ctx.params)]);
         },
+        pace: () => pacer.report(!next && r.done, ctx.params),
       };
     },
   };
@@ -271,9 +273,13 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: NumericKernel }[])
     aspect: 4 / 3,
     thumbnailFrames: 2,
     params: [...shared, ...controls(), paletteParam(kernels[0]?.kernel.palette ?? 'spectral')],
+    pace: { kind: 'views', unit: 'views' },
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
+      // one pace for every pane, from the longest run: the same views per frame each
+      const pacer = new Pacer('views', 'views', MAX_VIEWS_PER_FRAME);
+      const paced = () => pacer.start(Math.max(0, ...panes.map((q) => q.r.last)));
       type Pane = { info: KernelInfo; kernel: NumericKernel; r: Replay };
       type Built = { panes: Pane[]; series: { name: string; points: XY[] }[] };
       // every kernel's run and probe on one input, resumable so a rebuild spreads over frames
@@ -291,10 +297,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: NumericKernel }[])
         return out;
       }
       let { panes, series } = drain(build());
+      paced();
       let next: Generator<void, Built, void> | null = null;
       const advanceBuild = () => {
         const b = next && resume(next, SLICE_MS);
-        if (b) { ({ panes, series } = b); next = null; }
+        if (b) { ({ panes, series } = b); next = null; paced(); }
       };
       const probe = kernels.find((k) => k.kernel.probe)?.kernel.probe;
       return {
@@ -306,7 +313,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: NumericKernel }[])
           if (!ctx.thumbnail) {
             if (next) advanceBuild();
             else {
-              for (const q of panes) if (!q.r.done) q.r.advance(((q.kernel.rate ?? 2) * num(ctx.params, 'speed')) / 60);
+              const k = panes.some((q) => !q.r.done) ? pacer.take(ctx.params) : 0;
+              if (k) for (const q of panes) if (!q.r.done) q.r.advance(k);
               if (panes.every((q) => q.r.done) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
                 generation++;
                 hold = 0;
@@ -334,8 +342,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: NumericKernel }[])
             const st = q.r.run.steps[q.r.at]?.stats ?? [];
             rows.push({ label: q.info.title, value: st.slice(0, 3).map((s) => `${s.label} ${s.value}`).join(' · ') });
           }
+          rows.push(pacer.row(ctx.params));
           ctx.stats(rows);
         },
+        pace: () => pacer.report(!next && panes.every((q) => q.r.done), ctx.params),
       };
     },
   };

@@ -36,7 +36,7 @@ claims:
     readout: Cost per insert
     expect: { value: 2.99, tolerance: 0.005 }
     setup:
-      params: { shape: descending, n: 255, speed: 2000 }
+      params: { shape: descending, n: 255 }
 ---
 
 Insert sifts a key up, remove-max sinks the replacement down, in a complete binary tree.

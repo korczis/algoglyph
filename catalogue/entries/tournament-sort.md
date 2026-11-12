@@ -47,7 +47,7 @@ claims:
     readout: Comparisons
     expect: { value: 2304 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A knockout tournament: the keys are players at the leaves of a binary tree, every inner node holds the winner (the smaller key) of its two children, and the champion at the root is the minimum; output it, replace its leaf with infinity, and replay only the matches on its path.

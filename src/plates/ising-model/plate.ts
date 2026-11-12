@@ -5,6 +5,7 @@ import {
   energy, lattice, magnetisation, sweep, T_CRITICAL, type Lattice, type Start,
 } from './ising';
 import { bounded, cellWithin, stepsWithin } from '../../core/budget';
+import { Pacer, paceParam } from '../../core/pace';
 
 /** Spins in the lattice at most, and spin updates (spins × sweeps) per frame (src/core/budget.ts). */
 export const MAX_SITES = 90_000;
@@ -26,8 +27,7 @@ export const isingModel: PlateCode = {
       value: 0 },
     { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 2, max: 8, step: 1, value: 3,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Sweeps per frame', min: 1, max: 20, step: 1,
-      value: 2 },
+    paceParam(),
     {
       kind: 'select', key: 'start', label: 'Start state', value: 'random', rebuild: true,
       options: [
@@ -39,8 +39,10 @@ export const isingModel: PlateCode = {
     { kind: 'toggle', key: 'soft', label: 'Soften pixels', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', unit: 'sweeps' },
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = new Pacer('stream', 'sweeps', 20);
     let lat: Lattice;
     let raster: Raster;
     let shown: Float32Array;
@@ -70,6 +72,7 @@ export const isingModel: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         cell = cellWithin(ctx.width, ctx.height, num(params, 'cell'), MAX_SITES);
         const w = Math.max(8, Math.floor(ctx.width / cell));
@@ -93,7 +96,8 @@ export const isingModel: PlateCode = {
       draw() {
         const t = num(params, 'temperature');
         const hField = num(params, 'field');
-        const n = ctx.thumbnail ? 2 : stepsWithin(num(params, 'speed'), lat.s.length, SPIN_UPDATES_PER_FRAME);
+        const asked = ctx.thumbnail ? 2 : pacer.take(params);
+        const n = asked ? stepsWithin(asked, lat.s.length, SPIN_UPDATES_PER_FRAME) : 0;
         flipped.fill(0);
         for (let k = 0; k < n; k++) {
           acceptance = sweep(lat, t, hField, ctx.rnd, flipped) / lat.s.length;
@@ -125,8 +129,9 @@ export const isingModel: PlateCode = {
           { label: 'energy per spin', value: (energy(lat, hField) / s.length).toFixed(4) },
           { label: 'acceptance (last sweep)', value: `${(acceptance * 100).toFixed(1)} %` },
           { label: 'sweeps', value: sweeps.toLocaleString('en') },
-          { label: 'sweeps this frame', value: bounded(n, ctx.thumbnail ? n : num(params, 'speed')) },
+          { label: 'sweeps this frame', value: bounded(n, asked) },
           { label: 'lattice', value: `${lat.w}×${lat.h} (torus), cells ${bounded(cell, num(params, 'cell'), ' px')}` },
+          pacer.row(params),
         ]);
       },
     };

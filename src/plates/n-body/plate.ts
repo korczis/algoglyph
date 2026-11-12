@@ -62,6 +62,7 @@ export const nBody: PlateCode = {
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate', value: true },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
     let b: Bodies;

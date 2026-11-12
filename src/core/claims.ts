@@ -11,6 +11,8 @@ export interface Claim {
     /** Compare with another readout (or another number of the same one): the claim judges
      * readout − against, with tolerance (|difference|), below or above. */
     against?: string; against_number?: number;
+    /** With against: the difference the claim states; it judges readout − against − offset. */
+    offset?: number;
   };
   setup?: { params?: Record<string, string | number | boolean>; seed?: number };
   source?: string;
@@ -26,7 +28,7 @@ export function expectationText(claim: Claim): string {
     const other = x.against === claim.readout
       ? `its number ${x.against_number ?? 1}`
       : `${x.against}${x.against_number ? ` (number ${x.against_number})` : ''}`;
-    const of = `${claim.readout} minus ${other}`;
+    const of = `${claim.readout} minus ${other}${x.offset ? ` minus ${x.offset}` : ''}`;
     if (x.tolerance !== undefined) return `${of} within ±${x.tolerance}`;
     return x.below !== undefined ? `${of} below ${x.below}` : `${of} above ${x.above}`;
   }

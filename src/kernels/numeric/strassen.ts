@@ -100,7 +100,6 @@ const flat = (A: Mat) => A.flat();
 export const kernel: NumericKernel = {
   params: [{ kind: 'select', key: 'n', label: 'Matrix size', value: '16', rebuild: true,
     options: ['4', '8', '16', '32'].map((v) => ({ value: v, label: `${v} × ${v}` })) }],
-  rate: 0.8,
   aspect: 2.2,
   palette: 'spectral',
   run({ seed, params }) {

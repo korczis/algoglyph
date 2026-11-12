@@ -15,7 +15,6 @@ export interface FsResult { m: number[]; u: number[]; p: number; loglik: number[
 export const kernel: StringKernel<'records', FsResult> = {
   input: 'records',
   counters: { compare: 'Field comparisons', em: 'EM pair updates' },
-  speed: 40,
   chart: { title: 'Match weights of all pairs', x: 'total weight (bits)', y: 'pairs' },
   // a generator: a record's row of pairs, or 256 pairs of an EM pass, per step
   *run(ops, { records }) {

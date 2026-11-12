@@ -15,6 +15,31 @@ tags:
   - shuffle
   - oblivious
 complexity: O(n log² n) compare-exchanges, fixed in advance
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [batcher-merge-exchange]
+  objectives:
+  - 'Run Already sorted at 256 keys: 3,839 comparisons, Batcher''s (k² − k + 4)·2^(k−2) − 1 for n = 2^k, and n·k(k − 1) = 14,336 auxiliary writes for the shuffles, with as many array writes.'
+  - 'Run Random permutation at 256 keys: the same comparisons, and two more array writes for every exchange.'
+  - 'Explain how a compare-exchange that meets a pad of the padded network is settled without a comparison.'
+  misconceptions:
+  - 'Shuffles are free wiring, so the plate shows no work for them; carried out through the auxiliary array they cost 14,336 auxiliary writes at 256 keys, more than three times the 3,839 comparisons.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+bounds:
+  model: 'comparisons (one per compare-exchange of two real keys), array writes (the shuffled blocks written back, and two per exchange) and auxiliary writes (each block copied out for its shuffle)'
+  average: 'the same comparisons on every input of n keys; at n = 2^k Batcher''s (k² − k + 4)·2^(k−2) − 1 comparisons, n·k(k − 1) auxiliary writes, and as many array writes plus two per exchange'
+claims:
+  - id: shuffles-are-auxiliary-traffic
+    statement: >-
+      On Random permutation at 256 keys the shuffles cost n·k(k − 1) = 14,336 auxiliary writes for k = 8, more than three times the 3,839 comparisons of Batcher's merge: every unshuffle and shuffle copies its block through the auxiliary array.
+    readout: Auxiliary writes
+    expect: { value: 14336 }
+    setup:
+      params: { shape: random, n: 256, speed: 2000 }
 ---
 
 Batcher's merge expressed as perfect shuffles and compare-exchanges, as a parallel machine would run it.

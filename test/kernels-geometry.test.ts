@@ -2,6 +2,7 @@
 // share no code with the kernels: brute force, linear scans, closed forms and published values.
 // A kernel is checked by the reference its `task` names (ADR 0004 §4).
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { ENTRIES } from '../src/core/catalogue';
 import type p5 from 'p5';
 import { PALETTES } from '../src/core/palette';
@@ -545,7 +546,7 @@ describe('geometry plates draw', () => {
       const code = engine.plate({ id: e.id, title: e.title, group: 'g' }, kernelOf(e.id));
       expect(code.id).toBe(e.id);
       expect(drive(code, 2, true).calls.shapes).toBeGreaterThan(0);
-      const { rows, charts } = drive(code, 1500, false, { speed: 40, loop: false });
+      const { rows, charts } = drive(code, 1500, false, { pace: PACING.pace.max, loop: false });
       const last = rows[rows.length - 1];
       expect(last.length).toBeGreaterThan(0);
       expect(last.find((r) => r.label === 'Progress')?.value).toMatch(/^100%/);
@@ -559,8 +560,9 @@ describe('geometry plates draw', () => {
     const hulls = live.filter((e) => e.labs.includes('hulls'));
     const code = engine.lab('hulls', hulls.map((e) => ({ info: { id: e.id, title: e.title, group: 'g' }, kernel: kernelOf(e.id) })));
     drive(code, 2, true);
-    const { rows, charts } = drive(code, 400, false, { budget: 20, loop: false });
-    const last = rows[rows.length - 1];
+    const { rows, charts } = drive(code, 400, false, { pace: PACING.pace.max, loop: false });
+    // the pace row is the lab's, not a pane's
+    const last = rows[rows.length - 1].filter((r) => r.label !== 'Pace');
     expect(last.map((r) => r.label).sort()).toEqual(hulls.map((e) => e.title).sort());
     for (const r of last) expect(r.value).toMatch(/finished #\d/);
     expect(charts[charts.length - 1].series.every((s) => s.points.length > 0)).toBe(true);

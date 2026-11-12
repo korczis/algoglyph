@@ -76,7 +76,6 @@ export function sidebands(fm: number, beta: number, orders = ORDERS, meter?: Met
 // The carrier's frequency swings by β·fm; the spectrum is a carrier and sidebands fm apart,
 // the n-th weighted by |J_n(β)|. The plate sweeps the index up to the chosen β.
 export const kernel: SignalKernel = {
-  rate: 5,
   params: [
     { kind: 'select', key: 'fm', label: 'Modulator (Hz)', value: '125', options: ['100', '125', '200', '250'].map((v) => ({ value: v, label: `${v} Hz` })) },
     { kind: 'range', key: 'beta', label: 'Largest modulation index β', min: 0.5, max: 6, step: 0.1, value: 5 },

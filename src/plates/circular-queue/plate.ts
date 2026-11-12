@@ -2,6 +2,10 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
 import { arrive, tick, traffic, type Traffic } from './ring';
+import { Pacer, paceParam, type PaceDecl } from '../../core/pace';
+
+/** One tick every four frames, as before ADR 0008: a stream may run below its ceiling, never faster. */
+const QUEUE_PACE = { kind: 'stream', unit: 'ticks', per_s: 15 } satisfies PaceDecl;
 
 export const circularQueue: PlateCode = {
   id: 'circular-queue',
@@ -15,14 +19,15 @@ export const circularQueue: PlateCode = {
       value: 0.52 },
     { kind: 'range', key: 'serve', label: 'Service chance per tick', min: 0, max: 1, step: 0.01,
       value: 0.48 },
-    { kind: 'range', key: 'speed', label: 'Ticks per frame', min: 0.05, max: 4, step: 0.05,
-      value: 0.25 },
+    paceParam(),
     paletteParam('riso'),
   ],
+  pace: QUEUE_PACE,
   create(p, ctx) {
     const params = ctx.params;
     let t: Traffic;
     let acc = 0;
+    const pacer = new Pacer('stream', 'ticks', 4, QUEUE_PACE.per_s);
     const history: [number, number][] = [];
     const gate = chartGate();
 
@@ -37,12 +42,13 @@ export const circularQueue: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         t = traffic(num(params, 'capacity'));
         if (ctx.thumbnail) for (let k = 0; k < 60; k++) step();
       },
       draw() {
-        acc += ctx.thumbnail ? 0 : num(params, 'speed');
+        acc += ctx.thumbnail ? 0 : pacer.perFrame(params);
         while (acc >= 1) {
           step();
           acc -= 1;
@@ -95,6 +101,7 @@ export const circularQueue: PlateCode = {
           { label: 'Refused (ring full)', value: t.rejected.toLocaleString('en') },
           { label: 'Polls on an empty ring', value: t.idle.toLocaleString('en') },
           { label: 'Laps of the tail', value: t.wraps.toLocaleString('en') },
+          pacer.row(params),
         ]);
         if (history.length > 1 && gate.open()) {
           ctx.chart({

@@ -48,7 +48,7 @@ claims:
     readout: Comparisons
     expect: { value: 508 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Insert every key, character by character, into a trie whose leaves are small containers of keys; when a container grows past a threshold it bursts into a new trie node one character deeper. Finally walk the trie in character order, sorting each container on the way out.

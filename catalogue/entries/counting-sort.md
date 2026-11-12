@@ -38,7 +38,7 @@ claims:
     readout: Array writes
     expect: { value: 512 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Count every key, turn the counts into start positions, and distribute the keys into the auxiliary array.

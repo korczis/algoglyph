@@ -37,7 +37,6 @@ export const kernel: NumericKernel = {
     { kind: 'range', key: 'options', label: 'Options', min: 4, max: 12, step: 1, value: 7, rebuild: true },
     { kind: 'range', key: 'w1', label: 'Weight of Quality', min: 0.05, max: 0.85, step: 0.05, value: 0.4, rebuild: true },
   ],
-  rate: 0.7,
   aspect: 16 / 9,
   run({ seed, params }) {
     const rnd = mulberry32(seed);

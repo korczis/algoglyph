@@ -25,7 +25,6 @@ export const kernel: GraphKernel<SphereResult> = {
   names: { frontier: 'In the queue', done: 'Placed' },
   readouts: ['places', 'done', 'scans'],
   chart: { title: 'Vertices placed', y: 'vertices', series: ['done'] },
-  speed: 2,
   *steps(ops, { s }) {
     const g = ops.g;
     const slot = new Array<number>(g.n).fill(-1);

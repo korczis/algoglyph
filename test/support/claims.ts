@@ -42,7 +42,14 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   const params: Params = defaults(plate);
   // a claim is about one run: a plate that starts a new input when done is held on the first
   if (plate.params.some((d) => d.key === 'loop')) params.loop = false;
+  // and about its result, not its animation: the run replays at the pace control's top, which
+  // changes how fast it is drawn and never what it computes (ADR 0008)
+  const pace = plate.params.find((d) => d.key === 'pace');
+  if (pace?.kind === 'range') params.pace = pace.max;
   for (const [k, v] of Object.entries(claim.setup?.params ?? {})) {
+    // a setup written before ADR 0008 asks `speed` to finish fast: a paced plate already runs at
+    // its pace control's top here, so the old key asks nothing more
+    if (k === 'speed' && pace && !plate.params.some((d) => d.key === k)) continue;
     if (!plate.params.some((d) => d.key === k)) return { frames: 0, reason: `setup.params.${k} is not a parameter of ${id}` };
     params[k] = v as Params[string];
   }
@@ -60,7 +67,9 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   let last = '';
   let still = 0;
   let frames = 0;
-  for (; frames < MAX_FRAMES && still < SETTLE_FRAMES; frames++) {
+  // a paced run that reports its end has settled only once it has ended (src/core/pace.ts)
+  const ended = () => { const r = sim.pace?.(); return !r || r.kind === 'stream' || r.done; };
+  for (; frames < MAX_FRAMES && (still < SETTLE_FRAMES || !ended()); frames++) {
     sim.draw();
     const now = JSON.stringify(rows);
     still = now === last ? still + 1 : 0;
@@ -83,7 +92,8 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   const n = x.against_number ?? 1;
   const b = nthNumber(other.value, n);
   if (b === null) return { frames, text: other.value, reason: `readout "${x.against}" has no number ${n}: ${other.value}` };
-  return { frames, value: value - b, text: `${row.value} against ${other.value} (number ${n})` };
+  // an exact difference the claim states (waves = chain + 1) is taken off before judging
+  return { frames, value: value - b - (x.offset ?? 0), text: `${row.value} against ${other.value} (number ${n})` };
 }
 
 /** Whether a read value meets the claim's expectation (inclusive). */

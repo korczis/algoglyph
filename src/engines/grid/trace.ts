@@ -100,8 +100,6 @@ export type ChartSpec =
 export interface GridKernel<D = unknown, R = unknown> {
   /** The problem-size control. */
   size: { label: string; min: number; max: number; step: number; value: number };
-  /** Default operations replayed per frame. */
-  speed: number;
   /** How cell values map onto the palette. */
   colour: 'linear' | 'log';
   /** Join marked cells into a path (a traceback) rather than leaving them as separate cells. */

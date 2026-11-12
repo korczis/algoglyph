@@ -107,7 +107,6 @@ export const kernel: NumericKernel = {
     integrandParam(),
     { kind: 'range', key: 'tol', label: 'Tolerance 10^-k, k', min: 2, max: 10, step: 1, value: 6, rebuild: true },
   ],
-  rate: 6,
   build,
   run: (inp) => drain(build(inp)),
   probe: {

@@ -13,7 +13,6 @@ const THRESHOLD = 0.3;
 export const kernel: StringKernel<'documents', FamilyResult> = {
   input: 'documents',
   counters: { pair: 'Pairs compared', union: 'Unions' },
-  speed: 4,
   run(ops, { docs }) {
     const n = docs.length;
     const sets = docs.map((d) => new Set(shingles(d.text, 3)));

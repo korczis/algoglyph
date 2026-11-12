@@ -15,7 +15,6 @@ export const kernel: GraphKernel<RankResult> = {
   names: { value: 'Rank' },
   readouts: ['rounds', 'scans', 'change'],
   chart: { title: 'Total change per round (log)', x: 'rounds', y: 'L1 change', series: ['change'], log: true },
-  speed: 60,
   *steps(ops, { s, p }) {
     const n = ops.g.n;
     const tele = new Array<number>(n).fill(0);

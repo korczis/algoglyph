@@ -17,7 +17,6 @@ export const kernel: GraphKernel<OwnershipResult> = {
   names: { value: 'Effective share' },
   readouts: ['rounds', 'scans', 'values', 'change'],
   chart: { title: 'Change per round', x: 'rounds', y: 'total change', series: ['change'], log: true },
-  speed: 30,
   *steps(ops, { t }) {
     const g = ops.g;
     let e = new Array<number>(g.n).fill(0);

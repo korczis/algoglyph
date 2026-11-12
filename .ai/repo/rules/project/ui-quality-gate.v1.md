@@ -4,7 +4,7 @@ version: 1
 kind: rule
 title: UI changes pass the browser gate
 description: Every change to the page, styles or plates passes the browser gate in a real browser with no finding.
-statement: Before merging a change to index.html, src/ or public/, run `npm run verify` and fix until scripts/audit-ui.mjs reports no axe WCAG 2.2 A/AA violation, no console error, no horizontal overflow, every thumbnail rendered and every plate mounted with a readout, in light and dark, at 390 px and 1440 px.
+statement: Before merging a change to index.html, src/ or public/, run `npm run verify` and fix until scripts/audit-ui.mjs reports no axe WCAG 2.2 A/AA violation, no console error, no horizontal overflow, every thumbnail rendered, every plate and every routed figure page (ADR 0009) mounted with a readout, in light and dark, at 390 px and 1440 px.
 status: active
 class: blocking
 depends_on: [fleet.ui-uses-flowbite-pro@1, project.viz-component-layer@2]

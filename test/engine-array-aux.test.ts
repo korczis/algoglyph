@@ -1,6 +1,7 @@
 // The array engine's auxiliary row: reserveAux widens it, clearAux empties cells for free, and
 // both are recorded so a replay draws the row the kernel left, cell by cell.
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Params, PlateContext } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
@@ -81,7 +82,7 @@ describe('array engine auxiliary row wider than its pixels', () => {
     const plate = engine.plate({ id: 'wide', title: 'wide', group: 'g' }, wide);
     const params: Params = {};
     for (const d of plate.params) params[d.key] = d.value;
-    Object.assign(params, { n: 8, speed: 2000 });
+    Object.assign(params, { n: 8, pace: PACING.pace.max });
     const { p, calls } = drawRecorder();
     const ctx: PlateContext = {
       width: 390, height: 220, params, seed: 3, rnd: mulberry32(3), theme: 'dark', bg: GROUNDS.dark.bg,

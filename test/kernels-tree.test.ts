@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENTRIES, CATALOGUE } from '../src/core/catalogue';
 import { GROUNDS, palette } from '../src/core/palette';
+import { PACING } from '../src/core/pace';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { engine, PROBE_BUDGET, probeCost, unitOf } from '../src/engines/tree';
 import { Replay } from '../src/engines/tree/scene';
@@ -577,9 +578,10 @@ describe('tree plates', () => {
   const fakeP5 = () => new Proxy({ LEFT: 'left', CENTER: 'center', TOP: 'top', BOTTOM: 'bottom' } as Record<string, unknown>, {
     get: (o, k: string) => (k in o ? o[k] : () => undefined),
   });
-  const drive = (code: PlateCode, frames: number, speed = 2000, over: Params = {}) => {
+  // at the pace control's top: the engine's own per-frame maximum, as fast as a run replays
+  const drive = (code: PlateCode, frames: number, pace = PACING.pace.max, over: Params = {}) => {
     const params: Params = { ...Object.fromEntries(code.params.map((d) => [d.key, d.value])), ...over };
-    params.speed = speed;
+    params.pace = pace;
     params.loop = false;
     let stats: Stat[] = [];
     let chart: Chart | undefined;
@@ -591,7 +593,8 @@ describe('tree plates', () => {
     const sim = code.create(fakeP5() as never, ctx);
     sim.setup();
     for (let f = 0; f < frames; f++) sim.draw();
-    return { stats, chart };
+    // the pace row is the lab's, not a pane's
+    return { stats: stats.filter((r) => r.label !== 'Pace'), chart };
   };
 
   for (const e of live) {
@@ -608,7 +611,7 @@ describe('tree plates', () => {
     it(`lab ${l.id} runs its kernels and measures them`, () => {
       const kernels = l.entries.filter((id) => live.some((e) => e.id === id))
         .map((id) => ({ info: { id, title: id, group: ENTRIES.find((e) => e.id === id)!.taxonomy }, kernel: kernelOf(id) }));
-      const { stats, chart } = drive(engine.lab(l.id, kernels), 120, 50);
+      const { stats, chart } = drive(engine.lab(l.id, kernels), 120);
       expect(stats.length).toBe(kernels.length);
       expect(chart!.series.filter((sr) => sr.points.length > 0).length).toBeGreaterThanOrEqual(kernels.length);
       const lab = engine.lab(l.id, kernels);
@@ -620,7 +623,7 @@ describe('tree plates', () => {
       const kernels = l.entries.filter((id) => live.some((e) => e.id === id))
         .map((id) => ({ info: { id, title: id, group: ENTRIES.find((e) => e.id === id)!.taxonomy }, kernel: kernelOf(id) }));
       const worst = kernels[0].kernel.input === 'pairs' ? 'chain' : 'ascending';
-      const { stats, chart } = drive(engine.lab(l.id, kernels), 400, 50, { shape: worst });
+      const { stats, chart } = drive(engine.lab(l.id, kernels), 400, PACING.pace.max, { shape: worst });
       const slow = kernels[0].kernel.input === 'pairs' ? 'quick-find' : 'bst-search-insert';
       const row = stats.find((r) => r.label === slow)!;
       expect(row.value).toMatch(/curve stops before n=\d+: (predicted|measured) over the per-frame budget/);
@@ -637,7 +640,7 @@ describe('tree plates', () => {
     it(`lab ${l.id} measures every logarithmic kernel up to its largest size on its default input`, () => {
       const kernels = l.entries.filter((id) => live.some((e) => e.id === id))
         .map((id) => ({ info: { id, title: id, group: ENTRIES.find((e) => e.id === id)!.taxonomy }, kernel: kernelOf(id) }));
-      const { stats, chart } = drive(engine.lab(l.id, kernels), 400, 50);
+      const { stats, chart } = drive(engine.lab(l.id, kernels), 400);
       for (const r of stats) {
         // quick-find and plain quick-union are not logarithmic: they are meant to stop early
         if (r.label === 'quick-find' || r.label === 'quick-union') continue;

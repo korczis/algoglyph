@@ -22,7 +22,6 @@ export interface SimhashResult { prints: number[][]; distance: number[][] }
 export const kernel: StringKernel<'documents', SimhashResult> = {
   input: 'documents',
   counters: { vote: 'Bit votes', xor: 'Fingerprint bits compared' },
-  speed: 30,
   chart: { title: 'Fingerprint distance against cosine similarity', x: 'cosine similarity of word counts', y: 'Hamming distance (bits)' },
   *run(ops, { docs }) {
     ops.table('v', 4, 16, { label: 'Bit totals' });

@@ -29,6 +29,7 @@ export const foucaultPendulum: PlateCode = {
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate camera', value: false },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', emergent: 'an integrator: its time factor sets simulated time per frame' },
   create(p, ctx) {
     const params = ctx.params;
     let s: State = [0, 0, 0, 0];

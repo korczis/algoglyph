@@ -7,7 +7,7 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode, type PlateContext } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { caption, drawBars, padding, type Box } from '../_shared/bars/bars';
-import { speedOf, speedParam } from '../_shared/kernel-mirror/controls';
+import { STEP_PACE, stepPaceParam, stepPacer } from '../_shared/kernel-mirror/controls';
 import { countOnly, sortingNow, type WasmRun } from '../_shared/kernel-mirror/wasm';
 import { chartOf, fmt, Series } from '../_shared/live-chart/series';
 import { DISTINCT, input, isSorted, runSeed, SHAPES, shapeOf, shapeParam } from '../_shared/sort-input/input';
@@ -35,11 +35,13 @@ const worstsortPlate: PlateCode = {
         { value: '2', label: '2: sort the (n!)! lists (n ≤ 3)' },
       ],
     },
-    speedParam(64),
+    stepPaceParam(),
     paletteParam('spectral'),
   ],
+  pace: STEP_PACE,
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = stepPacer();
     const n = num(params, 'n');
     const shape = shapeOf(params.shape);
     const asked = str(params, 'levels');
@@ -70,6 +72,7 @@ const worstsortPlate: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         p.textFont('monospace');
         next();
@@ -82,7 +85,7 @@ const worstsortPlate: PlateCode = {
             next();
           }
         } else {
-          run.stepper.advance(speedOf(params));
+          run.stepper.advance(ctx.thumbnail ? 64 : pacer.take(params));
           const st = run.state;
           if (st.initial && st.initial !== costOf) {
             costOf = st.initial;
@@ -167,6 +170,7 @@ const worstsortPlate: PlateCode = {
         { label: 'kernel (wasm) on this input', value: !kernelMode ? 'other levels than the kernel\'s f(n)'
           : wasm ? `${fmt(wasm.counts.cmp)} key comparisons, ${wasm.outcome}` : 'loading' },
         { label: 'runs finished', value: `${fmt(finished)}${finished ? (lastOk ? ', last output sorted (checked)' : ', last output NOT sorted') : ''}` },
+        pacer.row(params),
       ]);
       // counted at every pass boundary, plus where the pass in progress stands
       const lexSeries = new Series('lexicographic comparisons (counted)', 1024);

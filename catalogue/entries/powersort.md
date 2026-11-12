@@ -55,7 +55,7 @@ claims:
     readout: Comparisons
     expect: { value: 1022 }
     setup:
-      params: { shape: organ-pipe, n: 512, speed: 2000 }
+      params: { shape: organ-pipe, n: 512 }
 ---
 
 A natural mergesort that finds a nearly optimal merge order almost for free: every boundary between neighbouring runs gets an integer power, the depth at which a perfectly balanced merge tree would join those two runs, and runs are merged so that powers on the stack decrease strictly from the top down.

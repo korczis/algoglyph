@@ -167,7 +167,6 @@ export const kernel: NumericKernel = {
     { kind: 'range', key: 'rate', label: 'Recurrence rate target (%)', min: 2, max: 20, step: 1, value: 8, rebuild: true },
     { kind: 'range', key: 'length', label: 'Length', min: 100, max: 400, step: 20, value: 300, rebuild: true },
   ],
-  rate: 6,
   aspect: 1.5,
   palette: 'ember',
   build,

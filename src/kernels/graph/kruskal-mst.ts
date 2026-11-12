@@ -9,7 +9,6 @@ export const kernel: GraphKernel<MstResult> = {
   inputs: ['geometric', 'grid', 'random', 'small-world'],
   n: { min: 4, max: 400, value: 120 },
   ...MST_VIEW,
-  speed: 2,
   *steps(ops) {
     const g = ops.g;
     const uf = new UnionFind(g.n);

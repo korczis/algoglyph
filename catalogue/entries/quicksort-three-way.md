@@ -46,7 +46,7 @@ claims:
     readout: Comparisons
     expect: { below: 4088 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Dijkstra's three-way partition into keys less than, equal to and greater than the pivot.

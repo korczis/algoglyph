@@ -95,6 +95,7 @@ export const mandelbrotJulia: PlateCode = {
     { kind: 'toggle', key: 'inset', label: 'Show the c-plane map', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'still', why: 'renders one still picture progressively, finer each frame, until it is complete' },
   create(p, ctx) {
     const params = ctx.params;
     let rw = 1;

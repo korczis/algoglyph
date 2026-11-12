@@ -106,7 +106,6 @@ export const kernel: NumericKernel = {
     { kind: 'range', key: 'energy', label: 'Energy E (escape at 1/6)', min: 0.04, max: 0.165, step: 0.005, value: 0.125, rebuild: true },
     { kind: 'range', key: 'orbits', label: 'Orbits', min: 4, max: 30, step: 1, value: 16, rebuild: true },
   ],
-  rate: 8,
   aspect: 16 / 9,
   palette: 'spectral',
   build,

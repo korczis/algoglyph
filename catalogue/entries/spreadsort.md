@@ -48,7 +48,7 @@ claims:
     readout: Comparisons
     expect: { value: 1533 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Find the minimum and maximum, split the range between them into bins by the top bits in which the keys still differ, move the keys into their bins in place, and either spread each bin again or finish it with a comparison sort.

@@ -67,7 +67,6 @@ export function align(a: Float64Array, b: Float64Array, maxLag = MAXLAG, meter?:
 // Slide one capture over the other lag by lag; the correlation peaks at the delay, and the
 // band-limited interpolation of its samples finds the peak between them.
 export const kernel: SignalKernel = {
-  rate: 14,
   params: [{ kind: 'range', key: 'snr', label: 'SNR (dB)', min: -5, max: 50, step: 1, value: 20 }],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);

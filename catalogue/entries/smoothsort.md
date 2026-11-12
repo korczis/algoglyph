@@ -55,7 +55,7 @@ claims:
     readout: Comparisons
     expect: { below: 2048 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Dijkstra's answer to heapsort's blindness to order: keep a forest of heaps whose sizes are Leonardo numbers, with each root at the right end of its stretch and the roots ascending, so the maximum always sits at the far right where it can stay.

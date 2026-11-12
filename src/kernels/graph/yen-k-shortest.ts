@@ -12,14 +12,13 @@ export interface KspResult { paths: KspPath[] }
 export const kernel: GraphKernel<KspResult> = {
   goal: 'ksp',
   inputs: ['geometric', 'grid', 'digraph'],
-  n: { min: 4, max: 150, value: 50 },
-  params: [{ kind: 'range', key: 'k', label: 'Paths k', min: 1, max: 8, step: 1, value: 4, rebuild: true }],
+  n: { min: 4, max: 150, value: 16 },
+  params: [{ kind: 'range', key: 'k', label: 'Paths k', min: 1, max: 8, step: 1, value: 3, rebuild: true }],
   pick: 's',
   endpoints: 'st',
   names: { frontier: 'In a spur search queue', done: 'Settled in a spur search', tree: 'Paths found', marked: 'Best path' },
   readouts: ['scans', 'relaxations', 'tree', 'rounds'],
   chart: { title: 'Edges on the paths found', y: 'edges', series: ['tree'] },
-  speed: 20,
   *steps(ops, { s, t, p }) {
     const g = ops.g;
     const k = Number(p.k);

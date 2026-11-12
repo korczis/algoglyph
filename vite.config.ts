@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
 import { catalogue } from './scripts/lib/vite-catalogue.mjs';
+import { pacing } from './scripts/lib/vite-pacing.mjs';
 
 // The deployed site proves which commit it was built from: pages.yml polls revision.txt.
 function revision(): Plugin {
@@ -30,7 +31,7 @@ function revision(): Plugin {
 
 export default defineConfig({
   base: process.env.ALGOGLYPH_BASE ?? './',
-  plugins: [tailwindcss(), catalogue(), revision()],
+  plugins: [tailwindcss(), catalogue(), pacing(), revision()],
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1600,

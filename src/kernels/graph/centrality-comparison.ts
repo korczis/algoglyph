@@ -36,7 +36,6 @@ export const kernel: GraphKernel<CentralityResult> = {
   names: { frontier: 'In a search', done: 'Scored', value: 'Score' },
   readouts: ['rounds', 'scans', 'values', 'change'],
   chart: { title: 'Change per round (degree, closeness, then power iteration)', x: 'rounds', y: 'total change', series: ['change'], log: true },
-  speed: 600,
   *steps(ops) {
     const g = ops.g;
     const n = g.n;

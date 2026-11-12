@@ -6,7 +6,7 @@ import type p5 from 'p5';
 import { paletteParam, ramp, scale, type RGB } from '../../core/palette';
 import { num, str, type PlateCode, type PlateContext } from '../../core/plate';
 import { caption, padding, type Box } from '../_shared/bars/bars';
-import { speedOf, speedParam } from '../_shared/kernel-mirror/controls';
+import { STEP_PACE, stepPaceParam, stepPacer } from '../_shared/kernel-mirror/controls';
 import { chartOf, fmt, Series } from '../_shared/live-chart/series';
 import { DISTINCT, input, isSorted, runSeed, shapeOf, shapeParam } from '../_shared/sort-input/input';
 import { countUp, isUp, pancakeRun, type Orientation, type PancakeRun } from './pancake';
@@ -31,11 +31,13 @@ const burntPancakeSort: PlateCode = {
         { value: 'down', label: 'All burnt side down' },
       ],
     },
-    speedParam(4),
+    stepPaceParam(),
     paletteParam('ember'),
   ],
+  pace: STEP_PACE,
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = stepPacer();
     const n = num(params, 'n');
     const shape = shapeOf(params.shape, DISTINCT);
     const orient = orientation(str(params, 'orient'));
@@ -69,6 +71,7 @@ const burntPancakeSort: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         p.textFont('monospace');
         next();
@@ -81,7 +84,7 @@ const burntPancakeSort: PlateCode = {
             next();
           }
         } else {
-          run.stepper.advance(speedOf(params));
+          run.stepper.advance(ctx.thumbnail ? 4 : pacer.take(params));
           if (run.stepper.done) {
             finish();
             hold = ctx.thumbnail ? 1 : HOLD;
@@ -114,6 +117,7 @@ const burntPancakeSort: PlateCode = {
         { label: 'stacks sorted', value: fmt(stacks) },
         { label: 'mean flips per stack', value: stacks ? fmt(flipsSum / stacks, 2) : '–' },
         { label: 'last stack', value: stacks ? (lastOk ? 'in order, every burnt side down (checked)' : 'NOT sorted') : '–' },
+        pacer.row(params),
       ]);
       ctx.chart(chartOf('Flips per stack against the bounds', { label: 'stacks sorted' }, { label: 'flips' },
         [measured, mean, simple, gpUpper, gpLower]));

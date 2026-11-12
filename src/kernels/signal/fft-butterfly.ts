@@ -47,7 +47,6 @@ function directDft(x: Float64Array): [Float64Array, Float64Array] {
 
 // Bit-reverse the input, then log2 N stages of N/2 butterflies each; every view is one stage.
 export const kernel: SignalKernel = {
-  rate: 1.5,
   params: [
     { kind: 'select', key: 'n', label: 'Transform size N', value: '32', rebuild: true, options: ['8', '16', '32', '64'].map((v) => ({ value: v, label: v })) },
     { kind: 'select', key: 'signal', label: 'Signal', value: 'tones', options: [

@@ -15,7 +15,6 @@ export const kernel: GraphKernel<CpmResult> = {
   names: { frontier: 'Forward pass done', done: 'Both passes done', marked: 'Critical (no slack)', tree: 'Critical edges', value: 'Earliest start, then slack' },
   readouts: ['scans', 'frontier', 'done', 'marked'],
   chart: { title: 'Forward, then backward pass', y: 'tasks', series: ['frontier', 'done', 'marked'] },
-  speed: 2,
   *steps(ops) {
     const g = ops.g;
     const n = g.n;

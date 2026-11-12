@@ -19,7 +19,6 @@ export const kernel: GraphKernel<LayoutResult> = {
   names: { value: 'Swing', total: 'Total swing' },
   readouts: ['rounds', 'places', 'total'],
   chart: { title: 'Total swing per iteration', x: 'rounds', y: 'swing', series: ['total'], log: true },
-  speed: 140,
   *steps(ops, { p }) {
     const g = ops.g;
     const n = g.n;

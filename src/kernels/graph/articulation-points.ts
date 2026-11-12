@@ -15,7 +15,6 @@ export const kernel: GraphKernel<ArticulationResult> = {
   names: { frontier: 'On the stack', done: 'Finished', marked: 'Articulation points', tree: 'DFS tree edges', value: 'Low point' },
   readouts: ['scans', 'done', 'marked', 'tree'],
   chart: { title: 'Depth of the stack', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 3,
   *steps(ops, { s }) {
     const g = ops.g;
     const cut = new Array<boolean>(g.n).fill(false);

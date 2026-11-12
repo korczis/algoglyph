@@ -13,7 +13,6 @@ export const kernel: GraphKernel<MatchingResult> = {
   names: { frontier: 'On the alternating path', done: 'Matched', tree: 'Matched edges' },
   readouts: ['tree', 'scans', 'rounds', 'done'],
   chart: { title: 'Size of the matching', x: 'rounds', y: 'edges', series: ['tree'] },
-  speed: 1,
   *steps(ops) {
     const g = ops.g;
     const mate = new Array<number>(g.n).fill(-1);

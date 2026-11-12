@@ -20,7 +20,6 @@ export interface KnapsackResult {
 // taken.
 export const kernel: GridKernel<KnapsackData, KnapsackResult> = {
   size: { label: 'Items', min: 2, max: 14, step: 1, value: 7 },
-  speed: 3,
   colour: 'linear',
   path: true,
   readouts: DP_READOUTS,

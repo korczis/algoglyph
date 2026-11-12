@@ -16,7 +16,6 @@ export const kernel: GraphKernel<MinCostResult> = {
   names: { frontier: 'Searched', done: 'Source side of the cut', marked: 'Negative cycle' },
   readouts: ['flow', 'rounds', 'flows', 'relaxations'],
   chart: { title: 'Flow value (it stays while the cost falls)', x: 'rounds', y: 'flow', series: ['flow'] },
-  speed: 40,
   *steps(ops, { s, t }) {
     const g = ops.g;
     const { flow: f, value } = yield* augmentingPaths(ops, s, t, 'bfs');

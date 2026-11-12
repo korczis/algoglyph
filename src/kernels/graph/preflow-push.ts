@@ -9,11 +9,11 @@ import { FLOW_VIEW } from './_maxflow';
 export const kernel: GraphKernel<FlowResult> = {
   goal: 'maxflow',
   ...FLOW_VIEW,
+  n: { min: 4, max: 150, value: 24 },
   view: { flow: true, colour: 'value' },
   names: { frontier: 'Active (excess)', done: 'Source side of the cut', value: 'Height' },
   readouts: ['flow', 'frontier', 'values', 'flows', 'scans'],
   chart: { title: 'Active vertices', y: 'vertices', series: ['frontier'] },
-  speed: 16,
   *steps(ops, { s, t }) {
     const g = ops.g;
     const f = new Array<number>(g.m).fill(0);

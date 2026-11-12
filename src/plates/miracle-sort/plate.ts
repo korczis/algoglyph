@@ -5,7 +5,7 @@
 import { paletteParam, ramp, mix } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
 import { caption, drawBars, padding, slotWidth, type Box } from '../_shared/bars/bars';
-import { speedOf, speedParam } from '../_shared/kernel-mirror/controls';
+import { STEP_PACE, stepPaceParam, stepPacer } from '../_shared/kernel-mirror/controls';
 import { items, Stepper, Tracer } from '../_shared/kernel-mirror/tracer';
 import { chartOf, fmt, Series } from '../_shared/live-chart/series';
 import { input, inversions, runSeed, SHAPES, shapeOf, shapeParam } from '../_shared/sort-input/input';
@@ -20,11 +20,13 @@ const miracleSort: PlateCode = {
     { kind: 'range', key: 'n', label: 'Keys n', min: 2, max: 256, step: 1, value: 24, rebuild: true },
     shapeParam(SHAPES, 'random'),
     { kind: 'range', key: 'wait', label: 'Wait between checks (frames)', min: 0, max: 240, step: 1, value: 60 },
-    speedParam(4),
+    stepPaceParam(),
     paletteParam('spectral'),
   ],
+  pace: STEP_PACE,
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = stepPacer();
     const n = num(params, 'n');
     const original = input(shapeOf(params.shape), n, runSeed(ctx.seed, 0));
     const a = items(original);
@@ -54,12 +56,13 @@ const miracleSort: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         p.textFont('monospace');
       },
       draw() {
         if (!check.done) {
-          check.advance(speedOf(params));
+          check.advance(ctx.thumbnail ? 4 : pacer.take(params));
           if (check.done) endCheck();
         } else if (check.outcome === 'not-a-sort') {
           waited++;
@@ -123,6 +126,7 @@ const miracleSort: PlateCode = {
         { label: 'array against its input', value: unchanged ? 'unchanged (compared key by key)' : 'CHANGED' },
         { label: 'inversions', value: fmt(inv) },
         { label: 'outcome', value: check.done ? (check.outcome === 'sorted' ? 'sorted (the input was)' : 'not a sort: waits for a miracle') : 'checking' },
+        pacer.row(params),
       ]);
       ctx.chart(chartOf('Each check finds the same array', { label: 'checks' }, { label: 'count' },
         [cmpSeries, invSeries, wrSeries]));

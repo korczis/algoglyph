@@ -53,7 +53,7 @@ claims:
     readout: Array writes
     expect: { below: 8288 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Heapsort on a heap in which every node has up to d children: node i's children sit at d·i + 1 to d·i + d, the heap is only about log n / log d levels deep, and the two phases are heapsort's own.

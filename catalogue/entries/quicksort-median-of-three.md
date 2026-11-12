@@ -44,7 +44,7 @@ claims:
     readout: Comparisons
     expect: { below: 4608 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 The pivot is the median of the first, middle and last keys; small subfiles are left for one final insertion sort.

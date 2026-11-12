@@ -15,7 +15,6 @@ export const kernel: GraphKernel<DfsResult> = {
   names: { frontier: 'On the stack', done: 'Finished', tree: 'DFS tree edges' },
   readouts: ['scans', 'done', 'frontier', 'maxFrontier', 'tree'],
   chart: { title: 'Depth of the stack', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 3,
   *steps(ops, { s }) {
     const g = ops.g;
     const pre = new Array<number>(g.n).fill(-1);

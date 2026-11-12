@@ -2,11 +2,15 @@
 // final tags, counts), every start ending in order with every burnt side down within 3n flips,
 // the flips recounted by replaying the swaps and turns, and the plate headless.
 import { describe, expect, it } from 'vitest';
+import { calm } from '../src/core/pace';
 import plate from '../src/plates/burnt-pancake-sort/plate';
 import { countUp, pancakeRun } from '../src/plates/burnt-pancake-sort/pancake';
 import { SOP, STRIDE } from '../src/kernels/sorting-wasm/_abi';
 import { DISTINCT, input, isSorted, runSeed, SHAPES } from '../src/plates/_shared/sort-input/input';
 import { extremes, headless, kernelRun, lead, S } from './support/esoteric';
+
+/** The pace that runs `k` kernel steps a frame (the old speed select's values). */
+const steps = (k: number) => k / calm('stream');
 
 describe('burnt pancake mirror against the wasm kernel', () => {
   it('ends with the kernel\'s stack, tags and counts', () => {
@@ -66,14 +70,14 @@ describe('burnt pancake sort', () => {
 describe('burnt pancake plate', () => {
   it('runs headless at every extreme setting', () => {
     for (const params of extremes(plate)) {
-      const h = headless(plate, { speed: '16384', ...params });
+      const h = headless(plate, { pace: steps(16384), ...params });
       for (let f = 0; f < 20000 && (h.stats()['last stack'] ?? '–') === '–'; f++) h.frames(1);
       expect(h.stats()['last stack'], JSON.stringify(params)).toBe('in order, every burnt side down (checked)');
     }
   });
 
   it('charts each stack\'s flips, equal to the same stacks sorted independently', () => {
-    const h = headless(plate, { speed: '256' });
+    const h = headless(plate, { pace: steps(256) });
     h.frames(600);
     const stacks = lead(h.stats()['stacks sorted']);
     expect(stacks).toBeGreaterThan(3);

@@ -33,6 +33,7 @@ export const stableFluids: PlateCode = {
     { kind: 'toggle', key: 'emit', label: 'Seeded emitters', value: true },
     paletteParam('abyss'),
   ],
+  pace: { kind: 'stream', emergent: 'a fluid solver: one time step per frame of simulated flow' },
   create(p, ctx) {
     const n = num(ctx.params, 'n');
     if (held) wasm.ag_fluid_free(held);

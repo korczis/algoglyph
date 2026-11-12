@@ -42,7 +42,7 @@ claims:
     readout: Array writes
     expect: { value: 4608 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Sort each half recursively, then merge the two sorted halves.

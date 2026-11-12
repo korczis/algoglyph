@@ -2,6 +2,7 @@
 // running p5 instance (rule project.viz-component-layer). A plate never creates its own canvas,
 // never sizes itself and never picks its own background: it receives all of that in its context.
 import type p5 from 'p5';
+import type { PaceDecl, PaceReport } from './pace';
 import type { Palette, RGB } from './palette';
 
 export type Mode = '2d' | 'webgl';
@@ -18,6 +19,11 @@ interface ParamBase {
    */
   cosmetic?: boolean;
   hint?: string;
+  /**
+   * Shown only while the select `key` has one of `values`: a control that means nothing in the
+   * other modes of its plate. It still exists, keeps its value and travels in a shared link.
+   */
+  when?: { key: string; values: string[] };
 }
 
 export interface RangeParam extends ParamBase {
@@ -26,6 +32,8 @@ export interface RangeParam extends ParamBase {
   max: number;
   step: number;
   value: number;
+  /** The slider moves on a log scale (values are still snapped to `step`): a pace multiplier. */
+  log?: boolean;
 }
 
 export interface SelectParam extends ParamBase {
@@ -87,6 +95,8 @@ export interface Sim {
   dragged?(x: number, y: number): void;
   /** Return to the starting view without rebuilding (e.g. undo zooms); the stage offers it. */
   reset?(): void;
+  /** The run's pace as it stands (src/core/pace.ts): every paced plate reports it. */
+  pace?(): PaceReport;
 }
 
 /** What a plate's code provides: behaviour only. Everything a person reads about the plate
@@ -100,6 +110,8 @@ export interface PlateCode {
   params: ParamDef[];
   /** Frames rendered for the gallery thumbnail. */
   thumbnailFrames?: number;
+  /** How the plate is paced (ADR 0008): every plate declares it; test/pacing.test.ts checks it. */
+  pace?: PaceDecl;
   create(p: p5, ctx: PlateContext): Sim;
 }
 

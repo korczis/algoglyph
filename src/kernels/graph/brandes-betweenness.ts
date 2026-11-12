@@ -16,7 +16,6 @@ export const kernel: GraphKernel<BetweennessResult> = {
   names: { frontier: 'In the search', done: 'Searched', value: 'Betweenness' },
   readouts: ['rounds', 'scans', 'values'],
   chart: { title: 'Change in betweenness from each source', x: 'rounds', y: 'total change', series: ['change'] },
-  speed: 40,
   *steps(ops) {
     const g = ops.g;
     const cb = new Array<number>(g.n).fill(0);

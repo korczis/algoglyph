@@ -49,7 +49,7 @@ claims:
     readout: Comparisons
     expect: { value: 2304 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A simplified smoothsort: build a forest of poplars, perfect binary heaps of size 2^k − 1 stored with their two sub-poplars first and the root last, and repeatedly move the largest root to the end of the array.

@@ -2,11 +2,15 @@
 // survivors a sorted subsequence of the input that keeps exactly its non-strict left-to-right
 // maxima, H_n as their mean on random permutations, and the plate headless.
 import { describe, expect, it } from 'vitest';
+import { calm } from '../src/core/pace';
 import plate from '../src/plates/stalin-sort/plate';
 import { stalinRun, survivors } from '../src/plates/stalin-sort/stalin';
 import { input, runSeed, SHAPES } from '../src/plates/_shared/sort-input/input';
 import { harmonic } from '../src/plates/_shared/theory/combinatorics';
 import { extremes, headless, kernelRun, lead } from './support/esoteric';
+
+/** The pace that runs `k` kernel steps a frame (the old speed select's values). */
+const steps = (k: number) => k / calm('stream');
 
 /** The keys a running maximum keeps (each at least every key before it), by a plain loop. */
 function records(a: readonly number[]): number[] {
@@ -52,14 +56,14 @@ describe('stalin sort mirror against the wasm kernel', () => {
 describe('stalin sort plate', () => {
   it('runs headless at every extreme setting', () => {
     for (const params of extremes(plate)) {
-      const h = headless(plate, { speed: '16384', ...params });
+      const h = headless(plate, { pace: steps(16384), ...params });
       for (let f = 0; f < 20000 && (h.stats()['last result'] ?? '–') === '–'; f++) h.frames(1);
       expect(h.stats()['last result'], JSON.stringify(params)).toMatch(/sorted subsequence of the input \(checked\)/);
     }
   });
 
   it('counts survivors that equal the running maxima of the same inputs', () => {
-    const h = headless(plate, { speed: '1024' });
+    const h = headless(plate, { pace: steps(1024) });
     h.frames(400);
     const s = h.stats();
     const runs = lead(s['finished runs']);

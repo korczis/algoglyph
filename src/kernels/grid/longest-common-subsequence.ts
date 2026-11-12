@@ -26,7 +26,6 @@ function word(rnd: () => number, n: number): string {
 // The traceback walks back from the corner, taking a letter on every diagonal step.
 export const kernel: GridKernel<LcsData, LcsResult> = {
   size: { label: 'Length of a', min: 2, max: 20, step: 1, value: 10 },
-  speed: 3,
   colour: 'linear',
   path: true,
   readouts: DP_READOUTS,

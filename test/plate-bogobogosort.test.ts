@@ -2,11 +2,15 @@
 // against brute-force averaging over every input and against many seeded runs, and the plate
 // headless at every extreme setting.
 import { describe, expect, it } from 'vitest';
+import { calm } from '../src/core/pace';
 import plate from '../src/plates/bogobogosort/plate';
 import { bbsRun, expectedShuffles, KERNEL_SHUFFLES } from '../src/plates/bogobogosort/bogobogosort';
 import { input, isSorted, runSeed } from '../src/plates/_shared/sort-input/input';
 import { factorial } from '../src/plates/_shared/theory/combinatorics';
 import { extremes, headless, kernelRun, lead } from './support/esoteric';
+
+/** The pace that runs `k` kernel steps a frame (the old speed select's values). */
+const steps = (k: number) => k / calm('stream');
 
 function permutationsOf(n: number): number[][] {
   if (n === 0) return [[]];
@@ -73,7 +77,7 @@ describe('bogobogosort theory', () => {
 describe('bogobogosort plate', () => {
   it('runs headless at every extreme setting', () => {
     for (const params of extremes(plate)) {
-      const h = headless(plate, { speed: '16384', ...params });
+      const h = headless(plate, { pace: steps(16384), ...params });
       h.frames(60);
       expect(Object.keys(h.stats()).length, JSON.stringify(params)).toBeGreaterThan(5);
     }

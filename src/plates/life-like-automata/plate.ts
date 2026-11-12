@@ -5,6 +5,7 @@ import { fadeTrace } from '../_shared/trace/trace';
 import {
   bounds, generationsPerFrame, Life, parseRule, PATTERNS, ruleString, type Pattern, type Rule,
 } from './life';
+import { Pacer, paceParam } from '../../core/pace';
 
 const RULES: { value: string; label: string }[] = [
   { value: 'B3/S23', label: 'B3/S23 · Conway\'s Life' },
@@ -51,14 +52,15 @@ export const lifeLikeAutomata: PlateCode = {
       value: 0.3, rebuild: true },
     { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 2, max: 10, step: 1, value: 3,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Generations per frame', min: 1, max: 20, step: 1,
-      value: 2 },
+    paceParam(),
     { kind: 'range', key: 'fade', label: 'Trail fade per frame', min: 0.8, max: 0.995,
       step: 0.005, value: 0.94 },
     paletteParam('ember'),
   ],
+  pace: { kind: 'stream', unit: 'generations' },
   create(p, ctx) {
     const params = ctx.params;
+    const pacer = new Pacer('stream', 'generations', 20);
     const dark = ctx.theme === 'dark';
     let cell = 3;
     let w = 0;
@@ -154,6 +156,7 @@ export const lifeLikeAutomata: PlateCode = {
     };
 
     return {
+      pace: () => pacer.report(false, params),
       setup() {
         cell = num(params, 'cell');
         w = Math.max(16, Math.floor(ctx.width / cell));
@@ -182,8 +185,8 @@ export const lifeLikeAutomata: PlateCode = {
           rule = parseRule(text) ?? CONWAY;
           life.perturbed();
         }
-        const asked = ctx.thumbnail ? 1 : num(params, 'speed');
-        const n = generationsPerFrame(asked, w * h);
+        const asked = ctx.thumbnail ? 1 : pacer.take(params);
+        const n = asked ? generationsPerFrame(asked, w * h) : 0;
         for (let k = 0; k < n; k++) life.step(rule);
         paint(num(params, 'fade'));
         p.background(...ctx.bg);
@@ -223,6 +226,7 @@ export const lifeLikeAutomata: PlateCode = {
           { label: 'generations per frame', value: n < asked
             ? `${n} of ${asked} asked, capped by the cell budget` : String(n) },
           { label: 'board', value: `${w}×${h} (torus)` },
+          pacer.row(params),
         ]);
       },
     };

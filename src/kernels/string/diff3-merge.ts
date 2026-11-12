@@ -25,7 +25,6 @@ const same = (x: string[], y: string[]) => x.length === y.length && x.every((s, 
 export const kernel: StringKernel<'merge', MergeResult> = {
   input: 'merge',
   counters: { compare: 'Line comparisons', chunk: 'Chunks resolved' },
-  speed: 2,
   run(ops, { base, ours, theirs }) {
     ops.list('base', base, { label: 'Ancestor', lines: 3 });
     ops.list('ours', ours, { label: 'Ours', lines: 3 });

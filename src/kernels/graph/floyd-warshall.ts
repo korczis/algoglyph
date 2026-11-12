@@ -13,7 +13,6 @@ export const kernel: GraphKernel<ApspResult> = {
   names: { frontier: 'Intermediate vertex', done: 'Used as intermediate', marked: 'On a negative cycle' },
   readouts: ['cells', 'rounds', 'done'],
   chart: { title: 'Finite entries of the distance matrix', x: 'rounds', y: 'pairs', series: ['cells'] },
-  speed: 4,
   *steps(ops) {
     const g = ops.g;
     const n = g.n;

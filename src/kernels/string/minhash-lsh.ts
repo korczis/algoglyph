@@ -11,7 +11,6 @@ export interface MinhashResult { sig: number[][]; candidates: [number, number][]
 export const kernel: StringKernel<'documents', MinhashResult> = {
   input: 'documents',
   counters: { hash: 'Hash evaluations', bucket: 'Bucket insertions' },
-  speed: 40,
   chart: { title: 'Estimate against exact Jaccard', x: 'exact Jaccard similarity', y: 'similarity' },
   params: [
     { kind: 'range', key: 'bands', label: 'Bands b', min: 2, max: 16, step: 1, value: 8, rebuild: true },

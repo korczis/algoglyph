@@ -16,6 +16,7 @@
 // A kernel that needs no bound loses both keys.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { parse } from 'yaml';
 import { ENTRIES } from '../src/core/catalogue';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
@@ -108,7 +109,7 @@ describe.runIf(Boolean(OUT))('sorting rebuild cost per n', () => {
         for (const shape of SHAPES) {
           let best = Infinity;
           for (let rep = 0; rep < 3; rep++) {
-            const params: Params = { shape, n, speed: 2000, loop: true, palette: 'spectral' };
+            const params: Params = { shape, n, pace: PACING.pace.max, loop: true, palette: 'spectral' };
             const seed = 4242 + 31 * rep + n;
             const ground = GROUNDS.dark;
             const ctx: PlateContext = {

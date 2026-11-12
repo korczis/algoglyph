@@ -132,7 +132,6 @@ export const kernel: NumericKernel = {
     { kind: 'range', key: 'dims', label: 'Dimensions', min: 2, max: 6, step: 1, value: 4, rebuild: true },
     { kind: 'range', key: 'points', label: 'Points', min: 50, max: 600, step: 10, value: 260, rebuild: true },
   ],
-  rate: 2,
   build,
   run: (inp) => drain(build(inp)),
 };

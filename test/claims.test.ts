@@ -33,6 +33,40 @@ for (const e of claimed) {
   });
 }
 
+// A figure's claims (ADR 0009) are read by the same instrument on the figure's plate, with the
+// figure's setup under each claim's own: the claim's parameters win where both name one. They
+// run whether or not the figure's page is routed, so a setup's physics is gated before its page.
+interface FigureClaims { id: string; plate: string; setup: Record<string, unknown>; claims: Claim[] }
+const figures = ((model as unknown as { chapters?: { collection: string; key: string; figures: FigureClaims[] }[] }).chapters ?? [])
+  .flatMap((c) => c.figures.filter((f) => f.claims.length).map((f) => ({ ...f, at: `${c.collection}/${c.key}/${f.id}` })));
+
+/** A figure's claim as the instrument reads it: the figure's setup, then the claim's own. */
+function underFigure(setup: Record<string, unknown> | undefined, c: Claim): Claim {
+  return { ...c, setup: { ...c.setup, params: { ...(setup ?? {}), ...(c.setup?.params ?? {}) } as never } };
+}
+
+for (const f of figures) {
+  describe(`claims of figure ${f.at}`, () => {
+    for (const c of f.claims) {
+      it(`${c.id}: ${c.statement}`, async () => {
+        const claim = underFigure(f.setup, c);
+        const r = await read(f.plate, claim);
+        expect(r.reason, `figure ${f.at} claim ${c.id}`).toBeUndefined();
+        expect(holds(claim, r.value as number), `figure ${f.at} claim ${c.id}: "${c.readout}" read ${r.text} (${r.value}), expected ${expected(claim)}`).toBe(true);
+      }, 120_000);
+    }
+  });
+}
+
+describe('a figure claim under its figure', () => {
+  it('takes the figure setup, with the claim’s own parameters winning', () => {
+    const c: Claim = { id: 'x', statement: 'a probe of the merge itself', readout: 'r', expect: { value: 1 },
+      setup: { params: { eta: 0.5 }, seed: 9 } };
+    const m = underFigure({ scenario: 'watched', eta: 1 }, c);
+    expect(m.setup).toEqual({ params: { scenario: 'watched', eta: 0.5 }, seed: 9 });
+  });
+});
+
 describe('the claims instrument', () => {
   const base: Claim = {
     id: 'probe', statement: 'a probe of the instrument itself',
@@ -136,6 +170,8 @@ describe('the claims schema', () => {
     expect(vs('{ against: Other }')).toMatch(/expect\.against needs exactly one of tolerance, below and above/);
     expect(vs('{ against: Other, above: 0, against_number: 0 }')).toMatch(/expect\.against_number counts from 1/);
     expect(vs('{ range: [0, 1], against_number: 2 }')).toMatch(/expect\.against_number needs expect\.against/);
+    expect(vs('{ range: [0, 1], offset: 1 }')).toMatch(/expect\.offset is a difference from expect\.against/);
+    expect(vs('{ against: Other, offset: 1, tolerance: 0 }')).toBe('');
   });
 
   it('refuses a reversed range and a tolerance without a value', () => {

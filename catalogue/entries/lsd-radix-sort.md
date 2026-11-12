@@ -43,7 +43,7 @@ claims:
     readout: Array writes
     expect: { value: 1024 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Sort by the least significant base-4 digit first, with one stable counting pass per digit.

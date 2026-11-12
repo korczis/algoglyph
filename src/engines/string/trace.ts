@@ -59,6 +59,14 @@ export class EventLog {
     this.length = n + 1;
   }
 
+  /** How many events of each op the log holds: one pass over the op column, no decoding. */
+  histogram(): Uint32Array {
+    const h = new Uint32Array(256);
+    const o = this.o;
+    for (let k = 0; k < this.length; k++) h[o[k]]++;
+    return h;
+  }
+
   /** Event k, written into `into` (a cursor reused by the replay, so reading allocates nothing). */
   get(k: number, into: Ev = { o: 0, p: 0, i: 0, j: 0, v: 0 }): Ev {
     into.o = this.o[k]; into.p = this.p[k]; into.i = this.i[k]; into.j = this.j[k]; into.v = this.v[k];
@@ -135,8 +143,6 @@ export interface StringKernel<K extends InputKind = InputKind, R = unknown> {
   shape?: string;
   /** Default input size (the input kind's size parameter). */
   size?: number;
-  /** Default replay speed: counted operations and notes per frame. */
-  speed?: number;
   aspect?: number;
   chart?: { title: string; x: string; y: string; xlog?: boolean; ylog?: boolean };
   /**

@@ -9,7 +9,6 @@ import { FORMS, foldMarks, TITLE_TOKENS } from './_normalise';
 export const kernel: StringKernel<'names', string[]> = {
   input: 'names',
   counters: { char: 'Characters folded', token: 'Tokens examined' },
-  speed: 2,
   run(ops, { names, entity }) {
     ops.list('keys', [], { label: 'Canonical', lines: 3 });
     const keys: string[] = [];

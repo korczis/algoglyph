@@ -27,6 +27,32 @@ related:
   - batcher-merge-exchange
   - bitonic-sort
   - simd-sorting-network
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [bitonic-sort]
+  objectives:
+  - 'Read the Rounds readout at 512 keys: 15, one round per launch, for the 45 layers of the network: one launch sorting every 32-key tile in shared memory, then for every larger block size a flip, its half-cleaners across tiles and one shared-memory merge.'
+  - 'Compare the Comparisons with bitonic sort''s on the same input: 11,520 at 512 keys, the same network.'
+  - 'Read the Auxiliary writes: every launch that works in shared memory loads all n keys into its tiles, 2,560 at 512 keys from five such launches.'
+  misconceptions:
+  - 'A GPU needs one kernel launch per layer of the network; at 512 keys the plate needs 15 launches for the 45 layers, because every layer whose partners lie inside one 32-key tile runs in a single shared-memory kernel.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+bounds:
+  model: 'comparisons (one per comparator), array writes (keys stored back from shared memory, and two per global exchange), auxiliary writes (tiles loaded into shared memory) and rounds (kernel launches)'
+  average: 'on every input bitonic sort''s comparator count; for K = ⌈lg n⌉, one launch up to 32 keys and (K − 4)(K − 3)/2 above, 15 at 512 keys, and n·max(1, K − 4) auxiliary writes'
+claims:
+  - id: fewer-launches-than-layers
+    statement: >-
+      On Random permutation at 512 keys GPU bitonic sort takes 15 launches, a third of the 45 layers of the bitonic network it runs: the layers inside a 32-key tile run in one shared-memory kernel.
+    readout: Rounds
+    expect: { value: 15 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Batcher's bitonic network run one layer at a time as a pass over the whole array: in every pass each thread takes one position, computes its partner from the position and the layer, compares the two keys and keeps the smaller or the larger according to the direction of its block.

@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { circle, survivor, tick, type Circle } from './josephus';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 export const josephusCircle: PlateCode = {
   id: 'josephus-circle',
@@ -11,35 +12,46 @@ export const josephusCircle: PlateCode = {
     { kind: 'range', key: 'n', label: 'People (N)', min: 2, max: 240, step: 1, value: 41, rebuild: true },
     { kind: 'range', key: 'm', label: 'Every M-th leaves', min: 1, max: 16, step: 1, value: 3,
       rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Links per frame', min: 0.1, max: 60, step: 0.1, value: 2 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'Start again when done', value: true },
     paletteParam('ember'),
   ],
+  pace: { kind: 'replay', unit: 'links' },
   create(p, ctx) {
     const params = ctx.params;
     let c: Circle;
     let acc = 0;
     let hold = 0;
+    const pacer = new Pacer('replay', 'links', 60);
+    /** The links a run walks to its end, counted on a copy of the circle. */
+    const links = (n: number, m: number) => {
+      const d = circle(n, m);
+      let k = 1;
+      while (tick(d) !== 'done') k++;
+      return k;
+    };
 
     const build = () => {
       c = circle(num(params, 'n'), num(params, 'm'));
       acc = 0;
+      pacer.start(links(num(params, 'n'), num(params, 'm')));
       hold = 0;
     };
 
     return {
+      pace: () => pacer.report(c.left <= 1, params),
       setup() {
         build();
         if (ctx.thumbnail) while (tick(c) !== 'done' && c.left > c.n * 0.25);
       },
       draw() {
         if (!ctx.thumbnail) {
-          acc += num(params, 'speed');
+          acc += pacer.perFrame(params);
           while (acc >= 1) {
             acc -= 1;
             if (tick(c) === 'done') break;
           }
-          if (c.left <= 1 && ++hold > 180 && bool(params, 'loop')) build();
+          if (c.left <= 1 && ++hold > HOLD_FRAMES && bool(params, 'loop')) build();
         }
         const pal = ctx.palette();
         const n = c.n;
@@ -99,6 +111,7 @@ export const josephusCircle: PlateCode = {
           { label: 'Links followed', value: c.links.toLocaleString('en') },
           { label: 'Last removed', value: c.order.length ? `#${c.order[c.order.length - 1] + 1}` : '–' },
           { label: 'Survivor', value: done ? `#${survivor(c) + 1}` : '–' },
+          pacer.row(params),
         ]);
       },
     };

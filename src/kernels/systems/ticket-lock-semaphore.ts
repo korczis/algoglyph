@@ -9,7 +9,8 @@ import type { SystemsKernel } from '../../engines/systems/sim';
 // release hands its slot straight to the head of the queue if there is one.
 
 export interface Hold { worker: number; ticket?: number; asked: number; granted: number; released: number }
-export interface LockResult { lock: Hold[]; slots: Hold[]; k: number }
+/** `grants`: the ticket of each lock grant, in the order the lock was granted. */
+export interface LockResult { lock: Hold[]; slots: Hold[]; k: number; grants: number[] }
 
 const MEMORY = 1.5; // ms for one access to the shared counters
 const POLL = 6;
@@ -40,7 +41,7 @@ export const kernel: SystemsKernel<LockResult> = {
   install(net, p) {
     const W = num(p, 'workers'); const k = num(p, 'slots');
     const LOCK = W; const SEM = W + 1;
-    const res: LockResult = { lock: [], slots: [], k };
+    const res: LockResult = { lock: [], slots: [], k, grants: [] };
     let next = 0; let serving = 0;
     let free = k;
     const queue: { worker: number; hold: Hold }[] = [];
@@ -67,6 +68,10 @@ export const kernel: SystemsKernel<LockResult> = {
         const spin = () => {
           if (serving === ticket) {
             hold.granted = net.now;
+            // the grant log: in ticket order, each grant goes to the ticket after the previous one
+            const prev = res.grants.length ? res.grants[res.grants.length - 1] : -1;
+            res.grants.push(ticket);
+            net.count('lock.out_of_order', ticket === prev + 1 ? 0 : 1);
             waitingLock--;
             gauges();
             maxLockWait = Math.max(maxLockWait, hold.granted - hold.asked);
@@ -122,6 +127,7 @@ export const kernel: SystemsKernel<LockResult> = {
   readouts: [
     { key: 'lock.acquired', label: 'Lock acquisitions' },
     { key: 'spins', label: 'Polls while spinning' },
+    { key: 'lock.out_of_order', label: 'Lock grants out of ticket order' },
     { key: 'lock.wait', kind: 'gauge', label: 'Longest wait for the lock', unit: ' ms', digits: 1 },
     { key: 'slot.acquired', label: 'Slot acquisitions' },
     { key: 'slot.wait', kind: 'gauge', label: 'Longest wait for a slot', unit: ' ms', digits: 1 },

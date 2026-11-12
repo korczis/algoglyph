@@ -41,7 +41,6 @@ const axes = { x: { label: 'function evaluations', log: true }, y: { label: '|er
 
 export const kernel: NumericKernel = {
   params: [integrandParam()],
-  rate: 1,
   thumb: 0.3,
   run({ params }) {
     const g = integrand(params.integrand);

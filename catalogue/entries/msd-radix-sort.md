@@ -44,7 +44,7 @@ claims:
     readout: Array writes
     expect: { value: 2556 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Distribute by the leading base-4 digit, then sort each bin on the next digit, recursively.

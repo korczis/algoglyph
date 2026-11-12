@@ -31,7 +31,6 @@ const leak10 = (r: number) => (r > 1e-8 ? `${(20 * Math.log10(r)).toFixed(1)} dB
 // One window, a tone sliding from on-bin to half-way between bins and back, and a weak tone a
 // few bins away that leakage can bury.
 export const kernel: SignalKernel = {
-  rate: 6,
   aspect: 16 / 9,
   params: [
     { kind: 'select', key: 'window', label: 'Window', value: 'hann', options: WINDOWS.map((w) => ({ value: w.id, label: w.label })) },
