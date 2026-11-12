@@ -1,12 +1,16 @@
 // The sorting kernels' C ABI as the browser calls it (crates/algoglyph-kernels/src/sorting/abi.rs):
 // keys go into a buffer the module owns, a kernel runs by index, and the result comes back as
 // typed arrays read through views onto the module's memory. No JSON, no binding generator.
-// This module is imported only by the sorting adapter, so the wasm loads with the first
-// sorting plate and with nothing else.
+// The module is instantiated on the first loadSorting(), which only the sorting adapter calls,
+// so the wasm loads with the first sorting plate and with nothing else; a failed load is not
+// remembered, so the next plate tries again.
 import init from '../../wasm/algoglyph_kernels.wasm?init';
 
 interface Exports {
   memory: WebAssembly.Memory;
+  ag_sort_abi(): number;
+  ag_sort_max_n(): number;
+  ag_sort_max_edges(): number;
   ag_sort_count(): number;
   ag_sort_id(k: number): number;
   ag_sort_id_len(k: number): number;
@@ -19,7 +23,6 @@ interface Exports {
     kp: number, maxSteps: number, trace: number): number;
   ag_sort_result(): number;
   ag_sort_steps(): number;
-  ag_sort_pool(): number;
   ag_sort_output(): number;
   ag_sort_output_tags(): number;
   ag_sort_strings(): number;
@@ -29,12 +32,15 @@ interface Exports {
   ag_sort_scenario(k: number): number;
 }
 
+/** The ABI layout this file reads (abi.rs ABI_VERSION); a module of another layout is refused. */
+export const ABI = 2;
 /** Step op codes: the low four bits of a step's first word (prelude.rs `op`). */
 export const SOP = {
-  cmp: 0, cmpv: 1, swap: 2, set: 3, read: 4, mark: 5, aux: 6, phase: 7, lane: 8, round: 9,
+  cmp: 0, cmpv: 1, swap: 2, set: 3, read: 4, mark: 5, auxWrite: 6, phase: 7, lane: 8, round: 9,
 } as const;
 /** Words per step. */
 export const STRIDE = 3;
+const RESULT_LEN = 14;
 
 export const STABILITY = ['yes', 'no', 'variant'] as const;
 export const KINDS = ['comparison', 'distribution', 'network', 'external', 'special', 'joke'] as const;
@@ -52,6 +58,8 @@ export interface RunCounts {
   cmp: number; swap: number; write: number; read: number;
   /** Peak number of keys held in auxiliary structures at once. */
   aux: number;
+  /** Keys stored into auxiliary cells: one recorded step each. */
+  auxWrites: number;
   rounds: number;
 }
 
@@ -66,7 +74,6 @@ export interface WasmRun {
   counted: number;
   /** steps * STRIDE words; see SOP. */
   steps: Int32Array;
-  pool: Int32Array;
   output: Int32Array;
   tags: Uint32Array;
   strings: string[];
@@ -81,75 +88,114 @@ export interface RunOptions {
   trace?: boolean;
 }
 
-const x = (await init({})).exports as unknown as Exports;
-const utf8 = new TextDecoder();
-const text = (ptr: number, len: number) => utf8.decode(new Uint8Array(x.memory.buffer, ptr, len));
+/** The loaded module: its kernels and the calls that run them. */
+export interface Sorting {
+  kernels: KernelMeta[];
+  meta(id: string): KernelMeta | undefined;
+  run(id: string, keys: ArrayLike<number>, opt?: RunOptions): WasmRun;
+  scenario(id: string): number;
+  /** The largest input and arc list the module accepts (exported by it, never restated). */
+  maxN: number;
+  maxEdges: number;
+  /** What a cached trace is keyed by: the module's content hash and the ABI layout. */
+  build: string;
+}
 
-/** Every kernel the module holds, by registry index. */
-export const KERNELS: KernelMeta[] = Array.from({ length: x.ag_sort_count() }, (_, index) => {
-  const m = x.ag_sort_meta(index);
+// The content hash scripts/wasm.sh writes next to the module; the crate version and the
+// sources' fingerprint stand in for it in a tree built before the hash existed.
+const HASH = import.meta.glob<string>('../../wasm/algoglyph_kernels.wasm.sha256',
+  { query: '?raw', import: 'default', eager: true });
+
+async function instantiate(): Promise<Sorting> {
+  const x = (await init({})).exports as unknown as Exports;
+  const abi = typeof x.ag_sort_abi === 'function' ? x.ag_sort_abi() : 0;
+  if (abi !== ABI) throw new Error(`sorting-wasm: the module speaks ABI ${abi}, this adapter ${ABI}`);
+  const utf8 = new TextDecoder();
+  const text = (ptr: number, len: number) => utf8.decode(new Uint8Array(x.memory.buffer, ptr, len));
+  const kernels: KernelMeta[] = Array.from({ length: x.ag_sort_count() }, (_, index) => {
+    const m = x.ag_sort_meta(index);
+    return {
+      index,
+      id: text(x.ag_sort_id(index), x.ag_sort_id_len(index)),
+      stable: STABILITY[m & 3],
+      inPlace: Boolean(m & 4),
+      kind: KINDS[m >>> 3],
+    };
+  });
+  const byId = new Map(kernels.map((k) => [k.id, k]));
+  const maxN = x.ag_sort_max_n();
+  const maxEdges = x.ag_sort_max_edges();
+  const v = x.ag_sort_version();
+  const hash = Object.values(HASH)[0]?.trim().split(/\s/)[0]
+    || `${v >>> 16}.${(v >>> 8) & 255}.${v & 255}+${x.ag_sort_fingerprint().toString(16)}`;
+
+  function find(id: string): KernelMeta {
+    const meta = byId.get(id);
+    if (!meta) throw new Error(`sorting-wasm: the module has no kernel ${id}`);
+    return meta;
+  }
+
+  function run(id: string, keys: ArrayLike<number>, opt: RunOptions = {}): WasmRun {
+    const meta = find(id);
+    const n = keys.length;
+    const edges = opt.edges ?? [];
+    // refused before anything is written: the module's buffers hold at most what it exports
+    if (n > maxN) throw new RangeError(`sorting-wasm: ${n} keys, the module takes at most ${maxN}`);
+    if (edges.length > maxEdges) {
+      throw new RangeError(`sorting-wasm: ${edges.length} arcs, the module takes at most ${maxEdges}`);
+    }
+    // every call may grow (and so detach) the memory: a view is made after the call it follows
+    const ip = x.ag_sort_input(n);
+    new Int32Array(x.memory.buffer, ip, n).set(keys);
+    const ep = x.ag_sort_edges(edges.length);
+    const ev = new Uint32Array(x.memory.buffer, ep, 2 * edges.length);
+    edges.forEach(([a, b], i) => { ev[2 * i] = a; ev[2 * i + 1] = b; });
+    const seed = opt.seed ?? 0x5eed1234;
+    const code = x.ag_sort_run(meta.index, n, edges.length, Math.floor(seed / 2 ** 32) >>> 0, seed >>> 0,
+      opt.base ?? 0, opt.k ?? 0, opt.maxSteps ?? 0, opt.trace === false ? 0 : 1);
+    if (code < 0) throw new Error(`sorting-wasm: ${id} refused the call`);
+    const buf = x.memory.buffer;
+    const r = new Float64Array(buf, x.ag_sort_result(), RESULT_LEN);
+    const [cmp, swap, write, read, aux, rounds, recorded, truncated, outcome, outLen, auxWrites,
+      nStrings, noteLen, counted] = r;
+    const ends = new Uint32Array(buf, x.ag_sort_string_ends(), nStrings);
+    const sp = x.ag_sort_strings();
+    const strings: string[] = [];
+    for (let s = 0, at = 0; s < nStrings; at = ends[s++]) strings.push(text(sp + at, ends[s] - at));
+    const out: WasmRun = {
+      kernel: id,
+      counts: { cmp, swap, write, read, aux, auxWrites, rounds },
+      outcome: OUTCOMES[outcome],
+      note: text(x.ag_sort_note(), noteLen),
+      truncated: truncated === 1,
+      counted,
+      steps: new Int32Array(buf, x.ag_sort_steps(), recorded * STRIDE).slice(),
+      output: new Int32Array(buf, x.ag_sort_output(), outLen).slice(),
+      tags: new Uint32Array(buf, x.ag_sort_output_tags(), outLen).slice(),
+      strings,
+    };
+    x.ag_sort_release();
+    return out;
+  }
+
   return {
-    index,
-    id: text(x.ag_sort_id(index), x.ag_sort_id_len(index)),
-    stable: STABILITY[m & 3],
-    inPlace: Boolean(m & 4),
-    kind: KINDS[m >>> 3],
+    kernels,
+    meta: (id) => byId.get(id),
+    run,
+    scenario: (id) => x.ag_sort_scenario(find(id).index),
+    maxN,
+    maxEdges,
+    build: `${hash}|abi${abi}`,
   };
-});
-const BY_ID = new Map(KERNELS.map((k) => [k.id, k]));
-
-export function kernelMeta(id: string): KernelMeta | undefined {
-  return BY_ID.get(id);
 }
 
-const v = x.ag_sort_version();
-/** The crate version and the sources' fingerprint: what a cached trace is keyed by. */
-export const BUILD = `${v >>> 16}.${(v >>> 8) & 255}.${v & 255}+${x.ag_sort_fingerprint().toString(16)}`;
+let pending: Promise<Sorting> | undefined;
 
-/** Run kernel `id` on `keys` (integers in the i32 range; tags are the positions). */
-export function runKernel(id: string, keys: ArrayLike<number>, opt: RunOptions = {}): WasmRun {
-  const meta = BY_ID.get(id);
-  if (!meta) throw new Error(`sorting-wasm: no kernel ${id}`);
-  const n = keys.length;
-  // every call may grow (and so detach) the memory: a view is made after the call it follows
-  const ip = x.ag_sort_input(n);
-  new Int32Array(x.memory.buffer, ip, n).set(keys);
-  const edges = opt.edges ?? [];
-  const ep = x.ag_sort_edges(edges.length);
-  const ev = new Uint32Array(x.memory.buffer, ep, 2 * edges.length);
-  edges.forEach(([a, b], i) => { ev[2 * i] = a; ev[2 * i + 1] = b; });
-  const seed = opt.seed ?? 0x5eed1234;
-  const code = x.ag_sort_run(meta.index, n, edges.length, Math.floor(seed / 2 ** 32) >>> 0, seed >>> 0,
-    opt.base ?? 0, opt.k ?? 0, opt.maxSteps ?? 0, opt.trace === false ? 0 : 1);
-  if (code < 0) throw new Error(`sorting-wasm: ${id} refused the call`);
-  const buf = x.memory.buffer;
-  const r = new Float64Array(buf, x.ag_sort_result(), 14);
-  const [cmp, swap, write, read, aux, rounds, recorded, truncated, outcome, outLen, poolLen,
-    nStrings, noteLen, counted] = r;
-  const ends = new Uint32Array(buf, x.ag_sort_string_ends(), nStrings);
-  const sp = x.ag_sort_strings();
-  const strings: string[] = [];
-  for (let s = 0, at = 0; s < nStrings; at = ends[s++]) strings.push(text(sp + at, ends[s] - at));
-  const run: WasmRun = {
-    kernel: id,
-    counts: { cmp, swap, write, read, aux, rounds },
-    outcome: OUTCOMES[outcome],
-    note: text(x.ag_sort_note(), noteLen),
-    truncated: truncated === 1,
-    counted,
-    steps: new Int32Array(buf, x.ag_sort_steps(), recorded * STRIDE).slice(),
-    pool: new Int32Array(buf, x.ag_sort_pool(), poolLen).slice(),
-    output: new Int32Array(buf, x.ag_sort_output(), outLen).slice(),
-    tags: new Uint32Array(buf, x.ag_sort_output_tags(), outLen).slice(),
-    strings,
-  };
-  x.ag_sort_release();
-  return run;
-}
-
-/** The native fixture's scenario run inside the module (top 53 bits of its FNV-1a). */
-export function scenarioChecksum(id: string): number {
-  const meta = BY_ID.get(id);
-  if (!meta) throw new Error(`sorting-wasm: no kernel ${id}`);
-  return x.ag_sort_scenario(meta.index);
+/** The sorting module, instantiated once; a failed load is forgotten so that a retry can work. */
+export function loadSorting(): Promise<Sorting> {
+  pending ??= instantiate().catch((e: unknown) => {
+    pending = undefined;
+    throw e;
+  });
+  return pending;
 }

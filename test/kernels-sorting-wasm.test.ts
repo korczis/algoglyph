@@ -1,58 +1,71 @@
 // The sorting kernels of the wasm module (crates/algoglyph-kernels/src/sorting), as the array
 // engine plays them through the generic adapter (src/kernels/sorting-wasm/). Every case is
-// generated from catalogue/sorting-sidecar.yaml and the catalogue: a live entry the sidecar maps
-// is tested under its own id without a line of test code.
+// generated from catalogue/sorting-sidecar.yaml, the module's manifest and the catalogue: a live
+// entry the sidecar maps is tested under its own id without a line of test code.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 import { ENTRIES, type Entry } from '../src/core/catalogue';
-import { input, OP, SHAPES, trace, type ArrayKernel, type Trace } from '../src/engines/array/trace';
-import { KERNELS, kernelMeta, runKernel, scenarioChecksum, type RunOptions } from '../src/kernels/sorting-wasm/_abi';
-import { CACHE, seedOf, sidecarKernel, traceOf, type WasmArrayKernel } from '../src/kernels/sorting-wasm/_adapter';
-import { hashWords, TraceCache } from '../src/kernels/sorting-wasm/_cache';
-import { kernelOf, recordsOf, SIDECAR } from '../src/kernels/sorting-wasm/_sidecar';
+import { exponent } from '../src/engines/array';
+import { input, SHAPES, trace, type ArrayKernel, type ArrayOps, type Trace } from '../src/engines/array/trace';
+import { loadSorting, SOP, STRIDE, type RunOptions, type WasmRun } from '../src/kernels/sorting-wasm/_abi';
+import { replay, seedOf, sidecarKernel, traceCache, traceOf } from '../src/kernels/sorting-wasm/_adapter';
+import { defaultLimits, hashWords, TraceCache } from '../src/kernels/sorting-wasm/_cache';
+import { kernelOf } from '../src/kernels/sorting-wasm/_sidecar';
 
+interface SidecarRecord { id: string; kernel: string; existing?: boolean }
+interface Manifest {
+  abi: number; max_n: number;
+  kernels: { id: string; stable: string; in_place: boolean; kind: string }[];
+}
+const RECORDS = (parse(readFileSync('catalogue/sorting-sidecar.yaml', 'utf8')) as { entries: SidecarRecord[] })
+  .entries;
+const MANIFEST = JSON.parse(readFileSync('crates/algoglyph-kernels/src/sorting/kernels.json', 'utf8')) as Manifest;
 const fixture = JSON.parse(readFileSync('crates/algoglyph-kernels/src/sorting/fixture.json', 'utf8')) as
   Record<string, string>;
-const modules = import.meta.glob<ArrayKernel>('../src/kernels/array/[!_]*.ts', { import: 'kernel', eager: true });
-const fileKernel = (id: string) => modules[`../src/kernels/array/${id}.ts`];
-const isWasm = (k: ArrayKernel | undefined): k is WasmArrayKernel => Boolean(k && 'kernelId' in k);
+const S = await loadSorting();
+const tsKernels = import.meta.glob<ArrayKernel>('../src/kernels/array/[!_]*.ts', { import: 'kernel', eager: true });
+const fileKernel = (id: string) => tsKernels[`../src/kernels/array/${id}.ts`];
+const recordsOf = (id: string) => RECORDS.filter((r) => r.id === id);
 
-const mapped = [...new Set(SIDECAR.map((r) => r.id))];
+const mapped = [...new Set(RECORDS.map((r) => r.id))];
 const entries = mapped.map((id) => ENTRIES.find((e) => e.id === id)).filter((e): e is Entry => Boolean(e));
 /** Live entries that keep their TypeScript kernel: the Rust kernels they map to are compared. */
-const overlap = entries.filter((e) => e.status === 'live' && fileKernel(e.id) && !isWasm(fileKernel(e.id)));
+const overlap = entries.filter((e) => e.status === 'live' && fileKernel(e.id));
 /** Live array entries the wasm kernels play, each with the kernel the registry would load. */
 const played = await Promise.all(entries
-  .filter((e) => e.status === 'live' && e.engine === 'array' && !overlap.includes(e))
-  .map(async (e) => ({ e, kernel: isWasm(fileKernel(e.id)) ? fileKernel(e.id) as WasmArrayKernel
-    : await sidecarKernel(e.id) })));
+  .filter((e) => e.status === 'live' && e.engine === 'array' && !fileKernel(e.id))
+  .map(async (e) => ({ e, kernel: await sidecarKernel(e.id) })));
 const SIZES = [0, 1, 2, 3, 7, 16, 61, 128];
 /** The native checksum as the module returns it: the top 53 bits of the FNV-1a. */
 const native = (id: string) => Number(BigInt(`0x${fixture[id]}`) >> 11n);
 
 describe('sorting wasm module', () => {
-  it('holds exactly the kernels of the native fixture, and the sidecar names only those', () => {
-    expect(KERNELS.map((k) => k.id).sort()).toEqual(Object.keys(fixture).filter((k) => k !== 'schema').sort());
-    for (const r of SIDECAR) expect(kernelMeta(r.kernel), `${r.id} -> ${r.kernel}`).toBeDefined();
+  it('holds exactly the kernels of its manifest and of the native fixture', () => {
+    const ids = S.kernels.map((k) => k.id).sort();
+    expect(ids).toEqual(MANIFEST.kernels.map((k) => k.id).sort());
+    expect(ids).toEqual(Object.keys(fixture).filter((k) => k !== 'schema').sort());
+    for (const r of RECORDS) expect(S.meta(r.kernel), `${r.id} -> ${r.kernel}`).toBeDefined();
+  });
+
+  it('declares what its manifest says, and the limits it exports', () => {
+    for (const m of MANIFEST.kernels) {
+      const k = S.meta(m.id)!;
+      expect({ stable: k.stable, in_place: k.inPlace, kind: k.kind }, m.id)
+        .toEqual({ stable: m.stable, in_place: m.in_place, kind: m.kind });
+    }
+    expect(S.maxN).toBe(MANIFEST.max_n);
+    expect(S.build).toMatch(new RegExp(`\\|abi${MANIFEST.abi}$`));
   });
 
   it('reproduces the native fixture for every kernel', () => {
-    const differ = KERNELS.filter((k) => scenarioChecksum(k.id) !== native(k.id)).map((k) => k.id);
-    expect(differ).toEqual([]);
-  });
-
-  it('agrees with the sidecar on stability and kind', () => {
-    for (const r of SIDECAR) {
-      const m = kernelMeta(r.kernel)!;
-      if (r.kernel_stable) expect(m.stable, r.kernel).toBe(r.kernel_stable);
-      if (r.kernel_kind) expect(m.kind, r.kernel).toBe(r.kernel_kind);
-    }
+    expect(S.kernels.filter((k) => S.scenario(k.id) !== native(k.id)).map((k) => k.id)).toEqual([]);
   });
 
   it('gives no algorithm a second live plate', () => {
     const owner = new Map<string, string>();
     for (const e of entries.filter((x) => x.status === 'live')) {
-      const kernels = overlap.includes(e) ? recordsOf(e.id).map((r) => r.kernel) : [kernelOf(e.id)!];
+      const kernels = fileKernel(e.id) ? recordsOf(e.id).map((r) => r.kernel) : [kernelOf(e.id)!];
       for (const k of kernels) {
         expect(owner.get(k), `${k} plays ${owner.get(k)} and ${e.id}`).toBeUndefined();
         owner.set(k, e.id);
@@ -60,20 +73,55 @@ describe('sorting wasm module', () => {
     }
   });
 
-  it('plays every wasm entry with the kernel the sidecar maps to it', () => {
-    for (const { e, kernel } of played) expect(kernel.kernelId).toBe(kernelOf(e.id));
+  it('plays every wasm entry with the one kernel the sidecar maps to it', () => {
+    for (const { e, kernel } of played) {
+      expect(recordsOf(e.id).map((r) => r.kernel)).toEqual([kernel.kernelId]);
+    }
+  });
+
+  it('refuses an input or an arc list larger than the module exports, before writing it', () => {
+    expect(() => S.run('heapsort', new Int32Array(S.maxN + 1))).toThrow(RangeError);
+    expect(() => S.run('topological-sort', [1, 2], { edges: new Array(S.maxEdges + 1) }))
+      .toThrow(RangeError);
+    // and the module is intact after the refusals
+    expect([...S.run('heapsort', [3, 1, 2]).output]).toEqual([1, 2, 3]);
   });
 
   it('reads every run out of the module after the memory grew', () => {
     // a large run grows the module's memory, which detaches every view made before it
     const big = input('random', 1 << 16, 3);
-    expect(runKernel('heapsort', big, { trace: false }).output.length).toBe(big.length);
+    expect(S.run('heapsort', big, { trace: false }).output.length).toBe(big.length);
     const small = input('reversed', 33, 3);
-    expect([...runKernel('heapsort', small).output]).toEqual(small.slice().sort((x, y) => x - y));
-    expect([...runKernel('heapsort', input('random', 1 << 17, 4), { trace: false }).output.slice(0, 3)])
-      .toEqual([1, 2, 3]);
+    expect([...S.run('heapsort', small).output]).toEqual(small.slice().sort((x, y) => x - y));
+  });
+
+  it("passes a Rust run that did not finish on as the array engine's truncation", () => {
+    const data = input('random', 64, 9);
+    const cut = S.run('heapsort', data, { maxSteps: 40 });
+    expect(cut.truncated).toBe(true);
+    expect(trace({ run: (a: ArrayOps) => replay(a, cut) }, data, 0, 200).truncated).toBe(true);
+    const done = S.run('heapsort', data);
+    expect(trace({ run: (a: ArrayOps) => replay(a, done) }, data).truncated).toBe(false);
   });
 });
+
+/** Identities replayed from the trace in JS: which input position each cell holds at the end. */
+function identities(r: WasmRun, keys: number[]): number[] {
+  const at = keys.map((_, i) => i);
+  const s = r.steps;
+  for (let e = 0; e < s.length; e += STRIDE) {
+    const op = s[e] & 15;
+    const p = s[e] >>> 8;
+    if (op === SOP.swap) [at[p], at[s[e + 1]]] = [at[s[e + 1]], at[p]];
+    else if (op === SOP.set) {
+      const tag = s[e + 2] & 0x7fffffff;
+      // a write names the element it writes: its key must be that element's input key
+      expect(keys[tag], `set ${p} <- element ${tag}`).toBe(s[e + 1]);
+      at[p] = tag;
+    }
+  }
+  return at;
+}
 
 for (const { e, kernel } of played) {
   const id = kernel.kernelId;
@@ -90,7 +138,7 @@ for (const { e, kernel } of played) {
       }
     });
 
-    it('replays its trace into exactly the output and the counts of the Rust run', () => {
+    it('replays its trace into exactly the output and the counts of the Rust run, aux writes included', () => {
       for (const shape of SHAPES) {
         const t = trace(kernel, input(shape, 97, 5));
         const r = kernel.last!;
@@ -98,21 +146,34 @@ for (const { e, kernel } of played) {
         expect(t.counts.compares, shape).toBe(r.counts.cmp);
         expect(t.counts.swaps, shape).toBe(r.counts.swap);
         expect(t.counts.writes - 2 * t.counts.swaps, shape).toBe(r.counts.write);
+        expect(t.counts.auxWrites, shape).toBe(r.counts.auxWrites);
       }
     });
 
     it('reproduces its native fixture in wasm', () => {
-      expect(scenarioChecksum(id)).toBe(native(id));
+      expect(S.scenario(id)).toBe(native(id));
+    });
+
+    it(`is tagged in-place exactly when its kernel declares it (${kernel.meta.inPlace})`, () => {
+      expect(e.tags.includes('in-place')).toBe(kernel.meta.inPlace);
+      if (kernel.meta.inPlace) {
+        // in place: what it holds aside stays logarithmic (a fixed cache of 512 is allowed)
+        const r = S.run(id, input('random', 1024, 2), { trace: false });
+        expect(r.counts.aux).toBeLessThanOrEqual(512 + 16 * Math.log2(1024));
+      }
     });
 
     if (e.tags.includes('stable') || kernel.meta.stable === 'yes') {
-      it('keeps equal keys in their input order (stable)', () => {
+      it('keeps equal keys in their input order (stable), by identities replayed from its trace', () => {
         expect(kernel.meta.stable).toBe('yes');
         for (const seed of [7, 8, 9]) {
           const keys = input('few-unique', 97, seed);
-          const r = runKernel(id, keys, { seed: seedOf(keys), trace: false });
-          for (let i = 1; i < r.output.length; i++) {
-            if (r.output[i - 1] === r.output[i]) expect(r.tags[i - 1]).toBeLessThan(r.tags[i]);
+          const r = S.run(id, keys, { seed: seedOf(keys) });
+          expect(r.truncated).toBe(false);
+          const at = identities(r, keys);
+          expect(at.map((i) => keys[i])).toEqual([...r.output]);
+          for (let i = 1; i < at.length; i++) {
+            if (keys[at[i - 1]] === keys[at[i]]) expect(at[i - 1], `${seed} @${i}`).toBeLessThan(at[i]);
           }
         }
       });
@@ -128,29 +189,32 @@ for (const { e, kernel } of played) {
 
 // ---------------------------------------------------------------------------------------------
 // The entries that keep their TypeScript kernel, counted against the Rust kernels the sidecar
-// maps to them, on the same inputs. The Rust kernel's documented options (k: gap sequence,
-// heap arity…; base: digit base) are searched for a setting that reproduces the TypeScript
-// counts exactly. A pair with no such setting is a different implementation of the method;
-// DIVERGES records why, and the test keeps that record true: once a pair matches, its record
-// must go.
+// maps to them, on the same inputs and like with like: compares, swaps, array writes and
+// auxiliary writes, both sides counted by the array engine (the Rust trace replayed through the
+// same ArrayOps). The Rust kernel's documented options (k: gap sequence, heap arity…; base:
+// digit base) are searched for a setting that reproduces the TypeScript counts exactly. A pair
+// with no such setting is a different implementation of the method: DIVERGES records why, and
+// the test bounds how far it may be (each count within RATIO on random keys, and the same growth
+// exponent within SLOPE), and keeps the record true: once a pair matches, its record must go.
 
-type Counts = { compares: number; swaps: number; writes: number; aux: number };
+type Counts = { compares: number; swaps: number; writes: number; auxWrites: number };
 const EQUIV_N = 64;
+const RATIO = 4;
+const SLOPE = 0.3;
 const SETTINGS: RunOptions[] = [{}, ...[1, 2, 3, 4].map((k) => ({ k })), ...[2, 4, 16, 256].map((base) => ({ base }))];
 
-/** The TypeScript kernel's counts; aux is the number of distinct auxiliary cells it wrote. */
-function tsCounts(t: Trace): Counts {
-  const cells = new Set<number>();
-  for (let e = 0; e < t.length; e++) if (t.events[3 * e] === OP.auxWrite) cells.add(t.events[3 * e + 1]);
-  return { compares: t.counts.compares, swaps: t.counts.swaps, writes: t.counts.writes - 2 * t.counts.swaps,
-    aux: cells.size };
+const fromTrace = (t: Trace): Counts => ({
+  compares: t.counts.compares, swaps: t.counts.swaps, writes: t.counts.writes - 2 * t.counts.swaps,
+  auxWrites: t.counts.auxWrites,
+});
+const tsCounts = (id: string, data: number[]) => fromTrace(trace(fileKernel(id)!, data));
+function rustCounts(kernel: string, data: number[], opt: RunOptions): Counts {
+  const r = S.run(kernel, data, { ...opt, seed: seedOf(data) });
+  return fromTrace(trace({ run: (a: ArrayOps) => replay(a, r) }, data));
 }
-
-/** The Rust kernel's counts; aux is the peak number of keys its auxiliary structures held. */
-function rustCounts(id: string, keys: number[], opt: RunOptions): Counts {
-  const r = runKernel(id, keys, { ...opt, seed: seedOf(keys), trace: false });
-  return { compares: r.counts.cmp, swaps: r.counts.swap, writes: r.counts.write, aux: r.counts.aux };
-}
+const work = (c: Counts) => c.compares + c.writes + 2 * c.swaps + c.auxWrites;
+const SCALE = [32, 64, 128, 256];
+const slope = (f: (d: number[]) => Counts) => exponent(SCALE.map((n) => [n, work(f(input('random', n, n)))]));
 
 const DIVERGES: Record<string, string> = {
   'bubble-sort/bubble-sort': 'the Rust kernel is the plain form with no early exit; the TS kernel stops after a pass without exchanges',
@@ -159,8 +223,8 @@ const DIVERGES: Record<string, string> = {
   'quicksort-three-way/three-way-quicksort': 'the Rust kernel picks a random pivot per partition; the TS kernel a fixed one',
   'mergesort-top-down/top-down-merge-sort': 'the Rust kernel skips a merge whose halves are already in order (Sedgewick & Wayne)',
   'mergesort-natural/natural-merge-sort': 'the Rust kernel merges pairs of runs per pass, copying only the smaller run; the TS kernel merges through a full auxiliary copy',
-  'counting-sort/counting-sort': 'the same counts and writes; the Rust aux peak also holds the count table C, the TS kernel does not draw it',
-  'lsd-radix-sort/radix-sort': 'the Rust kernel is the textbook form, a counting sort per decimal digit, with the count table in its aux',
+  'counting-sort/counting-sort': 'the same compares and writes; the Rust aux writes also count its count table C, one increment per key, which the TS kernel keeps outside its trace',
+  'lsd-radix-sort/radix-sort': 'the Rust kernel is the textbook form, a counting sort per decimal digit',
   'msd-radix-sort/msd-radix-sort': 'the Rust kernel finishes sub-ranges of at most 15 keys by insertion sort (CUTOFF = 15); the TS kernel recurses to the last digit',
 };
 
@@ -169,19 +233,28 @@ for (const e of overlap) {
     for (const r of recordsOf(e.id)) {
       const pair = `${e.id}/${r.kernel}`;
       const data = SHAPES.map((shape) => input(shape, EQUIV_N, 11));
-      const ts = data.map((d) => tsCounts(trace(fileKernel(e.id)!, d)));
+      const ts = data.map((d) => tsCounts(e.id, d));
       const setting = SETTINGS.find((opt) => data.every((d, i) => {
         const rc = rustCounts(r.kernel, d, opt);
         return rc.compares === ts[i].compares && rc.swaps === ts[i].swaps && rc.writes === ts[i].writes
-          && rc.aux === ts[i].aux;
+          && rc.auxWrites === ts[i].auxWrites;
       }));
       if (DIVERGES[pair]) {
-        it(`counts unlike the Rust kernel ${r.kernel}: ${DIVERGES[pair]}`, () => {
+        it(`counts unlike the Rust kernel ${r.kernel}, within bounds: ${DIVERGES[pair]}`, () => {
           expect(setting, `${pair} now matches with ${JSON.stringify(setting)}: drop its DIVERGES record`)
             .toBeUndefined();
+          const d = input('random', EQUIV_N, 11);
+          const [a, b] = [tsCounts(e.id, d), rustCounts(r.kernel, d, {})];
+          for (const key of ['compares', 'swaps', 'writes', 'auxWrites'] as const) {
+            if (!a[key] || !b[key]) { expect(a[key] + b[key], `${key}: zero on one side only`).toBe(0); continue; }
+            expect(Math.max(a[key], b[key]) / Math.min(a[key], b[key]), `${key} ${a[key]} vs ${b[key]}`)
+              .toBeLessThanOrEqual(RATIO);
+          }
+          const [sa, sb] = [slope((x) => tsCounts(e.id, x)), slope((x) => rustCounts(r.kernel, x, {}))];
+          expect(Math.abs(sa - sb), `growth n^${sa.toFixed(2)} vs n^${sb.toFixed(2)}`).toBeLessThanOrEqual(SLOPE);
         });
       } else {
-        it(`counts exactly like the Rust kernel ${r.kernel} (compares, swaps, writes, aux) on every shape`, () => {
+        it(`counts exactly like the Rust kernel ${r.kernel} (compares, swaps, writes, aux writes) on every shape`, () => {
           const rows = data.map((d, i) => ({ shape: SHAPES[i], ts: ts[i], rust: rustCounts(r.kernel, d, setting ?? {}) }));
           expect(setting, JSON.stringify(rows)).toBeDefined();
         });
@@ -196,12 +269,13 @@ it('keeps no divergence record for a pair the sidecar no longer maps', () => {
 });
 
 describe('sorting trace cache', () => {
-  it('recalls a run from memory, keyed by kernel and input', () => {
+  it('recalls a run from memory, keyed by kernel, input and every option', () => {
     const keys = new Int32Array(input('random', 40, 77));
-    const a = traceOf('heapsort', keys);
-    expect(traceOf('heapsort', keys)).toBe(a);
-    expect(traceOf('heapsort', new Int32Array(input('random', 40, 78)))).not.toBe(a);
-    expect(CACHE.stats().values).toBeGreaterThan(0);
+    const a = traceOf(S, 'heapsort', keys);
+    expect(traceOf(S, 'heapsort', keys)).toBe(a);
+    expect(traceOf(S, 'heapsort', new Int32Array(input('random', 40, 78)))).not.toBe(a);
+    expect(traceCache(S).stats().values).toBeGreaterThan(0);
+    expect(traceCache(S).build).toBe(S.build);
     expect(hashWords([1, 2, 3])).not.toBe(hashWords([1, 2, 4]));
     expect(hashWords([1, 2, 3])).not.toBe(hashWords([1, 2, 3, 0]));
   });
@@ -215,6 +289,18 @@ describe('sorting trace cache', () => {
     c.put('c', 'zzzz');
     expect([c.get('a'), c.get('b'), c.get('c')]).toEqual(['xxxx', undefined, 'zzzz']);
     expect(c.stats().bytes).toBeLessThanOrEqual(10);
+  });
+
+  it('bounds its tiers, the memory tier tighter on a narrow screen', () => {
+    const g = globalThis as Record<string, unknown>;
+    const wide = defaultLimits();
+    g.matchMedia = () => ({ matches: true });
+    try {
+      expect(defaultLimits().memoryBytes).toBeLessThan(wide.memoryBytes);
+    } finally {
+      delete g.matchMedia;
+    }
+    expect(wide.persistTotal).toBeLessThanOrEqual(32 << 20);
   });
 
   it('works the same with storage blocked', async () => {
