@@ -41,6 +41,23 @@ claims:
       0, a one-sided claim, since the note predicts the direction, not the size.
     readout: Terms lost to a split vote
     expect: { against: Leaders elected, below: 0 }
+  - id: one-leader-per-term-early-heal
+    statement: >-
+      With the partition healing at 40% of the run, still at most one leader per term: the terms
+      that elected a leader minus the leaders elected is exactly 0, since one vote per node per
+      term and intersecting majorities do not depend on when the partition heals.
+    readout: Result
+    expect: { against: Leaders elected, tolerance: 0 }
+    setup:
+      params: { heal: 40 }
+  - id: one-leader-per-term-late-heal
+    statement: >-
+      With the partition healing at 90% of the run, still at most one leader per term: the
+      difference is exactly 0, however long the minority side keeps timing out into new terms.
+    readout: Result
+    expect: { against: Leaders elected, tolerance: 0 }
+    setup:
+      params: { heal: 90 }
 ---
 
 Randomised timeouts, terms and votes until one leader holds a majority.

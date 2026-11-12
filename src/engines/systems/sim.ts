@@ -11,7 +11,8 @@ export interface NetConfig {
   delay: [number, number];
   /** Probability that a message is lost. */
   loss: number;
-  /** A window in which messages between lanes on different sides are dropped. */
+  /** A window in which messages between lanes on different sides are dropped (it opens at 0.3
+   * of the run and heals at the `heal` control's share of it). */
   partition: { from: number; to: number; side: number[] } | null;
 }
 
@@ -226,6 +227,7 @@ export const NET_PARAMS: ParamDef[] = [
   { kind: 'range', key: 'delay', label: 'Max message delay (ms)', min: 5, max: 120, step: 5, value: 40, rebuild: true },
   { kind: 'range', key: 'loss', label: 'Message loss (%)', min: 0, max: 40, step: 1, value: 5, rebuild: true },
   { kind: 'toggle', key: 'partition', label: 'Partition mid-run', value: true, rebuild: true },
+  { kind: 'range', key: 'heal', label: 'Partition heals at (% of run)', min: 40, max: 90, step: 5, value: 60, rebuild: true },
 ];
 
 /** The network a kernel runs on: its defaults, overridden by the shared controls if exposed. */
@@ -239,7 +241,7 @@ export function netConfig(k: SystemsKernel, s: Setup, p: Params): NetConfig {
     delay: [Math.max(1, dmax / 8), dmax],
     loss: Number(p.loss ?? 0) / 100,
     partition: p.partition === true
-      ? { from: Math.round(s.horizon * 0.3), to: Math.round(s.horizon * 0.6), side } : null,
+      ? { from: Math.round(s.horizon * 0.3), to: Math.round((s.horizon * Number(p.heal ?? 60)) / 100), side } : null,
   };
 }
 

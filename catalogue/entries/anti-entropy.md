@@ -46,6 +46,32 @@ claims:
       converge before the run ends at 10,000 ms.
     readout: Converged at
     expect: { range: [6000, 10000] }
+  - id: converges-after-an-early-heal
+    statement: >-
+      Healing the partition at 45% of the run (4,500 ms) still leaves every replica writing in
+      the cut from 3,000 ms, at most 420 ms apart until 4,000 ms, so nothing converges before
+      max(4,500, 4,000) = 4,500 ms; they converge before the run ends at 10,000 ms.
+    readout: Converged at
+    expect: { range: [4500, 10000] }
+    setup:
+      params: { heal: 45 }
+  - id: converges-after-a-late-heal
+    statement: >-
+      Healing the partition at 80% of the run moves convergence after 8,000 ms (0.8 of 10,000):
+      the sides wrote apart from 3,000 to 4,000 ms and nothing crosses until the heal; they
+      converge before the run ends at 10,000 ms.
+    readout: Converged at
+    expect: { range: [8000, 10000] }
+    setup:
+      params: { heal: 80 }
+  - id: transfers-are-exact-after-the-latest-heal
+    statement: >-
+      With the partition healing at 90% of the run, the writes transferred are still exactly
+      (replicas − 1) × writes, the result line's third number; an exact identity, no tolerance.
+    readout: Writes transferred
+    expect: { against: Result, against_number: 3, tolerance: 0 }
+    setup:
+      params: { heal: 90 }
 ---
 
 Peers compare what they have and send only what the other lacks.
