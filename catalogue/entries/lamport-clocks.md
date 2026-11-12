@@ -28,6 +28,20 @@ claims:
       difference is exactly 0.
     readout: Clock integers carried
     expect: { against: Messages, tolerance: 0 }
+  - id: happened-before-gives-a-smaller-timestamp
+    statement: >-
+      If a happened before b then a's timestamp is smaller: recounted over every pair of events
+      against a happened-before built from program order and messages, the causal pairs whose
+      timestamps are out of order number exactly 0.
+    readout: Causal pairs out of order
+    expect: { value: 0, tolerance: 0 }
+  - id: the-converse-fails
+    statement: >-
+      The converse fails, so a smaller timestamp says nothing about causality: some pairs of
+      events are concurrent, neither happened before the other, yet their timestamps still
+      order them, so the concurrent pairs given an order are above 0.
+    readout: Concurrent pairs given an order
+    expect: { above: 0 }
 ---
 
 A counter on every process, advanced past every message received: a total order consistent with causality.

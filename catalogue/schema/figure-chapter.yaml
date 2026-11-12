@@ -1,0 +1,51 @@
+# One chapter of a cited work and the figure occurrences recorded from it (ADR 0009), validated by
+# scripts/lib/schema.mjs. Nothing of the work's text or artwork is held here: a figure is its
+# number, where it sits, what kind of figure it is, a paraphrase in our own words, and the plate
+# with the setup that models it. A field given as `ref` is the named field of another schema,
+# used as it is there (one definition, no copy). Status has no key: a figure page is routed only
+# when the chapter carries a source review and the figure's plate is live and tested (derived).
+version: 1
+fields:
+  schema: { type: enum, required: true, values: [algoglyph.figures/v1], doc: Contract version. }
+  collection: { type: id, required: true, doc: The collection (catalogue/figures/collections.yaml). }
+  volume: { type: enum, required: true, values: [I, II, III], doc: The volume, as the work numbers it. }
+  chapter: { type: integer, required: true, doc: The chapter number within its volume. }
+  title: { type: string, required: true, min_length: 2, doc: The chapter's title, a name only. }
+  url: { type: string, required: true, min_length: 12, doc: 'The canonical address of the chapter: linked, never copied.' }
+  same_as:
+    type: list
+    doc: Chapters the work itself says are almost the same; a bibliographic backlink, no pages of their own.
+    of:
+      type: map
+      fields:
+        volume: { type: enum, required: true, values: [I, II, III] }
+        chapter: { type: integer, required: true }
+        url: { type: string, required: true, min_length: 12 }
+  review:
+    type: map
+    doc: >-
+      Who compared this record with the primary source, when and how: an attestation that the
+      numbers, sections and anchors are the source's, not a verdict on any page. Absent until done.
+    fields:
+      by: { type: string, required: true, min_length: 2 }
+      date: { type: string, required: true, min_length: 10, doc: ISO date of the read. }
+      method: { type: enum, required: true, values: [manual-read], doc: How the source was read. }
+      note: { type: string }
+  figures:
+    type: list
+    required: true
+    min_items: 1
+    doc: The figure occurrences of the chapter, in the work's order.
+    of:
+      type: map
+      fields:
+        id: { type: id, required: true, doc: 'The figure number as the work prints it, 1-3.' }
+        section: { type: string, required: true, min_length: 3, doc: 'The section it appears in, 1-4.' }
+        anchor: { type: string, doc: The fragment of the figure on the chapter page, recorded by the source review. }
+        class: { type: enum, required: true, values: [experiment, thought-experiment, schematic, plot], doc: What kind of figure it is. }
+        title: { type: string, required: true, min_length: 4, doc: Our own short name for the page. }
+        paraphrase: { type: string, required: true, min_length: 20, doc: What the figure shows, in our own words. }
+        plate: { type: entry, required: true, doc: The live entry whose plate models it. }
+        setup: { type: any, doc: Values of that plate's own parameters the page opens with (test/figures.test.ts checks them). }
+        pedagogy: { ref: entry.pedagogy }
+        claims: { ref: entry.claims, doc: "Outcomes the page's run measures (ADR 0007), read by the one instrument with the figure's setup under each claim's own." }

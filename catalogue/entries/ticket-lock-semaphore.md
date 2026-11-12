@@ -29,6 +29,12 @@ claims:
     expect: { range: [0, 2] }
     setup:
       params: { slots: 2 }
+  - id: served-in-ticket-order
+    statement: >-
+      Workers are served strictly in the order they drew tickets: counted from the lock's grant
+      log, the grants whose ticket is not the one after the previous grant's number exactly 0.
+    readout: Lock grants out of ticket order
+    expect: { value: 0, tolerance: 0 }
 ---
 
 First come first served for one holder, and a fixed number of slots for heavy work.

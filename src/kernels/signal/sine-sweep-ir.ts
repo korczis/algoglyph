@@ -164,8 +164,10 @@ export const kernel: SignalKernel = {
     const window = h.subarray(zero - before, zero + after);
     let peak = zero;
     for (let i = zero - 50; i < zero + after; i++) if (Math.abs(h[i]) > Math.abs(h[peak])) peak = i;
-    let h2 = zero - lag2 - 200;
-    for (let i = zero - lag2 - 200; i < zero - lag2 + 200; i++) if (Math.abs(h[i]) > Math.abs(h[h2])) h2 = i;
+    // the harmonic's response passes through the room too: it leads the linear response, whose
+    // first peak is the direct path, by L·ln 2, not the deconvolution's time origin
+    let h2 = peak - lag2 - 200;
+    for (let i = peak - lag2 - 200; i < peak - lag2 + 200; i++) if (Math.abs(h[i]) > Math.abs(h[h2])) h2 = i;
     const est = h.subarray(zero, zero + fir.length + 64);
     const direct = h[zero + taps[0][0]];
     const ratioErr = Math.max(...taps.slice(1).map(([d, g]) => Math.abs(h[zero + d] / direct - g / taps[0][1])));
@@ -178,7 +180,7 @@ export const kernel: SignalKernel = {
       { label: 'Direct path: measured vs true delay', value: `${peak - zero} vs ${taps[0][0]} samples` },
       { label: 'Reflection ratios, worst error', value: ratioErr.toFixed(4) },
       { label: '|H| error, 100 Hz to 3 kHz, within 20 dB of the peak', value: `${worst.toFixed(3)} dB` },
-      { label: '2nd-harmonic response: measured vs L·ln 2', value: `${((zero - h2) / FS * 1000).toFixed(1)} vs ${(lag2 / FS * 1000).toFixed(1)} ms early` },
+      { label: '2nd-harmonic response: measured vs L·ln 2', value: `${((peak - h2) / FS * 1000).toFixed(1)} vs ${(lag2 / FS * 1000).toFixed(1)} ms early` },
     ];
     for (let s = 1; s <= phases[2]; s++) yield view(2, s, y, { window, mEst, stats });
   },

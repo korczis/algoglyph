@@ -92,7 +92,8 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   const n = x.against_number ?? 1;
   const b = nthNumber(other.value, n);
   if (b === null) return { frames, text: other.value, reason: `readout "${x.against}" has no number ${n}: ${other.value}` };
-  return { frames, value: value - b, text: `${row.value} against ${other.value} (number ${n})` };
+  // an exact difference the claim states (waves = chain + 1) is taken off before judging
+  return { frames, value: value - b - (x.offset ?? 0), text: `${row.value} against ${other.value} (number ${n})` };
 }
 
 /** Whether a read value meets the claim's expectation (inclusive). */

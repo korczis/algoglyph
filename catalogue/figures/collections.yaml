@@ -1,0 +1,11 @@
+# Figure collections (ADR 0009): each a top-level section of the site at #/<id>, holding the figure
+# occurrences of one cited work, chapter by chapter, in catalogue/figures/<id>-<volume>-<chapter>.yaml.
+version: 1
+collections:
+  - id: feynman
+    title: Feynman Lab
+    work: feynman-lectures
+    summary: >-
+      Interactive pages for figures of The Feynman Lectures on Physics, each an original model of
+      what the figure shows, run on the same plates as the rest of the collection. The lectures
+      themselves are linked, never copied: read each figure in the online edition beside its page.

@@ -15,6 +15,48 @@ complexity: 'O(N log N) per spectrum'
 motivation: Acoustic measurement and synthesis use it every day.
 related:
   - stft-spectrogram
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - fft-butterfly
+  objectives:
+  - See a tone on a bin fall into one bin, and a tone half a bin away leak into every bin.
+  - Trade main-lobe width against side-lobe level across the rectangular, Hann, Hamming, Blackman and Blackman–Harris windows.
+  - Lower the weak tone or move it closer and see when leakage buries it.
+claims:
+  - id: rectangular-side-lobe
+    statement: >-
+      The rectangular window's highest side lobe, measured from its own zero-padded transform,
+      lies within 1 dB of the note's −13 dB (rounded to the decibel).
+    readout: Highest side lobe (measured)
+    expect: { value: -13, tolerance: 1 }
+    setup:
+      params: { window: rect }
+  - id: hann-side-lobe
+    statement: The Hann window's highest side lobe lies within 1 dB of the note's −31 dB.
+    readout: Highest side lobe (measured)
+    expect: { value: -31, tolerance: 1 }
+  - id: hamming-side-lobe
+    statement: The Hamming window's highest side lobe lies within 1 dB of the note's −43 dB.
+    readout: Highest side lobe (measured)
+    expect: { value: -43, tolerance: 1 }
+    setup:
+      params: { window: hamming }
+  - id: blackman-side-lobe
+    statement: The Blackman window's highest side lobe lies within 1 dB of the note's −58 dB.
+    readout: Highest side lobe (measured)
+    expect: { value: -58, tolerance: 1 }
+    setup:
+      params: { window: blackman }
+  - id: blackman-harris-side-lobe
+    statement: >-
+      The four-term Blackman–Harris window's highest side lobe lies within 1 dB of the note's
+      −92 dB.
+    readout: Highest side lobe (measured)
+    expect: { value: -92, tolerance: 1 }
+    setup:
+      params: { window: blackman-harris }
 ---
 
 A tone between bins smears across the spectrum; each window trades width for side lobes.

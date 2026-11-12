@@ -1,0 +1,10 @@
+# A collection of figure occurrences from one cited work (ADR 0009), validated by
+# scripts/lib/schema.mjs: catalogue/figures/collections.yaml lists them. A collection is a top-level
+# section of the site, its route is #/<id>, and its chapters are the catalogue/figures/<id>-*.yaml
+# documents that name it.
+version: 1
+fields:
+  id: { type: id, required: true, doc: 'The route segment, #/<id>, and the prefix of its chapter files.' }
+  title: { type: string, required: true, min_length: 2, doc: The section's name in the navigation. }
+  work: { type: source, required: true, doc: The cited work its figures come from (catalogue/sources.yaml). }
+  summary: { type: string, required: true, min_length: 20, doc: One paragraph on what the collection is, in our own words. }

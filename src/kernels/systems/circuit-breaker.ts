@@ -64,6 +64,8 @@ export const kernel: SystemsKernel<BreakerResult> = {
         }
         const trial = state === 'half-open';
         if (trial) trialOut = true;
+        // the invariant, counted where it would break: a call forwarded in the open state
+        if (state === 'open') net.count('forwarded while open');
         net.count('forwarded');
         net.sample('calls reaching the dependency', 1);
         net.send(1, 2, 'call', () => {
@@ -94,6 +96,7 @@ export const kernel: SystemsKernel<BreakerResult> = {
     { key: 'failures', label: 'Failed at the dependency' },
     { key: 'trips', label: 'Trips (to open)' },
     { key: 'recoveries', label: 'Recoveries (to closed)' },
+    { key: 'forwarded while open', label: 'Calls forwarded while open' },
   ],
   chart: {
     title: 'Calls per 200 ms',

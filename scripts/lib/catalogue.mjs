@@ -8,10 +8,13 @@
 //   catalogue/entries/<id>.md      one algorithm: YAML front matter + body (summary, notes)
 //   catalogue/<family>-sidecar.yaml  optional: entry id -> kernel of a compiled module, played
 //                                  by the adapter src/kernels/<family>-wasm/index.ts
+//   catalogue/figures/             figure occurrences of cited works (ADR 0009, ./figures.mjs)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { claimErrors } from './claims.mjs';
+import { loadFigures } from './figures.mjs';
 import { check, loadSchema } from './schema.mjs';
 
 export const STATUSES = ['live', 'planned'];
@@ -254,33 +257,7 @@ export function loadCatalogue(root, { code = true } = {}) {
     const summary = paras[0] ?? '';
     if (summary.length < 20) err('the body must open with a summary of at least 20 characters');
     if (fm.status === 'live' && paras.length < 2) err('a live entry needs reading notes after its summary');
-    // a claim's expectation (ADR 0007): exactly one of value, range, below and above; a range is [lo, hi] with
-    // lo <= hi, tolerance only around a value; ids unique within the entry. Whether its readout
-    // exists and its value holds is the plate's to show: test/claims.test.ts runs it.
-    const claimIds = new Set();
-    for (const [i, c] of (fm.claims ?? []).entries()) {
-      const at = `claims[${i}]${c?.id ? ` (${c.id})` : ''}`;
-      if (!c || typeof c !== 'object') continue;
-      if (c.id && claimIds.has(c.id)) err(`${at}: id ${c.id} is used twice`);
-      if (c.id) claimIds.add(c.id);
-      const x = c.expect ?? {};
-      const hasValue = typeof x.value === 'number';
-      const hasRange = Array.isArray(x.range);
-      const against = typeof x.against === 'string';
-      if (against) {
-        // a comparison judges a difference: by tolerance, below or above, never value or range
-        const judged = [typeof x.tolerance === 'number', typeof x.below === 'number', typeof x.above === 'number'].filter(Boolean).length;
-        if (hasValue || hasRange || judged !== 1) err(`${at}: expect.against needs exactly one of tolerance, below and above, and no value or range`);
-        if (x.against_number !== undefined && x.against_number < 1) err(`${at}: expect.against_number counts from 1`);
-      } else {
-        const forms = [hasValue, hasRange, typeof x.below === 'number', typeof x.above === 'number'].filter(Boolean).length;
-        if (forms !== 1) err(`${at}: expect needs exactly one of value, range, below and above`);
-        if (x.against_number !== undefined) err(`${at}: expect.against_number needs expect.against`);
-      }
-      if (hasRange && (x.range.length !== 2 || x.range[0] > x.range[1])) err(`${at}: expect.range must be [lo, hi] with lo <= hi`);
-      if (x.tolerance !== undefined && !hasValue && !against) err(`${at}: expect.tolerance is a distance around expect.value`);
-      if (typeof x.tolerance === 'number' && x.tolerance < 0) err(`${at}: expect.tolerance cannot be negative`);
-    }
+    for (const m of claimErrors(fm.claims ?? [])) err(m);
     const lower = text.toLowerCase();
     for (const [re, what] of LOCATORS) if (re.test(text)) err(`carries ${what}; this tree is public`);
     for (const t of terms) if (lower.includes(t)) err('names a term of the private deny-list; this tree is public');
@@ -537,6 +514,9 @@ export function loadCatalogue(root, { code = true } = {}) {
     }
   }
   const nodes = [...byPath.entries()].map(([key, n]) => ({ key, ...n, ...count.get(key) }));
+  // figure occurrences (ADR 0009): derived after the evidence, which decides what is routed
+  for (const e of entries) e.figures = [];
+  const figures = loadFigures(root, { entries, sources, errors });
   return {
     errors,
     model: {
@@ -548,8 +528,11 @@ export function loadCatalogue(root, { code = true } = {}) {
       labs: [...labs.values()],
       sources: [...sources.values()],
       sidecar: Object.fromEntries(backed),
+      collections: figures.collections,
+      chapters: figures.chapters,
     },
     files: [join(dir, 'taxonomy.yaml'), join(dir, 'labs.yaml'), join(dir, 'sources.yaml'),
-      ...files.map((f) => join(dir, 'entries', f)), ...sidecarFiles.map((f) => join(root, f))],
+      ...files.map((f) => join(dir, 'entries', f)), ...sidecarFiles.map((f) => join(root, f)),
+      ...figures.files],
   };
 }

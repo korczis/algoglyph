@@ -140,7 +140,7 @@ function stats(run: Run): Stat[] {
   rows.push(
     { label: 'Items', value: `${fmt(run.sizes.length)}, total size ${fmt(run.sizes.reduce((a, b) => a + b, 0))}, bins of ${CAPACITY}` },
     { label: 'Lower bound ⌈Σ size / capacity⌉', value: fmt(run.lower) },
-    { label: 'Optimum (exact search)', value: run.exact === null ? `searched only up to ${EXACT_MAX} items` : fmt(run.exact) },
+    { label: 'Optimum (exact search)', value: run.exact === null ? 'not searched: too many items for the exact search' : fmt(run.exact) },
   );
   return rows;
 }

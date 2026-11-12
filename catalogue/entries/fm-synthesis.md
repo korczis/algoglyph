@@ -12,6 +12,26 @@ tags:
   - operators
 complexity: 'O(N log N) per spectrum'
 motivation: Acoustic measurement and synthesis use it every day.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - fft-butterfly
+  objectives:
+  - See the carrier and sidebands at fc ± n·fm, the n-th with amplitude |J_n(β)|.
+  - See sidebands below zero hertz fold onto positive frequencies with their sign inverted.
+  - Compare Carson's rule 2(β + 1)·fm with the measured 99 % bandwidth, and find the carrier vanish near β ≈ 2.405.
+bounds:
+  model: butterflies
+  best: '(N/2) log2 N per spectrum of N = 8192 samples'
+  worst: '(N/2) log2 N per spectrum of N = 8192 samples'
+claims:
+  - id: sidebands-match-the-folded-series
+    statement: >-
+      One second at 8192 samples per second puts every component on a bin, so the measured
+      amplitudes match the folded Bessel series to rounding error, far below 10⁻⁹.
+    readout: Largest disagreement with the folded series
+    expect: { below: 1.0e-9 }
 ---
 
 One oscillator modulating another's frequency, its sidebands weighted by Bessel functions.
