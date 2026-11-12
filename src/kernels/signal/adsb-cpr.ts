@@ -6,7 +6,9 @@ import { cprDecode, cprEncode, demodulate, fields, hex, modulate, NL, positionFr
 
 const LEAD = 24; // samples of noise before each frame
 const R = 6371008.8;
-const GAP = 8; // seconds of flight between two reports, within the usual 10 s pairing limit
+/** Seconds of flight between two reports by default; the `gap` control moves it within the usual
+ * 10 s pairing limit. */
+export const GAP = 8;
 
 /** Great-circle distance in metres. */
 export function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
@@ -29,7 +31,10 @@ function receive(f: Uint8Array, snrDb: number, rnd: () => number): Float64Array 
 // An aircraft flies a seeded track and squitters even and odd position reports in turn. Each frame is received in noise, sliced into bits, checked (and if one bit is damaged,
 // repaired) by its CRC-24, and every fresh even/odd pair is decoded into a global position.
 export const kernel: SignalKernel = {
-  params: [{ kind: 'range', key: 'snr', label: 'Receiver SNR (dB)', min: 4, max: 30, step: 1, value: 11 }],
+  params: [
+    { kind: 'range', key: 'snr', label: 'Receiver SNR (dB)', min: 4, max: 30, step: 1, value: 11 },
+    { kind: 'range', key: 'gap', label: 'Seconds between even and odd', min: 1, max: 10, step: 1, value: GAP },
+  ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const icao = Math.floor(rnd() * 0xffffff);
@@ -38,6 +43,7 @@ export const kernel: SignalKernel = {
     const alt = 25 * Math.round((20000 + rnd() * 18000) / 25);
     const speed = 240; // m/s
     const snr = Number(params.snr);
+    const gap = Number(params.gap ?? GAP);
     const truthTrack: number[] = []; const decodedTrack: number[] = [];
     const errors: [number, number][] = [];
     const last: { 0?: [number, number]; 1?: [number, number] } = {};
@@ -45,8 +51,8 @@ export const kernel: SignalKernel = {
     const frames = 24;
     const lat0 = lat; const lon0 = lon;
     for (let k = 0; k < frames; k++) {
-      // time-lapse: GAP seconds of flight between reports, so the track shows against the zones
-      const d = ((speed * GAP) / R) * (180 / Math.PI);
+      // time-lapse: `gap` seconds of flight between reports, so the track shows against the zones
+      const d = ((speed * gap) / R) * (180 / Math.PI);
       lat += d * Math.cos(heading); lon += (d * Math.sin(heading)) / Math.cos((lat * Math.PI) / 180);
       truthTrack.push(lon, lat);
       const odd = (k % 2) as 0 | 1;
