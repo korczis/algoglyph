@@ -254,6 +254,23 @@ export function loadCatalogue(root, { code = true } = {}) {
     const summary = paras[0] ?? '';
     if (summary.length < 20) err('the body must open with a summary of at least 20 characters');
     if (fm.status === 'live' && paras.length < 2) err('a live entry needs reading notes after its summary');
+    // a claim's expectation (ADR 0007): exactly one of value and range, a range is [lo, hi] with
+    // lo <= hi, tolerance only around a value; ids unique within the entry. Whether its readout
+    // exists and its value holds is the plate's to show: test/claims.test.ts runs it.
+    const claimIds = new Set();
+    for (const [i, c] of (fm.claims ?? []).entries()) {
+      const at = `claims[${i}]${c?.id ? ` (${c.id})` : ''}`;
+      if (!c || typeof c !== 'object') continue;
+      if (c.id && claimIds.has(c.id)) err(`${at}: id ${c.id} is used twice`);
+      if (c.id) claimIds.add(c.id);
+      const x = c.expect ?? {};
+      const hasValue = typeof x.value === 'number';
+      const hasRange = Array.isArray(x.range);
+      if (hasValue === hasRange) err(`${at}: expect needs exactly one of value and range`);
+      if (hasRange && (x.range.length !== 2 || x.range[0] > x.range[1])) err(`${at}: expect.range must be [lo, hi] with lo <= hi`);
+      if (x.tolerance !== undefined && !hasValue) err(`${at}: expect.tolerance is a distance around expect.value`);
+      if (typeof x.tolerance === 'number' && x.tolerance < 0) err(`${at}: expect.tolerance cannot be negative`);
+    }
     const lower = text.toLowerCase();
     for (const [re, what] of LOCATORS) if (re.test(text)) err(`carries ${what}; this tree is public`);
     for (const t of terms) if (lower.includes(t)) err('names a term of the private deny-list; this tree is public');
@@ -263,7 +280,7 @@ export function loadCatalogue(root, { code = true } = {}) {
       tags: fm.tags ?? [], complexity: fm.complexity ?? '', interaction: fm.interaction ?? '',
       motivation: fm.motivation ?? '', order: Number.isFinite(fm.order) ? fm.order : null,
       aliases: fm.aliases ?? [], pedagogy: fm.pedagogy ?? null, algorithm: fm.algorithm ?? null,
-      bounds: fm.bounds ?? null, experiments: fm.experiments ?? [],
+      bounds: fm.bounds ?? null, experiments: fm.experiments ?? [], claims: fm.claims ?? [],
       declared: [
         ...(fm.related ?? []).map((t) => ({ type: 'related_to', target: t, reason: '' })),
         ...(fm.relations ?? []).map((r) => ({ type: r.type, target: r.target, reason: r.reason ?? '' })),
@@ -460,6 +477,7 @@ export function loadCatalogue(root, { code = true } = {}) {
       .map((m) => `plates/${m[1]}'`);
     return shared.some((path) => testText.includes(path) && !path.endsWith("/view'"));
   };
+  const claimsInstrument = existsSync(join(testDir, 'claims.test.ts'));
   for (const e of entries) {
     const implemented = Boolean(e.implemented);
     const harness = e.engine !== 'custom' && existsSync(join(testDir, `kernels-${e.engine}.test.ts`));
@@ -467,6 +485,9 @@ export function loadCatalogue(root, { code = true } = {}) {
       || new RegExp(`describe\\(['"\`]${e.id}[:'"\` ]`).test(testText)
       || sharedTested(e.id);
     e.evidence = { implemented, tested: implemented && (harness || unit) ? (harness ? 'harness' : 'unit') : null };
+    // a claim is checked by one instrument for every entry (ADR 0007); its verdict is that test's
+    e.evidence.claims = e.claims.length ? { declared: e.claims.length, instrument: claimsInstrument ? 'test/claims.test.ts' : null } : null;
+    if (code && e.claims.length && !claimsInstrument) errors.push(`${e.file}: declares claims, but test/claims.test.ts, the instrument that checks them, is missing`);
     delete e.implemented;
     // a live entry is an experiment someone runs: it is tested, or it is refused (the owner,
     // 2026-11-12: every experiment standalone and tested, validated, verified, enforced)

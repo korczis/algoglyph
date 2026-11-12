@@ -67,6 +67,7 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a heavy kernel | Rust in `crates/algoglyph-kernels`, a C ABI in `crates/algoglyph-kernels/src/wasm.rs`, a plate that imports `src/wasm/algoglyph_kernels.wasm?init` | built by `scripts/wasm.sh` |
 | a classification level | a node in `taxonomy.yaml` (any depth) | the tree |
 | a check of the facts gate | `tools/checks/<name>.rhai` defining `fn check(file)` + a refused fixture | file name; `algoglyph facts` |
+| a measured claim on a page | `claims:` in the entry (`statement`, `readout`, `expect`, `setup`), ADR 0007 | `test/claims.test.ts` runs the plate and reads the readout |
 | a task | a recipe in `justfile` with `[group]` and `[doc]` | `just --list` |
 
 ### Engine and kernel
@@ -220,6 +221,7 @@ just verify                        # everything CI runs, in CI's order
 | `project.viz-component-layer` | the live↔code check, `test/registry.test.ts`, the browser gate | verify, CI |
 | `project.no-fake-science` | the engine harness tests, `cargo test`, the wasm fixture test | verify, CI |
 | main-thread budget (`project.viz-component-layer`) | `test/budget.test.ts` over every live plate and lab: every width and heavy corner, past the end of a run, during a slider drag; CPU time calibrated by a reference workload; budgets in `config/budgets.yaml`; run alone (`npm run test:budget`) | verify, CI |
+| every claim holds (ADR 0007) | `test/claims.test.ts`: the plate run headless with the claim's setup until its readouts settle; the named readout's first number against `expect`; `evidence.claims` derived by `scripts/lib/catalogue.mjs` | verify, CI |
 | no wall-clock judgement in correctness tests (`project.viz-component-layer`) | `test/suite-contract.test.ts`: no test sets a limit shorter than `testTimeout` | verify, CI |
 | `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail); its waits and retries are data (`config/budgets.yaml`, `browser`): a page that misses its readout is opened again once and logged, a page that misses twice fails, and more retries than `max_retries` fail the run | verify, CI before every deploy |
 | the plan | `majordomus plan validate`, `majordomus doctor` | the commit hook, CI |

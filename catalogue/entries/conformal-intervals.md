@@ -14,6 +14,15 @@ tags:
   - coverage
 complexity: "one sort of the calibration residuals"
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
+schema: algoglyph.entry/v2
+claims:
+  - id: covers-at-the-guaranteed-rate
+    statement: >-
+      Over 150 repeated experiments with 60 calibration cases, the 90% split conformal interval
+      covers between 1 − α = 90% and 1 − α + 1/(n + 1) ≈ 91.6% of test cases, give or take three
+      standard errors of the repetition (about 1.1 points).
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
 ---
 
 Intervals from held-out residuals that cover the truth at the stated rate.
