@@ -12,7 +12,20 @@ export const LAMPORT: ClockRule<number> = {
   size: () => 1,
 };
 
-export interface LamportResult { events: HEvent<number>[] }
+export interface Pairs { causal: number; concurrent: number; bad: number }
+export interface LamportResult { events: HEvent<number>[]; pairs?: Pairs }
+
+/** Every pair of events against happened-before: causal ones, those out of order, concurrent ones. */
+export function recount(events: HEvent<number>[]): Pairs {
+  const hb = happenedBefore(events);
+  let causal = 0; let concurrent = 0; let bad = 0;
+  for (let b = 0; b < events.length; b++) {
+    for (let a = 0; a < b; a++) {
+      if (hb[b][a]) { causal++; if (events[a].clock >= events[b].clock) bad++; } else concurrent++;
+    }
+  }
+  return { causal, concurrent, bad };
+}
 
 export const kernel: SystemsKernel<LamportResult> = {
   params: [{ kind: 'range', key: 'procs', label: 'Workers', min: 2, max: 6, step: 1, value: 4, rebuild: true }],
@@ -24,23 +37,27 @@ export const kernel: SystemsKernel<LamportResult> = {
       net.gauge('max', max);
       net.sample(`worker ${e.proc + 1}`, e.clock);
     });
-    return { events };
+    const res: LamportResult = { events };
+    // the workload stops acting at 0.9 of the horizon and its last receipt lands before it ends,
+    // so the pairs are recounted once, over the whole history, when the run reaches its horizon
+    net.at(net.horizon, () => {
+      res.pairs = recount(events);
+      net.count('pairs.inverted', res.pairs.bad);
+      net.count('pairs.concurrent', res.pairs.concurrent);
+    });
+    return res;
   },
   readouts: [
     { key: 'events', label: 'Events' },
     { key: 'events.send', label: 'Messages' },
     { key: 'max', kind: 'gauge', label: 'Largest timestamp' },
     { key: 'clock.ints', label: 'Clock integers carried' },
+    { key: 'pairs.inverted', label: 'Causal pairs out of order' },
+    { key: 'pairs.concurrent', label: 'Concurrent pairs given an order' },
   ],
   chart: { title: 'Lamport timestamp of each worker', y: 'timestamp' },
-  verdict({ events }) {
-    const hb = happenedBefore(events);
-    let causal = 0; let concurrent = 0; let bad = 0;
-    for (let b = 0; b < events.length; b++) {
-      for (let a = 0; a < b; a++) {
-        if (hb[b][a]) { causal++; if (events[a].clock >= events[b].clock) bad++; } else concurrent++;
-      }
-    }
+  verdict(r) {
+    const { causal, concurrent, bad } = r.pairs ??= recount(r.events);
     return bad ? `${bad} causal pairs out of order`
       : `respects all ${causal} causal pairs; ${concurrent} concurrent pairs get an order anyway`;
   },

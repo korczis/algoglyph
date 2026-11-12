@@ -1,6 +1,5 @@
 import { count } from '../../core/format';
 import { mix, paletteParam, ramp } from '../../core/palette';
-import { Pacer, paceParam } from '../../core/pace';
 import { num, str, type PlateCode, type Stat } from '../../core/plate';
 import { gaussian, mulberry32 } from '../../core/random';
 import {
@@ -13,14 +12,13 @@ import {
   envelope, fringePeriod, oneSlit, referenceCdf, Screen, twoSlit, visibilityMoments,
   VisibilityEstimate, type Slits,
 } from '../_shared/two-slit/screen';
-import { roundRobin } from '../_shared/two-slit/runs';
+import { MAX_PER_FRAME, roundRobin } from '../_shared/two-slit/pace';
+import { Pacer, paceParam } from '../../core/pace';
 import { deBroglie, electronMomentum, HBAR, length, PLANCK } from '../_shared/two-slit/units';
 
 type Scenario = 'electrons' | 'watched' | 'resolution' | 'recoil';
 
 const AMPLITUDE: Scenario[] = ['electrons', 'watched'];
-/** The most particles a frame lands, all runs together, whatever the pace asks. */
-const MAX_PER_FRAME = 2000;
 /** Particles per frame, all runs, in the gallery thumbnail. */
 const THUMB_RATE = 4500;
 /** Bins of the hit histograms over the fringe windows of the resolution and recoil modes. */
@@ -72,7 +70,7 @@ export const twoSlitAmplitudes: PlateCode = {
     },
     { kind: 'range', key: 'mass', label: 'Particle mass, log₁₀ of kg', min: -30.04, max: -2,
       step: 0.01, value: -2, rebuild: true, when: when('resolution') },
-    { kind: 'range', key: 'velocity', label: 'Particle velocity (m/s)', min: 1, max: 1000, step: 1,
+    { kind: 'range', key: 'speed', label: 'Particle speed (m/s)', min: 1, max: 1000, step: 1,
       value: 300, rebuild: true, when: when('resolution') },
     {
       kind: 'select', key: 'detector', label: 'Detector response', value: 'gaussian', rebuild: true,
@@ -94,14 +92,13 @@ export const twoSlitAmplitudes: PlateCode = {
     },
     { kind: 'range', key: 'spread', label: 'Wall momentum spread σₚ/Δq, log₁₀', min: -1.3, max: 1,
       step: 0.01, value: -0.3, rebuild: true, when: when('recoil') },
-    // a default run is a demonstration: 450 per run lasts 20 s at the calm pace (ADR 0008) with
-    // one run and 45 s with the three of the electron mode; the claims pin their own n
+    // a default run is a demonstration: one run (or the three of the electron mode) of this many
+    // particles, paced from their count (config/pacing.yaml); the claims pin their own n
     { kind: 'range', key: 'n', label: 'Particles emitted per run', min: 50, max: 60000,
       step: 50, value: 450, rebuild: true },
     paceParam(),
     paletteParam('abyss'),
   ],
-  // a finite run of known length: every particle that lands is one counted change
   pace: { kind: 'replay', unit: 'particles' },
   create(p, ctx) {
     const params = ctx.params;
@@ -111,8 +108,8 @@ export const twoSlitAmplitudes: PlateCode = {
     /** Advance the runs by this frame's particles, all runs together. */
     let step: (budget: number) => void = () => {};
     const pacer = new Pacer('replay', 'particles', MAX_PER_FRAME);
-    /** Particles emitted so far and in all, every run of the current mode together. */
-    let progress: () => [number, number] = () => [0, 0];
+    /** The particles every run of the scenario still has to emit. */
+    let left: () => number = () => 0;
     let render: (g: CanvasRenderingContext2D) => void = () => {};
     const stream = () => mulberry32(Math.floor(ctx.rnd() * 0x7fffffff) + 1);
 
@@ -136,7 +133,6 @@ export const twoSlitAmplitudes: PlateCode = {
       const est = { all: new VisibilityEstimate(screen.period, moments),
         flash: new VisibilityEstimate(screen.period, moments),
         dark: new VisibilityEstimate(screen.period, moments) };
-      progress = () => [runs.reduce((t, r) => t + r.emitted, 0), runs.length * n];
       const flashHist = new Float64Array(bins);
       const darkHist = new Float64Array(bins);
       let flashes = 0;
@@ -160,6 +156,7 @@ export const twoSlitAmplitudes: PlateCode = {
         / integrate((x) => 2 * oneSlit(s, x), cLo, cLo + w, 256);
       let ks: number | null = null;
 
+      left = () => runs.reduce((t, run) => t + Math.max(0, n - run.emitted), 0);
       step = (budget) => {
         roundRobin(budget, (r) => n - runs[r].emitted, runs.length, (r) => {
           const run = runs[r];
@@ -316,7 +313,7 @@ export const twoSlitAmplitudes: PlateCode = {
     /** Fine fringes read by a detector of finite width (the bullets' figure). */
     function resolution() {
       const mass = 10 ** num(params, 'mass');
-      const speed = num(params, 'velocity');
+      const speed = num(params, 'speed');
       const lambda = PLANCK / (mass * speed);
       const s: Slits = { lambda, d: num(params, 'd') * 1e-6, a: 0, L: num(params, 'L') };
       const period = fringePeriod(s);
@@ -327,7 +324,6 @@ export const twoSlitAmplitudes: PlateCode = {
       const periods = grid ? grid.periods : 4;
       const hist = new Float64Array(WINDOW_BINS);
       let emitted = 0;
-      progress = () => [emitted, n];
       const rnd = stream();
       const closed = attenuation(kind, ratio);
       // Σ cos(2πx/Λ) and its square over the arrivals and over the readings: on whole periods
@@ -341,6 +337,7 @@ export const twoSlitAmplitudes: PlateCode = {
         return pm(2 * mean, (2 * sd) / Math.sqrt(emitted));
       };
 
+      left = () => Math.max(0, n - emitted);
       step = (budget) => {
         const shots = Math.min(budget, n - emitted);
         for (let i = 0; i < shots; i++) {
@@ -450,11 +447,11 @@ export const twoSlitAmplitudes: PlateCode = {
       const rnd = stream();
       const hist = new Float64Array(WINDOW_BINS);
       let emitted = 0;
-      progress = () => [emitted, n];
       let sum = 0;
       let sumSq = 0;
       const pk = wall.momentum();
 
+      left = () => Math.max(0, n - emitted);
       step = (budget) => {
         const shots = Math.min(budget, n - emitted);
         for (let i = 0; i < shots; i++) {
@@ -579,9 +576,9 @@ export const twoSlitAmplitudes: PlateCode = {
         if (scenario === 'electrons' || scenario === 'watched') amplitudes(scenario === 'watched');
         else if (scenario === 'resolution') resolution();
         else recoil();
-        pacer.start(progress()[1]);
+        pacer.start(left());
       },
-      pace: () => pacer.report(progress()[0] >= progress()[1], params),
+      pace: () => pacer.report(left() === 0, params),
       draw() {
         step(ctx.thumbnail ? THUMB_RATE : pacer.take(params));
         const g = p.drawingContext as CanvasRenderingContext2D;
@@ -589,7 +586,7 @@ export const twoSlitAmplitudes: PlateCode = {
         g.save();
         render(g);
         g.restore();
-        ctx.stats([pacer.row(params), ...stats()]);
+        ctx.stats([...stats(), pacer.row(params)]);
       },
     };
   },

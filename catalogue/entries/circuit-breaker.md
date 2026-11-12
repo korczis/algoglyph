@@ -36,6 +36,12 @@ claims:
       before the run ends at 7,000 ms: at least one recovery.
     readout: Recoveries (to closed)
     expect: { above: 0 }
+  - id: nothing-forwarded-while-open
+    statement: >-
+      Open, the breaker refuses every call at once without touching the dependency, so no call
+      is forwarded while it is open: exactly 0, a count with no margin.
+    readout: Calls forwarded while open
+    expect: { value: 0, tolerance: 0 }
 ---
 
 Closed, open and half-open: stop calling what keeps failing, and test it again later.

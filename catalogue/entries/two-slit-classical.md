@@ -61,7 +61,7 @@ claims:
     readout: count balance, fired − blocked − detected − missed
     expect: { value: 0 }
     setup:
-      params: { pace: 4096, n: 40000 }
+      params: { n: 40000 }
   - id: both-holes-above-the-band-floor
     statement: >-
       The χ²/k of the both-holes histogram against the sum of the one-hole histograms lies above the
@@ -69,7 +69,7 @@ claims:
     readout: χ²/k of N₁₂ against N₁ + N₂
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 1, above: 0 }
     setup:
-      params: { pace: 4096, n: 40000 }
+      params: { n: 40000 }
   - id: both-holes-below-the-band-ceiling
     statement: >-
       The same χ²/k lies below the 99.9 % point of χ²ₖ/k: bullets through two holes add up, with no
@@ -77,7 +77,7 @@ claims:
     readout: χ²/k of N₁₂ against N₁ + N₂
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, below: 0 }
     setup:
-      params: { pace: 4096, n: 40000 }
+      params: { n: 40000 }
   - id: enough-bins-for-the-band
     statement: >-
       The band is only used where its approximation holds: with 40,000 bullets per run at least ten
@@ -86,7 +86,7 @@ claims:
     readout: bins judged (tails merged to ≥ 5 expected)
     expect: { above: 9 }
     setup:
-      params: { pace: 4096, n: 40000 }
+      params: { n: 40000 }
   - id: the-test-would-see-interference
     statement: >-
       A power check: the same both-holes histogram tested against full-contrast fringes built from
@@ -96,7 +96,7 @@ claims:
     readout: χ²/k against full-contrast fringes, 4-bin period
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
     setup:
-      params: { pace: 4096, n: 40000 }
+      params: { n: 40000 }
   - id: the-test-states-its-sensitivity
     statement: >-
       The same counts would reject fringes of that period down to a visibility of 0.2: the smallest
@@ -105,7 +105,7 @@ claims:
     readout: smallest fringe visibility this run rejects, 4-bin period
     expect: { below: 0.2 }
     setup:
-      params: { pace: 4096, n: 40000 }
+      params: { n: 40000 }
 ---
 
 A gun sprays bullets at a wall with two holes; behind it a backstop counts where they land. Three runs fire the same number of bullets: hole 2 shut, hole 1 shut, both open. The curve with both holes open is the sum of the other two.
@@ -116,4 +116,4 @@ Nothing a bullet does at one hole depends on the other, so the both-holes counts
 
 A test that passes is only worth something if it could fail. Two readouts say how much this one could: the χ²/k of the same histogram against full-contrast fringes four bins apart, the one-hole counts combined as waves would be, and the smallest fringe visibility the run would still reject at that period, its stated sensitivity. Where the two one-hole curves barely overlap there is little for fringes to modulate, and the sensitivity rises towards 1. The band itself is used only from ten bins on, where the Wilson–Hilferty points are within about 1 % of the exact ones. Bullets are lumps: they arrive one at a time, whole, and through one hole or the other. Compare #/p/two-slit-amplitudes, where the arrivals are just as lumpy and the curves do not add.
 
-The default run is a demonstration: 350 bullets per run, landed at the calm pace of config/pacing.yaml (at most 30 a second), so the three curves grow in about half a minute and the sum can be watched taking shape from a few hundred lumps. The claims below are not computed from it; each is run at its own size, 40,000 bullets per run, named on its Run line, so its margin is the one its statistics need.
+The default run is a demonstration: 350 bullets per run, landing about two dozen a second, so the three curves grow in under a minute and the sum can be watched taking shape from a few hundred lumps. The claims below are not computed from it; each is run at its own size, 40,000 bullets per run, named on its Run line, so its margin is the one its statistics need.

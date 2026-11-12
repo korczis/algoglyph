@@ -29,6 +29,7 @@ export function claimErrors(claims) {
       const forms = [hasValue, hasRange, typeof x.below === 'number', typeof x.above === 'number'].filter(Boolean).length;
       if (forms !== 1) err('expect needs exactly one of value, range, below and above');
       if (x.against_number !== undefined) err('expect.against_number needs expect.against');
+      if (x.offset !== undefined) err('expect.offset is a difference from expect.against');
     }
     if (hasRange && (x.range.length !== 2 || x.range[0] > x.range[1])) err('expect.range must be [lo, hi] with lo <= hi');
     if (x.tolerance !== undefined && !hasValue && !against) err('expect.tolerance is a distance around expect.value');

@@ -51,7 +51,7 @@ export function mount(plate: PlateCode, over: Params = {}, seed = SEED): { sim: 
 }
 
 /** A key or label that sets how fast a plate runs, in a unit of its own. */
-export const RATE_CONTROL = { keys: ['speed', 'steps', 'substeps'], label: /\b\w+s( \w+)? per frame/i };
+export const RATE_CONTROL = { keys: ['steps', 'substeps'], label: /\b\w+s( \w+)? per frame/i };
 
 /** What is wrong with a plate's declaration; empty when it is sound. */
 export function declarationErrors(plate: Pick<PlateCode, 'id' | 'params' | 'pace'>): string[] {

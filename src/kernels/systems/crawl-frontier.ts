@@ -52,6 +52,10 @@ export const kernel: SystemsKernel<CrawlResult> = {
     const queues: number[][] = Array.from({ length: H }, () => []);
     const nextOk = new Array<number>(H).fill(0);
     const inFlight = new Array<boolean>(H).fill(false);
+    // the start of each host's previous fetch, and the closest two starts on one host so far
+    const lastStart = new Array<number>(H).fill(NaN);
+    let closest = Infinity;
+    net.gauge('delay', delay);
     let frontier = 0;
     let fetched = 0;
     const discover = (pg: number) => {
@@ -98,6 +102,9 @@ export const kernel: SystemsKernel<CrawlResult> = {
       frontier--;
       inFlight[h] = true;
       nextOk[h] = net.now + delay;
+      const gap = net.now - lastStart[h];
+      if (gap < closest) { closest = gap; net.gauge('closest', closest); }
+      lastStart[h] = net.now;
       const f: Fetch = { page: pg, host: h, worker: w, start: net.now, end: NaN };
       res.fetches.push(f);
       net.state(w, `fetch ${String.fromCharCode(97 + h)}${pg % PER_HOST}`);
@@ -128,6 +135,8 @@ export const kernel: SystemsKernel<CrawlResult> = {
     { key: 'dupes', label: 'Links to pages already seen' },
     { key: 'frontier', kind: 'gauge', label: 'Frontier size' },
     { key: 'finished', kind: 'gauge', label: 'Crawl finished at', unit: ' ms' },
+    { key: 'closest', kind: 'gauge', label: 'Closest two hits on one host', unit: ' ms' },
+    { key: 'delay', kind: 'gauge', label: 'Politeness delay per host', unit: ' ms' },
   ],
   chart: { title: 'Frontier and pages fetched', y: 'pages', series: ['frontier size', 'pages fetched'] },
   verdict(r) {

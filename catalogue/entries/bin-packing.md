@@ -28,10 +28,10 @@ pedagogy:
 claims:
   - id: next-fit-tests-fewer-than-items
     statement: >-
-      Next fit makes one fit test per item after the first, n − 1 for n items, so its fit tests
-      (the third number of its readout) are fewer than the items.
+      Next fit makes one fit test per item after the first, n − 1 for n items: the items minus its
+      fit tests (the third number of its readout) is exactly one.
     readout: Items
-    expect: { against: Next fit, against_number: 3, above: 0 }
+    expect: { against: Next fit, against_number: 3, offset: 1, tolerance: 0 }
   - id: halves-cost-next-fit-a-bin-each
     statement: >-
       For 48 alternating halves and crumbs, every half-full bin takes one crumb and then refuses

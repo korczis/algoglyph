@@ -17,8 +17,13 @@ import {
 import {
   besselJ0, chiSquareQuantile, erf, interpolate, ksBound, ksDistance, sinc, Z_999,
 } from '../src/plates/_shared/two-slit/math';
-import { FPS, PACING } from '../src/core/pace';
-import { roundRobin } from '../src/plates/_shared/two-slit/runs';
+import { FPS, PACING, Pacer } from '../src/core/pace';
+import { MAX_PER_FRAME, roundRobin } from '../src/plates/_shared/two-slit/pace';
+
+// the calm pace and the pace control's top (ADR 0008), and the replay window a default run ends in
+const CALM = 1;
+const FASTEST = PACING.pace.max;
+const RUN_WINDOW_S = PACING.kinds.replay.run_s;
 import { closedForm, uncertaintyRatio, Wall } from '../src/plates/_shared/two-slit/recoil';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 import {
@@ -272,8 +277,66 @@ describe('two-slit bullets', () => {
 
 installBrowserStubs();
 
-/** A plate mounted headless at its defaults and the given setup. */
-async function mounted(id: string, setup: Params) {
+/** Every readout of a plate run to the end at one pace (headless, drawing stubbed). */
+async function finalReadouts(id: string, setup: Params, pace: number): Promise<Stat[]> {
+  const plate = (await loadPlate(id))!;
+  const params = { ...defaults(plate), ...setup, pace };
+  let rows: Stat[] = [];
+  const ctx: PlateContext = {
+    width: 800, height: 500, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
+    bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg, thumbnail: false, palette: () => palette('abyss'),
+    stats(r) { rows = r; }, chart() {},
+  };
+  const sim = plate.create(p5Stub(), ctx);
+  sim.setup();
+  let last = '';
+  let still = 0;
+  for (let f = 0; f < 40_000 && still < 60; f++) {
+    sim.draw();
+    const now = JSON.stringify(rows);
+    still = now === last ? still + 1 : 0;
+    last = now;
+  }
+  // the pace row says how fast the run was drawn: the one readout a pace may change
+  return rows.filter((r) => r.label !== 'Pace');
+}
+
+describe('two-slit pace', () => {
+  it('carries fractions: the calm default lands at most 30 particles a second at 60 frames a second', () => {
+    // the classical plate's default: three runs of 350 bullets
+    const p = new Pacer('replay', 'particles', MAX_PER_FRAME);
+    p.start(3 * 350);
+    let total = 0;
+    for (let f = 0; f < 600; f++) total += p.take({ pace: CALM });
+    expect(total / 10).toBeLessThanOrEqual(PACING.kinds.replay.max_per_s);
+    expect(total / 10).toBeGreaterThan(20);
+  });
+
+  it('shares single steps among runs across frames, and stops at their ends', () => {
+    const done = [0, 0, 0];
+    const left = (r: number) => 4 - done[r];
+    for (let f = 0; f < 6; f++) roundRobin(1, left, 3, (r) => { done[r]++; });
+    expect(done).toEqual([2, 2, 2]);
+    roundRobin(100, left, 3, (r) => { done[r]++; });
+    expect(done).toEqual([4, 4, 4]);
+  });
+
+  it('changes how fast a run is drawn, never what it measures', async () => {
+    const cases: [string, Params][] = [
+      ['two-slit-classical', { n: 1000 }],
+      ['two-slit-amplitudes', { scenario: 'electrons', n: 2000 }],
+      ['two-slit-amplitudes', { scenario: 'watched', n: 2000, eta: 0.5 }],
+      ['two-slit-amplitudes', { scenario: 'recoil', n: 2000 }],
+    ];
+    for (const [id, setup] of cases) {
+      expect(await finalReadouts(id, setup, CALM), `${id} ${JSON.stringify(setup)}`)
+        .toEqual(await finalReadouts(id, setup, FASTEST));
+    }
+  }, 120_000);
+});
+
+/** The frame on which a plate's readouts last changed, run at its defaults and the given setup. */
+async function lastChange(id: string, setup: Params): Promise<number> {
   const plate = (await loadPlate(id))!;
   const params = { ...defaults(plate), ...setup };
   let rows: Stat[] = [];
@@ -284,59 +347,31 @@ async function mounted(id: string, setup: Params) {
   };
   const sim = plate.create(p5Stub(), ctx);
   sim.setup();
-  return { sim, rows: () => rows };
+  let last = '';
+  let changed = 0;
+  for (let f = 1; f <= (RUN_WINDOW_S[1] + 30) * FPS && f - changed < 600; f++) {
+    sim.draw();
+    const now = JSON.stringify(rows);
+    if (now !== last) changed = f;
+    last = now;
+  }
+  return changed;
 }
-
-/** Every readout but the pace's own, once the run has ended. */
-async function finalReadouts(id: string, setup: Params): Promise<Stat[]> {
-  const { sim, rows } = await mounted(id, setup);
-  let f = 0;
-  while (!sim.pace?.()?.done && f++ < 200_000) sim.draw();
-  sim.draw();
-  return rows().filter((r) => r.label !== 'Pace');
-}
-
-describe('two-slit runs', () => {
-  it('shares single steps among runs across frames, and stops at their ends', () => {
-    const done = [0, 0, 0];
-    const left = (r: number) => 4 - done[r];
-    for (let f = 0; f < 6; f++) roundRobin(1, left, 3, (r) => { done[r]++; });
-    expect(done).toEqual([2, 2, 2]);
-    roundRobin(100, left, 3, (r) => { done[r]++; });
-    expect(done).toEqual([4, 4, 4]);
-  });
-
-  it('the pace changes how fast a run is drawn, never what it measures', async () => {
-    const cases: [string, Params][] = [
-      ['two-slit-classical', { n: 1000 }],
-      ['two-slit-amplitudes', { scenario: 'electrons', n: 2000 }],
-      ['two-slit-amplitudes', { scenario: 'watched', n: 2000, eta: 0.5 }],
-      ['two-slit-amplitudes', { scenario: 'recoil', n: 2000 }],
-    ];
-    for (const [id, setup] of cases) {
-      expect(await finalReadouts(id, { ...setup, pace: 1 }), `${id} ${JSON.stringify(setup)}`)
-        .toEqual(await finalReadouts(id, { ...setup, pace: 4096 }));
-    }
-  }, 120_000);
-});
 
 describe('two-slit default runs', () => {
   // every default a reader can open: each plate mode, and each figure page's setup
   const runs: [string, Params][] = [
     ['two-slit-classical', {}],
     ...['electrons', 'watched', 'resolution', 'recoil'].map((scenario) => ['two-slit-amplitudes', { scenario }] as [string, Params]),
-    ...CATALOGUE.chapters.flatMap((c) => c.figures.filter((f) => f.plate.startsWith('two-slit'))
-      .map((f) => [f.plate, f.setup] as [string, Params])),
+    ...CATALOGUE.chapters.flatMap((c) => c.figures.map((f) => [f.plate, f.setup] as [string, Params])),
   ];
 
-  it('end within the replay window of config/pacing.yaml, counted in frames at the calm pace', async () => {
-    const [lo, hi] = PACING.kinds.replay.run_s.map((x) => x * FPS);
+  it('end within the calm window, counted in frames at the calm pace', async () => {
+    const [lo, hi] = RUN_WINDOW_S.map((x) => x * FPS);
     for (const [id, setup] of runs) {
-      const { sim } = await mounted(id, setup);
-      let f = 0;
-      while (!sim.pace?.()?.done && f < hi * 2) { sim.draw(); f++; }
-      expect(f, `${id} ${JSON.stringify(setup)}: ended at frame ${f}`).toBeGreaterThanOrEqual(lo);
-      expect(f, `${id} ${JSON.stringify(setup)}: ended at frame ${f}`).toBeLessThanOrEqual(hi);
+      const frames = await lastChange(id, setup);
+      expect(frames, `${id} ${JSON.stringify(setup)}: last readout change at frame ${frames}`).toBeGreaterThanOrEqual(lo);
+      expect(frames, `${id} ${JSON.stringify(setup)}: last readout change at frame ${frames}`).toBeLessThanOrEqual(hi);
     }
   }, 300_000);
 });

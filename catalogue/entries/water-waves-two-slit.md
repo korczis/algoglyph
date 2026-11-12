@@ -87,8 +87,6 @@ claims:
       0.01 cells; it is 1.3 % shorter than the continuum λ₀ = 2πc/ω.
     readout: wavelength along the axis, measured from the phase
     expect: { against: 'wavelength along the axis, from the scheme’s dispersion', tolerance: 0.01 }
-    setup:
-      params: { pace: 4096 }
   - id: spacing-follows-paths-and-grid
     statement: >-
       The mean spacing of the bright fringes measured within 55 cells of the axis agrees with the
@@ -96,8 +94,6 @@ claims:
       within 1 cell: a quarter cell of reading each maximum, and the sponge's ripple.
     readout: fringe spacing, measured
     expect: { against: 'fringe spacing, the grid’s dispersion and the exact paths', tolerance: 1 }
-    setup:
-      params: { pace: 4096 }
   - id: far-field-misses-by-the-derived-correction
     statement: >-
       The measured spacing departs from the far-field λ₀L/d by the correction that the exact paths
@@ -105,16 +101,12 @@ claims:
       cell, lies between 0.8 and 1.2.
     readout: spacing gap from λ₀L/d, in its derived error
     expect: { range: [0.8, 1.2] }
-    setup:
-      params: { pace: 4096 }
   - id: maxima-where-predicted
     statement: >-
       Every bright fringe within 55 cells of the axis lies within 1 cell of where the predicted
       intensity, a/√r from each source with its path's phase, has its maximum.
     readout: largest gap, measured maxima against predicted
     expect: { below: 1 }
-    setup:
-      params: { pace: 4096 }
   - id: unequal-amplitudes-visibility
     statement: >-
       With source 2 at half the amplitude of source 1, the central fringe's visibility agrees with
@@ -123,7 +115,7 @@ claims:
     readout: visibility at the central fringe, measured
     expect: { against: 'visibility from I₁ and I₂ measured alone, 2√(I₁I₂)/(I₁ + I₂)', tolerance: 0.01 }
     setup:
-      params: { pace: 4096, ratio: 0.5 }
+      params: { ratio: 0.5 }
   - id: unequal-amplitudes-closed-form
     statement: >-
       That visibility is also the closed form for amplitudes 1 and r near the axis, 2r/(1 + r²) = 0.8,
@@ -131,7 +123,7 @@ claims:
     readout: visibility at the central fringe, measured
     expect: { value: 0.8, tolerance: 0.01 }
     setup:
-      params: { pace: 4096, ratio: 0.5 }
+      params: { ratio: 0.5 }
   - id: phase-moves-the-pattern
     statement: >-
       With source 2 leading by 90°, the central bright fringe moves to where the predicted intensity
@@ -139,14 +131,14 @@ claims:
     readout: central maximum, measured
     expect: { against: 'central maximum, predicted', tolerance: 0.6 }
     setup:
-      params: { pace: 4096, phase: 90 }
+      params: { phase: 90 }
   - id: phase-moves-it-by-a-quarter
     statement: >-
       The move is a real one, more than 8 cells off the axis, about a quarter of the 50-cell fringe.
     readout: central maximum, measured
     expect: { below: -8 }
     setup:
-      params: { pace: 4096, phase: 90 }
+      params: { phase: 90 }
   - id: refuses-an-unstable-step
     statement: >-
       Asked for a Courant number of 0.75, above the 2-D limit 1/√2, the tank refuses and takes no
@@ -154,7 +146,7 @@ claims:
     readout: time steps taken
     expect: { value: 0 }
     setup:
-      params: { pace: 4096, courant: 0.75 }
+      params: { courant: 0.75 }
   - id: energy-conserved-without-damping
     statement: >-
       A numerics check: a pulse in a closed box with no damping keeps the scheme's discrete energy,
@@ -162,7 +154,7 @@ claims:
     readout: energy drift from the start, numerics
     expect: { below: 0.000000000001 }
     setup:
-      params: { pace: 4096, scenario: pulse, damping: 0 }
+      params: { scenario: pulse, damping: 0 }
   - id: energy-decays-with-damping
     statement: >-
       With damping γ = 0.005 a step, the energy falls at the rate γ: the measured −ln(E/E₀) per step
@@ -171,7 +163,7 @@ claims:
     readout: energy decay rate, measured (per 1000 steps)
     expect: { against: 'damping γ (per 1000 steps)', tolerance: 0.25 }
     setup:
-      params: { pace: 4096, scenario: pulse, damping: 5 }
+      params: { scenario: pulse, damping: 5 }
   - id: slits-centre-is-not-the-sum
     statement: >-
       Through two slits, the centre of the detector line with both open holds twice the sum of the
@@ -179,7 +171,7 @@ claims:
     readout: centre, both open over I₁ + I₂
     expect: { range: [1.9, 2.1] }
     setup:
-      params: { pace: 4096, scenario: slits }
+      params: { scenario: slits }
   - id: slits-spacing-follows-the-openings
     statement: >-
       Through two slits, the fringe spacing agrees within 1 cell with the prediction that treats each
@@ -187,7 +179,7 @@ claims:
     readout: fringe spacing, measured
     expect: { against: 'fringe spacing, the grid’s dispersion and the exact paths', tolerance: 1 }
     setup:
-      params: { pace: 4096, scenario: slits }
+      params: { scenario: slits }
 ---
 
 Two coherent sources, or a plane wave through two openings, on a tank of water solved as a wave equation; a detector line across the tank measures the intensity and finds the fringes where the path difference says they should be.
