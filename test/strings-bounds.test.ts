@@ -63,6 +63,19 @@ describe('strings: exact bounds against counted runs', () => {
     }
   });
 
+  it('boyer-moore: the alignments tried and the Alignments skipped readout add up to n − m + 1', () => {
+    const fixed: [string, string][] = [['abracadabra', 'abra'], ['aaaaaa', 'aa'], ['xyz', 'xyz'], ['ab', 'abc'],
+      ['GCATCGCAGAGAGTATACAGTACG', 'GCAGAGAG'], ['', 'a']];
+    for (const x of [...inputs('search', [16, 48, 96, 200, 1024]), ...fixed.map(([text, pattern]) => ({ text, pattern }))]) {
+      const t = run('boyer-moore', x);
+      const tried = t.events.toArray().filter((e) => e.o === OP.offset).length;
+      let skipped = 0;
+      for (const e of t.events.toArray()) if (e.o === OP.stat && e.s === 'Alignments skipped') skipped = Number(e.ss?.[0]);
+      // every alignment 0 … n − m is either tried or skipped, and none beyond the last is counted
+      expect(tried + skipped, `${x.pattern} in ${x.text.length} characters`).toBe(Math.max(0, x.text.length - x.pattern.length + 1));
+    }
+  });
+
   it('recursive-descent-parser: every one of the n tokens is consumed exactly once', () => {
     for (const x of inputs('expression', [2, 5, 9, 16])) expect(count(run('recursive-descent-parser', x), 'token')).toBe(x.infix.length);
   });

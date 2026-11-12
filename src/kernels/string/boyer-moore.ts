@@ -38,6 +38,8 @@ export const kernel: StringKernel<'search', number[]> = {
     ops.row('gs', shift.slice(1).map(String), { label: 'Good-suffix shift' });
     let s = 0;
     let skipped = 0;
+    // alignments passed over by a slide from s, counting only those up to the last one, n − m
+    const passed = (d: number) => Math.min(d, n - m + 1 - s) - 1;
     while (s + m <= n) {
       yield null;
       align(ops, s);
@@ -45,8 +47,8 @@ export const kernel: StringKernel<'search', number[]> = {
       while (k >= 0 && compare(ops, text, p, s + k, k)) k--;
       if (k < 0) {
         found(ops, s, m, out);
+        skipped += passed(shift[0]);
         s += shift[0];
-        skipped += shift[0] - 1;
         continue;
       }
       const c = text[s + k];
@@ -56,7 +58,7 @@ export const kernel: StringKernel<'search', number[]> = {
       if (k < m - 1) ops.mark('gs', k, S.alt);
       ops.note(`mismatch at pattern[${k}]: bad character ${bad}, good suffix ${good}, slide ${Math.max(bad, good)}`);
       const d = Math.max(bad, good);
-      skipped += d - 1;
+      skipped += passed(d);
       s += d;
     }
     ops.stat('Alignments skipped', String(skipped));
