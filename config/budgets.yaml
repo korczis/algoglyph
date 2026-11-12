@@ -29,3 +29,8 @@ browser:
   readout_ms: 30000       # a plate or lab mounts its canvas and publishes its first readout; a page
                           # slower than this is a finding to fix, not a wait to raise
   thumb_ms: 90000         # each gallery thumbnail of a wing (the wing's budget is this × its cards)
+  # A page that misses readout_ms is opened again this many times: a page that never publishes
+  # misses every visit, a stall of the gate's machine does not (Pages runs 43133085956: identical
+  # code gave long tasks of 0.1-5.7 s on the x86 runner while its host swapped 13 GB).
+  readout_retries: 1
+  max_retries: 6          # more retries than this in one run fail it: too slow a machine to judge
