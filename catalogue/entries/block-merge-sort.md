@@ -22,6 +22,35 @@ tags:
 complexity: n log n in every case; extra space 1
 related:
   - in-place-merge-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [in-place-merge-sort]
+  objectives:
+  - 'Read the Auxiliary writes: none on any input, the tags and the buffer are keys of the array itself.'
+  - 'Count Already sorted: no write, every pair of runs already in order is skipped.'
+  - 'On Few distinct keys watch the Phase readout pass through not enough distinct values: rotation merges.'
+  misconceptions:
+  - 'A stable sort needs an auxiliary array; block merge sort keeps equal keys in order with no auxiliary write at all.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes) and auxiliary writes'
+  best: 'no writes on Already sorted'
+  average: 'up to 16 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1; no auxiliary write on any input, every array write half of an exchange'
+  worst: 'O(n log n): Kim and Kutzner''s linear stable merge over the log n bottom-up levels'
+claims:
+  - id: no-auxiliary-write
+    statement: >-
+      On Random permutation at 512 keys block merge sort makes no auxiliary write, though it is stable.
+    readout: Auxiliary writes
+    expect: { value: 0 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 A stable mergesort with constant extra space: merge two neighbouring sorted runs A and B inside the array by cutting A into blocks, threading the blocks through B to roughly where they belong, and merging each block locally with the keys of B that follow it.

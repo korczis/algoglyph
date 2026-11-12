@@ -20,6 +20,35 @@ tags:
 complexity: n best, n log n average and worst; extra space n
 related:
   - mergesort-natural
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [mergesort-natural]
+  objectives:
+  - 'Count Organ pipe at 128 keys: two runs and one merge, 2(n − 1) = 254 comparisons.'
+  - 'Read the Auxiliary writes as the shorter run of every merge: the comparisons are at least n − 1 for the run search plus that count.'
+  - 'Count Already sorted and Reversed: n − 1 comparisons each, no auxiliary write.'
+  misconceptions:
+  - 'ShiversSort adapts to the number of runs as well as to n; its rule merges by run size alone, and Jugé gives inputs with ρ runs on which it costs ω(n log ρ).'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes, a copy one) and auxiliary writes (the shorter run, copied for each merge)'
+  best: 'n − 1 comparisons and no writes (Already sorted, keys all equal); n − 1 comparisons and 2⌊n/2⌋ array writes on Reversed, one strictly descending run reversed in place; no auxiliary write on either'
+  average: 'on every input comparisons ≥ n − 1 + auxiliary writes: n − 1 for the run search and at least the shorter run of every merge, which the auxiliary writes count; Organ pipe from 3 keys on 2(n − 1) comparisons and ⌊(n − 1)/2⌋ auxiliary writes'
+  worst: 'merge cost n log₂ n + O(n) (Jugé), so O(n log n)'
+claims:
+  - id: organ-pipe-is-one-merge
+    statement: >-
+      On Organ pipe at 128 keys ShiversSort finds two runs and merges them once: 2(n − 1) = 254 comparisons.
+    readout: Comparisons
+    expect: { value: 254 }
+    setup:
+      params: { shape: organ-pipe, n: 128, speed: 2000 }
 ---
 
 A natural mergesort with a stack of runs and a rule on their logarithms: give each run of length r the level ⌊log₂ r⌋, and while the top run's level is at least that of the run below it, merge the two; otherwise push the next run.

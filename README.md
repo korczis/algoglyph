@@ -419,7 +419,7 @@ Merge runs of 1, then 2, 4, 8 and so on across the whole array, without recursio
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/in-place-merge-sort">058 · Mergesort, in place</a></b><br>
-Bottom-up mergesort without the auxiliary array: every merge of two neighbouring runs happens inside the input itself, with a constant number of extra variables, using Huang and Langston's block merge.<br>
+Mergesort without an auxiliary array, after Katajainen, Pasanen and Teuhola: the part of the input not yet sorted serves as the work area, and a merge writes its output into that area by exchanges, so the keys the area held move to where the runs were and nothing is lost.<br>
 <sub>Mergesort · n log n in every case; extra space 1 · sorting, merging, in-place, buffer</sub>
 </td>
 </tr>

@@ -25,6 +25,35 @@ related:
   - mergesort-natural
   - mergesort-top-down
   - powersort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [mergesort-top-down, powersort]
+  objectives:
+  - 'Count Already sorted: 2(n − 1) comparisons and no write, the first run scanned from the left and the last from the right, here the same run.'
+  - 'Count Reversed at 512 keys: n runs of one key, since only weakly ascending runs count, and ½ n lg n + n = 2,816 comparisons.'
+  - 'Compute H of the weakly ascending runs and check the comparisons against 2(n − 1) + n(H + 2).'
+  misconceptions:
+  - 'Peeksort finds descending runs as Timsort does; it takes only weakly ascending runs, so Reversed is n runs of one key and costs ½ n lg n + n comparisons where powersort needs n − 1.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes, a copy one) and auxiliary writes (the shorter run, copied for each merge)'
+  best: '2(n − 1) comparisons and no writes (Already sorted, keys all equal)'
+  average: 'comparisons ≤ 2(n − 1) + n(H + 2), H the entropy of the weakly ascending run lengths (merge cost, Munro and Wild); Reversed at a power of two ½ n lg n + n comparisons, n lg n array writes and ½ n lg n auxiliary writes'
+  worst: 'O(n log n) comparisons, since H ≤ lg n'
+claims:
+  - id: reversed-is-n-runs
+    statement: >-
+      On Reversed at 512 keys peeksort sees n runs of one key and makes ½ n lg n + n = 2,816 comparisons, where powersort, which reverses a descending run, needs 511.
+    readout: Comparisons
+    expect: { value: 2816 }
+    setup:
+      params: { shape: reversed, n: 512, speed: 2000 }
 ---
 
 Top-down mergesort that peeks before it splits: instead of cutting the range exactly in half, it cuts at the run boundary nearest the middle, sorts both sides recursively and merges them, so a range that is already a single run is left alone.
