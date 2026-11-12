@@ -58,13 +58,16 @@ exempt:
 
 # Limits of the Rhai checks the Rust port runs (tools/checks/*.rhai, crates/algoglyph-cli). A
 # check that reaches one is refused with exit 2, so a runaway script fails the commit instead of
-# hanging it. Each limit holds per file a check is run on; the largest file the gate scans needs
-# a small fraction of each.
+# hanging it. Each limit holds per file a check is run on. Rhai measures a value's size on every
+# push or insert, so a refusal costs the square of a size limit: the limits are set so the
+# slowest refusal stays under a second in the debug build `just facts-rs` runs
+# (crates/algoglyph-cli/tests/sandbox.rs times each), while the largest file the gate scans
+# needs a small fraction of each.
 rhai:
-  max_operations: 1000000     # steps a check may take on one file
+  max_operations: 200000      # steps a check may take on one file
   max_call_levels: 32         # nested function calls
   max_expr_depth: 64          # nesting of one expression or block, at the top level
   max_function_expr_depth: 64 # the same inside a function
   max_string_size: 1000000    # bytes in one string
-  max_array_size: 100000      # items in one array
-  max_map_size: 1000          # properties of one object map
+  max_array_size: 10000       # items in one array, nested arrays included
+  max_map_size: 500           # properties of one object map, nested maps included

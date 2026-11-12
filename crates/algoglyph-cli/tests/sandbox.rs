@@ -44,13 +44,75 @@ fn stderr(out: &Output) -> String {
     String::from_utf8_lossy(&out.stderr).into_owned()
 }
 
+/// Runaway checks, each with the limit that must refuse it. Rhai measures a value's size on
+/// every push, so a size limit's refusal costs its square: each must stay under a second in the
+/// debug build `just facts-rs` runs, or a runaway check stalls every commit.
+const RUNAWAYS: &[(&str, &str, &str)] = &[
+    ("endless", "fn check(file) { loop {} }", "max_operations"),
+    (
+        "appending",
+        "fn check(file) { let s = \"\"; loop { s += \"x\"; } }",
+        "max_operations",
+    ),
+    (
+        "doubling",
+        "fn check(file) { let s = \"x\"; loop { s += s; } }",
+        "max_string_size",
+    ),
+    (
+        "pushing",
+        "fn check(file) { let a = []; loop { a.push(1); } }",
+        "max_array_size",
+    ),
+    (
+        "nesting",
+        "fn check(file) { let a = [[]]; loop { a[0].push(1); } }",
+        "max_array_size",
+    ),
+    (
+        "arrays",
+        "fn check(file) { let a = []; loop { a.push([1, 2, 3]); } }",
+        "max_array_size",
+    ),
+    (
+        "texts",
+        "fn check(file) { let a = []; loop { a.push(file.text); } }",
+        "max_array_size",
+    ),
+    (
+        "maps",
+        "fn check(file) { let a = []; loop { a.push(#{ x: 1, y: 2 }); } }",
+        "max_map_size",
+    ),
+    (
+        "keys",
+        "fn check(file) { let m = #{}; let i = 0; loop { m.set(`k${i}`, i); i += 1; } }",
+        "max_map_size",
+    ),
+    (
+        "indexing",
+        "fn check(file) { let m = #{}; let i = 0; loop { m[`k${i}`] = i; i += 1; } }",
+        "max_operations",
+    ),
+];
+
 #[test]
-fn an_endless_check_is_refused_fast_at_the_operations_limit() {
-    let dir = setup("endless", "fn check(file) { loop {} }");
-    let (out, took) = facts(&dir, &dir.join("checks"));
-    assert_eq!(out.status.code(), Some(2), "{}", stderr(&out));
-    assert!(stderr(&out).contains("max_operations"), "{}", stderr(&out));
-    assert!(took < Duration::from_secs(5), "refused only after {took:?}");
+fn every_runaway_check_is_refused_within_a_second_at_its_limit() {
+    let mut slow = Vec::new();
+    for (case, script, limit) in RUNAWAYS {
+        let dir = setup(case, script);
+        let (out, took) = facts(&dir, &dir.join("checks"));
+        assert_eq!(out.status.code(), Some(2), "{case}: {}", stderr(&out));
+        assert!(
+            stderr(&out).contains(limit),
+            "{case}: expected {limit}: {}",
+            stderr(&out)
+        );
+        if took >= Duration::from_secs(1) {
+            slow.push(format!("{case} refused after {took:?}"));
+        }
+    }
+    assert!(slow.is_empty(), "{slow:?}");
 }
 
 #[test]
@@ -62,17 +124,6 @@ fn endless_recursion_is_refused_at_the_call_level_limit() {
     let (out, _) = facts(&dir, &dir.join("checks"));
     assert_eq!(out.status.code(), Some(2), "{}", stderr(&out));
     assert!(stderr(&out).contains("max_call_levels"), "{}", stderr(&out));
-}
-
-#[test]
-fn a_growing_string_is_refused_at_the_size_limit() {
-    let dir = setup(
-        "growing",
-        "fn check(file) { let s = \"x\"; loop { s += s; } }",
-    );
-    let (out, _) = facts(&dir, &dir.join("checks"));
-    assert_eq!(out.status.code(), Some(2), "{}", stderr(&out));
-    assert!(stderr(&out).contains("max_string_size"), "{}", stderr(&out));
 }
 
 #[test]

@@ -80,7 +80,7 @@ describe('soft body: invariants', () => {
       const full = drift(dt);
       expect(full).toBeLessThan(bound);
       expect(full / drift(dt / 2)).toBeGreaterThan(3);
-    }, 60000);
+    });
   }
 
   it('conserves momentum without external forces, with damping and gas pressure', () => {
@@ -109,8 +109,7 @@ describe('soft body: invariants', () => {
       kinetic = energy(b, FLOOR).kinetic;
     }
     expect(kinetic).toBeLessThan(1e-6);
-  }, 30000);
-
+  });
   for (const name of ['cube', 'ball'] as const) {
     it(`the dropped ${name} never penetrates the floor and settles as the plate counts it`, () => {
       const w: World = { ...FLOOR, pressure: name === 'ball' ? 20 : 0 };
@@ -124,7 +123,7 @@ describe('soft body: invariants', () => {
       }
       expect(touched).toBeGreaterThan(0);
       expect(energy(b, w).kinetic).toBeLessThan(SETTLE_KE);
-    }, 30000);
+    });
   }
 
   it('the undamped column at the default stiffness keeps its energy to 1e-5 (plate note)', () => {
@@ -143,8 +142,7 @@ describe('soft body: invariants', () => {
       expect(contacts).toBe(0);
       expect(worst).toBeLessThan(1e-5);
     }
-  }, 30000);
-
+  });
   it('stays finite at the extremes of the plate\'s controls at the plate\'s step', () => {
     for (const name of ['cube', 'ball', 'column'] as const) {
       for (const [stiffness, damping, pressure] of [[400, 0.5, 40], [40, 0, 0], [40, 0.5, 40]]) {
@@ -159,7 +157,7 @@ describe('soft body: invariants', () => {
         expect(e.kinetic, `${name} ${stiffness} ${damping}`).toBeLessThan(100);
       }
     }
-  }, 60000);
+  });
 });
 
 describe('soft body: builders', () => {

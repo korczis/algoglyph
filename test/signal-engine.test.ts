@@ -104,6 +104,6 @@ describe('signal engine: recording off the frame path', () => {
         expect(c.last[d.key], `${d.key}: the run on screen is the one for the final setting`).toBe(params[d.key]);
         expect(worst, `${d.key}: worst frame of the drag, ${worst.toFixed(1)} ms`).toBeLessThanOrEqual(budget.frame_ms);
       }
-    }, 120000);
+    });
   }
 });

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { ENTRIES, type Entry } from '../src/core/catalogue';
 import { exponent } from '../src/engines/array';
-import { input, SHAPES, trace, type ArrayKernel, type ArrayOps, type Trace } from '../src/engines/array/trace';
+import { apply, input, OP, SHAPES, trace, type ArrayKernel, type ArrayOps, type Trace } from '../src/engines/array/trace';
 import { loadSorting, SOP, STRIDE, type RunOptions, type WasmRun } from '../src/kernels/sorting-wasm/_abi';
 import {
   auxCell, auxLayout, replay, seedOf, sidecarKernel, traceCache, traceKey, traceOf,
@@ -89,6 +89,14 @@ function rowOps(keys: number[]) {
   return { ops, row: () => row, writes: () => writes };
 }
 
+/** The auxiliary row a replay of an array-engine trace ends on (what its Replay draws). */
+function engineAux(t: Trace): number[] {
+  const a = t.input.slice();
+  const aux = new Array<number>(t.auxN).fill(0);
+  for (let e = 0; e < t.length; e++) apply(a, aux, t.events, e);
+  return aux;
+}
+
 /** The lane checks of a layout on a row of `n` cells: inside the row, and shared only when it must be. */
 function checkLanes(layout: Map<number, { start: number; cells: number; width: number }>, n: number, at: string) {
   const lanes = [...layout.values()].sort((x, y) => x.start - y.start);
@@ -122,6 +130,8 @@ function checkAuxRow(id: string) {
       const t = trace({ run: (a: ArrayOps) => replay(a, r) }, data);
       expect(t.output, at).toEqual([...r.output]);
       if (n) expect(t.counts.auxWrites, at).toBe(r.counts.auxWrites);
+      // the array engine plays the exact row: the row its replay ends on is Rust's final state
+      const engineRow = engineAux(t);
       const m = rowOps(data);
       replay(m.ops, r);
       if (n) expect(m.writes(), at).toBe(r.counts.auxWrites);
@@ -131,6 +141,7 @@ function checkAuxRow(id: string) {
         cells.forEach((k, i) => { if (k !== undefined && exact.get(p)) want[auxCell(exact.get(p)!, i)] = k; });
       }
       if (n) expect(m.row(), `${at}: the drawn row is Rust's final auxiliary state`).toEqual(want);
+      if (n) expect(engineRow, `${at}: the array engine's row is Rust's final auxiliary state`).toEqual(want);
     }
   }
 }
@@ -394,6 +405,31 @@ for (const e of overlap) {
     }
   });
 }
+
+describe('mergesort-bottom-up', () => {
+  it('writes the same auxiliary cells, in the same order, as the Rust kernel bottom-up-merge-sort', async () => {
+    const wasm = await (await import('../src/kernels/sorting-wasm/_adapter')).wasmKernel(S, 'bottom-up-merge-sort');
+    const writes = (t: Trace) => {
+      const out: [number, number][] = [];
+      for (let e = 0; e < t.length; e++) if (t.events[3 * e] === OP.auxWrite) out.push([t.events[3 * e + 1], t.events[3 * e + 2]]);
+      return out;
+    };
+    for (const shape of SHAPES) {
+      for (const n of [2, 7, 16, 61, 128]) {
+        const data = input(shape, n, 21 + n);
+        const [ts, rs] = [trace(fileKernel('mergesort-bottom-up')!, data), trace(wasm, data)];
+        expect(rs.auxN, `${shape} n=${n}`).toBe(ts.auxN);
+        expect(writes(rs), `${shape} n=${n}`).toEqual(writes(ts));
+        // the TS kernel leaves its buffer as it was; the Rust one empties it, which is not a write
+        const tsRow = engineAux(ts);
+        const rsRow = engineAux(rs);
+        expect(rsRow.every((v) => v === 0), `${shape} n=${n}: Rust releases its buffer`).toBe(true);
+        const lastWrite = new Map(writes(ts).map(([k, v]) => [k, v]));
+        expect(tsRow.map((_, k) => lastWrite.get(k) ?? 0), `${shape} n=${n}: TS keeps its last copies`).toEqual(tsRow);
+      }
+    }
+  });
+});
 
 it('keeps no divergence record for a pair the sidecar no longer maps', () => {
   const pairs = new Set(overlap.flatMap((e) => recordsOf(e.id).map((r) => `${e.id}/${r.kernel}`)));

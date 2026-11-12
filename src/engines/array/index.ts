@@ -9,6 +9,14 @@ import { apply, input, inversions, OP, SHAPE_LABELS, SHAPES, trace, type ArrayKe
   type Trace } from './trace';
 
 const SCALING_N = [16, 32, 64, 128, 256, 512];
+/**
+ * Operations a lab replays per frame across all its panes, at most: a counted bound beside the
+ * per-pane speed, so a lab of many kernels at full speed does a phone's frame of work, not one
+ * per kernel. Every pane gets the same share, so the race stays fair.
+ */
+export const LAB_OPS_PER_FRAME = 24000;
+/** The sizes a kernel's growth is measured at: none past its own bound (ArrayKernel.maxN). */
+const scalingN = (kernel: ArrayKernel) => SCALING_N.filter((n) => n <= (kernel.maxN ?? MAX_N));
 const HOLD_FRAMES = 90;
 
 const fmt = (x: number) => x.toLocaleString('en-US');
@@ -26,7 +34,7 @@ export function exponent(points: [number, number][]): number {
 }
 
 export function scaling(kernel: ArrayKernel, shape: Shape, seed: number): [number, number][] {
-  return SCALING_N.map((n) => {
+  return scalingN(kernel).map((n) => {
     const t = trace(kernel, input(shape, n, seed + n), Math.floor(n / 2));
     return [n, t.truncated ? NaN : total(t)];
   });
@@ -65,7 +73,7 @@ class Replay {
   private every: number;
   constructor(readonly t: Trace) {
     this.a = t.input.slice();
-    this.aux = new Array(t.input.length).fill(0);
+    this.aux = new Array(t.auxN ?? t.input.length).fill(0);
     let aux = false;
     for (let e = 0; e < t.length && !aux; e++) aux = t.events[3 * e] === OP.auxWrite;
     this.usesAux = aux;
@@ -101,6 +109,8 @@ function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: 
   const auxH = r.usesAux ? Math.round(h * 0.22) : 0;
   const mainH = h - auxH - (auxH ? 4 : 0);
   const bw = w / n;
+  // the auxiliary row is as wide as the kernel reserved, drawn across the same width
+  const abw = w / Math.max(1, r.aux.length);
   if (r.lo >= 0 && !r.done) {
     p.noStroke();
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 22);
@@ -118,25 +128,27 @@ function drawBars(p: p5, ctx: PlateContext, r: Replay, x: number, y: number, w: 
     const ay = y + h - auxH;
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2], 18);
     p.rect(x, ay, w, auxH);
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < r.aux.length; i++) {
       const v = r.aux[i];
       if (!v) continue;
       const c = ramp(pal, (v - 1) / Math.max(1, max - 1));
       p.fill(c[0], c[1], c[2], 200);
       const bh = Math.max(1, (v / max) * auxH);
-      p.rect(x + i * bw, ay + auxH - bh, Math.max(1, bw - (bw > 3 ? 1 : 0)), bh);
+      p.rect(x + i * abw, ay + auxH - bh, Math.max(1, abw - (abw > 3 ? 1 : 0)), bh);
     }
   }
   if (r.last >= 0 && !r.done) {
     const e = r.last;
     const op = r.t.events[3 * e];
-    const marks = op === OP.swap || op === OP.compare
+    const marks = op === OP.swap || op === OP.compare || op === OP.auxClear
       ? [r.t.events[3 * e + 1], r.t.events[3 * e + 2]] : [r.t.events[3 * e + 1]];
+    const onAux = op === OP.auxWrite || op === OP.auxRead || op === OP.auxClear;
+    const cw = onAux ? abw : bw;
     p.fill(ctx.fg[0], ctx.fg[1], ctx.fg[2]);
     for (const i of marks) {
       if (i < 0) continue;
-      const my = op === OP.auxWrite || op === OP.auxRead ? y + h - auxH : y + mainH;
-      p.triangle(x + (i + 0.5) * bw, my - 2, x + (i + 0.5) * bw - 4, my + 5, x + (i + 0.5) * bw + 4, my + 5);
+      const my = onAux ? y + h - auxH : y + mainH;
+      p.triangle(x + (i + 0.5) * cw, my - 2, x + (i + 0.5) * cw - 4, my + 5, x + (i + 0.5) * cw + 4, my + 5);
     }
   }
 }
@@ -274,19 +286,23 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         if (generation === 0) {
           // measured one point per frame, so building the lab never blocks a phone's main thread
           curves = chosen().map((k) => ({ info: k.info, pts: [], slope: NaN }));
-          pending = curves.flatMap((_, ci) => SCALING_N.map((n) => [ci, n] as [number, number]));
+          // a kernel's growth is measured up to its own bound, never past it in one frame
+          const list = chosen();
+          pending = curves.flatMap((_, ci) => scalingN(list[ci].kernel).map((n) => [ci, n] as [number, number]));
         }
       };
       let pending: [number, number][] = [];
-      const measure = () => {
+      /** Measure the next scaling point; true if one was traced. */
+      const measure = (): boolean => {
         const next = pending.shift();
-        if (!next) return;
+        if (!next) return false;
         const [ci, n] = next;
         const k = chosen()[ci];
-        if (!k) return;
+        if (!k) return false;
         const t = trace(k.kernel, input(str(ctx.params, 'shape') as Shape, n, ctx.seed + n), Math.floor(n / 2));
         curves[ci].pts.push([n, t.truncated ? NaN : total(t)]);
         curves[ci].slope = exponent(curves[ci].pts);
+        return true;
       };
       // a thumbnail is one picture: traced at once; a live lab traces one kernel per frame
       build(ctx.thumbnail);
@@ -297,10 +313,11 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         },
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
-          // at most one trace per frame: an incoming pane, else one scaling point
-          if (!ctx.thumbnail && !buildOne()) measure();
-          const steps = num(ctx.params, 'speed');
-          if (!ctx.thumbnail && !incoming) {
+          // at most one trace per frame: an incoming pane, else one scaling point; a frame that
+          // traced replays nothing, so the trace is its only heavy work
+          const traced = !ctx.thumbnail && (buildOne() || measure());
+          const steps = Math.max(1, Math.min(num(ctx.params, 'speed'), Math.floor(LAB_OPS_PER_FRAME / Math.max(1, panes.length))));
+          if (!ctx.thumbnail && !incoming && !traced) {
             for (const pane of panes) {
               if (!pane.r.done) {
                 pane.r.advance(steps);

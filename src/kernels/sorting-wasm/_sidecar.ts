@@ -12,3 +12,8 @@ export function kernelOf(id: string): string | undefined {
   return MAP[id]?.kernel;
 }
 
+
+/** The largest n entry `id`'s kernel plays at, when its measured rebuild cost bounds it. */
+export function maxNOf(id: string): number | undefined {
+  return MAP[id]?.maxN;
+}

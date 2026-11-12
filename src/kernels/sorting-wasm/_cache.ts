@@ -17,6 +17,11 @@ const BUILD_KEY = 'algoglyph.sorting.build';
 export interface CacheLimits {
   /** Bytes the memory tier holds before it evicts the least recently used. */
   memoryBytes: number;
+  /**
+   * The largest value either tier keeps: a bigger trace is cheaper to recompute (the module runs
+   * it in a few milliseconds) than to hold, since holding it is garbage the page collects later.
+   */
+  valueBytes?: number;
   /** Largest value written to the persistent tier. */
   persistBytes: number;
   /** Bytes the persistent tier holds in all; the oldest values go first. */
@@ -37,7 +42,8 @@ export function defaultLimits(): CacheLimits {
   const phone = narrow();
   return {
     memoryBytes: (phone ? 8 : 24) << 20,
-    persistBytes: 2 << 20,
+    valueBytes: 1 << 20,
+    persistBytes: 1 << 20,
     persistTotal: 32 << 20,
     prefetchBytes: (phone ? 2 : 4) << 20,
   };
@@ -131,7 +137,7 @@ export class TraceCache<T> {
   }
 
   private remember(key: string, value: T, bytes: number): void {
-    if (bytes > this.limits.memoryBytes) return;
+    if (bytes > this.limits.memoryBytes || bytes > (this.limits.valueBytes ?? Infinity)) return;
     const old = this.memory.get(key);
     if (old) { this.held -= old.bytes; this.memory.delete(key); }
     this.memory.set(key, { value, bytes });

@@ -360,8 +360,10 @@ function plate(info: KernelInfo, kernel: GridKernel, frameBudget: number): Plate
       const measurer = new Measurer(spec.kind === 'scaling' ? spec.ns.map((n) => [0, n]) : [],
         (_, n) => kernel.instance(n, ctx.seed + n),
         (_, n, t) => { if (spec.kind === 'scaling') spec.series.forEach((m, i) => curves[i].push([n, m.of(t.tally)])); });
+      // a kernel whose events walk a deep recursion records fewer of them per frame
+      const events = Math.max(1, Math.floor(frameBudget / (kernel.eventCost ?? 1)));
       const work = () => {
-        let budget = frameBudget;
+        let budget = events;
         if (build) {
           budget = build.work(budget);
           if (build.done) { rp = build.replay(); build = null; hold = 0; }
@@ -457,8 +459,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GridKernel }[], fr
         (ki, n) => kernels[ki].kernel.instance(n, ctx.seed + n),
         (ki, n, t) => { curves[ki].pts.push([n, t.tally.work]); curves[ki].slope = exponent(curves[ki].pts); });
       const ready = () => panes.every((x) => !x.build);
+      // the costliest kernel's events set the frame's share, so no pane outruns the frame
+      const events = Math.max(1, Math.floor(frameBudget / Math.max(...kernels.map((k) => k.kernel.eventCost ?? 1))));
       const work = () => {
-        let budget = frameBudget;
+        let budget = events;
         for (const pane of panes) {
           if (!pane.build || budget <= 0) continue;
           budget = pane.build.work(budget);

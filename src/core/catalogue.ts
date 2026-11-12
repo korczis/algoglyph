@@ -75,9 +75,10 @@ export interface Catalogue {
   /**
    * Entries with no kernel file that a catalogue/<family>-sidecar.yaml maps to a compiled
    * kernel: the sidecar, the adapter directory src/kernels/<adapter>/ that plays it, and the
-   * kernel id (checked against the module's manifest).
+   * kernel id (checked against the module's manifest), with the largest n it plays at when its
+   * measured rebuild cost bounds it (ArrayKernel.maxN).
    */
-  sidecar?: Record<string, { sidecar: string; adapter: string; kernel: string }>;
+  sidecar?: Record<string, { sidecar: string; adapter: string; kernel: string; maxN?: number }>;
 }
 
 export const CATALOGUE = model as Catalogue;

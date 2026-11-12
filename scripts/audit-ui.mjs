@@ -118,19 +118,39 @@ const BROWSER = parseYaml(readFileSync('config/budgets.yaml', 'utf8')).browser;
 const THUMB_MS = BROWSER.thumb_ms;
 const READOUT_MS = BROWSER.readout_ms;
 
-async function readout(p, where) {
+const RETRIES = BROWSER.readout_retries;
+const MAX_RETRIES = BROWSER.max_retries;
+const retried = [];
+
+/** The canvas and the readouts of the page now open, once they appear or the wait runs out. */
+async function mounted(p) {
   // plates load on demand: wait for the condition, not for a fixed time
   await p.waitForFunction(() => {
     const c = document.querySelector('#stage canvas');
     return c && c.clientWidth > 0 && document.querySelectorAll('#main dl dd.font-mono').length > 0;
   }, null, { timeout: READOUT_MS, polling: 200 }).catch(() => {});
-  const state = await p.evaluate(() => {
+  return p.evaluate(() => {
     const c = document.querySelector('#stage canvas');
     return {
       canvas: c ? [c.clientWidth, c.clientHeight] : null,
       readouts: document.querySelectorAll('#main dl dd.font-mono').length,
     };
   });
+}
+
+// A page that misses its wait is opened again (browser.readout_retries): a page that never
+// publishes misses every time, while a stall of the machine running the gate passes the second
+// visit. Each retry is logged by name, and more than browser.max_retries in a run fails it.
+async function readout(p, where, url) {
+  const ok = (st) => st.canvas && st.canvas[0] && st.canvas[1] && st.readouts;
+  let state = await mounted(p);
+  for (let r = 0; r < RETRIES && !ok(state); r++) {
+    retried.push(where);
+    console.log(`audit-ui: retry ${where}: no ${state.readouts ? 'canvas' : 'readout'} in ${READOUT_MS} ms; opening it again`);
+    await p.goto('about:blank');
+    await p.goto(url, { waitUntil: 'load' });
+    state = await mounted(p);
+  }
   if (!state.canvas || !state.canvas[0] || !state.canvas[1]) fail(where, 'no canvas');
   if (!state.readouts) fail(where, 'no readout published');
 }
@@ -210,8 +230,9 @@ try {
       for (const [i, e] of only.entries()) {
         const where = `${label} plate ${e.id}`;
         log(where);
-        await p.goto(`${base}#/p/${e.id}?seed=4242`, { waitUntil: 'load' });
-        await readout(p, where);
+        const url = `${base}#/p/${e.id}?seed=4242`;
+        await p.goto(url, { waitUntil: 'load' });
+        await readout(p, where, url);
         // previews let a plate develop for longer before its picture is taken
         await p.waitForTimeout(PREVIEWS && desktop ? 6000 : 600);
         await overflow(p, where);
@@ -230,8 +251,9 @@ try {
       for (const [i, l] of labs.entries()) {
         const where = `${label} lab ${l.id}`;
         log(where);
-        await p.goto(`${base}#/lab/${l.id}?seed=4242`, { waitUntil: 'load' });
-        await readout(p, where);
+        const url = `${base}#/lab/${l.id}?seed=4242`;
+        await p.goto(url, { waitUntil: 'load' });
+        await readout(p, where, url);
         await overflow(p, where);
         if (i === 0) await axe(p, where);
         if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `lab-${theme}-${l.id}.png`), fullPage: false });
@@ -245,6 +267,10 @@ try {
   server.close();
 }
 
+if (retried.length) {
+  console.log(`audit-ui: ${retried.length} page(s) opened again after a missed wait: ${retried.join(', ')}`);
+  if (retried.length > MAX_RETRIES) fail('run', `${retried.length} retries, more than browser.max_retries ${MAX_RETRIES}: the machine or the site is too slow to judge`);
+}
 if (failures.length) {
   for (const f of failures) console.error(`FAIL ${f}`);
   console.error(`audit-ui: ${failures.length} failure(s)`);

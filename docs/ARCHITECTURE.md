@@ -204,5 +204,6 @@ just verify                        # everything CI runs, in CI's order
 | `project.viz-component-layer` | the live↔code check, `test/registry.test.ts`, the browser gate | verify, CI |
 | `project.no-fake-science` | the engine harness tests, `cargo test`, the wasm fixture test | verify, CI |
 | main-thread budget (`project.viz-component-layer`) | `test/budget.test.ts` over every live plate and lab: every width and heavy corner, past the end of a run, during a slider drag; CPU time calibrated by a reference workload; budgets in `config/budgets.yaml`; run alone (`npm run test:budget`) | verify, CI |
-| `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail) | verify, CI before every deploy |
+| no wall-clock judgement in correctness tests (`project.viz-component-layer`) | `test/suite-contract.test.ts`: no test sets a limit shorter than `testTimeout` | verify, CI |
+| `project.ui-quality-gate` | `scripts/audit-ui.mjs` (axe WCAG 2.2 AA, console, overflow, every plate, lab and thumbnail); its waits and retries are data (`config/budgets.yaml`, `browser`): a page that misses its readout is opened again once and logged, a page that misses twice fails, and more retries than `max_retries` fail the run | verify, CI before every deploy |
 | the plan | `majordomus plan validate`, `majordomus doctor` | the commit hook, CI |
