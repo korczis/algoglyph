@@ -42,7 +42,9 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   heavy corner (each range at its maximum and, in turn, at its minimum; each select option); the
   frames past the end of a run, where a loop rebuilds; and a slider dragged without a remount.
   The gate counts CPU time, calibrated against a fixed reference workload, so it judges the
-  plate's work and not the machine's speed or load.
+  plate's work and not the machine's speed or load; each repeat takes a new seed, so a cache
+  never answers for the work; outside CI the budgets carry `local_headroom`, so a plate that
+  passes on a developer's machine passes on CI's runners.
 - Work that grows with the canvas or with the steps asked per frame is bounded with
   `src/core/budget.ts` (`cellWithin`, `stepsWithin`), and the readout says what was done
   (`bounded`): a bounded quantity is never shown as the value asked. A state that decays
