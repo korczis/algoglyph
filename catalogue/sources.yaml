@@ -93,6 +93,31 @@ sources:
   - id: practice-logistics
     title: Warehouse logistics
     kind: practice
+  - id: feynman-lectures
+    title: The Feynman Lectures on Physics (New Millennium Edition), Volumes I–III
+    author: Richard P. Feynman, Robert B. Leighton, Matthew Sands
+    publisher: Basic Books
+    year: 2010
+    kind: book
+    url: https://www.feynmanlectures.caltech.edu/
+  - id: englert-duality
+    title: Fringe Visibility and Which-Way Information, an Inequality (Physical Review Letters 77, 2154)
+    author: Berthold-Georg Englert
+    year: 1996
+    kind: paper
+    url: https://doi.org/10.1103/PhysRevLett.77.2154
+  - id: abramowitz-stegun
+    title: Handbook of Mathematical Functions
+    author: Milton Abramowitz, Irene A. Stegun
+    publisher: National Bureau of Standards
+    year: 1964
+    kind: book
+  - id: wilson-hilferty
+    title: The Distribution of Chi-Square (Proceedings of the National Academy of Sciences 17, 684)
+    author: Edwin B. Wilson, Margaret M. Hilferty
+    year: 1931
+    kind: paper
+    url: https://doi.org/10.1073/pnas.17.12.684
   - id: griffiths-qm
     title: Introduction to Quantum Mechanics (second edition)
     author: David J. Griffiths

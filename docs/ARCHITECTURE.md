@@ -14,6 +14,9 @@ catalogue/                         authored: the only description of the collect
   labs.yaml                        comparison labs: id, title, summary, engine
   sources.yaml                     cited works and practice areas
   entries/<id>.md                  one algorithm: front matter + summary + reading notes
+  figures/collections.yaml         figure collections of cited works (ADR 0009)
+  figures/<coll>-<vol>-<ch>.yaml   one chapter's figure occurrences: number, class, paraphrase,
+                                   the plate and setup that model it, the source review
         │
         ▼  scripts/lib/catalogue.mjs (one parser, one validator)
         │
@@ -69,6 +72,8 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a classification level | a node in `taxonomy.yaml` (any depth) | the tree |
 | a check of the facts gate | `tools/checks/<name>.rhai` defining `fn check(file)` + a refused fixture | file name; `algoglyph facts` |
 | a measured claim on a page | `claims:` in the entry (`statement`, `readout`, `expect`, `setup`), ADR 0007 | `test/claims.test.ts` runs the plate and reads the readout |
+| a control that applies in one mode | `when: { key: <select>, values: [...] }` on the parameter | the controls panel hides it otherwise; `test/registry.test.ts` checks the select and its values |
+| a figure of a cited work | a figure in `catalogue/figures/<coll>-<vol>-<ch>.yaml` naming a live entry's plate and a `setup` of its parameters (ADR 0009) | routed once the chapter has a `review` and the plate is live and tested; `test/figures.test.ts` checks the setup; its `claims` (an entry claim's form) run in `test/claims.test.ts` with the setup under each claim's own |
 | a task | a recipe in `justfile` with `[group]` and `[doc]` | `just --list` |
 
 ### Engine and kernel
@@ -159,10 +164,14 @@ shows more changes a second than it did before ADR 0008 (`test/fixtures/pacing/b
 | `#/c/<taxonomy path>` | a node of the taxonomy |
 | `#/p/<id>?seed=<n>&<key>=<value>` | a plate |
 | `#/lab/<id>?seed=<n>&<key>=<value>` | a lab, with the same query |
+| `#/<collection>` and `#/<collection>/<vol>/<ch>` | a figure collection, or one chapter of it (ADR 0009) |
+| `#/<collection>/<vol>/<ch>/<fig>?seed=<n>&<key>=<value>` | a figure page: its plate with the figure's setup |
 
-A route that does not resolve, including one with a malformed percent-encoding, opens the
-collection. The query carries the seed and every parameter that differs from its default
-(`src/core/share.ts`), so a copied link redraws the same picture. Values from a URL are
+A route that does not resolve, including one with a malformed percent-encoding or a figure whose
+page is not routed, opens the collection, never an unrelated plate. The query carries the seed
+and every parameter that differs from its base (`src/core/share.ts`): the plate's defaults on
+`#/p`, the figure's setup over them on a figure page, so a copied link redraws the same picture
+and a figure's clean link is its seed alone. Values from a URL are
 untrusted. A range value must be a plain decimal number; it is clamped into the range and
 snapped to the slider's step. A select value must be one of its options, and a toggle must be
 0, 1, true or false; anything else is dropped and the default stays. The seed must be a
