@@ -54,3 +54,30 @@ describe('yin-pitch: w, "Analysis window W"', () => {
     }
   });
 });
+
+describe('yin-pitch: h2, "Second harmonic strength"', () => {
+  it('is a range 0 … 6 by 0.25, 1 by default', async () => {
+    const d = (await defs()).find((x) => x.key === 'h2');
+    expect(d).toMatchObject({ kind: 'range', label: 'Second harmonic strength', min: 0, max: 6, step: 0.25, value: 1 });
+  });
+
+  it('round-trips through the URL', async () => {
+    const all = await defs();
+    const params: Params = Object.fromEntries(all.map((d) => [d.key, d.value]));
+    params.h2 = 4.75;
+    expect(parse(all, serialise(all, params, 7)).params.h2).toBe(4.75);
+  });
+
+  it('reads an octave high once the dip at half the period falls under the threshold', async () => {
+    // d(τ) ≈ W·Σ a_h²(1 − cos 2πhτ/T): at τ = T/2 only the odd harmonics remain, twice over, and
+    // the running mean up to T/2 is W·Σ a_h², so d'(T/2) ≈ 2·Σ_odd a_h² / Σ a_h². Seed 4242 draws
+    // a second harmonic 0.39 times the fundamental; at h2 = 6 it is 2.34 times, and d'(T/2) falls
+    // from 1.69 to 0.37: under a threshold of 0.5, not under the default 0.1.
+    const strong = { h2: 6, thr: 0.5 };
+    const frames = await reading('Frames', strong);
+    expect(await reading('Gross errors (> 50 cents)', strong)).toBeGreaterThan(frames / 2);
+    expect(Math.abs(await reading('Median error so far', strong) - 1200)).toBeLessThan(50);
+    expect(await reading('Gross errors (> 50 cents)', { h2: 6 })).toBe(0);
+    expect(await reading('Gross errors (> 50 cents)', { thr: 0.5 })).toBe(0);
+  });
+});
