@@ -51,4 +51,4 @@ Two implementations read the one policy: `scripts/check-facts.mjs` is the gate, 
 port `algoglyph facts` (`crates/algoglyph-cli`, `just facts-rs`; checks beyond the built-in ones
 are Rhai scripts under `tools/checks/`) is held to it by
 `crates/algoglyph-cli/tests/equivalence.rs`, which runs both on the repository and on
-`test/fixtures/derived-facts/` and asserts the same findings.
+`test/fixtures/derived-facts/` and asserts the same findings, files read and exemptions applied.

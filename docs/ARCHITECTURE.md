@@ -115,17 +115,23 @@ Three layers, each the entry point of the next (ADR 0005 §6):
    recipes are grouped (gates, catalogue, site, rust, delivery) and each carries a `[doc]`. A
    recipe delegates to the npm script or tool that does the work, so `just verify` and
    `npm run verify` cannot behave differently; `test/justfile.test.ts` reads `package.json` and
-   the justfile and refuses an npm script no recipe runs, or a recipe that runs a missing one.
+   the justfile and refuses an npm script no recipe runs, a recipe that runs a missing script or
+   names a crate outside the workspace, and a `just <recipe>` in the docs that is no recipe. CI
+   installs just, so the checks that read the justfile through just run there too.
 2. **The CLI** — `crates/algoglyph-cli`, the binary `algoglyph`, a member of the Cargo workspace
    at the root beside `crates/algoglyph-kernels` (one lockfile, one release profile, build output
    in the ignored `target/`). The Node scripts are ported to it one at a time; each port is
    proven equivalent by running both on the same input, and the Node script stays the gate until
    its port replaces it. Ported so far: the derived-facts gate (`just facts-rs`), which reads
    the same `config/derived-facts.yaml`; `crates/algoglyph-cli/tests/equivalence.rs` runs both
-   gates on the repository and on `test/fixtures/derived-facts/` and asserts the same findings.
+   gates on the repository and on `test/fixtures/derived-facts/` and asserts the same findings,
+   the same files read and the same exemptions applied to each.
 3. **Rhai checks** — a check of the facts gate that is not built in is a script under
    `tools/checks/`, found by its file name: `tools/checks/<name>.rhai` is the check `<name>`,
-   and the policy's exemptions apply to it by that name. The `plate-number` family is one.
+   and the policy's exemptions apply to it by that name. The `plate-number` family is one. A
+   check runs inside the limits of the policy's `rhai` block (operations, call depth, string,
+   array and map sizes) and is refused with exit 2 when it reaches one; it cannot `import`
+   another script, and its `print` and `debug` go to stderr, never into the `--json` report.
 
 To add a check, drop a file there:
 
