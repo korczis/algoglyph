@@ -42,13 +42,16 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'fc', label: 'Carrier (Hz)', min: 400, max: 2400, step: 10, value: 600 },
     { kind: 'range', key: 'depth', label: 'AM depth', min: 0, max: 0.95, step: 0.05, value: 0.6 },
     { kind: 'range', key: 'dev', label: 'FM deviation (Hz)', min: 0, max: 200, step: 10, value: 120 },
+    { kind: 'toggle', key: 'periodic', label: 'Carrier on a whole bin', value: true,
+      hint: 'Off, the record ends part-way through a carrier cycle' },
   ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     // every frequency a whole number of cycles in the record, so the FFT sees a periodic signal
-    // and the analytic signal has no wrap-around error at the ends
+    // and the analytic signal has no wrap-around error at the ends; off, the carrier stays where
+    // the slider puts it and the record ends mid-cycle
     const df = FS / LEN;
-    const fc = Math.round(Number(params.fc) / df) * df;
+    const fc = params.periodic === false ? Number(params.fc) : Math.round(Number(params.fc) / df) * df;
     const m = Number(params.depth);
     const dev = Number(params.dev);
     const fa = (2 + Math.floor(rnd() * 4)) * df;

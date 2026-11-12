@@ -1,4 +1,5 @@
 import type { TreeKernel } from '../../engines/tree/trace';
+import { unionFindParams } from './_union-find';
 
 // a[i] is the component id of site i, so a find is one read; a union rewrites every site that
 // carries the first id, which scans the whole array each time.
@@ -6,6 +7,7 @@ export const kernel: TreeKernel = {
   input: 'pairs',
   structure: 'union-find',
   view: 'parent',
+  params: unionFindParams(),
   run(t) {
     const n = t.w.sites;
     t.size(n);
