@@ -102,8 +102,9 @@ Alpine.data('app', () => ({
   params: {} as Params,
   seed: 0,
   stats: [] as Stat[],
-  chart: null as Chart | null,
-  chartView: 'chart' as 'chart' | 'table',
+  // what the plate publishes, one panel per chart title, in the order the titles first appear
+  charts: [] as Chart[],
+  chartViews: {} as Record<string, 'chart' | 'table'>,
   running: false,
   loading: false,
   error: '',
@@ -321,7 +322,7 @@ Alpine.data('app', () => ({
       theme: this.theme,
       paused: this.paused,
       onStats: (rows) => { this.stats = rows; },
-      onChart: (c) => { this.chart = c; void this.drawChart(); },
+      onChart: (c) => { this.putChart(c); },
       onLoopChange: (running) => { this.running = running; },
     });
     this.canReset = stage.canReset();
@@ -368,26 +369,43 @@ Alpine.data('app', () => ({
   },
 
   // ---- charts: what a plate publishes, as an ECharts line chart or as a table -----------------
-  async drawChart() {
-    const el = document.getElementById('chart');
-    if (!this.chart || !el || this.chartView !== 'chart') return;
+  /** A chart replaces the panel of its title, or opens the next one. */
+  putChart(c: Chart) {
+    const i = this.charts.findIndex((x) => x.title === c.title);
+    if (i < 0) this.charts.push(c); else this.charts[i] = c;
+    const at = i < 0 ? this.charts.length - 1 : i;
+    // a new panel exists only after Alpine renders it
+    if (i < 0) this.$nextTick(() => void this.drawChart(at)); else void this.drawChart(at);
+  },
+  chartView(title: string): 'chart' | 'table' { return this.chartViews[title] ?? 'chart'; },
+  /** Render one panel's chart, or every panel's when `only` is left out (a theme change). */
+  async drawChart(only?: number) {
     const { renderChart } = await chartModule();
-    if (this.chart) renderChart(el, JSON.parse(JSON.stringify(this.chart)) as Chart, this.theme);
+    this.charts.forEach((c, i) => {
+      if (only !== undefined && i !== only) return;
+      const el = document.getElementById(`chart-${i}`);
+      if (!el || this.chartView(c.title) !== 'chart') return;
+      renderChart(el, JSON.parse(JSON.stringify(c)) as Chart, this.theme);
+    });
   },
   resetChart() {
-    this.chart = null;
-    const el = document.getElementById('chart');
-    if (el) void chartModule().then(({ disposeChart }) => disposeChart(el));
+    this.charts = [];
+    void chartModule().then(({ disposeChart }) => {
+      document.querySelectorAll<HTMLElement>('[data-chart]').forEach((el) => disposeChart(el));
+    });
   },
-  showChart(view: 'chart' | 'table') {
-    this.chartView = view;
-    if (view === 'chart') this.$nextTick(() => void this.drawChart());
+  showChart(i: number, view: 'chart' | 'table') {
+    const c = this.charts[i];
+    if (!c) return;
+    this.chartViews[c.title] = view;
+    if (view === 'chart') this.$nextTick(() => void this.drawChart(i));
   },
   /** At most twelve rows per series, evenly spaced, for the table view. */
-  chartRows(): { series: string; x: string; y: string }[] {
-    if (!this.chart) return [];
+  chartRows(i: number): { series: string; x: string; y: string }[] {
+    const chart = this.charts[i];
+    if (!chart) return [];
     const f = (v: number) => (Math.abs(v) >= 1e5 || (Math.abs(v) > 0 && Math.abs(v) < 1e-2) ? v.toExponential(2) : v.toLocaleString('en-US', { maximumFractionDigits: 3 }));
-    return this.chart.series.flatMap((s) => spread(s.points, 12).map(([x, y]) => ({ series: s.name, x: f(x), y: f(y) })));
+    return chart.series.flatMap((s) => spread(s.points, 12).map(([x, y]) => ({ series: s.name, x: f(x), y: f(y) })));
   },
 
   // ---- lazy thumbnails: rendered for cards in view, one at a time ---------------------------
