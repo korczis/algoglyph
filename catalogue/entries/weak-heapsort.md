@@ -24,6 +24,34 @@ complexity: n log n in every case; extra space n bits
 related:
   - bottom-up-heapsort
   - heapsort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [heapsort]
+  objectives:
+  - 'Read the Phase readout and count the build: exactly n − 1 comparisons, one join for every key but the root.'
+  - 'Compare with bottom-up heapsort on Random permutation at 512 keys: 4,358 comparisons against 4,764, and heapsort''s 7,604.'
+  - 'Explain why no input of 512 keys costs more than (n − 1)⌈lg n⌉ − 2^⌈lg n⌉ + n = 4,599 comparisons.'
+  misconceptions:
+  - 'The relaxed order of a weak heap costs extra comparisons when sorting; it is what lets every sorting step spend one comparison per level, so no input costs more than n lg n + 0.09n.'
+algorithm:
+  paradigm: incremental
+  properties:
+    stable: false
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (an exchange is two writes); the Auxiliary writes redraw the reverse bits'
+  average: 'building the weak heap exactly n − 1 comparisons on every input'
+  worst: 'at most (n − 1)⌈lg n⌉ − 2^⌈lg n⌉ + n ≤ n lg n + 0.09n comparisons, reached by keys all equal at every n and by some permutation of every size up to 8'
+claims:
+  - id: random-below-bottom-up
+    statement: >-
+      On Random permutation at 512 keys weak-heapsort makes fewer than the 4,764 comparisons bottom-up heapsort makes on the same keys.
+    readout: Comparisons
+    expect: { below: 4764 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Heapsort on a weak heap: every node only has to dominate its right subtree, and one reverse bit per node decides which child counts as right, so flipping a bit swaps two subtrees without moving any data.
