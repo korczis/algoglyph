@@ -13,6 +13,25 @@ tags:
   - frequency response
 complexity: 'O(1) per sample: five multiplies'
 motivation: Acoustic measurement and synthesis use it every day.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Read the difference equation's transfer function H(z) as a ratio of quadratics with zeros and poles.
+  - See poles near the unit circle make a resonance and zeros on it make a notch.
+  - Measure the response by filtering a unit impulse and check it against H evaluated on the unit circle.
+bounds:
+  model: real multiplies of the difference equation
+  best: 5 per sample
+  worst: 5 per sample
+claims:
+  - id: measured-response-is-the-evaluated-one
+    statement: >-
+      The response measured from the impulse response is H evaluated on the unit circle: the
+      default low-pass's poles decay long before the 16384 samples end, so the two agree to
+      rounding, within 10⁻⁶ dB.
+    readout: Measured against evaluated, worst
+    expect: { below: 1.0e-6 }
 ---
 
 Moving poles and zeros on the z-plane and watching the frequency response follow.

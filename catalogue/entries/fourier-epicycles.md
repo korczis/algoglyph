@@ -9,6 +9,15 @@ tags:
   - complex numbers
   - signal processing
 complexity: O(N²) DFT once, O(terms) per frame
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Read the 256 samples of a closed curve as complex numbers and their DFT as circles of radius, phase and speed.
+  - Chain the circles tip to tail, largest first, and watch the tip trace the curve.
+  - See corners melt first as terms are taken away, because only high frequencies turn that sharply.
+algorithm:
+  paradigm: transform
 ---
 
 A chain of rotating circles, one per Fourier coefficient, redraws a closed curve. Take terms away and the corners are the first thing to melt.

@@ -14,6 +14,15 @@ complexity: 'O(n) to generate; O(n log M) for the Welch estimate'
 motivation: Acoustic measurement and synthesis use it every day.
 related:
   - biquad-filters
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - stft-spectrogram
+  objectives:
+  - Tell white, pink and brown noise apart by power falling 0, 3 and 6 dB per octave.
+  - Make pink noise by the Voss–McCartney algorithm and brown noise by a leaky integrator.
+  - Fit the slopes by least squares to Welch-averaged power in third-octave bands.
 ---
 
 Noise whose power falls by 0, 3 and 6 dB per octave, and the filters that colour it.
