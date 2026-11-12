@@ -1,5 +1,5 @@
 name: Toolchain
-description: Node.js 22 with npm ci from the lockfile, and Rust with the wasm32 target.
+description: Node.js 22 with npm ci from the lockfile, Rust with the wasm32 target, and just.
 
 runs:
   using: composite
@@ -12,6 +12,11 @@ runs:
     - uses: dtolnay/rust-toolchain@stable
       with:
         targets: wasm32-unknown-unknown
+
+    # test/justfile.test.ts reads the justfile through just and fails without it in CI
+    - uses: taiki-e/install-action@v2
+      with:
+        tool: just@1.59.0
 
     - name: npm ci
       shell: bash
