@@ -32,6 +32,35 @@ related:
   - powersort
   - shiverssort
 motivation: Python's list sort and Java's sort for object arrays were built on it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [mergesort-natural, binary-insertion-sort]
+  objectives:
+  - 'Count Already sorted and Reversed: n − 1 comparisons each and no auxiliary write; Reversed adds 2⌊n/2⌋ array writes for the one reversal of a descending run.'
+  - 'Count Organ pipe from 64 keys on: two runs and one merge, 2(n − 1) comparisons, the shorter run copied once in ⌊(n − 1)/2⌋ auxiliary writes.'
+  - 'Read the Phase readout on Few distinct keys at 512 keys: the merges switch to galloping.'
+  misconceptions:
+  - 'Timsort beats mergesort on every input; on Random permutation at 512 keys its comparisons are within 10% of top-down mergesort''s, and its gain is on inputs with runs.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes, a copy one) and auxiliary writes (the shorter run, copied for each merge)'
+  best: 'n − 1 comparisons and no writes (Already sorted, keys all equal); n − 1 comparisons and 2⌊n/2⌋ array writes on Reversed, one strictly descending run reversed in place; no auxiliary write on either'
+  average: 'O(n + n log ρ) for ρ runs (Auger et al.); Organ pipe from 64 keys on 2(n − 1) comparisons and ⌊(n − 1)/2⌋ auxiliary writes'
+  worst: 'merge cost 3/2 nH + O(n), H the entropy of the run lengths (Jugé), so O(n log n)'
+claims:
+  - id: nearly-sorted-below-mergesort
+    statement: >-
+      On Nearly sorted at 512 keys Timsort makes fewer than ½ n lg n = 2,304 comparisons, the fewest top-down mergesort makes on any input of 512 keys.
+    readout: Comparisons
+    expect: { below: 2304 }
+    setup:
+      params: { shape: nearly-sorted, n: 512, speed: 2000 }
 ---
 
 Tim Peters's adaptive, stable natural mergesort: one left-to-right pass finds runs (reversing strictly descending ones), extends short runs to a minimum length with binary insertion, pushes them on a stack and merges neighbours whenever the stack's lengths break an invariant; merges gallop past long stretches won by one run.

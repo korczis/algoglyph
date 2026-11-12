@@ -21,6 +21,34 @@ complexity: n log n in every case; extra space 1
 related:
   - block-merge-sort
   - in-place-merge-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [block-merge-sort]
+  objectives:
+  - 'Read the Auxiliary writes: none on any input.'
+  - 'On Few distinct keys from 17 keys on read the Phase readout: two phases, the key search and the lazy stable sort that replaces the buffer.'
+  - 'Count Already sorted at 512 keys: no shortcut through the buffer, 1,669 comparisons and 5,504 array writes.'
+  misconceptions:
+  - 'GrailSort always merges through its buffer; with fewer distinct keys than the buffer needs it falls back to rotation merges, as the Phase readout shows on Few distinct keys.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes) and auxiliary writes'
+  average: 'up to 16 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1; no auxiliary write on any input, every array write half of an exchange; no writes when all keys are equal'
+  worst: 'O(n log n): Huang and Langston''s stable merging in constant extra space'
+claims:
+  - id: few-keys-lazy-sort
+    statement: >-
+      On Few distinct keys at 512 keys GrailSort ends after two phases: it finds too few distinct keys for its buffer and sorts by the lazy stable sort instead.
+    readout: Phase
+    expect: { value: 2 }
+    setup:
+      params: { shape: few-unique, n: 512, speed: 2000 }
 ---
 
 A stable in-place block mergesort with an O(n log n) worst case, built on Huang and Langston's stable merging in constant extra space: it collects distinct keys from the input to act as an internal buffer and sorts the rest by block merges.

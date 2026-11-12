@@ -24,6 +24,35 @@ related:
   - grailsort
   - in-place-merge-sort
   - mergesort-bottom-up
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [block-merge-sort]
+  objectives:
+  - 'Count Already sorted: n − 1 comparisons and no write, every merge skipped after one comparison.'
+  - 'Count Reversed: no auxiliary write, every pair of runs exchanged by a rotation.'
+  - 'Watch the Auxiliary writes on Random permutation: the merges go through a cache of 512 keys, 1,280 writes at 512 keys.'
+  misconceptions:
+  - 'Constant extra memory means no auxiliary writes; WikiSort''s fixed cache of 512 keys takes them, 1,280 on Random permutation at 512 keys.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes, a copy one) and auxiliary writes (the cache)'
+  best: 'n − 1 comparisons and no writes (Already sorted, keys all equal), for every n up to 1,025'
+  average: 'up to 16 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1; no auxiliary write on Reversed'
+  worst: 'O(n log n): the linear stable in-place merge over the log n bottom-up levels'
+claims:
+  - id: sorted-skips-every-merge
+    statement: >-
+      On Already sorted at 512 keys WikiSort skips every merge after one comparison: n − 1 = 511 comparisons in all.
+    readout: Comparisons
+    expect: { value: 511 }
+    setup:
+      params: { shape: sorted, n: 512, speed: 2000 }
 ---
 
 A bottom-up block mergesort that is stable and uses O(1) extra memory, built on Kim and Kutzner's ratio-based stable in-place merge, with cheap checks that skip merges the data does not need.

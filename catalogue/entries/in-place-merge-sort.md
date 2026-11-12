@@ -23,6 +23,33 @@ tags:
 complexity: n log n in every case; extra space 1
 related:
   - mergesort-top-down
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [mergesort-top-down]
+  objectives:
+  - 'Read the Auxiliary writes: none on any input; every Array write is half of an exchange.'
+  - 'Compare the Array writes with mergesort-top-down on Random permutation at 512 keys: 18,186 against 4,608, the price of merging without a buffer.'
+  - 'Count Already sorted and Reversed at 512 keys: 6,011 against 1,593 comparisons, Already sorted the dearer from 3 keys on.'
+  misconceptions:
+  - 'An in-place mergesort is still stable; this one exchanges keys with its work area and reorders even the two equal keys of [1, 1].'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (an exchange is two writes) and auxiliary writes'
+  average: 'no auxiliary write on any input, every array write half of an exchange; more comparisons on Already sorted than on Reversed from 3 keys on'
+claims:
+  - id: no-auxiliary-write
+    statement: >-
+      On Random permutation at 512 keys the in-place mergesort makes no auxiliary write: every key moves by exchanges inside the array.
+    readout: Auxiliary writes
+    expect: { value: 0 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Bottom-up mergesort without the auxiliary array: every merge of two neighbouring runs happens inside the input itself, with a constant number of extra variables, using Huang and Langston's block merge.

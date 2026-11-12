@@ -24,6 +24,35 @@ related:
   - mergesort-top-down
   - patience-sorting
   - selection-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [mergesort-natural]
+  objectives:
+  - 'Count Already sorted: one strand, n − 1 comparisons, n array writes and 3n auxiliary writes.'
+  - 'Count Reversed at 328 keys: n strands of one key and (n − 1)(n + 2)/2 = 53,955 comparisons.'
+  - 'Read the Array writes: always n, the final copy of the result, whatever the input.'
+  misconceptions:
+  - 'Strand sort is a mergesort and so n log n; each strand is merged with the whole result, and Reversed costs (n − 1)(n + 2)/2 comparisons.'
+algorithm:
+  paradigm: incremental
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (the result copied back) and auxiliary writes (the remaining input, the strand and the result, each cell that changes)'
+  best: 'n − 1 comparisons, n array writes and 3n auxiliary writes (Already sorted, keys all equal: one strand)'
+  average: 'n array writes on every input of two or more keys'
+  worst: '(n − 1)(n + 2)/2 comparisons and n(n + 2) auxiliary writes on Reversed, n strands of one key; the most comparisons of any permutation up to 8 keys'
+claims:
+  - id: reversed-is-quadratic
+    statement: >-
+      On Reversed at 328 keys strand sort pulls n strands of one key and makes (n − 1)(n + 2)/2 = 53,955 comparisons.
+    readout: Comparisons
+    expect: { value: 53955 }
+    setup:
+      params: { shape: reversed, n: 328, speed: 2000 }
 ---
 
 Pull an increasing strand out of the input, merge it into the result, and repeat until the input is empty: the strand starts with the first remaining key and takes every later key larger than its last one.

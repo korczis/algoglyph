@@ -25,6 +25,33 @@ related:
   - mergesort-top-down
   - patience-sorting
   - tournament-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [mergesort-top-down, heapsort]
+  objectives:
+  - 'Read the Array writes: the same on every input, n for each level of the four-way split, 2,560 = 5n at 512 keys.'
+  - 'Compare Random permutation at 512 keys with mergesort-top-down: 2,560 against 4,608 array writes, but more comparisons (4,964 against 3,988).'
+  - 'Watch the Auxiliary writes: the heap of fronts and the output buffer.'
+  misconceptions:
+  - 'Merging more parts at once saves comparisons; it saves passes and writes, while every output key still needs the heap of fronts, so on Random permutation at 512 keys it compares more than two-way mergesort.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: true
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes (the merged output copied back) and auxiliary writes (the heap of fronts and the output buffer, each cell that changes)'
+  average: 'the same array writes on every input of n keys, n per level of the four-way split: n⌈(lg n)/2⌉ when n is a power of two; O(n log n) comparisons (Knuth)'
+claims:
+  - id: writes-per-level
+    statement: >-
+      On Random permutation at 512 keys the Array writes are 5n = 2,560, n for each level of the four-way split and the same on every input, against 4,608 for two-way mergesort.
+    readout: Array writes
+    expect: { value: 2560 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Split the input into k parts, sort each recursively, then merge all k at once by repeatedly taking the smallest of the k front keys from a priority queue.
