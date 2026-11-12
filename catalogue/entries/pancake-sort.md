@@ -2,7 +2,7 @@
 id: pancake-sort
 title: Pancake sort
 taxonomy: sorting/special
-status: planned
+status: live
 engine: array
 labs:
   - sorting

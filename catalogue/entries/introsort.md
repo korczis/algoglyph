@@ -2,7 +2,7 @@
 id: introsort
 title: Introsort
 taxonomy: sorting/hybrid
-status: planned
+status: live
 engine: array
 labs:
   - sorting
