@@ -16,10 +16,11 @@ export const kernel: SystemsKernel<BucketResult> = {
     { kind: 'range', key: 'rate', label: 'Refill rate (tokens per second)', min: 2, max: 60, step: 1, value: 12, rebuild: true },
     { kind: 'range', key: 'burst', label: 'Bucket size (burst)', min: 1, max: 40, step: 1, value: 8, rebuild: true },
     { kind: 'range', key: 'load', label: 'Offered load (requests per second)', min: 2, max: 120, step: 1, value: 30, rebuild: true },
+    { kind: 'range', key: 'duration', label: 'Run length (s)', min: 2, max: 12, step: 1, value: 6, rebuild: true },
   ],
-  setup: () => ({
+  setup: (p) => ({
     lanes: [...Array.from({ length: CLIENTS }, (_, i) => `client ${String.fromCharCode(65 + i)}`), 'limiter', 'backend'],
-    horizon: 6000,
+    horizon: num(p, 'duration') * 1000,
     net: { delay: [2, 12] },
   }),
   install(net, p) {

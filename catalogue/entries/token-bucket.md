@@ -28,9 +28,18 @@ claims:
       half the last printed place.
     readout: Result
     expect: { against: Result, against_number: 2, below: 0.005 }
+  - id: never-more-than-rate-times-t-plus-burst-12s
+    statement: >-
+      The interval bound does not depend on how long the limiter runs: over the longest run, 12
+      seconds, the largest excess over rate × t, printed to two decimals, minus the burst still
+      stays below 0.005, half the last printed place.
+    readout: Result
+    expect: { against: Result, against_number: 2, below: 0.005 }
+    setup:
+      params: { duration: 12 }
   - id: admitted-at-most-rate-times-run-plus-burst
     statement: >-
-      Over the whole 6-second run, at 12 tokens per second and a bucket of 8, the limiter admits
+      Over the whole run at its default length of 6 seconds, at 12 tokens per second and a bucket of 8, the limiter admits
       at most 12 × 6 + 8 = 80 requests, however the clients bunch their arrivals.
     readout: Admitted
     expect: { range: [0, 80] }
@@ -46,6 +55,63 @@ claims:
     expect: { range: [72, 80] }
     setup:
       params: { rate: 12, burst: 8, load: 120 }
+  - id: admitted-at-most-rate-times-run-plus-burst-2s
+    statement: >-
+      Over a run of 2 seconds, at 12 tokens per second and a bucket of 8, the limiter admits at
+      most 12 × 2 + 8 = 32 requests: the bucket starts full with 8 tokens and refills 12 a
+      second for 2 seconds, however the clients bunch their arrivals.
+    readout: Admitted
+    expect: { range: [0, 32] }
+    setup:
+      params: { rate: 12, burst: 8, duration: 2 }
+  - id: flood-admits-the-refill-rate-2s
+    statement: >-
+      Under a flood of 120 requests per second over a run of 2 seconds, admissions are
+      12 × 2 + 8 = 32 minus the tokens left at the end, at most the burst of 8, so between
+      12 × 2 = 24 and 32. This assumes no tokens are wasted while the bucket is full,
+      which the flood leaves no time for.
+    readout: Admitted
+    expect: { range: [24, 32] }
+    setup:
+      params: { rate: 12, burst: 8, load: 120, duration: 2 }
+  - id: admitted-at-most-rate-times-run-plus-burst-4s
+    statement: >-
+      Over a run of 4 seconds, at 12 tokens per second and a bucket of 8, the limiter admits at
+      most 12 × 4 + 8 = 56 requests: the bucket starts full with 8 tokens and refills 12 a
+      second for 4 seconds, however the clients bunch their arrivals.
+    readout: Admitted
+    expect: { range: [0, 56] }
+    setup:
+      params: { rate: 12, burst: 8, duration: 4 }
+  - id: flood-admits-the-refill-rate-4s
+    statement: >-
+      Under a flood of 120 requests per second over a run of 4 seconds, admissions are
+      12 × 4 + 8 = 56 minus the tokens left at the end, at most the burst of 8, so between
+      12 × 4 = 48 and 56. This assumes no tokens are wasted while the bucket is full,
+      which the flood leaves no time for.
+    readout: Admitted
+    expect: { range: [48, 56] }
+    setup:
+      params: { rate: 12, burst: 8, load: 120, duration: 4 }
+  - id: admitted-at-most-rate-times-run-plus-burst-12s
+    statement: >-
+      Over a run of 12 seconds, at 12 tokens per second and a bucket of 8, the limiter admits at
+      most 12 × 12 + 8 = 152 requests: the bucket starts full with 8 tokens and refills 12 a
+      second for 12 seconds, however the clients bunch their arrivals.
+    readout: Admitted
+    expect: { range: [0, 152] }
+    setup:
+      params: { rate: 12, burst: 8, duration: 12 }
+  - id: flood-admits-the-refill-rate-12s
+    statement: >-
+      Under a flood of 120 requests per second over a run of 12 seconds, admissions are
+      12 × 12 + 8 = 152 minus the tokens left at the end, at most the burst of 8, so between
+      12 × 12 = 144 and 152. This assumes no tokens are wasted while the bucket is full,
+      which the flood leaves no time for.
+    readout: Admitted
+    expect: { range: [144, 152] }
+    setup:
+      params: { rate: 12, burst: 8, load: 120, duration: 12 }
 ---
 
 Tokens drip in at a fixed rate; each request spends one, bursts up to the bucket's size.
