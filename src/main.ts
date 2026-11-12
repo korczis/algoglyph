@@ -40,7 +40,7 @@ let store: DataStore | null = null;
 
 /** What the data card shows of one declared input; a plain snapshot, rebuilt on every change. */
 interface DataView {
-  id: string; title: string; note: string; replaces: string;
+  id: string; title: string; note: string; replaces: string; ignores: string[];
   columns: string; rows: string; accepts: string; formats: string;
   selected: boolean;
   loaded: { rows: number; from: string; digest: string } | null;
@@ -475,7 +475,7 @@ Alpine.data('app', () => ({
       const d = s.decl;
       const selected = this.params[d.replaces] === optionValue(d.id);
       return {
-        id: d.id, title: d.title, note: d.note ?? '', replaces: d.replaces,
+        id: d.id, title: d.title, note: d.note ?? '', replaces: d.replaces, ignores: d.ignores ?? [],
         columns: d.columns.map((c) => `${c.key} (${c.unit === '1' ? 'a pure number' : c.unit})`).join(', '),
         rows: `${d.rows.min} to ${d.rows.max} rows`,
         accepts: d.accepts.map((f) => f.toUpperCase()).join(' or '),
@@ -492,6 +492,10 @@ Alpine.data('app', () => ({
     this.dataTravels = this.dataSlots.some((s) => s.travels);
   },
 
+  /** Whether a control does nothing right now, because the data it would shape is the reader's. */
+  ignoredNow(key: string): boolean {
+    return this.dataSlots.some((s) => s.selected && !!s.loaded && s.ignores.includes(key));
+  },
   /** Run on a table just accepted: pick it in its select, rewrite the link, remount. */
   useData(id: string) {
     const s = store?.get(id);

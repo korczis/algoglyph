@@ -40,6 +40,8 @@ export interface DataDecl {
   bytes: number;
   /** The key of the plate's select that gains the option `data:<id>`. */
   replaces: string;
+  /** Controls that shape only the seeded input: disabled, with the reason, while data is picked. */
+  ignores?: string[];
   /** The longest encoded table a link carries; longer ones leave a digest. */
   url_bytes: number;
   note?: string;

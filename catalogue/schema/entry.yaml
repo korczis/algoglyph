@@ -159,5 +159,10 @@ fields:
             max: { type: integer, required: true }
         bytes: { type: integer, required: true, doc: Cap on the text read, in UTF-8 bytes. }
         replaces: { type: string, required: true, min_length: 1, doc: The key of the plate's select that gains the option. }
+        ignores:
+          type: list
+          unique: true
+          of: { type: string, min_length: 1 }
+          doc: Keys of the plate's controls that do nothing on a reader's data (they shape the seeded input); the page disables them and says why while the data is picked.
         url_bytes: { type: integer, required: true, doc: The longest encoded table a link carries; a larger one leaves its digest. }
         note: { type: string, min_length: 8, doc: What the plate does with the data, shown beside the input. }

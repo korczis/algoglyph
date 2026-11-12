@@ -654,6 +654,7 @@
               <div class="space-y-5">
                 <template x-for="d in defs" :key="currentId + d.key">
                   <div x-show="applies(d)">
+                    <p x-show="ignoredNow(d.key)" :id="'ignored-' + d.key" data-ignored class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Not used with your data: it shapes the generated input.</p>
                     <template x-if="d.kind === 'range'">
                       <div>
                         <div class="flex items-center justify-between mb-2">
@@ -663,8 +664,8 @@
                           </label>
                           <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="fmt(params[d.key], d)"></span>
                         </div>
-                        <input x-show="!d.log" type="range" :id="d.log ? null : 'param-' + d.key" :min="d.min" :max="d.max" :step="d.step" x-model.number="params[d.key]" @change="changed(d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
-                        <input x-show="d.log" type="range" :id="d.log ? 'param-' + d.key : null" min="0" :max="LOG_STEPS" step="1" :value="logPos(d)" @input="setLog(d, $event.target.value)" @change="changed(d)" :aria-valuetext="fmt(params[d.key], d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                        <input x-show="!d.log" type="range" :id="d.log ? null : 'param-' + d.key" :disabled="ignoredNow(d.key)" :aria-describedby="ignoredNow(d.key) ? 'ignored-' + d.key : null" :min="d.min" :max="d.max" :step="d.step" x-model.number="params[d.key]" @change="changed(d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                        <input x-show="d.log" type="range" :id="d.log ? 'param-' + d.key : null" :disabled="ignoredNow(d.key)" min="0" :max="LOG_STEPS" step="1" :value="logPos(d)" @input="setLog(d, $event.target.value)" @change="changed(d)" :aria-valuetext="fmt(params[d.key], d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
                       </div>
                     </template>
                     <template x-if="d.kind === 'select'">
@@ -673,7 +674,7 @@
                           <span x-text="d.label"></span>
                           <span x-show="d.rebuild" class="ml-1 bg-gray-100 text-gray-800 text-[10px] font-medium px-1.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">restarts</span>
                         </label>
-                        <select :id="'param-' + d.key" x-model="params[d.key]" @change="changed(d)" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500">
+                        <select :id="'param-' + d.key" x-model="params[d.key]" @change="changed(d)" :disabled="ignoredNow(d.key)" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500">
                           <template x-for="o in d.options" :key="o.value">
                             <option :value="o.value" x-text="o.label" :selected="o.value === params[d.key]"></option>
                           </template>
@@ -682,7 +683,7 @@
                     </template>
                     <template x-if="d.kind === 'toggle'">
                       <label class="inline-flex items-center cursor-pointer">
-                        <input type="checkbox" class="sr-only peer" x-model="params[d.key]" @change="changed(d)">
+                        <input type="checkbox" class="sr-only peer" x-model="params[d.key]" @change="changed(d)" :disabled="ignoredNow(d.key)">
                         <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600 dark:peer-checked:bg-primary-600"></div>
                         <span class="text-sm font-medium text-gray-900 ms-3 dark:text-white" x-text="d.label"></span>
                       </label>

@@ -71,6 +71,9 @@ describe('plate registry', () => {
           expect(sel.options.map((o) => o.value), `${e.id}.${d.replaces}`).toContain(`data:${d.id}`);
           expect(sel.value, `${e.id}: the default is never a reader's data`).not.toBe(`data:${d.id}`);
         }
+        for (const k of d.ignores ?? []) {
+          expect(p!.params.some((x) => x.key === k), `${e.id}: data ${d.id} ignores ${k}, which is not a control of the plate`).toBe(true);
+        }
       }
     }
   });

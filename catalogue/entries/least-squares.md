@@ -25,6 +25,7 @@ data:
     rows: { min: 6, max: 160 }
     bytes: 16384
     replaces: target
+    ignores: [samples, noise]
     url_bytes: 1800
     note: x is mapped onto [−1, 1]; a seeded half of the points is fitted and the other half held out, so the best held-out degree is measured on your data.
 ---

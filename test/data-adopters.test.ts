@@ -111,3 +111,62 @@ describe('a reader\'s points on the geometry grid', () => {
     expect(rows.find((r) => r.label === 'Mapped from')?.value).toMatch(/^x \[0, 4\] 1, y \[0, 3\] 1; /);
   });
 });
+
+/**
+ * Every control of every plate that declares data, run on a reader's data (coordinator, review of
+ * U0): a control the declaration does not ignore must work at both ends of its range and at every
+ * option; a control it ignores must change nothing in the run (the page disables it and says why).
+ */
+describe('a reader\'s data composes with every control', () => {
+  const declaring = ENTRIES.filter((e) => e.status === 'live' && e.data.length);
+  const ENGINE = new Set(['pace', 'loop', 'palette']);
+
+  function tableOf(id: string): DataTable {
+    const d = entry(id).data[0];
+    const n = Math.min(d.rows.max, Math.max(d.rows.min, 40));
+    const rnd = mulberry32(31);
+    return tableFor(id, Array.from({ length: n }, (_, k) => [k + rnd(), 100 * rnd()]));
+  }
+
+  /** The plate driven at the pace control's top to the end of its first run: its last readouts. */
+  function drive(id: string, plate: Awaited<ReturnType<typeof loadPlate>>, params: Params, table: DataTable): Stat[] {
+    let rows: Stat[] = [];
+    const ground = GROUNDS.dark;
+    const ctx: PlateContext = {
+      width: 800, height: 500, params, seed: 9, rnd: mulberry32(9), theme: 'dark', bg: ground.bg, fg: ground.fg,
+      thumbnail: false, palette: () => lookupPalette('spectral'), stats(r) { rows = r; }, chart() {},
+      data: (x) => (x === entry(id).data[0].id ? table : null),
+    };
+    const sim = plate!.create(p5Stub(), ctx);
+    sim.setup();
+    for (let i = 0; i < 20000; i++) {
+      sim.draw();
+      if (sim.pace?.().done) break;
+    }
+    expect(sim.pace?.().done, `${id} ${JSON.stringify(params)} reaches the end of its run`).toBe(true);
+    return rows;
+  }
+
+  for (const e of declaring) {
+    it(`${e.id}: every control on your data`, async () => {
+      const plate = await loadPlate(e.id);
+      const d = e.data[0];
+      const table = tableOf(e.id);
+      const pace = plate!.params.find((x) => x.key === 'pace');
+      const base: Params = { ...defaults(plate!), [d.replaces]: optionValue(d.id), loop: false,
+        ...(pace?.kind === 'range' ? { pace: pace.max } : {}) };
+      const settle = (rows: Stat[]) => rows.filter((r) => !/pace|Pace|×/.test(r.label)).map((r) => `${r.label}=${r.value}`);
+      const reference = settle(drive(e.id, plate, base, table));
+      expect(reference.some((r) => r.startsWith('Input=your data')), `${e.id} runs on the data`).toBe(true);
+      for (const c of plate!.params) {
+        if (c.key === d.replaces || ENGINE.has(c.key) || c.cosmetic) continue;
+        const values = c.kind === 'range' ? [c.min, c.max] : c.kind === 'select' ? c.options.map((o) => o.value) : [true, false];
+        for (const v of values) {
+          const rows = settle(drive(e.id, plate, { ...base, [c.key]: v }, table));
+          expect(rows.some((r) => r.startsWith('Input=your data')), `${e.id} ${c.key}=${v} still runs on the data`).toBe(true);
+          if ((d.ignores ?? []).includes(c.key)) expect(rows, `${e.id}: ${c.key} is declared ignored on data, so it changes nothing`).toEqual(reference);
+        }
+      }
+    }, 120000);
+  }
+});

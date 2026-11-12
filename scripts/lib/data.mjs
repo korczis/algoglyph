@@ -21,6 +21,7 @@ export function dataErrors(decls) {
         out.push(`${at}: column ${c.key} has min ${c.min} above max ${c.max}`);
       }
     }
+    if (Array.isArray(d.ignores) && d.ignores.includes(d.replaces)) out.push(`${at}: ignores names ${d.replaces}, the select it replaces`);
     const r = d.rows ?? {};
     if (Number.isInteger(r.min) && r.min < 1) out.push(`${at}: rows.min must be at least 1`);
     if (Number.isInteger(r.min) && Number.isInteger(r.max) && r.min > r.max) out.push(`${at}: rows.min ${r.min} is above rows.max ${r.max}`);
