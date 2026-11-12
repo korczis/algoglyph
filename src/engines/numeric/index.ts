@@ -7,7 +7,7 @@ import { paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import type { Engine, KernelInfo } from '../types';
-import { building, drain, resume, type Layer, type NumericKernel, type NumericRun, type Panel, type XY } from './trace';
+import { building, drain, resume, type NumericKernel, type NumericRun, type Panel, type XY } from './trace';
 
 const HOLD_FRAMES = 150;
 /** Main-thread milliseconds a frame may spend building the next input while the last one holds. */
@@ -53,7 +53,7 @@ function layout(panels: Panel[], r: Box, fs: number): { box: Box; right: number;
   });
 }
 
-const rasters = new WeakMap<Layer, { r: Raster; key: string }>();
+const rasters = new WeakMap<object, { r: Raster; key: string; shown: number }>();
 
 function drawRun(p: p5, ctx: PlateContext, run: NumericRun, at: number, r: Box): void {
   const pal = ctx.palette();
@@ -149,23 +149,27 @@ function drawRun(p: p5, ctx: PlateContext, run: NumericRun, at: number, r: Box):
         p.endShape(p.CLOSE);
         break;
       case 'grid': {
+        // cached per values array: a run that reveals rows step by step shades only the new ones
         const shown = Math.min(L.rows, L.rowsShown ?? L.rows);
-        const key = `${pal.id}|${ctx.theme}|${shown}`;
-        let cached = rasters.get(L);
-        if (!cached || cached.key !== key) {
-          const ras = cached?.r ?? new Raster(L.cols, L.rows);
+        const key = `${pal.id}|${ctx.theme}|${L.rows}|${L.cols}|${L.lo}|${L.hi}|${L.clear}`;
+        let cached = rasters.get(L.values);
+        if (!cached || cached.key !== key || cached.shown > shown) {
+          const ras = cached && cached.r.w === L.cols && cached.r.h === L.rows ? cached.r : new Raster(L.cols, L.rows);
           ras.fill(ctx.bg);
+          cached = { r: ras, key, shown: 0 };
+          rasters.set(L.values, cached);
+        }
+        if (cached.shown < shown) {
           const span = L.hi - L.lo || 1;
-          for (let i = 0; i < shown; i++) {
+          for (let i = cached.shown; i < shown; i++) {
             for (let j = 0; j < L.cols; j++) {
               const v = L.values[i * L.cols + j];
               if (!Number.isFinite(v) || v === L.clear) continue;
               const cc = ramp(pal, (v - L.lo) / span);
-              ras.set(j, i, cc[0], cc[1], cc[2]);
+              cached.r.set(j, i, cc[0], cc[1], cc[2]);
             }
           }
-          cached = { r: ras, key };
-          rasters.set(L, cached);
+          cached.shown = shown;
         }
         const [bx0, by0, bx1, by1] = L.box ?? [run.panels[L.panel ?? 0].x[0], run.panels[L.panel ?? 0].y[0],
           run.panels[L.panel ?? 0].x[1], run.panels[L.panel ?? 0].y[1]];
