@@ -60,11 +60,46 @@ claims:
       equals the number of leases granted, an identity whose difference is exactly 0.
     readout: Latest token
     expect: { against: Leases granted, tolerance: 0 }
+  - id: fencing-holds-at-a-1000-ms-lease
+    statement: >-
+      With leases of 1,000 ms, fencing still lets no stale write land: the storage refuses every
+      token smaller than one it has accepted whatever the lease's length, so exactly 0.
+    readout: Stale writes accepted (fencing off)
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { ttl: 1000 }
+  - id: grants-bounded-by-the-lease
+    statement: >-
+      With leases of 1,000 ms, the service grants a new lease only after the last one, renewals
+      included, has expired, so grants are at least 1,000 ms apart in the 6,000 ms run: at most
+      1 + ⌊6,000 / 1,000⌋ = 7, and at least the first one, granted within 230 ms (a start within
+      200 ms and a delay of at most 30 ms).
+    readout: Leases granted
+    expect: { range: [1, 7] }
+    setup:
+      params: { ttl: 1000 }
+  - id: one-token-per-grant-at-the-longest-lease
+    statement: >-
+      With leases of 1,500 ms, the longest setting, each grant still carries a token one larger
+      than the last, so the latest token equals the leases granted: a difference of exactly 0.
+    readout: Latest token
+    expect: { against: Leases granted, tolerance: 0 }
+    setup:
+      params: { ttl: 1500 }
+  - id: no-pause-no-stale-write-at-the-longest-lease
+    statement: >-
+      Without long pauses and with fencing off, no stale write lands with leases of 1,500 ms
+      either: the 40 ms a worker keeps in hand against a write's 30 ms at most does not depend on
+      the lease's length, so exactly 0.
+    readout: Stale writes accepted (fencing off)
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { ttl: 1500, fencing: false, pause: 0 }
 ---
 
 A lease that expires, and a token that stops a stale holder from writing after it does.
 
-The lock service grants one lease at a time with a fixed time to live and a token one larger than the last. A worker counts its lease from the moment it asked, so its own view expires no later than the service's, and it checks the lease before every write. Bands show who believes they hold a lease, and when one is paused.
+The lock service grants one lease at a time, for the time to live its control sets, and a token one larger than the last. A worker counts its lease from the moment it asked, so its own view expires no later than the service's, and it checks the lease before every write. Bands show who believes they hold a lease, and when one is paused.
 
 A long pause between the check and the write — a stalled process, a slow disk — lets the write arrive after the lease has run out and another worker has taken a newer one. No clock check can prevent that, because the check happened before the pause. The storage instead remembers the largest token it has accepted and refuses anything smaller; refused writes are crossed at the storage lane.
 

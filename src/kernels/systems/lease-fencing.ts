@@ -1,24 +1,25 @@
 import { num } from '../../core/plate';
 import type { SystemsKernel } from '../../engines/systems/sim';
 
-// A lock service grants one lease at a time, for a fixed time to live, with a fencing token
-// that grows by one per grant. A worker measures its lease from the moment it asked (so its
-// own view never outlives the service's), checks it before each write and sends the token
-// with the write. Workers sometimes stall (a long pause) between that check and the write, so
-// the write can arrive after the lease has expired and another worker holds a newer one. The
-// storage remembers the largest token it has accepted and rejects anything smaller.
+// A lock service grants one lease at a time, for the ttl control's time to live, with a
+// fencing token that grows by one per grant. A worker measures its lease from the moment it
+// asked (so its own view never outlives the service's), checks it before each write and sends
+// the token with the write. Workers sometimes stall (a long pause) between that check and the
+// write, so the write can arrive after the lease has expired and another worker holds a newer
+// one. The storage remembers the largest token it has accepted and rejects anything smaller.
 
 export interface Grant { token: number; worker: number; t: number; expires: number[] }
 export interface Write { t: number; worker: number; token: number; accepted: boolean }
 export interface LeaseResult { grants: Grant[]; writes: Write[] }
-
-const TTL = 500;
 
 export const kernel: SystemsKernel<LeaseResult> = {
   params: [
     { kind: 'range', key: 'workers', label: 'Workers', min: 2, max: 5, step: 1, value: 3, rebuild: true },
     { kind: 'range', key: 'pause', label: 'Chance of a long pause per write (%)', min: 0, max: 50, step: 1, value: 15, rebuild: true },
     { kind: 'toggle', key: 'fencing', label: 'Storage checks fencing tokens', value: true, rebuild: true },
+    // from 500: a shorter lease means more grants (about 2.5 times as many at 200 ms), a heavier
+    // run than any setting before the control; a longer one means fewer
+    { kind: 'range', key: 'ttl', label: 'Lease time to live (ms)', min: 500, max: 1500, step: 50, value: 500, rebuild: true },
   ],
   setup: (p) => {
     const w = num(p, 'workers');
@@ -33,6 +34,7 @@ export const kernel: SystemsKernel<LeaseResult> = {
     const W = num(p, 'workers');
     const pause = num(p, 'pause') / 100;
     const fencing = p.fencing !== false;
+    const TTL = Number(p.ttl ?? 500);
     const storage = W + 1;
     const res: LeaseResult = { grants: [], writes: [] };
     let token = 0;
