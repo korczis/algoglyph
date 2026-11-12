@@ -84,6 +84,20 @@ claims:
     expect: { range: [1, 6] }
     setup:
       params: { perCell: 32 }
+data:
+  - id: points
+    title: Your points
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
+      - { key: y, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 1, max: 1500 }
+    bytes: 72000
+    replaces: shape
+    ignores: [n]
+    url_bytes: 1800
+    note: Your points are mapped by one scale into the plate's box and rounded to its integer grid, where every orientation test is exact; points that round to one position are merged, and the readout counts them.
 ---
 
 Bucket points into cells; a rectangle query visits only the cells it overlaps.

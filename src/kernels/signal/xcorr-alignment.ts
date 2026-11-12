@@ -4,6 +4,8 @@ import { parabolic } from './_fft';
 
 const N = 512;
 const MAXLAG = 64;
+/** The delays drawn, ±38.4 samples whatever the search: a shorter search can fall short of one. */
+const SPAN = MAXLAG * 0.6;
 
 /** Two captures of one band-limited burst, the second later by `delay` samples (exact, analytic). */
 export function captures(seed: number, delay: number, snrDb: number): [Float64Array, Float64Array] {
@@ -67,12 +69,16 @@ export function align(a: Float64Array, b: Float64Array, maxLag = MAXLAG, meter?:
 // Slide one capture over the other lag by lag; the correlation peaks at the delay, and the
 // band-limited interpolation of its samples finds the peak between them.
 export const kernel: SignalKernel = {
-  params: [{ kind: 'range', key: 'snr', label: 'SNR (dB)', min: -5, max: 50, step: 1, value: 20 }],
+  params: [
+    { kind: 'range', key: 'snr', label: 'SNR (dB)', min: -5, max: 50, step: 1, value: 20 },
+    { kind: 'range', key: 'maxlag', label: 'Largest lag searched', min: 8, max: MAXLAG, step: 8, value: MAXLAG },
+  ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
-    const delay = (rnd() * 2 - 1) * (MAXLAG * 0.6);
+    const delay = (rnd() * 2 - 1) * SPAN;
+    const maxLag = Number(params.maxlag);
     const [a, b] = captures(seed + 1, delay, Number(params.snr));
-    const lags = Int32Array.from({ length: 2 * MAXLAG + 1 }, (_, i) => i - MAXLAG);
+    const lags = Int32Array.from({ length: 2 * maxLag + 1 }, (_, i) => i - maxLag);
     const r = new Float64Array(lags.length).fill(NaN);
     const scale = Math.max(...a.map(Math.abs)) * 1.1;
     const view = (i: number, extra?: { integer: number; parabola: number; sinc: number }): View => {
@@ -87,7 +93,7 @@ export const kernel: SignalKernel = {
         { kind: 'wave', title: `Capture a and capture b moved back by lag ${l}`, range: [-scale, scale], series: [
           { name: 'a[n]', y: a, tone: 0.25 }, { name: 'b[n + lag]', y: shifted, tone: 0.8, alpha: 200 }] },
         { kind: 'wave', title: 'Cross-correlation r[lag]', upto: i + 1, series: [{ name: 'r', y: r.map((v) => (Number.isFinite(v) ? v : 0)), stems: true, tone: 0.6 }],
-          marks: [{ at: MAXLAG + delay, label: 'true' }] },
+          marks: [{ at: maxLag + delay, label: 'true' }] },
       ];
       if (extra) {
         const c = extra.integer;

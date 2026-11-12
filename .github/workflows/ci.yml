@@ -88,7 +88,11 @@ jobs:
     # 46 min in, uploading screenshots (budget gate 18 min, browser gate 21 min). 90 min keeps
     # about twice the latest measurement, room for the entries still planned, and still stops
     # a hung browser long before the 6 h default. Re-measure when the catalogue grows again.
-    timeout-minutes: 90
+    # At 372 plates a hosted ubuntu-latest runner no longer fits: run 43298143648 passed steps
+    # 1-12 in 20 min and was cut at 90 min with its browser gate 70 min in (lundra: about 55 min
+    # for the whole job, run 43297581949). 150 min covers the hosted runner until the browser
+    # gate is sharded by wing.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

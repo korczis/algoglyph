@@ -2,18 +2,19 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { dft, evaluate, resample, rmsError, type Term } from './dft';
 
-const SAMPLES = 256;
+/** The path's default number of samples, and the frames one turn takes at speed 1. */
+export const SAMPLES = 256;
 
 type Shape = [Float64Array, Float64Array];
 
-function parametric(f: (t: number) => [number, number]): Shape {
-  const xs = new Float64Array(SAMPLES);
-  const ys = new Float64Array(SAMPLES);
-  for (let j = 0; j < SAMPLES; j++) [xs[j], ys[j]] = f(j / SAMPLES);
+function parametric(f: (t: number) => [number, number], n: number): Shape {
+  const xs = new Float64Array(n);
+  const ys = new Float64Array(n);
+  for (let j = 0; j < n; j++) [xs[j], ys[j]] = f(j / n);
   return [xs, ys];
 }
 
-function polygon(k: number, inner: number, rnd: () => number, jitter: number): Shape {
+function polygon(k: number, inner: number, rnd: () => number, jitter: number, n: number): Shape {
   const pts: [number, number][] = [];
   for (let i = 0; i < k * (inner > 0 ? 2 : 1); i++) {
     const r = inner > 0 && i % 2 === 1 ? inner : 1;
@@ -21,24 +22,25 @@ function polygon(k: number, inner: number, rnd: () => number, jitter: number): S
     const w = 1 + (rnd() - 0.5) * jitter;
     pts.push([Math.cos(a) * r * w, Math.sin(a) * r * w]);
   }
-  return resample(pts, SAMPLES);
+  return resample(pts, n);
 }
 
-/** Shapes normalised to roughly [-1, 1]; y grows downwards like the canvas. */
-export function shape(id: string, rnd: () => number): Shape {
+/** Shapes normalised to roughly [-1, 1], sampled at n points; y grows downwards like the canvas.
+ * The seeded blob draws its jitter per vertex, so every n draws the same random numbers. */
+export function shape(id: string, rnd: () => number, n = SAMPLES): Shape {
   switch (id) {
     case 'square':
-      return polygon(4, 0, rnd, 0);
+      return polygon(4, 0, rnd, 0, n);
     case 'star':
-      return polygon(5, 0.42, rnd, 0);
+      return polygon(5, 0.42, rnd, 0, n);
     case 'trefoil':
       return parametric((t) => {
         const a = 2 * Math.PI * t;
         const r = 0.35 + 0.65 * Math.cos(3 * a) ** 2;
         return [r * Math.cos(a), r * Math.sin(a)];
-      });
+      }, n);
     case 'blob':
-      return polygon(9, 0, rnd, 0.9);
+      return polygon(9, 0, rnd, 0.9, n);
     default: {
       // the classic heart curve, scaled into the unit box
       return parametric((t) => {
@@ -46,7 +48,7 @@ export function shape(id: string, rnd: () => number): Shape {
         const x = 16 * Math.sin(a) ** 3;
         const y = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a);
         return [x / 17, -y / 17];
-      });
+      }, n);
     }
   }
 }
@@ -66,6 +68,11 @@ export const fourierEpicycles: PlateCode = {
         { value: 'trefoil', label: 'Trefoil' },
         { value: 'blob', label: 'Seeded blob' },
       ],
+    },
+    {
+      // the DFT of the samples runs once, in setup: a new count rebuilds it
+      kind: 'select', key: 'samples', label: 'Samples of the path', value: String(SAMPLES), rebuild: true,
+      options: [64, 128, SAMPLES].map((n) => ({ value: String(n), label: `${n} samples` })),
     },
     { kind: 'range', key: 'terms', label: 'Terms', min: 1, max: SAMPLES, step: 1, value: 24 },
     { kind: 'range', key: 'speed', label: 'Speed', min: 0.1, max: 4, step: 0.1, value: 1 },
@@ -87,7 +94,7 @@ export const fourierEpicycles: PlateCode = {
 
     return {
       setup() {
-        [xs, ys] = shape(str(params, 'shape'), ctx.rnd);
+        [xs, ys] = shape(str(params, 'shape'), ctx.rnd, num(params, 'samples'));
         terms = dft(xs, ys);
         let sum = 0;
         for (let j = 0; j < xs.length; j++) sum += xs[j] ** 2 + ys[j] ** 2;
@@ -141,7 +148,8 @@ export const fourierEpicycles: PlateCode = {
           y = ny;
         }
         trail.push([x, y]);
-        if (trail.length > xs.length * 1.5) trail.shift();
+        // the trail and the turn are counted in frames, the same at every sample count
+        if (trail.length > SAMPLES * 1.5) trail.shift();
 
         p.noFill();
         p.strokeWeight(2);
@@ -154,7 +162,7 @@ export const fourierEpicycles: PlateCode = {
         p.fill(...ctx.fg);
         p.circle(x, y, 6);
 
-        t += (num(params, 'speed') / xs.length) * (ctx.thumbnail ? 2 : 1);
+        t += (num(params, 'speed') / SAMPLES) * (ctx.thumbnail ? 2 : 1);
         if (t >= 1) t -= 1;
 
         const [ex, ey] = evaluate(terms, count, 0);

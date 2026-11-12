@@ -1,6 +1,7 @@
 // Seeded inputs for the geometry kernels. Point sets live on an integer grid, so that every
 // orientation and in-circle test on them is exact in double precision; segment sets for the
 // sweeps are in general position (real coordinates), the lattice set is deliberately degenerate.
+import type { DataTable } from '../../core/data';
 import type { Params } from '../../core/plate';
 import { gaussian, mulberry32 } from '../../core/random';
 import type { Box, Firm, Input, InputKind, Pt, Seg, Warehouse } from './trace';
@@ -265,13 +266,57 @@ const empty = (kind: InputKind, shape: string, n: number): Input => ({
   rect: { x0: 0, y0: 0, x1: 0, y1: 0 }, point: { x: 0, y: 0 }, warehouse: null, firms: [], centre: CENTRE,
 });
 
+/** A reader's points (ADR 0010) on the plate's grid, and what the mapping did to them. */
+export interface Fitted {
+  points: Pt[];
+  /** Points that landed on a grid position already taken, and were merged into it. */
+  merged: number;
+  /** Grid units per unit of the reader's x and y (one scale, so shapes keep their proportions). */
+  scale: number;
+  lo: { x: number; y: number };
+  hi: { x: number; y: number };
+}
+
+/**
+ * A reader's table of x and y mapped into the box by one scale and an offset, centred, then
+ * rounded to the integer grid every orientation test here is exact on. Two points that round
+ * to one position are one point: the grid has W − 4M by H − 4M positions, so only points closer
+ * than 1/(W − 4M) of the data's extent merge, and the readout counts them.
+ */
+export function fitToBox(t: DataTable): Fitted {
+  const xs = t.values[0]; const ys = t.values[1];
+  const lo = { x: Infinity, y: Infinity }; const hi = { x: -Infinity, y: -Infinity };
+  for (let i = 0; i < t.rows; i++) {
+    lo.x = Math.min(lo.x, xs[i]); hi.x = Math.max(hi.x, xs[i]);
+    lo.y = Math.min(lo.y, ys[i]); hi.y = Math.max(hi.y, ys[i]);
+  }
+  const dx = hi.x - lo.x; const dy = hi.y - lo.y;
+  const sx = dx > 0 ? (W - 4 * M) / dx : Infinity;
+  const sy = dy > 0 ? (H - 4 * M) / dy : Infinity;
+  const scale = Number.isFinite(Math.min(sx, sy)) ? Math.min(sx, sy) : 1;
+  const ox = W / 2 - ((lo.x + hi.x) / 2) * scale;
+  const oy = H / 2 - ((lo.y + hi.y) / 2) * scale;
+  const seen = new Set<string>();
+  const out: Pt[] = [];
+  for (let i = 0; i < t.rows; i++) {
+    const X = Math.round(ox + xs[i] * scale);
+    const Y = Math.round(oy + ys[i] * scale);
+    const key = `${X},${Y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ x: X, y: Y });
+  }
+  return { points: out, merged: t.rows - out.length, scale, lo, hi };
+}
+
 /** The seeded input of a kind and shape; `params` may carry `q` (query size, % of the box),
  * `m` (polygon vertices), `aisles`, `spread` (firm size spread σ) and `horiz` (horizontal
- * share of an orthogonal set, %). */
-export function makeInput(kind: InputKind, shape: string, n: number, seed: number, params: Params = {}): Input {
+ * share of an orthogonal set, %). `given` points, a reader's own (fitToBox), replace the seeded
+ * points of a point input. */
+export function makeInput(kind: InputKind, shape: string, n: number, seed: number, params: Params = {}, given?: Pt[]): Input {
   const rnd = mulberry32(seed);
-  const inp = empty(kind, shape, n);
-  if (kind === 'points') inp.points = points(shape, n, rnd);
+  const inp = empty(kind, shape, given ? given.length : n);
+  if (kind === 'points') inp.points = given ? given.map((q) => ({ ...q })) : points(shape, n, rnd);
   else if (kind === 'segments') inp.segments = segments(shape, n, rnd);
   else if (kind === 'orthogonal') inp.segments = orthogonal(n, rnd, Number(params.horiz ?? 50));
   else if (kind === 'polygon') {

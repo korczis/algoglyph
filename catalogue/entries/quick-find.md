@@ -24,6 +24,40 @@ bounds:
   model: array accesses
   best: find O(1)
   worst: union O(n), n unions O(n²)
+claims:
+  - id: half-per-site-components-identity
+    statement: >-
+      At 0.5 unions per site the 24 sites get m = ⌈0.5 · 24⌉ = 12 connections, and each one either
+      merges two components or finds its sites connected already, so Components minus the
+      connected count is n − m = 12, exactly.
+    readout: Components
+    expect: { against: Already connected, against_number: 1, offset: 12, tolerance: 0 }
+    setup:
+      params: { perSite: 0.5 }
+  - id: one-per-site-components-identity
+    statement: >-
+      At 1 union per site the 24 sites get m = 24 connections, so Components minus the connected
+      count is n − m = 0, exactly: every connection either merged or was already connected.
+    readout: Components
+    expect: { against: Already connected, against_number: 1, offset: 0, tolerance: 0 }
+    setup:
+      params: { perSite: 1 }
+  - id: half-per-site-star-height
+    statement: >-
+      At 0.5 unions per site the forest is 2 levels high, exactly: every site points at the site
+      that labels its component, which points at itself, and the first connection always merges.
+    readout: Height
+    expect: { value: 2 }
+    setup:
+      params: { perSite: 0.5 }
+  - id: one-per-site-star-height
+    statement: >-
+      At 1 union per site the forest is still 2 levels high, exactly, for the same reason: a
+      component is a star under its label, however many connections are made.
+    readout: Height
+    expect: { value: 2 }
+    setup:
+      params: { perSite: 1 }
 ---
 
 Every object carries its component id, so a find is one look-up and a union rewrites every member of one side.
