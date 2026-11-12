@@ -335,13 +335,15 @@ export const KINDS: Record<InputKind, KindDef> = {
     size: { label: 'Numbers', min: 4, max: 48, step: 1, value: 12 },
     scale: [8, 16, 32, 64, 128, 256],
     shapes: [],
-    make(rnd, n) {
+    make(rnd, n, _shape, opts) {
+      // the share of numbers corrupted, ico-check-digit's control: one draw per number at any rate
+      const rate = Number(opts.corrupt ?? 0.4);
       const numbers: string[] = []; const corrupted: boolean[] = [];
       for (let k = 0; k < n; k++) {
         const d = Array.from({ length: 7 }, () => int(rnd, 0, 9));
         d.push(icoCheck(d));
         let bad = false;
-        if (rnd() < 0.4) {
+        if (rnd() < rate) {
           if (rnd() < 0.5) {
             const i = int(rnd, 0, 7);
             d[i] = (d[i] + int(rnd, 1, 9)) % 10;
