@@ -1,12 +1,13 @@
 import { count } from '../../core/format';
 import { mix, paletteParam, ramp } from '../../core/palette';
+import { Pacer, paceParam } from '../../core/pace';
 import { num, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
 import {
   compare, fire, MIN_BINS, tally, type Comparison, type Gun, type Openings, type Tally,
 } from '../_shared/two-slit/ballistic';
 import { bars, curve, legend, rgba, type Panel } from '../_shared/two-slit/draw';
-import { Pacer, rateParam, roundRobin } from '../_shared/two-slit/pace';
+import { roundRobin } from '../_shared/two-slit/runs';
 
 const DEG = Math.PI / 180;
 /** Gun to wall and wall to backstop (m), and the backstop's half-height (m). */
@@ -17,6 +18,8 @@ const Y = 0.3;
 const HYPOTHESIS_BINS = 4;
 /** Tracks of recent bullets drawn in the apparatus. */
 const TRACKS = 40;
+/** The most bullets a frame lands, all runs together, whatever the pace asks. */
+const MAX_PER_FRAME = 2000;
 /** Bullets per frame, all runs, in the gallery thumbnail. */
 const THUMB_RATE = 4500;
 
@@ -39,13 +42,15 @@ export const twoSlitClassical: PlateCode = {
       hint: 'A modelled deflection at the hole, normal with this standard deviation.' },
     { kind: 'range', key: 'bins', label: 'Backstop bins', min: 24, max: 96, step: 8, value: 48,
       rebuild: true },
-    // a default run is a demonstration that lasts DEMO_N × 3 / 24 ≈ 44 s at the calm pace; the
-    // claims pin their own n (src/plates/_shared/two-slit/pace.ts)
+    // a default run is a demonstration: 3 × 350 bullets last 35 s at the calm pace (ADR 0008);
+    // the claims pin their own n
     { kind: 'range', key: 'n', label: 'Bullets fired per run', min: 50, max: 80000, step: 50,
       value: 350, rebuild: true },
-    rateParam('Bullets'),
+    paceParam(),
     paletteParam('ember'),
   ],
+  // a finite run of known length: every bullet that lands is one counted change
+  pace: { kind: 'replay', unit: 'bullets' },
   create(p, ctx) {
     const params = ctx.params;
     let gun: Gun;
@@ -54,7 +59,8 @@ export const twoSlitClassical: PlateCode = {
     let n = 0;
     let result: Comparison | null = null;
     let tracks: { yw: number; y: number; detected: boolean }[] = [];
-    const pacer = new Pacer();
+    // the heaviest frame the budget gate measures: MAX_PER_FRAME bullets across the three runs
+    const pacer = new Pacer('replay', 'bullets', MAX_PER_FRAME);
 
     return {
       setup() {
@@ -72,9 +78,11 @@ export const twoSlitClassical: PlateCode = {
         rnds = RUNS.map(() => mulberry32(Math.floor(ctx.rnd() * 0x7fffffff) + 1));
         result = null;
         tracks = [];
+        pacer.start(RUNS.length * n);
       },
+      pace: () => pacer.report(runs.every((t) => t.emitted >= n), params),
       draw() {
-        const budget = ctx.thumbnail ? THUMB_RATE : pacer.take(num(params, 'rate'));
+        const budget = ctx.thumbnail ? THUMB_RATE : pacer.take(params);
         roundRobin(budget, (r) => n - runs[r].emitted, RUNS.length, (r) => {
           const t = runs[r];
           fire(gun, RUNS[r], rnds[r], t);
@@ -160,6 +168,7 @@ export const twoSlitClassical: PlateCode = {
         const balance = both.emitted - both.blocked - both.detected - both.missed;
         const progress = runs.map((t) => t.emitted).reduce((a, b) => Math.min(a, b), n);
         ctx.stats([
+          pacer.row(params),
           { label: 'bullets fired, each run', value: `${count(progress)} of ${count(n)}` },
           { label: 'both holes: blocked / detected / missed',
             value: `${count(both.blocked)} / ${count(both.detected)} / ${count(both.missed)}` },

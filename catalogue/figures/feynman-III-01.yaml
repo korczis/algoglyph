@@ -33,7 +33,7 @@ figures:
         readout: χ²/k of N₁₂ against N₁ + N₂
         expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, below: 0 }
         setup:
-          params: { rate: 3.3, n: 40000 }
+          params: { pace: 4096, n: 40000 }
       - id: enough-bins-for-the-band
         statement: >-
           At least ten bins pass the five-count floor, so the band's Wilson–Hilferty points are
@@ -41,7 +41,7 @@ figures:
         readout: bins judged (tails merged to ≥ 5 expected)
         expect: { above: 9 }
         setup:
-          params: { rate: 3.3, n: 40000 }
+          params: { pace: 4096, n: 40000 }
       - id: interference-would-be-seen
         statement: >-
           The same counts reject full-contrast fringes four bins apart by a χ²/k more than 5 above
@@ -50,7 +50,7 @@ figures:
         readout: χ²/k against full-contrast fringes, 4-bin period
         expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
         setup:
-          params: { rate: 3.3, n: 40000 }
+          params: { pace: 4096, n: 40000 }
   - id: 1-3
     section: 1-4
     class: thought-experiment
@@ -75,7 +75,7 @@ figures:
         readout: centre bin N₁₂ / (N₁ + N₂)
         expect: { above: 1.5 }
         setup:
-          params: { rate: 3.3, n: 60000 }
+          params: { pace: 4096, n: 60000 }
       - id: lumps-follow-the-amplitudes
         statement: >-
           The single arrivals are distributed as |ψ₁ + ψ₂|²: their Kolmogorov–Smirnov distance from
@@ -83,7 +83,7 @@ figures:
         readout: KS distance of the hits from p(x)
         expect: { against: 'KS 95 % bound, 1.36/√N', below: 0 }
         setup:
-          params: { rate: 3.3, n: 60000 }
+          params: { pace: 4096, n: 60000 }
   - id: 1-4
     section: 1-6
     class: thought-experiment
@@ -110,7 +110,7 @@ figures:
         readout: visibility from all hits
         expect: { range: [-0.04, 0.04] }
         setup:
-          params: { rate: 3.3, n: 20000 }
+          params: { pace: 4096, n: 20000 }
       - id: dim-light-keeps-what-it-misses
         statement: >-
           With the light dimmed so that half the electrons scatter a photon (isotropic in space),
@@ -118,7 +118,7 @@ figures:
         readout: visibility from all hits
         expect: { against: 'γ_eff = (1 − η) + η·γ', tolerance: 0.04 }
         setup:
-          params: { rate: 3.3, n: 20000, eta: 0.5 }
+          params: { pace: 4096, n: 20000, eta: 0.5 }
   - id: 1-5
     section: 1-6
     class: schematic
@@ -144,7 +144,7 @@ figures:
         readout: contrast as the detector reads it, read on the grid
         expect: { against: 'contrast factor, closed form', tolerance: 0.00001 }
         setup:
-          params: { rate: 3.3, n: 20000, mass: -30.04, speed: 1000, width: -1 }
+          params: { pace: 4096, n: 20000, mass: -30.04, velocity: 1000, width: -1 }
       - id: the-arrivals-keep-them
         statement: >-
           In the same run the particles, drawn one by one from the fringe density, arrive with a
@@ -153,7 +153,7 @@ figures:
         readout: contrast of the arrivals, from the hits
         expect: { value: 1, tolerance: 0.03 }
         setup:
-          params: { rate: 3.3, n: 20000, mass: -30.04, speed: 1000, width: -1 }
+          params: { pace: 4096, n: 20000, mass: -30.04, velocity: 1000, width: -1 }
   - id: 1-6
     section: 1-8
     class: thought-experiment
@@ -179,7 +179,7 @@ figures:
         readout: D² + V²
         expect: { against: 'D² + V², closed form', tolerance: 0.003 }
         setup:
-          params: { rate: 3.3, n: 20000 }
+          params: { pace: 4096, n: 20000 }
       - id: electrons-see-the-wall
         statement: >-
           Sixty thousand electrons, each meeting the wall at a position drawn from its state, land with
@@ -187,4 +187,4 @@ figures:
         readout: visibility from the hits
         expect: { against: 'visibility, overlap of the kicked wall states |γ|', tolerance: 0.02 }
         setup:
-          params: { rate: 3.3, n: 60000 }
+          params: { pace: 4096, n: 60000 }
