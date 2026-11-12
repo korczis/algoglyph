@@ -227,7 +227,8 @@ const CHECKS: Record<string, () => void> = {
         const z = meet(x, y);
         if (z) out.set(z, (out.get(z) ?? 0) + u * v); else k += u * v;
       }
-      if (k >= 1 - 1e-12) return null;
+      // total conflict: no product met a non-empty set (k itself drifts from 1 in floating point)
+      if (k >= 1 - 1e-12 || !out.size) return null;
       for (const [z, v] of out) out.set(z, v / (1 - k));
       return out;
     };
