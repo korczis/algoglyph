@@ -353,6 +353,17 @@ describe('sorting/mergesort: exact bounds against counted runs', () => {
     for (const n of POW2) expect(run('k-way-merge-sort', input('random', n, 9)).counts.writes, `n=${n}`).toBe(n * Math.ceil(lg(n) / 2));
   });
 
+  it('k-way-merge-sort: on Random permutation at 512 keys more comparisons than top-down mergesort and fewer array writes', () => {
+    for (const s of [4242, ...Array.from({ length: 10 }, (_, i) => i + 1)]) {
+      const a = input('random', 512, s);
+      const [k, t] = [counts('k-way-merge-sort', a), counts('mergesort-top-down', a)];
+      expect(k[0], `seed ${s}`).toBeGreaterThan(t[0]);
+      expect([k[1], t[1]], `seed ${s}`).toEqual([2560, 4608]);
+    }
+    expect(counts('k-way-merge-sort', input('random', 512, 4242))[0]).toBe(4964);
+    expect(counts('mergesort-top-down', input('random', 512, 4242))[0]).toBe(3988);
+  });
+
   for (const id of ['in-place-merge-sort', 'symmerge-based-sort', 'block-merge-sort', 'grailsort']) {
     it(`${id}: no auxiliary write on any input; every array write is half of an exchange`, () => {
       for (const a of [...CASES, ...SHAPES.flatMap((shape) => [200, 256, 512].map((n) => input(shape, n, 5)))]) {
@@ -369,6 +380,9 @@ describe('sorting/mergesort: exact bounds against counted runs', () => {
       expect(counts('in-place-merge-sort', input('sorted', n, 1))[0], `n=${n}`)
         .toBeGreaterThan(counts('in-place-merge-sort', input('reversed', n, 1))[0]);
     }
+    expect([counts('in-place-merge-sort', input('sorted', 512, 1))[0], counts('in-place-merge-sort', input('reversed', 512, 1))[0]])
+      .toEqual([6011, 1593]);
+    expect(counts('in-place-merge-sort', input('random', 512, 4242))[1]).toBe(18186);
   });
 
   it('symmerge-based-sort: insertion alone up to 20 keys; Already sorted no write and fewer than 4n/3 comparisons up to 1,024 keys', () => {
@@ -396,6 +410,7 @@ describe('sorting/mergesort: exact bounds against counted runs', () => {
       const p = phases(run('grailsort', input('few-unique', n, 4242)));
       expect([p.length, p[1]], `n=${n}`).toEqual([2, 'not enough distinct keys: lazy stable sort']);
     }
+    expect(counts('grailsort', input('sorted', 512, 1))).toEqual([1669, 5504, 0]);
   });
 
   it('wikisort: insertion alone up to 16 keys; n − 1 comparisons and no write on Already sorted to 1,025 keys; Reversed no auxiliary write', () => {
@@ -406,6 +421,7 @@ describe('sorting/mergesort: exact bounds against counted runs', () => {
       expect(counts('wikisort', equal(n)), `equal n=${n}`).toEqual(one);
       expect(counts('wikisort', input('reversed', n, 1))[2], `reversed n=${n}`).toBe(0);
     }
+    expect(counts('wikisort', input('random', 512, 4242))[2]).toBe(1280);
   });
 
   it('quadsort: insertion alone below 32 keys; at multiples of 32 Already sorted 5n/4 − 1 comparisons, Reversed 5n/4 − 2 and n writes', () => {
@@ -427,4 +443,13 @@ describe('sorting/mergesort: exact bounds against counted runs', () => {
   }
 
   it('driftsort: insertion alone up to 20 keys', () => insertionAlone('driftsort', 20));
+
+  it('glidesort and driftsort: Few distinct keys at 512 keys cost less than half the comparisons of Random permutation', () => {
+    for (const id of ['glidesort', 'driftsort']) {
+      for (const s of [4242, 1, 2, 3, 4, 5]) {
+        expect(counts(id, input('few-unique', 512, s))[0], `${id} seed ${s}`).toBeLessThan(counts(id, input('random', 512, s))[0] / 2);
+      }
+    }
+    expect([counts('glidesort', input('few-unique', 512, 4242))[0], counts('glidesort', input('random', 512, 4242))[0]]).toEqual([1888, 4403]);
+  });
 });
