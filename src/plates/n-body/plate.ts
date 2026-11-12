@@ -2,6 +2,7 @@ import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { gaussian } from '../../core/random';
 import { accelerate, bodies, energy, leapfrog, momentum, type Bodies } from './gravity';
+import { stepsWithin } from '../../core/budget';
 
 const G = 1;
 const EPS = 0.04;
@@ -96,7 +97,7 @@ export const nBody: PlateCode = {
         const dt = num(params, 'dt');
         // direct summation costs n² pair forces per step: the steps per frame are bounded by a
         // pair budget so a frame never outgrows the main thread (test/budget.test.ts)
-        const steps = Math.max(1, Math.min(num(params, 'speed'), Math.floor(PAIRS_PER_FRAME / (b.n * b.n))));
+        const steps = stepsWithin(num(params, 'speed'), b.n * b.n, PAIRS_PER_FRAME);
         lastSteps = steps;
         for (let s = 0; s < steps; s++) {
           leapfrog(b, dt, G, EPS);
