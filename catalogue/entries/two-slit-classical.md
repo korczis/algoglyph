@@ -78,14 +78,32 @@ claims:
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, below: 0 }
     setup:
       params: { rate: 3.3, n: 40000 }
+  - id: enough-bins-for-the-band
+    statement: >-
+      The band is only used where its approximation holds: with 40,000 bullets per run at least ten
+      bins pass the five-count floor, and Wilson–Hilferty is within about 1 % of the exact χ²ₖ points
+      from ten bins on.
+    readout: bins judged (tails merged to ≥ 5 expected)
+    expect: { above: 9 }
+    setup:
+      params: { rate: 3.3, n: 40000 }
   - id: the-test-would-see-interference
     statement: >-
-      A power check: the same both-holes histogram tested against an interference hypothesis built
-      from the same one-hole counts, N₁ + N₂ + 2√(N₁N₂)·cos(2πy/Λ) with Λ four bins, gives a χ²/k
-      more than 5 above the band's ceiling, so the test could have rejected additivity had the
-      bullets interfered.
-    readout: χ²/k against interference with a 4-bin period
+      A power check: the same both-holes histogram tested against full-contrast fringes built from
+      the same one-hole counts, N₁ + N₂ + 2√(N₁N₂)·cos(2πy/Λ) with Λ four bins, gives a χ²/k more
+      than 5 above the band's ceiling, so the test could have rejected additivity had the bullets
+      interfered.
+    readout: χ²/k against full-contrast fringes, 4-bin period
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
+    setup:
+      params: { rate: 3.3, n: 40000 }
+  - id: the-test-states-its-sensitivity
+    statement: >-
+      The same counts would reject fringes of that period down to a visibility of 0.2: the smallest
+      V for which N₁ + N₂ + 2V√(N₁N₂)·cos(2πy/Λ) lies above the band's ceiling is below 0.2, so
+      agreement with the sum excludes interference at least that strong.
+    readout: smallest fringe visibility this run rejects, 4-bin period
+    expect: { below: 0.2 }
     setup:
       params: { rate: 3.3, n: 40000 }
 ---
@@ -96,6 +114,6 @@ The gun fires in a direction uniform within its spread. A bullet that reaches an
 
 Nothing a bullet does at one hole depends on the other, so the both-holes counts N₁₂ and the sum N₁ + N₂ estimate one curve. The comparison is a χ² over the bins, each squared difference divided by N₁₂ + N₁ + N₂, the variance of a difference of independent counts; bins in the tails are merged until each expects at least five bullets. A correct model's χ²/k falls between the 0.1 % and 99.9 % points of χ²ₖ/k 998 times in 1000; the readout shows both.
 
-A test that passes is only worth something if it could fail. The last readout tests the same histogram against an interference hypothesis, the one-hole counts combined as waves would be, with fringes four bins apart; it is rejected by a wide margin wherever the two one-hole curves overlap. Bullets are lumps: they arrive one at a time, whole, and through one hole or the other. Compare #/p/two-slit-amplitudes, where the arrivals are just as lumpy and the curves do not add.
+A test that passes is only worth something if it could fail. Two readouts say how much this one could: the χ²/k of the same histogram against full-contrast fringes four bins apart, the one-hole counts combined as waves would be, and the smallest fringe visibility the run would still reject at that period, its stated sensitivity. Where the two one-hole curves barely overlap there is little for fringes to modulate, and the sensitivity rises towards 1. The band itself is used only from ten bins on, where the Wilson–Hilferty points are within about 1 % of the exact ones. Bullets are lumps: they arrive one at a time, whole, and through one hole or the other. Compare #/p/two-slit-amplitudes, where the arrivals are just as lumpy and the curves do not add.
 
 The default run is a demonstration: 350 bullets per run, landing about two dozen a second, so the three curves grow in under a minute and the sum can be watched taking shape from a few hundred lumps. The claims below are not computed from it; each is run at its own size, 40,000 bullets per run, named on its Run line, so its margin is the one its statistics need.

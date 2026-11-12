@@ -9,7 +9,7 @@ import { mulberry32 } from '../src/core/random';
 import { CATALOGUE } from '../src/core/catalogue';
 import { loadPlate } from '../src/registry';
 import {
-  compare, fire, mergedBins, MIN_EXPECTED, tally, type Gun,
+  compare, fire, mergedBins, MIN_BINS, MIN_EXPECTED, tally, type Gun,
 } from '../src/plates/_shared/two-slit/ballistic';
 import {
   attenuation, gridReading, sampledKernel, CELLS_PER_PERIOD,
@@ -234,6 +234,38 @@ describe('two-slit bullets', () => {
     expect(c.additive).toBeGreaterThan(c.band[0]);
     expect(c.additive).toBeLessThan(c.band[1]);
     expect(c.coherent).toBeGreaterThan(10 * c.band[1]);
+    expect(c.k).toBeGreaterThanOrEqual(MIN_BINS);
+  });
+
+  it('states its sensitivity: fringes of the found visibility sit on the band’s ceiling', () => {
+    const n = 40_000;
+    const period = (4 * 2 * GUN.Y) / GUN.bins;
+    const n1 = run('one', 11, n).hist;
+    const n2 = run('two', 12, n).hist;
+    const n12 = run('both', 13, n).hist;
+    const c = compare(GUN, n1, n2, n12, period);
+    expect(c.sensitivity).toBeGreaterThan(0);
+    expect(c.sensitivity).toBeLessThan(1);
+    // the statistic at that visibility, recomputed here bin group by bin group, is the ceiling
+    const expected = n1.map((v, i) => v + n2[i]);
+    const groups = mergedBins(expected);
+    let chi = 0;
+    for (const [a, b] of groups) {
+      let o = 0;
+      let m = 0;
+      for (let i = a; i < b; i++) {
+        const y = -GUN.Y + ((i + 0.5) / GUN.bins) * 2 * GUN.Y;
+        o += n12[i];
+        m += n1[i] + n2[i] + 2 * c.sensitivity * Math.sqrt(n1[i] * n2[i]) * Math.cos((2 * Math.PI * y) / period);
+      }
+      let sum = 0;
+      for (let i = a; i < b; i++) sum += n1[i] + n2[i];
+      chi += (o - m) ** 2 / Math.max(1, o + sum);
+    }
+    expect(chi / groups.length / c.band[1]).toBeCloseTo(1, 9);
+    // more bullets, a sharper test
+    const big = compare(GUN, run('one', 21, 4 * n).hist, run('two', 22, 4 * n).hist, run('both', 23, 4 * n).hist, period);
+    expect(big.sensitivity).toBeLessThan(c.sensitivity);
   });
 });
 

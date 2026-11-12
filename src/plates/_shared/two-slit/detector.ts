@@ -35,6 +35,13 @@ export function attenuation(kind: KernelKind, width: number): number {
  * The kernel sampled on cells of size h (in periods: h = 1/CELLS_PER_PERIOD), centred, each weight
  * non-negative and the weights summing to 1. A Gaussian is sampled at the cell centres; a box gives
  * each cell the fraction of it the box covers, so its area is exact.
+ *
+ * The grid's error for a box, against sinc(πw/Λ): a fully covered cell carries the box's area over
+ * the cell, but the fringe is read at the cell's centre, whose cosine is the cell average of the
+ * cosine divided by sinc(πh/Λ). So full cells give the factor ÷ sinc(π/64), a relative 4.0e−4
+ * ((π/64)²/6); the two partly covered end cells add an error of the same order and either sign.
+ * At w/Λ = 1.37 that is about 9e−5 from the cells and 1.4e−4 in all; across widths it stays under
+ * 1e−3 (test/two-slit.test.ts). The claim on the box allows 3e−4.
  */
 export function sampledKernel(kind: KernelKind, width: number, h: number): Float64Array {
   if (kind === 'gaussian') {

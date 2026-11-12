@@ -34,11 +34,20 @@ figures:
         expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, below: 0 }
         setup:
           params: { rate: 3.3, n: 40000 }
+      - id: enough-bins-for-the-band
+        statement: >-
+          At least ten bins pass the five-count floor, so the band's Wilson–Hilferty points are
+          within about 1 % of the exact ones.
+        readout: bins judged (tails merged to ≥ 5 expected)
+        expect: { above: 9 }
+        setup:
+          params: { rate: 3.3, n: 40000 }
       - id: interference-would-be-seen
         statement: >-
-          The same counts reject a two-wave hypothesis with fringes four bins apart by a χ²/k more
-          than 5 above that ceiling, so agreement with the sum is a finding, not a blind spot.
-        readout: χ²/k against interference with a 4-bin period
+          The same counts reject full-contrast fringes four bins apart by a χ²/k more than 5 above
+          that ceiling, and would reject such fringes down to a visibility of 0.2, so agreement with
+          the sum is a finding with a stated sensitivity, not a blind spot.
+        readout: χ²/k against full-contrast fringes, 4-bin period
         expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
         setup:
           params: { rate: 3.3, n: 40000 }
@@ -90,21 +99,22 @@ figures:
         - Find the wavelengths at which the light stops telling the slits apart, and the reversal between.
       misconceptions:
         - Longer light does not bring the fringes back steadily; between the zeros of J₀ they return reversed.
+        - This page splits the hits by whether a photon was scattered or not. Curves for electrons seen at one slit or the other would sort them by where the flash was seen, which needs the photon's detected direction; the model traces over it.
       questions:
         - Why do the electrons that scatter no photon keep their fringes in dim light?
     claims:
       - id: watched-electrons-lose-the-fringes
         statement: >-
-          With every electron scattering a 200 nm photon, the visibility of the hits is within 0.04
-          of zero: watched this closely, the electrons arrive as P₁ + P₂.
+          With every electron scattering a 200 nm photon isotropically in space, the visibility of
+          the hits is within 0.04 of zero: watched this closely, the electrons arrive as P₁ + P₂.
         readout: visibility from all hits
         expect: { range: [-0.04, 0.04] }
         setup:
           params: { rate: 3.3, n: 20000 }
       - id: dim-light-keeps-what-it-misses
         statement: >-
-          With the light dimmed so that half the electrons scatter a photon, the visibility of all
-          hits agrees with (1 − η) + η·γ, about one half, within 0.04.
+          With the light dimmed so that half the electrons scatter a photon (isotropic in space),
+          the visibility of all hits agrees with (1 − η) + η·γ, about one half, within 0.04.
         readout: visibility from all hits
         expect: { against: 'γ_eff = (1 − η) + η·γ', tolerance: 0.04 }
         setup:
@@ -137,10 +147,11 @@ figures:
           params: { rate: 3.3, n: 20000, mass: -30.04, speed: 1000, width: -1 }
       - id: the-arrivals-keep-them
         statement: >-
-          In the same run the arrivals themselves keep the full contrast, 1 within 1e−9: the fringes
-          are hidden by the reading, not removed from the particles.
-        readout: contrast as the particles arrive, read on the grid
-        expect: { value: 1, tolerance: 0.000000001 }
+          In the same run the particles, drawn one by one from the fringe density, arrive with a
+          contrast of 1 within 0.03, four standard errors of 20,000 hits, measured from the hits: the
+          fringes are hidden by the reading, not removed from the particles.
+        readout: contrast of the arrivals, from the hits
+        expect: { value: 1, tolerance: 0.03 }
         setup:
           params: { rate: 3.3, n: 20000, mass: -30.04, speed: 1000, width: -1 }
   - id: 1-6
@@ -162,10 +173,11 @@ figures:
     claims:
       - id: knowing-costs-fringes
         statement: >-
-          With the wall's momentum spread half the kick, a momentum reading and the fringes share
-          less than the whole: D² + V² is below 0.9, under the bound of 1.
+          With the wall's momentum spread about half the kick, a momentum reading and the fringes
+          share less than the whole: D² + V² from the grid is within 3e−3 of its closed form, about
+          0.834, under the bound of 1 that only the optimal measurement reaches.
         readout: D² + V²
-        expect: { below: 0.9 }
+        expect: { against: 'D² + V², closed form', tolerance: 0.003 }
         setup:
           params: { rate: 3.3, n: 20000 }
       - id: electrons-see-the-wall

@@ -212,6 +212,9 @@ export const twoSlitAmplitudes: PlateCode = {
             { label: 'centre bin N₁₂ / (N₁ + N₂)', value: pm(ratio, se) },
             { label: 'centre bin ratio expected, 1 + sinc(πw/Λ) on the envelope',
               value: `${ratioExpected.toFixed(4)} for a bin of ${length(w)}` },
+            // the gap judged in the measurement's own standard errors, not a fixed width
+            { label: 'centre bin ratio, standard errors from expected',
+              value: Number.isFinite(se) && se > 0 ? ((ratio - ratioExpected) / se).toFixed(2) : 'after the runs' },
             { label: 'visibility from the both-slit hits', value: pm(all.v, all.se) },
             { label: 'KS distance of the hits from p(x)', value: ks === null ? 'after the runs' : ks.toFixed(5) },
             { label: 'KS 95 % bound, 1.36/√N', value: done ? ksBound(bothHits).toFixed(5) : 'after the runs' },
@@ -318,6 +321,16 @@ export const twoSlitAmplitudes: PlateCode = {
       let emitted = 0;
       const rnd = stream();
       const closed = attenuation(kind, ratio);
+      // Σ cos(2πx/Λ) and its square over the arrivals and over the readings: on whole periods
+      // the mean of the cosine is half the contrast, so each is measured from the hits themselves
+      const arrived = { s: 0, s2: 0 };
+      const readd = { s: 0, s2: 0 };
+      const contrast = (m: { s: number; s2: number }) => {
+        if (emitted < 2) return 'after two hits';
+        const mean = m.s / emitted;
+        const sd = Math.sqrt(Math.max(0, (m.s2 - emitted * mean * mean) / (emitted - 1)));
+        return pm(2 * mean, (2 * sd) / Math.sqrt(emitted));
+      };
 
       step = (budget) => {
         const shots = Math.min(budget, n - emitted);
@@ -332,6 +345,12 @@ export const twoSlitAmplitudes: PlateCode = {
           if (ratio * 8 > WRAP_LIMIT) read = rnd() * periods;
           else read = (((x + noise) % periods) + periods) % periods;
           hist[Math.min(WINDOW_BINS - 1, Math.floor((read / periods) * WINDOW_BINS))]++;
+          const ca = Math.cos(2 * Math.PI * x);
+          const cr = Math.cos(2 * Math.PI * read);
+          arrived.s += ca;
+          arrived.s2 += ca * ca;
+          readd.s += cr;
+          readd.s2 += cr * cr;
         }
       };
 
@@ -348,6 +367,8 @@ export const twoSlitAmplitudes: PlateCode = {
           value: kind === 'box' && ratio > WRAP_LIMIT
             ? `at most ${(1 / (Math.PI * ratio)).toExponential(2)} in size`
             : closed === 0 ? '0 (below the smallest double)' : closed.toExponential(5) },
+        { label: 'contrast of the arrivals, from the hits', value: contrast(arrived) },
+        { label: 'contrast of the readings, from the hits', value: contrast(readd) },
         { label: 'kernel weights − 1, numerics', value: grid ? grid.kernelSumError.toExponential(2) : 'not on a grid' },
         { label: 'reading total − arrival total, numerics', value: grid ? grid.normError.toExponential(2) : 'not on a grid' },
         { label: 'readings', value: `${count(emitted)} of ${count(n)}` },
@@ -446,14 +467,18 @@ export const twoSlitAmplitudes: PlateCode = {
           { label: 'fringe period Λ = 2πħ/Δq', value: length(period) },
           { label: 'wall spreads σₓ and σₚ',
             value: `${length(wall.sigmaX * period)}, ${(sp * dq).toExponential(3)} kg m/s` },
-          { label: 'σₓσₚ / (ħ/2), from the grid', value: (2 * sp2.dx * sp2.dk).toFixed(7) },
+          { label: 'σₓσₚ / (ħ/2), from the grid, numerics', value: (2 * sp2.dx * sp2.dk).toFixed(7) },
           { label: 'visibility, overlap of the kicked wall states |γ|', value: vOverlap.toFixed(7) },
-          { label: 'visibility, fitted to the smeared pattern', value: vSmear.toFixed(7) },
+          { label: 'visibility, fitted to the smeared pattern, numerics', value: vSmear.toFixed(7) },
           { label: 'visibility, closed form exp(−Δq²σₓ²/2ħ²)', value: cf.v.toFixed(7) },
           { label: 'visibility from the hits', value: emitted > 1 ? pm(2 * mean, (2 * sd) / Math.sqrt(emitted)) : 'after two hits' },
           { label: 'distinguishability D, reading the wall’s momentum', value: d.toFixed(5) },
           { label: 'D, closed form erf(Δq/2√2σₚ)', value: cf.d.toFixed(5) },
           { label: 'D² + V²', value: (d * d + vOverlap * vOverlap).toFixed(5) },
+          { label: 'D² + V², closed form', value: (cf.d * cf.d + cf.v * cf.v).toFixed(5) },
+          // Englert's bound is reached by the optimal (Helstrom) measurement of the wall: its
+          // distinguishability is √(1 − |γ|²) for these pure states
+          { label: 'D of the optimal measurement, √(1 − V²)', value: Math.sqrt(Math.max(0, 1 - vOverlap * vOverlap)).toFixed(5) },
           { label: 'hits', value: `${count(emitted)} of ${count(n)}` },
         ];
       };

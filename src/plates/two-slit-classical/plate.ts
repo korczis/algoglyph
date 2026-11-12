@@ -2,7 +2,9 @@ import { count } from '../../core/format';
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
-import { compare, fire, tally, type Comparison, type Gun, type Openings, type Tally } from '../_shared/two-slit/ballistic';
+import {
+  compare, fire, MIN_BINS, tally, type Comparison, type Gun, type Openings, type Tally,
+} from '../_shared/two-slit/ballistic';
 import { bars, curve, legend, rgba, type Panel } from '../_shared/two-slit/draw';
 import { Pacer, rateParam, roundRobin } from '../_shared/two-slit/pace';
 
@@ -166,10 +168,14 @@ export const twoSlitClassical: PlateCode = {
             value: result ? `${result.k} of ${gun.bins}` : 'after the runs' },
           { label: 'χ²/k of N₁₂ against N₁ + N₂',
             value: result ? result.additive.toFixed(3) : 'after the runs' },
+          // Wilson–Hilferty is used from MIN_BINS bins on; below, the band is not claimed
           { label: 'χ²ₖ/k band, 0.1 % to 99.9 %',
-            value: result ? `${result.band[0].toFixed(3)} to ${result.band[1].toFixed(3)}` : 'after the runs' },
-          { label: `χ²/k against interference with a ${HYPOTHESIS_BINS}-bin period`,
+            value: !result ? 'after the runs' : result.k < MIN_BINS ? `not given for k below ${MIN_BINS}`
+              : `${result.band[0].toFixed(3)} to ${result.band[1].toFixed(3)}` },
+          { label: `χ²/k against full-contrast fringes, ${HYPOTHESIS_BINS}-bin period`,
             value: result ? result.coherent.toFixed(2) : 'after the runs' },
+          { label: `smallest fringe visibility this run rejects, ${HYPOTHESIS_BINS}-bin period`,
+            value: result ? result.sensitivity.toFixed(3) : 'after the runs' },
         ]);
       },
     };

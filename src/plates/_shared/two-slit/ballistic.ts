@@ -110,38 +110,58 @@ export interface Comparison {
   /** χ²/k of n₁₂ against n₁ + n₂, and the 0.1 %–99.9 % band of χ²ₖ/k it should fall in. */
   additive: number;
   band: [number, number];
-  /** χ²/k of the same n₁₂ against an interference hypothesis, n₁ + n₂ + 2√(n₁n₂)·cos(2πy/Λ). */
+  /** χ²/k of the same n₁₂ against full-contrast fringes, n₁ + n₂ + 2√(n₁n₂)·cos(2πy/Λ). */
   coherent: number;
+  /**
+   * The smallest fringe visibility V whose hypothesis n₁ + n₂ + 2V√(n₁n₂)·cos(2πy/Λ) this run's
+   * χ²/k puts above the band's ceiling: the test's stated sensitivity. 1 when even full contrast
+   * is not rejected (the one-hole curves barely overlap), 0 when additivity itself is rejected.
+   */
+  sensitivity: number;
 }
+
+/** The fewest bins for which the band is used: Wilson–Hilferty is within about 1 % from here. */
+export const MIN_BINS = 10;
 
 /**
  * Compare the both-holes histogram with the sum of the one-hole histograms, and, as a power check,
- * with a coherent two-wave hypothesis of fringe period `period` (m) built from the same one-hole
- * counts: a test that cannot reject that hypothesis could not see interference if there were any.
+ * with fringes of period `period` (m) built from the same one-hole counts: a test that cannot
+ * reject them could not see interference if there were any.
  */
 export function compare(g: Gun, n1: Float64Array, n2: Float64Array, n12: Float64Array,
   period: number): Comparison {
   const expected = new Float64Array(g.bins);
   for (let i = 0; i < g.bins; i++) expected[i] = n1[i] + n2[i];
   const groups = mergedBins(expected);
-  let chi = 0;
-  let chiCoh = 0;
-  for (const [from, to] of groups) {
+  // per group: observed, the additive expectation, the cross term at full contrast, the variance
+  const rows = groups.map(([from, to]) => {
     let a = 0;
-    let b = 0;
-    let c = 0;
-    let coh = 0;
+    let sum = 0;
+    let cross = 0;
     for (let i = from; i < to; i++) {
       a += n12[i];
-      b += n1[i];
-      c += n2[i];
+      sum += n1[i] + n2[i];
       const y = -g.Y + ((i + 0.5) / g.bins) * 2 * g.Y;
-      coh += n1[i] + n2[i] + 2 * Math.sqrt(n1[i] * n2[i]) * Math.cos((2 * Math.PI * y) / period);
+      cross += 2 * Math.sqrt(n1[i] * n2[i]) * Math.cos((2 * Math.PI * y) / period);
     }
-    const variance = Math.max(1, a + b + c);
-    chi += (a - b - c) ** 2 / variance;
-    chiCoh += (a - coh) ** 2 / variance;
-  }
+    return { a, sum, cross, variance: Math.max(1, a + sum) };
+  });
   const k = groups.length;
-  return { k, additive: chi / k, band: chiSquareBand(k), coherent: chiCoh / k };
+  const chiAt = (v: number) => rows.reduce((t, r) => t + (r.a - r.sum - v * r.cross) ** 2 / r.variance, 0) / k;
+  const band = chiSquareBand(k);
+  let sensitivity: number;
+  if (chiAt(0) > band[1]) sensitivity = 0;
+  else if (chiAt(1) <= band[1]) sensitivity = 1;
+  else {
+    // χ²(V) is a parabola in V with its minimum near 0: bisect for where it crosses the ceiling
+    let lo = 0;
+    let hi = 1;
+    for (let it = 0; it < 50; it++) {
+      const mid = (lo + hi) / 2;
+      if (chiAt(mid) > band[1]) hi = mid;
+      else lo = mid;
+    }
+    sensitivity = hi;
+  }
+  return { k, additive: chiAt(0), band, coherent: chiAt(1), sensitivity };
 }
