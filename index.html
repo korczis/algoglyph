@@ -607,7 +607,7 @@
               </div>
               <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2" aria-live="off">
                 <template x-for="s in stats" :key="s.label">
-                  <div class="p-3 border border-gray-200 rounded-lg dark:border-gray-700">
+                  <div :data-readout="s.label" tabindex="-1" class="p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-700">
                     <dt class="mb-1 text-xs font-medium tracking-wide text-gray-500 dark:text-gray-400" :class="caseOf(s.label)" x-text="s.label"></dt>
                     <dd class="font-mono text-sm text-gray-900 break-words dark:text-white" x-text="s.value"></dd>
                   </div>
@@ -685,17 +685,17 @@
                   <!-- Textbook sections (ADR 0005): each shown only when the catalogue, the code or the evidence has something for it -->
                   <template x-if="current.pedagogy">
                     <section class="mt-6" aria-labelledby="learn-title">
-                      <h3 id="learn-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Learning</h3>
+                      <h3 id="learn-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Learning<span x-show="current.pedagogy.difficulty" data-doc="difficulty" class="ml-2 bg-gray-100 text-gray-800 text-xs font-medium normal-case tracking-normal px-2.5 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-200" x-text="current.pedagogy.difficulty"></span></h3>
                       <div x-show="current.pedagogy.prerequisites && current.pedagogy.prerequisites.length" class="mb-3">
                         <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">Read first</p>
                         <div class="flex flex-wrap gap-2">
                           <template x-for="id in (current.pedagogy.prerequisites || [])" :key="'pq' + id">
-                            <a :href="'#/p/' + id" class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-400 dark:hover:bg-gray-600" x-text="entryOf(id) ? entryOf(id).title : id"></a>
+                            <a :href="'#/p/' + id" data-doc="prerequisite" class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-400 dark:hover:bg-gray-600" x-text="entryOf(id) ? entryOf(id).title : id"></a>
                           </template>
                         </div>
                       </div>
                       <ul x-show="current.pedagogy.objectives && current.pedagogy.objectives.length" class="mb-3 space-y-1 text-base text-gray-600 list-disc list-inside dark:text-gray-300">
-                        <template x-for="(o, i) in (current.pedagogy.objectives || [])" :key="'ob' + i"><li x-text="o"></li></template>
+                        <template x-for="(o, i) in (current.pedagogy.objectives || [])" :key="'ob' + i"><li data-doc="objective" x-text="o"></li></template>
                       </ul>
                       <template x-for="(m, i) in (current.pedagogy.misconceptions || [])" :key="'mc' + i">
                         <p class="p-3 mb-2 text-sm text-gray-800 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-600"><span class="font-semibold">Misconception: </span><span x-text="m"></span></p>
@@ -709,7 +709,7 @@
                     <section class="mt-6" aria-labelledby="algo-title">
                       <h3 id="algo-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Properties</h3>
                       <div class="flex flex-wrap gap-1.5 mb-3">
-                        <span x-show="current.algorithm.paradigm" class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-200" x-text="current.algorithm.paradigm"></span>
+                        <span x-show="current.algorithm.paradigm" data-doc="paradigm" class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-200" x-text="current.algorithm.paradigm"></span>
                         <template x-for="t in traits(current)" :key="'tr' + t.label">
                           <span class="text-xs font-medium px-2.5 py-0.5 rounded-md" :class="t.on ? 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 line-through'" x-text="t.label"></span>
                         </template>
@@ -721,14 +721,41 @@
                   </template>
                   <template x-if="current.bounds">
                     <section class="mt-6 overflow-x-auto" aria-labelledby="bounds-title">
-                      <h3 id="bounds-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Bounds<span x-show="current.bounds.model" class="ml-2 font-normal normal-case text-gray-600 dark:text-gray-300" x-text="'counting ' + current.bounds.model"></span></h3>
+                      <h3 id="bounds-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Bounds<span x-show="current.bounds.model" data-doc="bounds-model" class="ml-2 font-normal normal-case text-gray-600 dark:text-gray-300" x-text="'counting ' + current.bounds.model"></span></h3>
                       <table class="w-full text-sm text-left text-gray-600 dark:text-gray-300">
                         <tbody>
                           <template x-for="k in ['best', 'average', 'worst', 'space']" :key="'bd' + k">
-                            <tr x-show="current.bounds[k]" class="border-b border-gray-200 dark:border-gray-700"><th scope="row" class="py-2 pr-4 font-medium text-gray-900 capitalize dark:text-white" x-text="k"></th><td class="py-2 font-mono" x-text="current.bounds[k]"></td></tr>
+                            <tr x-show="current.bounds[k]" data-doc="bound" class="border-b border-gray-200 dark:border-gray-700"><th scope="row" class="py-2 pr-4 font-medium text-gray-900 capitalize dark:text-white" x-text="k"></th><td class="py-2 font-mono" x-text="current.bounds[k]"></td></tr>
                           </template>
                         </tbody>
                       </table>
+                    </section>
+                  </template>
+                  <!-- Claims (ADR 0007): what the plate measures; every build checks each one (test/claims.test.ts) -->
+                  <template x-if="current.claims.length">
+                    <section class="mt-6" aria-labelledby="claims-title" data-doc="claims">
+                      <h3 id="claims-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">Claims<span class="ml-2 font-normal normal-case tracking-normal text-gray-600 dark:text-gray-300">checked by every build</span></h3>
+                      <div class="space-y-3">
+                        <template x-for="c in current.claims" :key="'cl' + c.id">
+                          <div data-doc="claim" class="p-4 border border-gray-200 rounded-lg dark:border-gray-700">
+                            <p class="mb-3 text-base text-gray-900 dark:text-white" x-text="c.statement"></p>
+                            <dl class="grid gap-2 text-sm sm:grid-cols-3">
+                              <div>
+                                <dt class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Reads</dt>
+                                <dd><button type="button" @click="focusReadout(c.readout)" class="font-medium text-left underline text-primary-700 hover:no-underline dark:text-primary-400" x-text="c.readout"></button></dd>
+                              </div>
+                              <div>
+                                <dt class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Expects</dt>
+                                <dd class="font-mono text-gray-900 dark:text-white" x-text="claimExpects(c)"></dd>
+                              </div>
+                              <div>
+                                <dt class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Run</dt>
+                                <dd class="text-gray-600 dark:text-gray-300" x-text="claimSetup(c)"></dd>
+                              </div>
+                            </dl>
+                          </div>
+                        </template>
+                      </div>
                     </section>
                   </template>
                   <template x-if="current.experiments.length">
@@ -750,6 +777,7 @@
                     <div class="flex flex-wrap gap-1.5">
                       <span class="text-xs font-medium px-2.5 py-0.5 rounded-md" :class="current.evidence.implemented ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'" x-text="current.evidence.implemented ? 'Implemented' : 'Not implemented'"></span>
                       <span class="text-xs font-medium px-2.5 py-0.5 rounded-md" :class="current.evidence.tested ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'" x-text="current.evidence.tested === 'harness' ? 'Tested by its engine harness' : (current.evidence.tested === 'unit' ? 'Unit-tested' : 'No test names it yet')"></span>
+                      <span x-show="current.evidence.claims" class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-green-900 dark:text-green-200" x-text="current.evidence.claims ? (current.evidence.claims.declared + (current.evidence.claims.declared === 1 ? ' claim' : ' claims') + ' checked by every build') : ''"></span>
                       <span x-show="current.maturity.next" class="bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-0.5 rounded-md dark:bg-gray-700 dark:text-gray-300" x-text="'Next step: ' + current.maturity.next"></span>
                     </div>
                   </section>

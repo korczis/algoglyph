@@ -4,6 +4,7 @@ import 'flowbite';
 import { CATALOGUE, children, collection as findCollection, entry, ENTRIES, figure as findFigure, lab as findLab,
   labsUnder, linkGroups, liveCollections, node, prose, roots, routedChapters, search, source, trail, under,
   type Chapter, type Collection, type Entry, type Figure, type Lab, type Status, type TaxNode } from './core/catalogue';
+import { type Claim, expectationText, setupText } from './core/claims';
 import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
@@ -202,6 +203,16 @@ Alpine.data('app', () => ({
     void this.mount();
   },
   shelfOf(e: Entry): TaxNode | undefined { return node(e.taxonomy); },
+  /** A claim's expectation and setup in words (src/core/claims.ts, shared with the instrument). */
+  claimExpects(c: Claim): string { return expectationText(c); },
+  claimSetup(c: Claim): string { return setupText(c); },
+  /** Bring the readout a claim reads into view and focus it (the hash is the route, so no anchor). */
+  focusReadout(label: string) {
+    const row = [...document.querySelectorAll<HTMLElement>('[data-readout]')].find((el) => el.dataset.readout === label);
+    if (!row) return;
+    row.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
+    row.focus({ preventScroll: true });
+  },
 
   /** The entries the browse view lists: the node's subtree, or every match of a search. */
   shown(): Entry[] {

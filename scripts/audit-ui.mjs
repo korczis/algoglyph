@@ -11,6 +11,9 @@
 //   - every routed figure page (ADR 0009) mounts its plate with its setup, opens on its canonical
 //     link (the seed alone: the setup is the link's base) and keeps a seed it is given, and the
 //     figure collection and chapter indexes pass axe
+//   - every documented field an entry declares is on its page (dark desktop pass, every plate):
+//     its objectives, prerequisites, paradigm, bounds model and difficulty, and one card per
+//     claim (ADR 0007; that a claim's readout exists is test/claims.test.ts's to prove)
 //   - no gallery thumbnail starts rendering behind the first plate opened after the wings
 //     (src/core/thumbs.ts; counted, not timed)
 // What exists is read from the catalogue (scripts/lib/catalogue.mjs), the source the site is
@@ -151,6 +154,33 @@ async function mounted(p) {
 // A page that misses its wait is opened again (browser.readout_retries): a page that never
 // publishes misses every time, while a stall of the machine running the gate passes the second
 // visit. Each retry is logged by name, and more than browser.max_retries in a run fails it.
+/** The documented fields `e` declares, against what its page renders (data-doc hooks in index.html). */
+async function documented(p, where, e) {
+  const seen = await p.evaluate(() => {
+    const all = (sel) => [...document.querySelectorAll(sel)];
+    return {
+      objectives: all('[data-doc="objective"]').length,
+      prerequisites: all('[data-doc="prerequisite"]').map((a) => a.getAttribute('href')),
+      paradigm: document.querySelector('[data-doc="paradigm"]')?.textContent?.trim() ?? '',
+      model: document.querySelector('[data-doc="bounds-model"]')?.textContent?.trim() ?? '',
+      difficulty: document.querySelector('[data-doc="difficulty"]')?.textContent?.trim() ?? '',
+      claims: all('[data-doc="claim"]').length,
+    };
+  });
+  const want = (n, what) => fail(where, `the entry declares ${what}, the page shows ${n}`);
+  const objectives = e.pedagogy?.objectives?.length ?? 0;
+  if (seen.objectives !== objectives) want(seen.objectives, `${objectives} objective(s)`);
+  for (const id of e.pedagogy?.prerequisites ?? []) {
+    if (!seen.prerequisites.includes(`#/p/${id}`)) fail(where, `prerequisite ${id} is declared but not linked on the page`);
+  }
+  if (e.pedagogy?.difficulty && seen.difficulty !== e.pedagogy.difficulty) want(`"${seen.difficulty}"`, `difficulty ${e.pedagogy.difficulty}`);
+  if (e.algorithm?.paradigm && seen.paradigm !== e.algorithm.paradigm) want(`"${seen.paradigm}"`, `paradigm ${e.algorithm.paradigm}`);
+  if (e.bounds?.model && !seen.model.includes(e.bounds.model)) want(`"${seen.model}"`, `bounds counting ${e.bounds.model}`);
+  if (seen.claims !== e.claims.length) want(seen.claims, `${e.claims.length} claim(s)`);
+  // that each claim's readout exists is test/claims.test.ts's to prove: it runs the plate until its
+  // readouts settle, where this page is read at its first readout, before a run's later phases
+}
+
 async function readout(p, where, url) {
   const ok = (st) => st.canvas && st.canvas[0] && st.canvas[1] && st.readouts;
   let state = await mounted(p);
@@ -256,6 +286,7 @@ try {
         const url = `${base}#/p/${e.id}?seed=4242`;
         await p.goto(url, { waitUntil: 'load' });
         await readout(p, where, url);
+        if (theme === 'dark' && desktop) await documented(p, where, e);
         if (i === 0) {
           // the wings queued their cards; none of them may start once a plate owns the page
           await p.waitForTimeout(1500);

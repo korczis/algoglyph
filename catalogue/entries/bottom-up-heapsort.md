@@ -24,6 +24,35 @@ complexity: n log n in every case; extra space 1
 related:
   - binary-heap
   - heapsort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [heapsort]
+  objectives:
+  - 'Compare the Comparisons with heapsort on Random permutation at 512 keys: 4,764 against 7,604, below n lg n + n = 5,120.'
+  - 'Run Already sorted at 512 keys: 4,771 comparisons, no fewer than on Random permutation; no input goes below Σ_{m=2}^{n−1}⌊lg m⌋.'
+  - 'Explain why the heap after every step is the one classical sift-down leaves, though far fewer comparisons find it.'
+  misconceptions:
+  - 'Bottom-up heapsort moves the keys differently from heapsort; after every extraction its heap is classical heapsort''s, and only the comparisons that find the place are fewer.'
+algorithm:
+  paradigm: incremental
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (the exchange of the root with the last key is two writes, each shift along the path one)'
+  best: 'never fewer than Σ_{m=2}^{n−1}⌊lg m⌋ comparisons: every extraction walks to a leaf and climbs back at least once'
+  average: 'on Random permutation at 512 keys fewer than n lg n + n = 5,120 comparisons and below 0.65 of heapsort''s on the same keys, on every seed tested'
+  worst: 'at most 1.5 n log n + O(n) comparisons (Wegener)'
+claims:
+  - id: random-below-n-lg-n-plus-n
+    statement: >-
+      On Random permutation at 512 keys bottom-up heapsort makes fewer than n lg n + n = 5,120 comparisons, where heapsort makes 7,604.
+    readout: Comparisons
+    expect: { below: 5120 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Heapsort with a cheaper sift-down: after the root is exchanged with the last key, walk down the path of larger children to a leaf with one comparison per level, then climb back up to find where the displaced key belongs.

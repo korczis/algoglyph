@@ -1,6 +1,7 @@
 // The catalogue as the site reads it: the model scripts/lib/catalogue.mjs validated at build
 // time (virtual:catalogue). Navigation, numbering, counts, search and labs are derived here;
 // nothing in the interface is written by hand (ADR 0004).
+import type { Claim } from './claims';
 import model from 'virtual:catalogue';
 
 export type Status = 'live' | 'planned';
@@ -36,10 +37,12 @@ export interface Entry {
   algorithm: AlgorithmFacts | null;
   bounds: Bounds | null;
   experiments: Experiment[];
+  /** What the plate measures, checked by test/claims.test.ts on every build (ADR 0007). */
+  claims: Claim[];
   /** Typed links, declared or derived from catalogue/relations.yaml. */
   links: Link[];
   /** Derived from code and tests; never authored (ADR 0005 §3). */
-  evidence: { implemented: boolean; tested: 'harness' | 'unit' | null };
+  evidence: { implemented: boolean; tested: 'harness' | 'unit' | null; claims: { declared: number; instrument: string | null } | null };
   maturity: { reached: string[]; next: string | null };
   /** Figure occurrences this entry's plate models (ADR 0009), derived from catalogue/figures. */
   figures: FigureRef[];
