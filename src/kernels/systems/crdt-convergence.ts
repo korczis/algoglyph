@@ -4,8 +4,9 @@ import * as C from './_crdt';
 
 // Replicas accept writes locally at any time, partition or not: counter increments and
 // decrements, adds and removes of labels in a shared set. Every so often a replica sends its
-// whole state to a random peer, which merges it. Writes stop before the end, so the run shows
-// the replicas converging once the partition has healed and the gossip has caught up.
+// whole state to a random peer, which merges it. Writes stop before the end, at the writeStop
+// control's share of the run, so the run shows the replicas converging once the partition has
+// healed and the gossip has caught up.
 const LABELS = ['alpha', 'beta', 'gamma', 'delta', 'omega', 'sigma'];
 
 export type Op =
@@ -23,7 +24,11 @@ export interface CrdtResult {
 
 export const kernel: SystemsKernel<CrdtResult> = {
   network: true,
-  params: [{ kind: 'range', key: 'replicas', label: 'Replicas', min: 2, max: 6, step: 1, value: 4, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'replicas', label: 'Replicas', min: 2, max: 6, step: 1, value: 4, rebuild: true },
+    // at most 55: writing longer only adds writes, and the run was already at its heaviest
+    { kind: 'range', key: 'writeStop', label: 'Writes stop at (% of run)', min: 35, max: 55, step: 5, value: 55, rebuild: true },
+  ],
   setup: (p) => ({
     lanes: Array.from({ length: num(p, 'replicas') }, (_, i) => `replica ${String.fromCharCode(65 + i)}`),
     horizon: 6000,
@@ -34,7 +39,8 @@ export const kernel: SystemsKernel<CrdtResult> = {
     const ops: Op[] = [];
     const res: CrdtResult = { replicas: reps, ops, convergedAt: NaN, lastWrite: 0 };
     let tags = 0;
-    const writeUntil = net.horizon * 0.55;
+    // (writeStop / 100) first: 55 / 100 is the double 0.55, so the default stops where it did
+    const writeUntil = net.horizon * (Number(p.writeStop ?? 55) / 100);
     const write = (i: number) => {
       if (net.now > writeUntil) return;
       const s = reps[i];

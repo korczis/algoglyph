@@ -67,6 +67,34 @@ claims:
     expect: { against: Result, against_number: 2, tolerance: 0 }
     setup:
       params: { heal: 90 }
+  - id: writes-stop-early
+    statement: >-
+      Stopping the writes at 35% of the run (2,100 ms) bounds how many there are: each of the 4
+      replicas writes first within 200 ms and then every 80 to 320 ms until 2,100 ms, so it makes
+      at least 1 + ⌊1,900 / 320⌋ = 6 and at most 1 + ⌊2,100 / 80⌋ = 27 writes: between 24 and 108
+      in all.
+    readout: Writes accepted
+    expect: { range: [24, 108] }
+    setup:
+      params: { writeStop: 35 }
+  - id: counter-equals-the-sum-when-writes-stop-early
+    statement: >-
+      With the writes stopping at 35% of the run, the converged counter still equals the sum of
+      all writes: the result line's first number minus its second is exactly 0.
+    readout: Result
+    expect: { against: Result, against_number: 2, tolerance: 0 }
+    setup:
+      params: { writeStop: 35 }
+  - id: converges-after-the-later-of-stop-and-heal
+    statement: >-
+      With the writes stopping at 45% of the run (2,700 ms) and the partition healing at 40%
+      (2,400 ms), convergence comes after the later of the two: each side writes inside the 600 ms
+      cut, longer than the 320 ms between writes, so the sides differ until 2,400 ms, and
+      convergence counts only after the writes stop at 2,700 ms; they converge before 6,000 ms.
+    readout: Converged at
+    expect: { range: [2700, 6000] }
+    setup:
+      params: { writeStop: 45, heal: 40 }
 ---
 
 Replicas that accept writes during a partition and converge when it heals, by merge rules alone.

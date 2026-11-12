@@ -85,6 +85,59 @@ describe('crdt-convergence: partition heals at', () => {
   });
 });
 
+describe('crdt-convergence: writes stop at', () => {
+  it('is a range control of the plate, the old constant its default', () => {
+    // up to 55: writing longer adds writes and their marks, and at 80% of the run the trace is
+    // about 7% longer than at the plate's heaviest setting today (6 replicas, no partition)
+    expect(defOf('writeStop')).toMatchObject({ kind: 'range', label: 'Writes stop at (% of run)', min: 35, max: 55, step: 5, value: 55, rebuild: true });
+  });
+
+  it('round-trips through a shared link', () => {
+    const defs = plateOf(ID).params;
+    const d: Params = Object.fromEntries(defs.map((x) => [x.key, x.value]));
+    for (const v of [35, 40, 45, 50]) {
+      expect(parse(defs, serialise(defs, { ...d, writeStop: v }, 7))).toEqual({ seed: 7, params: { writeStop: v } });
+    }
+  });
+
+  it('stops the writes at writeStop × horizon; the counter converges to their sum, after max(heal, writeStop)', () => {
+    const d = defOf('writeStop');
+    expect(d, 'the plate declares the control').toBeDefined();
+    const k = kernelOf(ID) as SystemsKernel<CrdtResult>;
+    for (const writeStop of settings(d!)) for (const heal of [40, 60, 90]) for (const seed of SEEDS) {
+      const label = `writeStop ${writeStop} heal ${heal} seed ${seed}`;
+      const { net, result } = simulate(k, defaultParams(k, { writeStop, heal }), seed);
+      const stop = (HORIZON * writeStop) / 100;
+      expect(result.lastWrite, label).toBeLessThanOrEqual(stop);
+      // a replica writes at most 320 ms apart, so the last write falls within 320 ms of the stop
+      expect(result.lastWrite, label).toBeGreaterThan(stop - 320);
+      expect(result.ops.length, label).toBe(net.events.filter((e) => e.k === 'count' && e.key === 'writes').length);
+      if (Number.isNaN(result.convergedAt)) continue;
+      expect(C.value(result.replicas[0]), label).toBe(sumOfWrites(result));
+      expect(result.convergedAt, label).toBeGreaterThan(stop);
+      // each side writes inside the cut [1,800, min(heal, stop)) when that window is longer than
+      // the 320 ms between writes, and then the sides differ until the partition heals
+      if (Math.min((HORIZON * heal) / 100, stop) - 1800 > 320) {
+        expect(result.convergedAt, label).toBeGreaterThanOrEqual((HORIZON * heal) / 100);
+      }
+    }
+  });
+
+  it('drives the plate\'s readouts', async () => {
+    for (const writeStop of [35, 45]) {
+      const r = await read(ID, claim('Converged at', { writeStop }));
+      expect(r.reason, `writeStop ${writeStop}`).toBeUndefined();
+      // at 45 each side writes in [1,800, 2,700), longer than 320 ms, so the default heal at
+      // 3,600 ms bounds it; at 35 the window is 300 ms and only the stop at 2,100 ms does
+      const stop = (HORIZON * writeStop) / 100;
+      expect(r.value!, `writeStop ${writeStop}`).toBeGreaterThan(stop - 1800 > 320 ? Math.max(3600, stop) : stop);
+      const v = await read(ID, claim('Result', { writeStop }, { against: 'Result', against_number: 2, tolerance: 0 }));
+      expect(v.reason, `writeStop ${writeStop}`).toBeUndefined();
+      expect(v.value, `writeStop ${writeStop}: counter − sum of writes`).toBe(0);
+    }
+  });
+});
+
 // ---- the engine at the defaults ---------------------------------------------------------------
 
 /** Every key a control of S3 A added; a run without them takes the old constants. */
