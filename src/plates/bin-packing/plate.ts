@@ -43,15 +43,13 @@ export function build(shape: Shape, n: number, seed: number): Run {
   };
 }
 
-/** Replay up to k placements of a lane, recounting its fit tests from the placements. */
+/** Replay up to k placements of a lane, adding the fit tests each one recorded. */
 export function advance(lane: Lane, k: number): void {
   const pl = lane.packing.placements;
   const end = Math.min(pl.length, lane.at + k);
   for (; lane.at < end; lane.at++) {
     const q = pl[lane.at];
-    // next fit tests only the current bin; first fit tests every bin before the one it uses
-    const before = lane.loads.length;
-    lane.tests += lane.algorithm === 'next-fit' ? (lane.at > 0 ? 1 : 0) : q.opened ? before : q.bin + 1;
+    lane.tests += q.tests;
     if (q.opened) { lane.loads.push(0); lane.stacks.push([]); }
     lane.loads[q.bin] += q.size;
     lane.stacks[q.bin].push(q.size);
