@@ -136,6 +136,8 @@ describe('the claims schema', () => {
     expect(vs('{ against: Other }')).toMatch(/expect\.against needs exactly one of tolerance, below and above/);
     expect(vs('{ against: Other, above: 0, against_number: 0 }')).toMatch(/expect\.against_number counts from 1/);
     expect(vs('{ range: [0, 1], against_number: 2 }')).toMatch(/expect\.against_number needs expect\.against/);
+    expect(vs('{ range: [0, 1], offset: 1 }')).toMatch(/expect\.offset is a difference from expect\.against/);
+    expect(vs('{ against: Other, offset: 1, tolerance: 0 }')).toBe('');
   });
 
   it('refuses a reversed range and a tolerance without a value', () => {

@@ -21,6 +21,7 @@ describe('a claim in words', () => {
     expect(expectationText(c({ against: 'Exact', tolerance: 0.01 }))).toBe('Coverage minus Exact within ±0.01');
     expect(expectationText(c({ against: 'Exact', against_number: 2, below: 0 }))).toBe('Coverage minus Exact (number 2) below 0');
     expect(expectationText(c({ against: 'Coverage', against_number: 2, above: 0 }))).toBe('Coverage minus its number 2 above 0');
+    expect(expectationText(c({ against: 'Chain', offset: 1, tolerance: 0 }))).toBe('Coverage minus Chain minus 1 within ±0');
   });
 
   it('states the run, with the default seed when the claim names none', () => {
