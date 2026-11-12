@@ -126,8 +126,9 @@ export async function loadLab(id: string): Promise<Plate | undefined> {
   if (kernels.length < CATALOGUE.labMin) {
     throw (settled.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason;
   }
-  for (const [i, r] of settled.entries()) {
-    if (r.status === 'rejected') console.warn(`lab ${id}: ${live[i].id} not loaded`, r.reason);
+  if (failed.length) {
+    const reasons = settled.flatMap((r) => (r.status === 'rejected' ? [r.reason] : []));
+    console.warn(`lab ${id}: not loaded: ${failed.map((e) => e.id).join(', ')}`, reasons);
   }
   const c = eng.lab(id, kernels);
   const summary = failed.length
