@@ -57,8 +57,8 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   engine's flat unit declares it (a graph kernel yields the uncounted work it did, a grid kernel
   whose events resume a deep recursion sets `eventCost`).
 - Correctness tests are not judged on wall-clock time: no test sets a limit shorter than the
-  suite's `testTimeout` (`test/suite-contract.test.ts`); time is judged only by the budget gate,
-  in CPU time.
+  suite's `testTimeout`, and a Rust test's time bound is only a hang guard of at least 30 s
+  (`test/suite-contract.test.ts`); time is judged only by the budget gate, in CPU time.
 - Work that grows with the canvas or with the steps asked per frame is bounded with
   `src/core/budget.ts` (`cellWithin`, `stepsWithin`), and the readout says what was done
   (`bounded`): a bounded quantity is never shown as the value asked. A state that decays
