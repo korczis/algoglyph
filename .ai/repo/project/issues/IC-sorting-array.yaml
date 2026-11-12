@@ -6,7 +6,7 @@ title: "Sorting and selection: the array plates"
 slug: sorting-and-selection-array-plates
 priority: p2
 profile: implementation
-objective: "Make live: adaptiveshiverssort, block-merge-sort, driftsort, glidesort, grailsort, in-place-merge-sort, k-way-merge-sort, peeksort, powersort, quadsort, shiverssort, strand-sort, symmerge-based-sort, timsort, wikisort, american-flag-sort, burstsort, kirkpatrick-reisch-sort, postman-sort, skasort, spreadsort, address-calculation-sort, bucket-sort, flashsort, interpolation-sort, learnedsort, pigeonhole-sort, proxmap-sort, blitsort, crumsort, fluxsort, introsort, ford-johnson, octosort, quickxsort, weavesort, wolfsort, aks-sorting-network, bitonic-sort, gpu-bitonic-sort, columnsort, perfect-shuffle-merge, pairwise-sorting-network, shear-sort, simd-sorting-network, zig-zag-sort, parallel-counting-sort, enumeration-sort, ips4o, gpu-merge-sort, parallel-merge-sort, psrs, ps4o, parallel-quicksort, gpu-radix-sort, parallel-radix-sort, samplesort, parallel-samplesort, mapreduce-sort, terasort, buffer-tree-sort, cascade-merge-sort, external-bucket-sort, external-merge-sort, external-quicksort, external-radix-sort, external-samplesort, funnel-sort, oscillating-merge-sort, polyphase-merge-sort, tape-merge-sort, two-phase-multiway-merge-sort, bead-sort, pancake-sort, spaghetti-sort, tag-sort, sleep-sort."
+objective: "Make live: adaptiveshiverssort, block-merge-sort, driftsort, glidesort, grailsort, in-place-merge-sort, k-way-merge-sort, peeksort, powersort, quadsort, shiverssort, strand-sort, symmerge-based-sort, timsort, wikisort, american-flag-sort, burstsort, kirkpatrick-reisch-sort, postman-sort, skasort, spreadsort, address-calculation-sort, bucket-sort, flashsort, interpolation-sort, learnedsort, pigeonhole-sort, proxmap-sort, blitsort, crumsort, fluxsort, introsort, ford-johnson, octosort, quickxsort, weavesort, wolfsort, aks-sorting-network, bitonic-sort, gpu-bitonic-sort, columnsort, pairwise-sorting-network, shear-sort, simd-sorting-network, zig-zag-sort, parallel-counting-sort, enumeration-sort, ips4o, gpu-merge-sort, parallel-merge-sort, psrs, ps4o, parallel-quicksort, gpu-radix-sort, parallel-radix-sort, samplesort, parallel-samplesort, mapreduce-sort, terasort, buffer-tree-sort, cascade-merge-sort, external-bucket-sort, external-merge-sort, external-quicksort, external-radix-sort, external-samplesort, funnel-sort, oscillating-merge-sort, polyphase-merge-sort, tape-merge-sort, two-phase-multiway-merge-sort, bead-sort, pancake-sort, spaghetti-sort, tag-sort, sleep-sort."
 why: "Derived from the catalogue (ADR 0004): these entries are planned in this wing for this engine."
 scope:
   - src/kernels/array/adaptiveshiverssort.ts
@@ -50,7 +50,6 @@ scope:
   - src/kernels/array/bitonic-sort.ts
   - src/kernels/array/gpu-bitonic-sort.ts
   - src/kernels/array/columnsort.ts
-  - src/kernels/array/perfect-shuffle-merge.ts
   - src/kernels/array/pairwise-sorting-network.ts
   - src/kernels/array/shear-sort.ts
   - src/kernels/array/simd-sorting-network.ts
@@ -127,7 +126,6 @@ scope:
   - catalogue/entries/bitonic-sort.md
   - catalogue/entries/gpu-bitonic-sort.md
   - catalogue/entries/columnsort.md
-  - catalogue/entries/perfect-shuffle-merge.md
   - catalogue/entries/pairwise-sorting-network.md
   - catalogue/entries/shear-sort.md
   - catalogue/entries/simd-sorting-network.md
@@ -174,4 +172,4 @@ validation:
 evidence_required:
   - verified
 parallel_safe: true
-created_at: 2026-11-11
+created_at: 2026-11-12

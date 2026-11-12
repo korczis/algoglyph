@@ -28,7 +28,8 @@ hand can no longer disagree with the code, and a family of algorithms shares one
 - A bespoke plate is `src/plates/<id>/plate.ts` with a default `PlateCode` export; pure
   algorithm or integrator code lives beside it in its own module so it can be unit tested.
   Code shared by several bespoke plates lives in `src/plates/_shared/<name>/`, which has no
-  `plate.ts` and so is never discovered as a plate; a plate never imports another plate.
+  `plate.ts` and so is never discovered as a plate; a plate never imports another plate, which
+  `test/plate-boundaries.test.ts` checks for every file under `src/plates/`.
 - The directory or file name is the catalogue entry's `id`; `src/registry.ts` joins them and
   numbering comes from the catalogue's taxonomy order, never from code.
 - Randomness comes only from `ctx.rnd` or a `mulberry32` seeded from `ctx.seed`; a URL with

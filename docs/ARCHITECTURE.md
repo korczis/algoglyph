@@ -105,6 +105,33 @@ legend appears from two series, direct labels up to four, and a crosshair toolti
 (`mode: three`) for engines whose scenes outgrow it; adding it means one renderer path in
 `src/core/stage.ts`, which stays the only place a canvas is created.
 
+## Routes and shared links
+
+`src/core/route.ts` parses every route in one place:
+
+| Route | View |
+|-------|------|
+| `#/` | the collection |
+| `#/c/<taxonomy path>` | a node of the taxonomy |
+| `#/p/<id>?seed=<n>&<key>=<value>` | a plate |
+| `#/lab/<id>?seed=<n>&<key>=<value>` | a lab, with the same query |
+
+A route that does not resolve, including one with a malformed percent-encoding, opens the
+collection. The query carries the seed and every parameter that differs from its default
+(`src/core/share.ts`), so a copied link redraws the same picture. Values from a URL are
+untrusted. A range value must be a plain decimal number; it is clamped into the range and
+snapped to the slider's step. A select value must be one of its options, and a toggle must be
+0, 1, true or false; anything else is dropped and the default stays. The seed must be a
+decimal integer from 1 to `SEED_MAX`, the range `freshSeed()` draws from, so two links never
+alias to one generator state. Every range default lies on its own grid, so opening a link never
+moves a knob. `test/share.test.ts` round-trips every live entry and every runnable lab.
+
+A plate may also offer `reset()` on its `Sim`. The stage then shows "Reset view" (key V), which
+returns to the starting view without a rebuild. On a paused plate the stage runs a short burst
+of frames (`src/core/loop.ts`), so a progressive render finishes before the pause holds again.
+`mandelbrot-julia` uses it to undo zooms; it keeps a Julia parameter that was picked with the
+pointer.
+
 ## Tooling
 
 ```bash
