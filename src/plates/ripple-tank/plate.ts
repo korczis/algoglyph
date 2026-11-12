@@ -1,10 +1,14 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { bounded, cellWithin, flush, stepsWithin } from '../../core/budget';
 
 /** Courant number squared, (c·dt/dx)², kept under the 2D stability limit of 1/2. */
 const C2 = 0.24;
 const SPONGE = 18;
+/** Cells in the tank at most, and cell updates (cells × steps) per frame (src/core/budget.ts). */
+export const MAX_CELLS = 90_000;
+export const CELL_STEPS_PER_FRAME = 1_200_000;
 
 export const rippleTank: PlateCode = {
   id: 'ripple-tank',
@@ -49,6 +53,7 @@ export const rippleTank: PlateCode = {
     let wall: Uint8Array;
     let raster: Raster;
     let step = 0;
+    let lastSteps = 0;
     let experiment = 'double';
     let barrierX = 0;
     let sources: [number, number][] = [];
@@ -69,7 +74,7 @@ export const rippleTank: PlateCode = {
 
     return {
       setup() {
-        res = num(params, 'res');
+        res = cellWithin(ctx.width, ctx.height, num(params, 'res'), MAX_CELLS);
         w = Math.floor(ctx.width / res);
         h = Math.floor(ctx.height / res);
         u = new Float32Array(w * h);
@@ -114,7 +119,8 @@ export const rippleTank: PlateCode = {
       },
       draw() {
         const omega = (2 * Math.PI * Math.sqrt(C2)) / num(params, 'lambda');
-        const steps = num(params, 'speed');
+        const steps = stepsWithin(num(params, 'speed'), w * h, CELL_STEPS_PER_FRAME);
+        lastSteps = steps;
         for (let s = 0; s < steps; s++) {
           const drive = Math.sin(omega * step);
           if (experiment === 'double' || experiment === 'single') {
@@ -129,14 +135,15 @@ export const rippleTank: PlateCode = {
                 continue;
               }
               const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * u[i];
-              nxt[i] = (2 * u[i] - prev[i] + C2 * lap) * damp[i];
+              // flushed: the sponge decays waves into subnormal floats, slow on x86 (src/core/budget.ts)
+              nxt[i] = flush((2 * u[i] - prev[i] + C2 * lap) * damp[i]);
             }
           }
           const t = prev;
           prev = u;
           u = nxt;
           nxt = t;
-          for (let i = 0; i < u.length; i++) intensity[i] = intensity[i] * 0.992 + u[i] * u[i] * 0.008;
+          for (let i = 0; i < u.length; i++) intensity[i] = flush(intensity[i] * 0.992 + u[i] * u[i] * 0.008);
           step++;
         }
 
@@ -163,8 +170,9 @@ export const rippleTank: PlateCode = {
         raster.blit(p, true);
 
         ctx.stats([
-          { label: 'grid', value: `${w}×${h} cells` },
+          { label: 'grid', value: `${w}×${h} cells of ${bounded(res, num(params, 'res'), ' px')}` },
           { label: 'time steps', value: step.toLocaleString('en') },
+          { label: 'steps this frame', value: bounded(lastSteps, num(params, 'speed')) },
           { label: 'wave speed', value: `${Math.sqrt(C2).toFixed(3)} cells / step` },
           { label: 'period', value: `${(num(params, 'lambda') / Math.sqrt(C2)).toFixed(1)} steps` },
         ]);
