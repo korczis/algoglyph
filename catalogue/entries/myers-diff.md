@@ -14,8 +14,9 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: "O((N + M) D) time for versions of N and M tokens that differ by D edits"
 related:
   - levenshtein-matrix
-  - longest-common-subsequence
   - diff3-merge
+relations:
+  - { type: compares_with, target: longest-common-subsequence, reason: "The longest common subsequence has (N + M − D)/2 tokens: the same answer by dynamic programming." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

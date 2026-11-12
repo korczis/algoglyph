@@ -14,6 +14,8 @@ complexity: "linear in tasks and dependencies per run"
 related:
   - var-cvar
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
+relations:
+  - { type: uses, target: critical-path, reason: "The critical path is re-run on every drawn set of durations." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

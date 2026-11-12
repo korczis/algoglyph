@@ -15,6 +15,8 @@ complexity: "O((n + k) log n) for k crossings with a balanced status tree; the s
 related:
   - ccw-intersection
   - orthogonal-sweep
+relations:
+  - { type: uses, target: binary-heap, reason: "Left ends, right ends and discovered crossings leave one priority queue, a binary heap." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

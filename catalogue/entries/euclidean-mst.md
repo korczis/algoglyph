@@ -14,6 +14,8 @@ tags:
 complexity: "O(n²) here (Bowyer–Watson insertion); O(n log n) with a faster triangulation"
 related:
   - kruskal-mst
+relations:
+  - { type: uses, target: bowyer-watson-delaunay, reason: "The graph it spans is the Delaunay triangulation, built by Bowyer–Watson insertion." }
 ---
 
 The MST of points in the plane, found among the edges of their Delaunay triangulation.

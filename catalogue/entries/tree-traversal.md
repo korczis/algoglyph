@@ -14,8 +14,8 @@ tags:
   - postorder
   - level order
 complexity: "linear: each order visits every node once"
-related:
-  - bst-search-insert
+relations:
+  - { type: uses, target: bst-search-insert, reason: "The tree is grown by plain search-tree insertion, then traversed." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

@@ -13,8 +13,9 @@ tags:
   - recursion
 complexity: "O(n) for n tokens: the grammar needs one token of lookahead and never backtracks"
 related:
-  - infix-to-postfix
   - postfix-evaluation
+relations:
+  - { type: compares_with, target: infix-to-postfix, reason: "The same expressions parsed by grammar instead of by operator stack: the outputs can be checked against each other." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

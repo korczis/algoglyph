@@ -16,6 +16,8 @@ related:
   - minhash-lsh
   - simhash
   - union-find-entity-merge
+relations:
+  - { type: uses, target: quick-union, reason: "Linked documents are merged by quick-union (the smaller index as root, with path halving)." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate
@@ -23,7 +25,7 @@ pedagogy:
   - weighted-quick-union
   objectives:
   - Compare every pair of documents by the Jaccard similarity of their word 3-shingles.
-  - Link a pair at 0.3 or more, or when both carry the same agency credit and headline, and merge linked documents by union-find.
+  - Link a pair at 0.3 or more, or when both carry the same agency credit and headline, and merge linked documents by union-find (quick-union with the smaller index as the root and path halving, not the weighted form).
   - Count the sources found against the stories the input was generated from, by pairwise precision and recall.
 algorithm:
   paradigm: union-find

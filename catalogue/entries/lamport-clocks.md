@@ -13,6 +13,8 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: O(1) per event; one integer per message
 related:
   - vector-clocks
+relations:
+  - { type: related_to, target: transitive-closure, reason: "Happened-before is the transitive closure of program order and messages, checked by graph search." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

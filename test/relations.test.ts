@@ -48,3 +48,31 @@ describe('relations: the reverse of every link is derived', () => {
     expect(linked('quick-find', 'quick-union', 'has_variant')).toBe(true);
   });
 });
+
+// [from, type, to, why]: each stated by the `from` entry's notes (quoted in the commit)
+const STATED: [string, string, string][] = [
+  ['euclidean-mst', 'uses', 'bowyer-watson-delaunay'],
+  ['general-sweep', 'uses', 'binary-heap'],
+  ['sir-cascade', 'generalizes', 'breadth-first-search'],
+  ['tree-traversal', 'uses', 'bst-search-insert'],
+  ['huffman-coding', 'uses', 'binary-heap'],
+  ['myers-diff', 'compares_with', 'longest-common-subsequence'],
+  ['noise-colours', 'uses', 'least-squares'],
+  ['source-family', 'uses', 'quick-union'],
+  ['pert-monte-carlo', 'uses', 'critical-path'],
+  ['lamport-clocks', 'related_to', 'transitive-closure'],
+  ['bin-packing', 'related_to', 'tournament-sort'],
+  ['recursive-descent-parser', 'compares_with', 'infix-to-postfix'],
+];
+
+describe('relations: typed links the notes state', () => {
+  it.each(STATED)('%s %s %s, and its reverse on the target', (from, type, to) => {
+    expect(declared(from).relations).toContainEqual(expect.objectContaining({ type, target: to }));
+    expect(linked(from, to, type)).toBe(true);
+    expect(linked(to, from, reverse(type))).toBe(true);
+  });
+
+  it('a typed link replaces the v1 related item it upgrades', () => {
+    for (const [from, , to] of STATED) expect(declared(from).related, `${from} related`).not.toContain(to);
+  });
+});

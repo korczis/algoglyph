@@ -15,7 +15,8 @@ complexity: "O(E) per step"
 interaction: "Tap a vertex to make it the seed."
 related:
   - spreading-activation
-  - breadth-first-search
+relations:
+  - { type: generalizes, target: breadth-first-search, reason: "With beta and gamma both 1 the cascade is exactly a breadth-first search." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

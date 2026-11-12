@@ -18,6 +18,8 @@ tags:
   - first fit decreasing
 motivation: Warehouse logistics spend most of their time on exactly this.
 complexity: next fit O(n); first fit O(n · bins) as scanned here, O(n log n) with a tournament tree; first fit decreasing adds an O(n log n) sort
+relations:
+  - { type: related_to, target: tournament-sort, reason: "A tournament tree over the free space finds the first bin that fits in O(log n)." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate
