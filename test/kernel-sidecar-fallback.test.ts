@@ -2,7 +2,7 @@
 // catalogue/<family>-sidecar.yaml that maps it. Each case copies the fixture tree under
 // test/fixtures/kernel-sidecar, changes one thing, and asks the catalogue (scripts/lib) and the
 // registry (src/registry.ts) what they make of it.
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -21,6 +21,12 @@ function tree(edit: (root: string) => void = () => {}): string {
   const root = mkdtempSync(join(tmpdir(), 'algoglyph-sidecar-'));
   trees.push(root);
   cpSync(FIXTURE, root, { recursive: true });
+  // the catalogue's own schema and relation table, never a copy that could drift (ADR 0005)
+  for (const f of ['catalogue/schema/entry.yaml', 'catalogue/relations.yaml']) cpSync(f, join(root, f));
+  // a live entry needs a test (ADR 0005 §3): the fixture's entries stand on the array engine's
+  // harness, written here rather than in the fixture so the runner never collects it
+  mkdirSync(join(root, 'test'), { recursive: true });
+  writeFileSync(join(root, 'test', 'kernels-array.test.ts'), '// the array harness of a fixture tree\n');
   edit(root);
   return root;
 }

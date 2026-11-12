@@ -457,7 +457,8 @@ export function loadCatalogue(root, { code = true } = {}) {
     delete e.implemented;
     // a live entry is an experiment someone runs: it is tested, or it is refused (the owner,
     // 2026-11-12: every experiment standalone and tested, validated, verified, enforced)
-    if (e.status === 'live' && !e.evidence.tested) {
+    // (a live entry with no code is already refused as such; its missing test is the same gap)
+    if (e.status === 'live' && implemented && !e.evidence.tested) {
       errors.push(`${e.file}: live, but no test names it (a describe('${e.id}'), an import of plates/${e.id}/ or kernels/${e.engine}/${e.id}, or the engine harness test/kernels-${e.engine}.test.ts)`);
     }
     // maturity: each profile needs the ones before it; the first one missing is the next gap
