@@ -9,7 +9,7 @@ import { rgba } from '../_shared/two-slit/draw';
 /** Steps of a run (the counted changes: every walker moves once a step). */
 export const STEPS = 1200;
 /** The most steps a frame takes, at the pace control's top: the frame the budget measures. */
-export const MAX_PER_FRAME = 40;
+export const MAX_PER_FRAME = 20;
 /** Time step per preset: small enough that dt·|U″|/γ stays far below 1. */
 const DT: Record<PotentialKind, number> = { flat: 0.01, harmonic: 0.01, gravity: 0.005, tilt: 0.01, ratchet: 0.002 };
 const BINS = 48;
