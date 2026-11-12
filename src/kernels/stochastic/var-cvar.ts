@@ -82,11 +82,16 @@ export const kernel: StochasticKernel<RiskResult> = {
         const x = ops.evaluate(sc.draw, s);
         fresh.push(x);
         perBatch[done % BATCHES].push(x);
-        if (done % 5000 === 4999) yield;
+        if (done % 2000 === 1999) yield;
       }
+      // each merge into a sorted sample is a piece of its own: at the largest n the merges cost
+      // more than a frame's share together (test/budget.test.ts, rebuild check)
       histogram(fresh, lo, hi, 64, 0, fresh.length, bins);
+      yield;
       all.add(fresh);
-      batches.forEach((b, i) => b.add(perBatch[i]));
+      yield;
+      for (let i = 0; i < BATCHES; i++) batches[i].add(perBatch[i]);
+      yield;
       const r = tailRisk(all.values, level);
       const per = batches.map((b) => tailRisk(b.values, level));
       const fewest = Math.min(...per.map((q) => q.tail));

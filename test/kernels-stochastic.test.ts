@@ -554,10 +554,13 @@ describe('stochastic engine budgets', () => {
     let worst = 0;
     let swapped = false;
     let preparing = 0;
+    // CPU time of this process, not wall-clock: preemption by other processes is not a stall
+    // (the same instrument as test/budget.test.ts)
+    const cpu = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
     for (let i = 0; i < 20000 && !swapped; i++) {
-      const a = performance.now();
+      const a = cpu();
       r.tick();
-      worst = Math.max(worst, performance.now() - a);
+      worst = Math.max(worst, cpu() - a);
       if (r.next) preparing++;
       if (r.run !== first) {
         swapped = true;

@@ -58,12 +58,17 @@ export const kernel: StochasticKernel<PageHinkleyResult> = {
     const hi = Math.max(3.5 + shift, ...xs);
     const top = Math.max(lambda * 1.3, ...statistic);
     const every = Math.max(1, Math.ceil(n / FRAMES));
+    // the points are built once and each frame takes a shallow prefix: building them per frame
+    // made O(n) fresh tuples a frame, and their collection was the frame the budget gate caught
+    const streamPts = xs.map((v, i) => [i, v] as [number, number]);
+    const streamTones = xs.map((_, i) => (i >= at ? 0.85 : 0.6));
+    const statPts = statistic.map((v, i) => [i, v] as [number, number]);
     let mean = 0;
     for (let t = 0; t < n; t++) {
       mean += xs[t];
       if ((t + 1) % every === 0 || t === n - 1) {
         const upto = t + 1;
-        ops.setSeries('statistic', statistic.slice(0, upto).map((v, i) => [i, v]));
+        ops.setSeries('statistic', statPts.slice(0, upto));
         ops.setSeries('threshold λ', [[0, lambda], [upto - 1, lambda]]);
         const seen = alarm >= 0 && alarm <= t;
         const marks = [
@@ -73,13 +78,13 @@ export const kernel: StochasticKernel<PageHinkleyResult> = {
         ops.frame([
           {
             kind: 'plot', title: 'Stream, and the mean it is drawn from', x: [0, n - 1], y: [lo, hi],
-            dots: [{ pts: xs.slice(0, upto).map((v, i) => [i, v]), tones: xs.slice(0, upto).map((_, i) => (i >= at ? 0.85 : 0.6)), size: 1.6, alpha: 0.7 }],
+            dots: [{ pts: streamPts.slice(0, upto), tones: streamTones.slice(0, upto), size: 1.6, alpha: 0.7 }],
             lines: [{ pts: [[0, 0], [Math.min(at, upto) - 1, 0], ...(upto > at ? [[at, shift], [upto - 1, shift]] as [number, number][] : [])], tone: -1, alpha: 0.35, weight: 1 }],
             marks,
           },
           {
             kind: 'plot', title: 'm_t − min m against the threshold λ', x: [0, n - 1], y: [0, top],
-            lines: [{ pts: statistic.slice(0, upto).map((v, i) => [i, v]), tone: 0.85, weight: 1.5 }],
+            lines: [{ pts: statPts.slice(0, upto), tone: 0.85, weight: 1.5 }],
             marks: [{ y: lambda, label: `λ = ${lambda}`, tone: -1, dash: true }, ...marks],
           },
         ], [

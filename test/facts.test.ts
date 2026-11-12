@@ -26,6 +26,15 @@ describe('landing-page facts', () => {
     expect(cards[0].value).toBe(f.live);
   });
 
+  it('makes every card a link into what it counts', () => {
+    const lab = CATALOGUE.labs[0]?.id ?? '';
+    const cards = factCards(f, lab);
+    for (const c of cards) expect(c.href, c.key).toMatch(/^#\//);
+    expect(cards.find((c) => c.key === 'live')?.href).toBe('#/?status=live');
+    expect(cards.find((c) => c.key === 'planned')?.href).toBe('#/?status=planned');
+    if (lab) expect(cards.find((c) => c.key === 'labs')?.href).toBe(`#/lab/${lab}`);
+  });
+
   it('joins words as prose', () => {
     expect(prose([])).toBe('');
     expect(prose(['a'])).toBe('a');
