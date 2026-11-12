@@ -15,18 +15,22 @@ export interface ScheduleResult { tasks: Task[]; capacity: number; decisions: De
 
 /** The largest demand a task may have, before the units cap it: the control's default. */
 export const MAX_DEMAND = 3;
+/** The chance, in percent, that each of the six tasks before a task is one of its predecessors. */
+export const DENSITY = 28;
 
 /** A param, or the default it had as a fixed constant when the param is absent. */
 const opt = (p: Params, key: string, fallback: number) =>
   (p[key] === undefined ? fallback : num(p, key));
 
-/** A seeded layered task graph; each task needs 1..min(maxDemand, capacity) units. */
-export function graph(n: number, capacity: number, rnd: () => number,
-  maxDemand = MAX_DEMAND): Task[] {
+/** A seeded layered task graph; each task needs 1..min(maxDemand, capacity) units, and each of
+ * the six tasks before it is a predecessor with probability density / 100. */
+export function graph(n: number, capacity: number, rnd: () => number, maxDemand = MAX_DEMAND,
+  density = DENSITY): Task[] {
+  const chance = density / 100;
   const tasks: Task[] = [];
   for (let i = 0; i < n; i++) {
     const preds: number[] = [];
-    for (let j = Math.max(0, i - 6); j < i; j++) if (rnd() < 0.28) preds.push(j);
+    for (let j = Math.max(0, i - 6); j < i; j++) if (rnd() < chance) preds.push(j);
     tasks.push({
       id: i, preds, dur: 100 + Math.floor(rnd() * 9) * 50,
       demand: 1 + Math.floor(rnd() * Math.min(maxDemand, capacity)), prio: 0,
@@ -49,6 +53,10 @@ export const kernel: SystemsKernel<ScheduleResult> = {
       kind: 'range', key: 'maxDemand', label: 'Largest task demand (units)', min: 1, max: 8, step: 1,
       value: MAX_DEMAND, rebuild: true,
     },
+    {
+      kind: 'range', key: 'density', label: 'Dependency chance (%)', min: 0, max: 60, step: 4,
+      value: DENSITY, rebuild: true,
+    },
   ],
   setup: (p) => ({
     lanes: Array.from({ length: num(p, 'units') }, (_, i) => `unit ${i + 1}`),
@@ -59,7 +67,8 @@ export const kernel: SystemsKernel<ScheduleResult> = {
   }),
   install(net, p) {
     const C = num(p, 'units');
-    const tasks = graph(num(p, 'tasks'), C, net.rnd, opt(p, 'maxDemand', MAX_DEMAND));
+    const tasks = graph(num(p, 'tasks'), C, net.rnd, opt(p, 'maxDemand', MAX_DEMAND),
+      opt(p, 'density', DENSITY));
     const critical = Math.max(0, ...tasks.map((t) => t.prio));
     const work = tasks.reduce((s, t) => s + t.dur * t.demand, 0);
     const res: ScheduleResult = { tasks, capacity: C, decisions: [], critical, work };

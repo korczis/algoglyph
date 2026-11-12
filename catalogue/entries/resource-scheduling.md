@@ -67,6 +67,34 @@ claims:
     expect: { range: [0, 100] }
     setup:
       params: { maxDemand: 8, units: 8, tasks: 30 }
+  - id: independent-tasks-finish-with-the-longest
+    statement: >-
+      With no dependencies (chance 0) every task is a chain of its own, so the critical path is
+      the longest single duration; with one unit each and no more tasks than units (8 of each)
+      every task starts at time zero, so the makespan is that duration, exactly: the difference
+      is 0.
+    readout: Makespan
+    expect: { against: Critical path (lower bound), tolerance: 0 }
+    setup:
+      params: { density: 0, maxDemand: 1, units: 8, tasks: 8 }
+  - id: independent-critical-path-is-one-duration
+    statement: >-
+      At the same setting the critical path is one task's duration, 100 + 50 k ms for k in 0..8,
+      so it lies in [100, 500] ms, a hard range from the durations the graph draws.
+    readout: Critical path (lower bound)
+    expect: { range: [100, 500] }
+    setup:
+      params: { density: 0, maxDemand: 1, units: 8, tasks: 8 }
+  - id: bounds-hold-at-the-densest-graph
+    statement: >-
+      With each of the six tasks before a task a predecessor at a 60% chance, the makespan still
+      cannot beat the larger of the critical path and the work divided by the units, reported
+      rounded to the millisecond (the result line's third number): whole milliseconds, so the
+      difference is above −1.
+    readout: Makespan
+    expect: { against: Result, against_number: 3, above: -1 }
+    setup:
+      params: { density: 60, tasks: 30 }
 ---
 
 Tasks start in priority order when their predecessors are done and a resource is free.

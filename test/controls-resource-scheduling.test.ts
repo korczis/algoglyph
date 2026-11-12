@@ -1,7 +1,9 @@
-// resource-scheduling's largest task demand becomes a control (S3 C1): demand =
-// 1 + ⌊u · min(maxDemand, units)⌋, the old constant 3. Checked: the control exists with the old
-// constant as its default, it travels in a shared link, it drives what the plate reads (the two
-// lower bounds always, Graham's bound at unit demands), and the default run is what it was.
+// resource-scheduling's two fixed constants become controls (S3 C1, C2): the largest task demand
+// (demand = 1 + ⌊u · min(maxDemand, units)⌋, the old constant 3) and the dependency chance (each
+// of the six tasks before a task is a predecessor with probability density / 100, the old 0.28).
+// Checked: each control exists with the old constant as its default, it travels in a shared link,
+// it drives what the plate reads (the two lower bounds always, Graham's bound at unit demands,
+// the critical path as one duration without dependencies), and the default run is what it was.
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
@@ -97,6 +99,57 @@ describe('resource-scheduling: largest task demand', () => {
   });
 });
 
+describe('resource-scheduling: dependency chance', () => {
+  const KEY = 'density';
+
+  it('is a range control with the old constant as its default', () => {
+    expect(defOf(KEY)).toMatchObject({ kind: 'range', label: 'Dependency chance (%)', min: 0, max: 60, step: 4, value: 28, rebuild: true });
+    expect(plate().params.find((x) => x.key === KEY)).toEqual(defOf(KEY));
+  });
+
+  it('round-trips through a shared link', () => roundTrip(KEY, [0, 12, 60]));
+
+  it('sets the dependencies, and the bounds hold, at every setting', () => {
+    let fewer = 0; let more = 0;
+    for (const c of settings(defOf(KEY)!)) {
+      for (const [tasks, units] of SHAPES) {
+        for (const seed of SEEDS) {
+          const r = sim(defaultParams(kernel, { tasks, units, [KEY]: c }), seed);
+          bounds(r, units);
+          for (const t of r.tasks) for (const q of t.preds) expect(t.id - q).toBeGreaterThanOrEqual(1);
+          for (const t of r.tasks) for (const q of t.preds) expect(t.id - q).toBeLessThanOrEqual(6);
+          const edges = r.tasks.reduce((s, t) => s + t.preds.length, 0);
+          if (c === 0) {
+            // no dependencies: every task is a chain of its own, so the critical path is the
+            // longest single duration, exactly
+            expect(edges).toBe(0);
+            expect(r.critical).toBe(Math.max(...r.tasks.map((t) => t.dur)));
+          }
+          if (c === 60) more += edges;
+          if (c === 4) fewer += edges;
+        }
+      }
+    }
+    expect(more).toBeGreaterThan(fewer);
+  });
+
+  it('drives the readouts: independent tasks, one unit each, all at once', async () => {
+    // no dependencies and every task alone on a unit: all start at 0, the makespan is the
+    // longest duration, which is the critical path, 100 + 50 k for k in 0..8
+    const p = { [KEY]: 0, maxDemand: 1, units: 8, tasks: 8 };
+    const r = await read(ID, claim('Makespan', p, { against: 'Critical path (lower bound)', tolerance: 0 }));
+    expect(r.reason).toBeUndefined();
+    expect(r.value).toBe(0);
+    const c = await read(ID, claim('Critical path (lower bound)', p));
+    expect(c.reason).toBeUndefined();
+    expect(c.value!).toBeGreaterThanOrEqual(100);
+    expect(c.value!).toBeLessThanOrEqual(500);
+    const lb = await read(ID, claim('Makespan', { [KEY]: 60, tasks: 30 }, { against: 'Result', against_number: 3, above: -1 }));
+    expect(lb.reason).toBeUndefined();
+    expect(lb.value!).toBeGreaterThan(-1);
+  });
+});
+
 describe('resource-scheduling at its defaults is what it was before the controls', () => {
   // integers only (task graph, demands, start and finish times), recorded on the code before the
   // controls existed (main 23b65ad)
@@ -112,6 +165,6 @@ describe('resource-scheduling at its defaults is what it was before the controls
   });
 
   it('the explicit defaults run as no param does', () => {
-    expect(record({ maxDemand: 3 })).toEqual(record({}));
+    expect(record({ maxDemand: 3, density: 28 })).toEqual(record({}));
   });
 });
