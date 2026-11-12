@@ -70,6 +70,11 @@ describe('the test suite', () => {
   });
 
   for (const f of files.filter((x) => x !== 'budget.test.ts')) {
+    it(`${f} leaves frame times to the budget gate`, () => {
+      // a frame budget judged outside test/budget.test.ts has none of its calibration or headroom:
+      // two such checks failed deploys on a loaded runner (42.2 ms against a raw 40, run 43173408443)
+      expect(/\bframe_ms\b/.test(readFileSync(join('test', f), 'utf8')), f).toBe(false);
+    });
     it(`${f} asserts nothing about wall-clock time`, () => {
       // a wall-clock reading may end a loop, never decide a test: budgets are CPU time
       expect(wallClockAsserts(readFileSync(join('test', f), 'utf8')), f).toBe(0);
