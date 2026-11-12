@@ -16,6 +16,23 @@ interaction: 'Click a cell to cycle its rating through II, I, N, C and CC; the s
 related:
   - bayes-update
   - dempster-shafer
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Rank rival hypotheses by the weighted evidence that contradicts each, not by the evidence that fits it.
+    - Recognise an item rated alike for every hypothesis as evidence with no diagnostic value.
+    - Read the least contradicted hypothesis as a candidate to test further, and report equal scores as a tie.
+claims:
+  - id: true-hypothesis-ranks-first-without-misleading-evidence
+    statement: >-
+      With no misleading evidence (noise 0) no item contradicts the hypothesis the case was built
+      on, so its weighted inconsistency is 0, the least any hypothesis can score, and it ranks
+      first, alone or tied; the expectation is exact.
+    readout: Rank of the hypothesis the case was built on
+    expect: { value: 1, tolerance: 0 }
+    setup:
+      params: { noise: 0 }
 ---
 
 Evidence against hypotheses in a matrix, ranked by what contradicts each the least.

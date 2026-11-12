@@ -11,6 +11,15 @@ tags:
   - evidence fusion
 complexity: "linear in the number of causes"
 motivation: Resolving one company or person across noisy public registries needs it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Combine independent causes as one minus the product of their failures, and add them one at a time by q ← q + (1 − q)p.
+    - Explain the leak, which fires with no cause, and why absent causes contribute nothing.
+    - Check the formula against a simulation of its generative story, converging at the rate of a binomial proportion.
+algorithm:
+  paradigm: incremental
 ---
 
 Independent pieces of evidence combine as one minus the product of their failures.
