@@ -3,7 +3,10 @@
 // directly, a finer Simpson cumulative for Born sampling, the closed-form contrast factors for the
 // detector grid, and the closed forms of a Gaussian wall for the recoil model.
 import { describe, expect, it } from 'vitest';
+import { GROUNDS, palette } from '../src/core/palette';
+import { defaults, type Params, type PlateContext, type Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
+import { loadPlate } from '../src/registry';
 import {
   compare, fire, mergedBins, MIN_EXPECTED, tally, type Gun,
 } from '../src/plates/_shared/two-slit/ballistic';
@@ -13,7 +16,9 @@ import {
 import {
   besselJ0, chiSquareQuantile, erf, interpolate, ksBound, ksDistance, sinc, Z_999,
 } from '../src/plates/_shared/two-slit/math';
+import { CALM, FASTEST, Pacer, roundRobin } from '../src/plates/_shared/two-slit/pace';
 import { closedForm, uncertaintyRatio, Wall } from '../src/plates/_shared/two-slit/recoil';
+import { installBrowserStubs, p5Stub } from './support/p5-stub';
 import {
   envelope, fringePeriod, referenceCdf, Screen, twoSlit, visibilityMoments, VisibilityEstimate,
   type Slits,
@@ -229,4 +234,61 @@ describe('two-slit bullets', () => {
     expect(c.additive).toBeLessThan(c.band[1]);
     expect(c.coherent).toBeGreaterThan(10 * c.band[1]);
   });
+});
+
+installBrowserStubs();
+
+/** Every readout of a plate run to the end at one pace (headless, drawing stubbed). */
+async function finalReadouts(id: string, setup: Params, rate: number): Promise<Stat[]> {
+  const plate = (await loadPlate(id))!;
+  const params = { ...defaults(plate), ...setup, rate };
+  let rows: Stat[] = [];
+  const ctx: PlateContext = {
+    width: 800, height: 500, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
+    bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg, thumbnail: false, palette: () => palette('abyss'),
+    stats(r) { rows = r; }, chart() {},
+  };
+  const sim = plate.create(p5Stub(), ctx);
+  sim.setup();
+  let last = '';
+  let still = 0;
+  for (let f = 0; f < 40_000 && still < 60; f++) {
+    sim.draw();
+    const now = JSON.stringify(rows);
+    still = now === last ? still + 1 : 0;
+    last = now;
+  }
+  return rows;
+}
+
+describe('two-slit pace', () => {
+  it('carries fractions: the calm default lands under 30 particles a second at 60 frames a second', () => {
+    const p = new Pacer();
+    let total = 0;
+    for (let f = 0; f < 600; f++) total += p.take(CALM);
+    expect(total / 10).toBeLessThanOrEqual(30);
+    expect(total / 10).toBeGreaterThan(20);
+  });
+
+  it('shares single steps among runs across frames, and stops at their ends', () => {
+    const done = [0, 0, 0];
+    const left = (r: number) => 4 - done[r];
+    for (let f = 0; f < 6; f++) roundRobin(1, left, 3, (r) => { done[r]++; });
+    expect(done).toEqual([2, 2, 2]);
+    roundRobin(100, left, 3, (r) => { done[r]++; });
+    expect(done).toEqual([4, 4, 4]);
+  });
+
+  it('changes how fast a run is drawn, never what it measures', async () => {
+    const cases: [string, Params][] = [
+      ['two-slit-classical', { n: 1000 }],
+      ['two-slit-amplitudes', { scenario: 'electrons', n: 2000 }],
+      ['two-slit-amplitudes', { scenario: 'watched', n: 2000, eta: 0.5 }],
+      ['two-slit-amplitudes', { scenario: 'recoil', n: 2000 }],
+    ];
+    for (const [id, setup] of cases) {
+      expect(await finalReadouts(id, setup, CALM), `${id} ${JSON.stringify(setup)}`)
+        .toEqual(await finalReadouts(id, setup, FASTEST));
+    }
+  }, 120_000);
 });

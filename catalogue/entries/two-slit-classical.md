@@ -60,18 +60,24 @@ claims:
       by the wall, landing on the backstop, or passing a hole and missing the backstop.
     readout: count balance, fired − blocked − detected − missed
     expect: { value: 0 }
+    setup:
+      params: { rate: 3.3 }
   - id: both-holes-above-the-band-floor
     statement: >-
       The χ²/k of the both-holes histogram against the sum of the one-hole histograms lies above the
       0.1 % point of χ²ₖ/k for the bins judged, so the two agree no better than chance allows.
     readout: χ²/k of N₁₂ against N₁ + N₂
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 1, above: 0 }
+    setup:
+      params: { rate: 3.3 }
   - id: both-holes-below-the-band-ceiling
     statement: >-
       The same χ²/k lies below the 99.9 % point of χ²ₖ/k: bullets through two holes add up, with no
       interference term, to within the run's counting noise.
     readout: χ²/k of N₁₂ against N₁ + N₂
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, below: 0 }
+    setup:
+      params: { rate: 3.3 }
   - id: the-test-would-see-interference
     statement: >-
       A power check: the same both-holes histogram tested against an interference hypothesis built
@@ -80,6 +86,8 @@ claims:
       bullets interfered.
     readout: χ²/k against interference with a 4-bin period
     expect: { against: 'χ²ₖ/k band, 0.1 % to 99.9 %', against_number: 2, above: 5 }
+    setup:
+      params: { rate: 3.3 }
 ---
 
 A gun sprays bullets at a wall with two holes; behind it a backstop counts where they land. Three runs fire the same number of bullets: hole 2 shut, hole 1 shut, both open. The curve with both holes open is the sum of the other two.

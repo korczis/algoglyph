@@ -4,6 +4,7 @@ import { num, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
 import { compare, fire, tally, type Comparison, type Gun, type Openings, type Tally } from '../_shared/two-slit/ballistic';
 import { bars, curve, legend, rgba, type Panel } from '../_shared/two-slit/draw';
+import { Pacer, rateParam, roundRobin } from '../_shared/two-slit/pace';
 
 const DEG = Math.PI / 180;
 /** Gun to wall and wall to backstop (m), and the backstop's half-height (m). */
@@ -14,8 +15,8 @@ const Y = 0.3;
 const HYPOTHESIS_BINS = 4;
 /** Tracks of recent bullets drawn in the apparatus. */
 const TRACKS = 40;
-/** Bullets per run per frame in the gallery thumbnail. */
-const THUMB_RATE = 1500;
+/** Bullets per frame, all runs, in the gallery thumbnail. */
+const THUMB_RATE = 4500;
 
 const RUNS: Openings[] = ['one', 'two', 'both'];
 
@@ -38,8 +39,7 @@ export const twoSlitClassical: PlateCode = {
       rebuild: true },
     { kind: 'range', key: 'n', label: 'Bullets fired per run', min: 5000, max: 80000, step: 5000,
       value: 40000, rebuild: true },
-    { kind: 'range', key: 'rate', label: 'Bullets per frame, each run', min: 20, max: 2000,
-      step: 20, value: 200 },
+    rateParam('Bullets'),
     paletteParam('ember'),
   ],
   create(p, ctx) {
@@ -50,6 +50,7 @@ export const twoSlitClassical: PlateCode = {
     let n = 0;
     let result: Comparison | null = null;
     let tracks: { yw: number; y: number; detected: boolean }[] = [];
+    const pacer = new Pacer();
 
     return {
       setup() {
@@ -69,18 +70,15 @@ export const twoSlitClassical: PlateCode = {
         tracks = [];
       },
       draw() {
-        const rate = ctx.thumbnail ? THUMB_RATE : num(params, 'rate');
-        for (let r = 0; r < RUNS.length; r++) {
+        const budget = ctx.thumbnail ? THUMB_RATE : pacer.take(num(params, 'rate'));
+        roundRobin(budget, (r) => n - runs[r].emitted, RUNS.length, (r) => {
           const t = runs[r];
-          const shots = Math.min(rate, n - t.emitted);
-          for (let i = 0; i < shots; i++) {
-            fire(gun, RUNS[r], rnds[r], t);
-            if (r === 2 && i % 7 === 0) {
-              tracks.push(t.last);
-              if (tracks.length > TRACKS) tracks.shift();
-            }
+          fire(gun, RUNS[r], rnds[r], t);
+          if (r === 2) {
+            tracks.push(t.last);
+            if (tracks.length > TRACKS) tracks.shift();
           }
-        }
+        });
         const done = runs.every((t) => t.emitted >= n);
         if (done && !result) {
           result = compare(gun, runs[0].hist, runs[1].hist, runs[2].hist,

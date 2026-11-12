@@ -12,13 +12,14 @@ import {
   envelope, fringePeriod, oneSlit, referenceCdf, Screen, twoSlit, visibilityMoments,
   VisibilityEstimate, type Slits,
 } from '../_shared/two-slit/screen';
+import { Pacer, rateParam, roundRobin } from '../_shared/two-slit/pace';
 import { deBroglie, electronMomentum, HBAR, length, PLANCK } from '../_shared/two-slit/units';
 
 type Scenario = 'electrons' | 'watched' | 'resolution' | 'recoil';
 
 const AMPLITUDE: Scenario[] = ['electrons', 'watched'];
-/** Events per run per frame in the gallery thumbnail. */
-const THUMB_RATE = 1500;
+/** Particles per frame, all runs, in the gallery thumbnail. */
+const THUMB_RATE = 4500;
 /** Bins of the hit histograms over the fringe windows of the resolution and recoil modes. */
 const WINDOW_BINS = 96;
 /** Beyond this many fringe periods a wrapped reading is uniform to double precision. */
@@ -92,8 +93,7 @@ export const twoSlitAmplitudes: PlateCode = {
       step: 0.01, value: -0.3, rebuild: true, when: when('recoil') },
     { kind: 'range', key: 'n', label: 'Particles emitted per run', min: 2000, max: 60000,
       step: 2000, value: 20000, rebuild: true },
-    { kind: 'range', key: 'rate', label: 'Particles per frame, each run', min: 20, max: 2000,
-      step: 20, value: 200 },
+    rateParam('Particles'),
     paletteParam('abyss'),
   ],
   create(p, ctx) {
@@ -101,7 +101,9 @@ export const twoSlitAmplitudes: PlateCode = {
     let scenario: Scenario = 'electrons';
     let n = 0;
     let stats: () => Stat[] = () => [];
-    let step: (rate: number) => void = () => {};
+    /** Advance the runs by this frame's particles, all runs together. */
+    let step: (budget: number) => void = () => {};
+    const pacer = new Pacer();
     let render: (g: CanvasRenderingContext2D) => void = () => {};
     const stream = () => mulberry32(Math.floor(ctx.rnd() * 0x7fffffff) + 1);
 
@@ -148,45 +150,42 @@ export const twoSlitAmplitudes: PlateCode = {
         / integrate((x) => 2 * oneSlit(s, x), cLo, cLo + w, 256);
       let ks: number | null = null;
 
-      step = (rate) => {
-        for (let r = 0; r < runs.length; r++) {
+      step = (budget) => {
+        roundRobin(budget, (r) => n - runs[r].emitted, runs.length, (r) => {
           const run = runs[r];
-          const shots = Math.min(rate, n - run.emitted);
-          for (let i = 0; i < shots; i++) {
-            run.emitted++;
-            const rnd = rnds[r];
-            if (watched) {
-              const flash = rnd() < eta;
-              // the photon's direction sets the phase it kicks into the second path: x-momentum
-              // k·sin φ in the plane, k·nₓ (uniform in [−1, 1]) for isotropic scattering in space;
-              // the illumination is along the beam, so the incident photon adds no phase
-              const theta = !flash ? 0 : plane ? kd * Math.sin(2 * Math.PI * rnd()) : kd * (2 * rnd() - 1);
-              const out = screen.emitTwo(rnd, theta);
-              if (out.outcome !== 'hit') continue;
-              run.hits++;
-              const b = binOf(out.x);
-              run.hist[b]++;
-              est.all.add(out.x);
-              if (flash) {
-                flashes++;
-                flashHist[b]++;
-                est.flash.add(out.x);
-              } else {
-                darkHist[b]++;
-                est.dark.add(out.x);
-              }
-              continue;
-            }
-            const out = r === 2 ? screen.emitTwo(rnd) : screen.emitOne(rnd);
-            if (out.outcome !== 'hit') continue;
+          run.emitted++;
+          const rnd = rnds[r];
+          if (watched) {
+            const flash = rnd() < eta;
+            // the photon's direction sets the phase it kicks into the second path: x-momentum
+            // k·sin φ in the plane, k·nₓ (uniform in [−1, 1]) for isotropic scattering in space;
+            // the illumination is along the beam, so the incident photon adds no phase
+            const theta = !flash ? 0 : plane ? kd * Math.sin(2 * Math.PI * rnd()) : kd * (2 * rnd() - 1);
+            const out = screen.emitTwo(rnd, theta);
+            if (out.outcome !== 'hit') return;
             run.hits++;
-            run.hist[binOf(out.x)]++;
-            if (r === 2) {
-              both[bothHits++] = out.x;
-              est.all.add(out.x);
+            const b = binOf(out.x);
+            run.hist[b]++;
+            est.all.add(out.x);
+            if (flash) {
+              flashes++;
+              flashHist[b]++;
+              est.flash.add(out.x);
+            } else {
+              darkHist[b]++;
+              est.dark.add(out.x);
             }
+            return;
           }
-        }
+          const out = r === 2 ? screen.emitTwo(rnd) : screen.emitOne(rnd);
+          if (out.outcome !== 'hit') return;
+          run.hits++;
+          run.hist[binOf(out.x)]++;
+          if (r === 2) {
+            both[bothHits++] = out.x;
+            est.all.add(out.x);
+          }
+        });
         if (!watched && ks === null && runs.every((run) => run.emitted >= n)) {
           const ref = referenceCdf(s, X, 1);
           ks = ksDistance(both.subarray(0, bothHits), (x) => interpolate(ref, -X, X, x));
@@ -318,8 +317,8 @@ export const twoSlitAmplitudes: PlateCode = {
       const rnd = stream();
       const closed = attenuation(kind, ratio);
 
-      step = (rate) => {
-        const shots = Math.min(rate, n - emitted);
+      step = (budget) => {
+        const shots = Math.min(budget, n - emitted);
         for (let i = 0; i < shots; i++) {
           emitted++;
           // where the particle arrives: the fringe 1 + cos(2πx/Λ) over whole periods
@@ -423,8 +422,8 @@ export const twoSlitAmplitudes: PlateCode = {
       let sumSq = 0;
       const pk = wall.momentum();
 
-      step = (rate) => {
-        const shots = Math.min(rate, n - emitted);
+      step = (budget) => {
+        const shots = Math.min(budget, n - emitted);
         for (let i = 0; i < shots; i++) {
           emitted++;
           const X = draw(rnd);
@@ -545,7 +544,7 @@ export const twoSlitAmplitudes: PlateCode = {
         else recoil();
       },
       draw() {
-        step(ctx.thumbnail ? THUMB_RATE : num(params, 'rate'));
+        step(ctx.thumbnail ? THUMB_RATE : pacer.take(num(params, 'rate')));
         const g = p.drawingContext as CanvasRenderingContext2D;
         p.background(...ctx.bg);
         g.save();

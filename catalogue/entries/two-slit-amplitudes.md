@@ -98,6 +98,8 @@ claims:
       the non-relativistic h/√(2mₑE) with the CODATA constants.
     readout: electron wavelength λ
     expect: { value: 0.17344, tolerance: 0.00002 }
+    setup:
+      params: { rate: 3.3 }
   - id: centre-bin-matches-its-integral
     statement: >-
       With 60,000 electrons per run the centre bin holds N₁₂/(N₁ + N₂) within 0.18 (four standard
@@ -106,7 +108,7 @@ claims:
     readout: centre bin N₁₂ / (N₁ + N₂)
     expect: { against: 'centre bin ratio expected, 1 + sinc(πw/Λ) on the envelope', tolerance: 0.18 }
     setup:
-      params: { n: 60000 }
+      params: { rate: 3.3, n: 60000 }
   - id: centre-bin-is-not-additive
     statement: >-
       The same ratio is above 1.5, where adding probabilities would give 1: the electrons do not
@@ -114,7 +116,7 @@ claims:
     readout: centre bin N₁₂ / (N₁ + N₂)
     expect: { above: 1.5 }
     setup:
-      params: { n: 60000 }
+      params: { rate: 3.3, n: 60000 }
   - id: born-sampling-passes-ks
     statement: >-
       The both-slit hits are a sample of |ψ₁ + ψ₂|²: their Kolmogorov–Smirnov distance from a Simpson
@@ -124,7 +126,7 @@ claims:
     readout: KS distance of the hits from p(x)
     expect: { against: 'KS 95 % bound, 1.36/√N', below: 0 }
     setup:
-      params: { n: 60000 }
+      params: { rate: 3.3, n: 60000 }
   - id: electron-fringes-full-contrast
     statement: >-
       Unwatched, the hits show the full contrast the amplitude model predicts, a visibility of 1
@@ -132,7 +134,7 @@ claims:
     readout: visibility from the both-slit hits
     expect: { value: 1, tolerance: 0.016 }
     setup:
-      params: { n: 60000 }
+      params: { rate: 3.3, n: 60000 }
   - id: in-plane-photon-matches-j0
     statement: >-
       Every electron scatters one photon of 4,169 nm in the plane (kd = 3.77): the hits' visibility,
@@ -141,7 +143,7 @@ claims:
     readout: visibility from all hits
     expect: { against: 'γ_eff = (1 − η) + η·γ', tolerance: 0.04 }
     setup:
-      params: { scenario: watched, eta: 1, photon: 3.62, scatter: plane }
+      params: { rate: 3.3, scenario: watched, eta: 1, photon: 3.62, scatter: plane }
   - id: in-plane-photon-reverses-fringes
     statement: >-
       Between the first two zeros of J₀ the overlap is negative, and so is the measured visibility:
@@ -149,7 +151,7 @@ claims:
     readout: visibility from all hits
     expect: { below: -0.3 }
     setup:
-      params: { scenario: watched, eta: 1, photon: 3.62, scatter: plane }
+      params: { rate: 3.3, scenario: watched, eta: 1, photon: 3.62, scatter: plane }
   - id: short-light-erases-fringes
     statement: >-
       Photons of 200 nm scattered isotropically (kd = 78.7, sin(kd)/kd = −0.002) leave a visibility
@@ -157,7 +159,7 @@ claims:
     readout: visibility from all hits
     expect: { range: [-0.04, 0.04] }
     setup:
-      params: { scenario: watched, eta: 1, photon: 2.3, scatter: sphere }
+      params: { rate: 3.3, scenario: watched, eta: 1, photon: 2.3, scatter: sphere }
   - id: dim-light-keeps-half
     statement: >-
       When only half the electrons scatter such a photon, the visibility of all hits agrees with
@@ -165,7 +167,7 @@ claims:
     readout: visibility from all hits
     expect: { against: 'γ_eff = (1 − η) + η·γ', tolerance: 0.04 }
     setup:
-      params: { scenario: watched, eta: 0.5, photon: 2.3, scatter: sphere }
+      params: { rate: 3.3, scenario: watched, eta: 0.5, photon: 2.3, scatter: sphere }
   - id: unscattered-electrons-keep-fringes
     statement: >-
       In the same dim light, the hits of electrons that scattered no photon keep a visibility of 1
@@ -173,7 +175,7 @@ claims:
     readout: visibility, hits with no photon
     expect: { value: 1, tolerance: 0.04 }
     setup:
-      params: { scenario: watched, eta: 0.5, photon: 2.3, scatter: sphere }
+      params: { rate: 3.3, scenario: watched, eta: 0.5, photon: 2.3, scatter: sphere }
   - id: gaussian-detector-on-the-grid
     statement: >-
       A Gaussian detector a third of a fringe wide (σ/Λ = 0.344), applied by numerical convolution on
@@ -181,7 +183,7 @@ claims:
     readout: contrast as the detector reads it, read on the grid
     expect: { against: 'contrast factor, closed form', tolerance: 0.00001 }
     setup:
-      params: { scenario: resolution, mass: -30.04, speed: 1000, width: -1, detector: gaussian }
+      params: { rate: 3.3, scenario: resolution, mass: -30.04, speed: 1000, width: -1, detector: gaussian }
   - id: box-detector-on-the-grid
     statement: >-
       A box detector 1.37 fringes wide, convolved on the same grid, leaves the signed contrast
@@ -189,7 +191,7 @@ claims:
     readout: contrast as the detector reads it, read on the grid
     expect: { against: 'contrast factor, closed form', tolerance: 0.001 }
     setup:
-      params: { scenario: resolution, mass: -30.04, speed: 1000, width: -0.4, detector: box }
+      params: { rate: 3.3, scenario: resolution, mass: -30.04, speed: 1000, width: -0.4, detector: box }
   - id: box-detector-reverses-fringes
     statement: >-
       That box reads the fringes reversed, a contrast below −0.15: it averages more of the
@@ -197,7 +199,7 @@ claims:
     readout: contrast as the detector reads it, read on the grid
     expect: { below: -0.15 }
     setup:
-      params: { scenario: resolution, mass: -30.04, speed: 1000, width: -0.4, detector: box }
+      params: { rate: 3.3, scenario: resolution, mass: -30.04, speed: 1000, width: -0.4, detector: box }
   - id: detector-kernel-normalised
     statement: >-
       A numerics check: the box kernel's cell weights, each the share of the cell the box covers,
@@ -205,7 +207,7 @@ claims:
     readout: kernel weights − 1, numerics
     expect: { value: 0, tolerance: 0.000000000001 }
     setup:
-      params: { scenario: resolution, mass: -30.04, speed: 1000, width: -0.4, detector: box }
+      params: { rate: 3.3, scenario: resolution, mass: -30.04, speed: 1000, width: -0.4, detector: box }
   - id: detector-keeps-every-particle
     statement: >-
       A numerics check: the detector's reading holds as many particles as arrived, to rounding;
@@ -213,7 +215,7 @@ claims:
     readout: reading total − arrival total, numerics
     expect: { value: 0, tolerance: 0.000000001 }
     setup:
-      params: { scenario: resolution, mass: -30.04, speed: 1000, width: -1, detector: gaussian }
+      params: { rate: 3.3, scenario: resolution, mass: -30.04, speed: 1000, width: -1, detector: gaussian }
   - id: gaussian-wall-minimum-uncertainty
     statement: >-
       A numerics check: the Gaussian wall's spreads, computed on its grid and from the FFT of its
@@ -221,7 +223,7 @@ claims:
     readout: σₓσₚ / (ħ/2), from the grid
     expect: { value: 1, tolerance: 0.000001 }
     setup:
-      params: { scenario: recoil }
+      params: { rate: 3.3, scenario: recoil }
   - id: chirped-wall-above-minimum
     statement: >-
       A numerics check: the chirped wall's spreads multiply to (ħ/2)√5 = 2.2360680·ħ/2 within 1e−4,
@@ -229,7 +231,7 @@ claims:
     readout: σₓσₚ / (ħ/2), from the grid
     expect: { value: 2.236068, tolerance: 0.0001 }
     setup:
-      params: { scenario: recoil, wall: chirped }
+      params: { rate: 3.3, scenario: recoil, wall: chirped }
   - id: overlap-equals-smeared-fringe
     statement: >-
       A numerics check: the overlap of the two kicked wall states, summed on the wall's grid, equals
@@ -238,14 +240,14 @@ claims:
     readout: visibility, overlap of the kicked wall states |γ|
     expect: { against: 'visibility, fitted to the smeared pattern', tolerance: 0.000001 }
     setup:
-      params: { scenario: recoil }
+      params: { rate: 3.3, scenario: recoil }
   - id: overlap-matches-closed-form
     statement: >-
       For a Gaussian wall the numerical overlap agrees with exp(−Δq²σₓ²/2ħ²) within 2e−6.
     readout: visibility, overlap of the kicked wall states |γ|
     expect: { against: 'visibility, closed form exp(−Δq²σₓ²/2ħ²)', tolerance: 0.000002 }
     setup:
-      params: { scenario: recoil }
+      params: { rate: 3.3, scenario: recoil }
   - id: chirp-costs-visibility
     statement: >-
       The chirped wall, with the same momentum spread, is wider in position, and its numerical
@@ -253,7 +255,7 @@ claims:
     readout: visibility, overlap of the kicked wall states |γ|
     expect: { against: 'visibility, closed form exp(−Δq²σₓ²/2ħ²)', tolerance: 0.000002 }
     setup:
-      params: { scenario: recoil, wall: chirped }
+      params: { rate: 3.3, scenario: recoil, wall: chirped }
   - id: momentum-reading-distinguishes
     statement: >-
       Reading the wall's momentum tells the paths apart with the total-variation distance
@@ -261,7 +263,7 @@ claims:
     readout: distinguishability D, reading the wall’s momentum
     expect: { against: 'D, closed form erf(Δq/2√2σₚ)', tolerance: 0.002 }
     setup:
-      params: { scenario: recoil }
+      params: { rate: 3.3, scenario: recoil }
   - id: duality-is-strict-for-a-momentum-reading
     statement: >-
       With σₚ = Δq/2 the momentum reading and the fringes share less than the whole: D² + V² is below
@@ -269,7 +271,7 @@ claims:
     readout: D² + V²
     expect: { below: 0.9 }
     setup:
-      params: { scenario: recoil }
+      params: { rate: 3.3, scenario: recoil }
   - id: chirped-wall-is-further-from-the-bound
     statement: >-
       The chirped wall gives the same distinguishability and much less visibility, so its D² + V²
@@ -277,7 +279,7 @@ claims:
     readout: D² + V²
     expect: { below: 0.6 }
     setup:
-      params: { scenario: recoil, wall: chirped }
+      params: { rate: 3.3, scenario: recoil, wall: chirped }
   - id: hits-show-the-wall-overlap
     statement: >-
       Sixty thousand electrons, each meeting the wall at a position drawn from its state, land with
@@ -285,7 +287,7 @@ claims:
     readout: visibility from the hits
     expect: { against: 'visibility, overlap of the kicked wall states |γ|', tolerance: 0.02 }
     setup:
-      params: { scenario: recoil, n: 60000 }
+      params: { rate: 3.3, scenario: recoil, n: 60000 }
   - id: pinned-wall-keeps-fringes
     statement: >-
       A wall with momentum spread ten times the kick (pinned in position) keeps the fringes, a
@@ -293,7 +295,7 @@ claims:
     readout: visibility, overlap of the kicked wall states |γ|
     expect: { above: 0.99 }
     setup:
-      params: { scenario: recoil, spread: 1 }
+      params: { rate: 3.3, scenario: recoil, spread: 1 }
   - id: free-wall-erases-fringes
     statement: >-
       A wall with momentum spread a twentieth of the kick, so sharp in momentum that the kick shows
@@ -301,14 +303,14 @@ claims:
     readout: visibility, overlap of the kicked wall states |γ|
     expect: { below: 0.001 }
     setup:
-      params: { scenario: recoil, spread: -1.3 }
+      params: { rate: 3.3, scenario: recoil, spread: -1.3 }
   - id: free-wall-tells-the-path
     statement: >-
       That same wall's momentum tells the paths apart almost surely, D above 0.99.
     readout: distinguishability D, reading the wall’s momentum
     expect: { above: 0.99 }
     setup:
-      params: { scenario: recoil, spread: -1.3 }
+      params: { rate: 3.3, scenario: recoil, spread: -1.3 }
 ---
 
 Electrons fired one at a time at two slits arrive as single lumps, yet pile up into fringes. Four apparatus share one amplitude model: plain electrons, electrons watched by a light, fringes too fine for a detector, and a slit wall free to recoil.
