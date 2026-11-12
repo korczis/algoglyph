@@ -41,6 +41,32 @@ claims:
       100%.
     readout: Utilisation
     expect: { range: [0, 100] }
+  - id: unit-demands-never-wait-for-a-unit
+    statement: >-
+      With every task needing one unit (largest demand 1) and no more tasks than units (8 of
+      each), a ready task always finds a free unit, so each starts as soon as its predecessors
+      finish and the makespan is the critical path, exactly: the difference is 0.
+    readout: Makespan
+    expect: { against: Critical path (lower bound), tolerance: 0 }
+    setup:
+      params: { maxDemand: 1, units: 8, tasks: 8 }
+  - id: bounds-hold-at-the-largest-demand
+    statement: >-
+      Tasks needing up to all 8 units still cannot beat the larger of the critical path and the
+      work divided by the units, reported rounded to the millisecond (the result line's third
+      number): whole milliseconds, so the makespan minus that bound is above −1.
+    readout: Makespan
+    expect: { against: Result, against_number: 3, above: -1 }
+    setup:
+      params: { maxDemand: 8, units: 8, tasks: 30 }
+  - id: work-bound-at-the-largest-demand
+    statement: >-
+      At the same setting the utilisation, the work divided by the units times the makespan, is
+      at most 100%, since the makespan is at least the work divided by the units.
+    readout: Utilisation
+    expect: { range: [0, 100] }
+    setup:
+      params: { maxDemand: 8, units: 8, tasks: 30 }
 ---
 
 Tasks start in priority order when their predecessors are done and a resource is free.

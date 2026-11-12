@@ -1,4 +1,4 @@
-import { num } from '../../core/plate';
+import { num, type Params } from '../../core/plate';
 import type { SystemsKernel } from '../../engines/systems/sim';
 
 // List scheduling of a seeded task graph (builds that depend on builds) on a pool of identical
@@ -13,15 +13,23 @@ export interface Task { id: number; preds: number[]; dur: number; demand: number
 export interface Decision { t: number; free: number; waiting: number[] }
 export interface ScheduleResult { tasks: Task[]; capacity: number; decisions: Decision[]; critical: number; work: number }
 
-/** A seeded layered task graph. */
-export function graph(n: number, capacity: number, rnd: () => number): Task[] {
+/** The largest demand a task may have, before the units cap it: the control's default. */
+export const MAX_DEMAND = 3;
+
+/** A param, or the default it had as a fixed constant when the param is absent. */
+const opt = (p: Params, key: string, fallback: number) =>
+  (p[key] === undefined ? fallback : num(p, key));
+
+/** A seeded layered task graph; each task needs 1..min(maxDemand, capacity) units. */
+export function graph(n: number, capacity: number, rnd: () => number,
+  maxDemand = MAX_DEMAND): Task[] {
   const tasks: Task[] = [];
   for (let i = 0; i < n; i++) {
     const preds: number[] = [];
     for (let j = Math.max(0, i - 6); j < i; j++) if (rnd() < 0.28) preds.push(j);
     tasks.push({
       id: i, preds, dur: 100 + Math.floor(rnd() * 9) * 50,
-      demand: 1 + Math.floor(rnd() * Math.min(3, capacity)), prio: 0,
+      demand: 1 + Math.floor(rnd() * Math.min(maxDemand, capacity)), prio: 0,
       start: NaN, finish: NaN, units: [], ready: NaN,
     });
   }
@@ -37,6 +45,10 @@ export const kernel: SystemsKernel<ScheduleResult> = {
   params: [
     { kind: 'range', key: 'tasks', label: 'Tasks', min: 4, max: 30, step: 1, value: 18, rebuild: true },
     { kind: 'range', key: 'units', label: 'Resource units', min: 2, max: 8, step: 1, value: 4, rebuild: true },
+    {
+      kind: 'range', key: 'maxDemand', label: 'Largest task demand (units)', min: 1, max: 8, step: 1,
+      value: MAX_DEMAND, rebuild: true,
+    },
   ],
   setup: (p) => ({
     lanes: Array.from({ length: num(p, 'units') }, (_, i) => `unit ${i + 1}`),
@@ -47,7 +59,7 @@ export const kernel: SystemsKernel<ScheduleResult> = {
   }),
   install(net, p) {
     const C = num(p, 'units');
-    const tasks = graph(num(p, 'tasks'), C, net.rnd);
+    const tasks = graph(num(p, 'tasks'), C, net.rnd, opt(p, 'maxDemand', MAX_DEMAND));
     const critical = Math.max(0, ...tasks.map((t) => t.prio));
     const work = tasks.reduce((s, t) => s + t.dur * t.demand, 0);
     const res: ScheduleResult = { tasks, capacity: C, decisions: [], critical, work };
