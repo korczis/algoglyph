@@ -177,6 +177,79 @@ describe('sidecar fallback: what it refuses', () => {
     expect(ok['fixture-wasm-sort']).toMatchObject({ kernel: 'fixture-wasm-kernel', maxN: 64 });
   });
 
+  describe('options', () => {
+    const OPT = '{ name: k, label: "Fan-in k", min: 2, max: 16, step: 1, default: 4 }';
+    const set = (r: string, options: string, extra = '') => writeFileSync(join(r, SIDECAR), 'version: 1\n\nentries:\n'
+      + `  - { id: fixture-wasm-sort, kernel: fixture-wasm-kernel, engine: array${extra}, options: [${options}] }\n`);
+    const errs = (options: string, extra = '') => load(tree((r) => set(r, options, extra))).errors;
+    const at = `${SIDECAR}: fixture-wasm-sort -> kernel fixture-wasm-kernel: option`;
+
+    it('ships a valid list with the mapping, in its own order and keys', () => {
+      const root = tree((r) => set(r, `${OPT}, { name: memory, label: "Memory M", min: 0, max: 64, step: 4, default: 0, unit: keys }`));
+      const { errors, model } = load(root);
+      expect(errors).toEqual([]);
+      expect(model.sidecar['fixture-wasm-sort']).toEqual({
+        sidecar: SIDECAR, adapter: 'sorting-wasm', kernel: 'fixture-wasm-kernel',
+        options: [
+          { name: 'k', label: 'Fan-in k', min: 2, max: 16, step: 1, default: 4 },
+          { name: 'memory', label: 'Memory M', min: 0, max: 64, step: 4, default: 0, unit: 'keys' },
+        ],
+      });
+    });
+
+    it('a name the kernel does not read, naming what it does', () => {
+      expect(errs('{ name: base, label: "Base", min: 2, max: 16, step: 1, default: 10 }'))
+        .toEqual([`${at} base: the kernel does not read it (its manifest lists k, memory)`]);
+    });
+
+    it('a default outside the range, or off its grid', () => {
+      expect(errs('{ name: k, label: "k", min: 2, max: 16, step: 1, default: 17 }'))
+        .toEqual([`${at} k: default 17 lies outside 2..16`]);
+      expect(errs('{ name: k, label: "k", min: 2, max: 16, step: 1, default: 1 }'))
+        .toEqual([`${at} k: default 1 lies outside 2..16`]);
+      expect(errs('{ name: memory, label: "M", min: 0, max: 64, step: 4, default: 6 }'))
+        .toEqual([`${at} memory: default 6 is off the slider's grid (0 + a multiple of 4)`]);
+    });
+
+    it('a step that does not divide the range, or an empty range', () => {
+      expect(errs('{ name: memory, label: "M", min: 0, max: 62, step: 4, default: 0 }'))
+        .toEqual([`${at} memory: step 4 does not divide the range 0..62`]);
+      expect(errs('{ name: k, label: "k", min: 4, max: 4, step: 1, default: 4 }'))
+        .toEqual([`${at} k: min 4 must be below max 4`]);
+      expect(errs('{ name: k, label: "k", min: 2, max: 16, step: 0, default: 4 }'))
+        .toEqual([`${at} k: step must be at least 1`]);
+    });
+
+    it('a number that is not a whole u32', () => {
+      expect(errs('{ name: k, label: "k", min: -1, max: 16, step: 0.5, default: 4 }'))
+        .toEqual([`${at} k: min, step must be whole numbers from 0 to 4294967295 (the kernel reads a u32)`]);
+    });
+
+    it('an unknown key, a missing label or name, a duplicate, a bad unit, a list that is not one', () => {
+      expect(errs('{ name: k, label: "k", min: 2, max: 16, step: 1, default: 4, log: true }'))
+        .toEqual([`${at} k: unknown key log; an option has only name, label, min, max, step, default, unit`]);
+      expect(errs('{ name: k, min: 2, max: 16, step: 1, default: 4 }')).toEqual([`${at} k: label required`]);
+      expect(errs('{ label: "k", min: 2, max: 16, step: 1, default: 4 }')).toEqual([`${at} #1: name required`]);
+      expect(errs(`${OPT}, ${OPT}`)).toEqual([`${at} k: declared twice`]);
+      expect(errs('{ name: k, label: "k", min: 2, max: 16, step: 1, default: 4, unit: "" }'))
+        .toEqual([`${at} k: unit must be a non-empty string`]);
+      const root = tree((r) => writeFileSync(join(r, SIDECAR), 'version: 1\n\nentries:\n'
+        + '  - { id: fixture-wasm-sort, kernel: fixture-wasm-kernel, engine: array, options: k }\n'));
+      expect(load(root).errors).toEqual([`${SIDECAR}: fixture-wasm-sort -> kernel fixture-wasm-kernel: options must be a list`]);
+    });
+
+    it('and any wrong option ships none of them', () => {
+      const root = tree((r) => set(r, `${OPT}, { name: base, label: "b", min: 2, max: 16, step: 1, default: 10 }`));
+      expect(load(root).model.sidecar['fixture-wasm-sort']).not.toHaveProperty('options');
+    });
+
+    it('options on a record whose kernel does not play its entry', () => {
+      const root = tree((r) => append(r, `  - { id: fixture-kept-sort, kernel: fixture-wasm-kernel, engine: array, existing: true, options: [${OPT}] }`));
+      expect(load(root).errors).toContain(`${SIDECAR}: fixture-kept-sort -> kernel fixture-wasm-kernel: `
+        + "options on a record whose kernel does not play its entry (existing: its entry's own code plays)");
+    });
+  });
+
   it('a record without its id, kernel or engine', () => {
     const root = tree((r) => append(r, '  - { id: fixture-wasm-sort }'));
     expect(load(root).errors).toEqual([`${SIDECAR} record #5: kernel, engine required`]);
