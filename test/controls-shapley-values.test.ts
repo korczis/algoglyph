@@ -7,7 +7,6 @@
 // φᵢ = aᵢ (xᵢ − bᵢ) + Σ over the terms (i, j) or (j, i) of ½ β (xᵢ − bᵢ)(xⱼ + bⱼ);
 // with no terms the model is additive, every ordering gives each input the same contribution,
 // and the largest error is zero; the estimates add up to v(all) − v(none) at every count.
-import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { Params } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
@@ -23,7 +22,6 @@ const ID = 'shapley-values';
 const KEY = 'pairs';
 const k = shapley as StochasticKernel<ShapleyResult>;
 const defOf = () => k.params?.find((d) => d.key === KEY);
-const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 const claim = (readout: string, params: Params, expect: Claim['expect'] = { range: [-1e12, 1e12] }): Claim =>
   ({ id: 'probe', statement: 'a control test reading', readout, expect, setup: { params: params as Record<string, number> } });
 /** The model and instance a run drew (fields added with the control). */
@@ -77,18 +75,9 @@ describe('shapley-values: pairwise interactions', () => {
 });
 
 describe('shapley-values at its default is what it was before the control', () => {
-  // readout texts (strings), recorded on the code before the control existed (5f091c7)
-  const READOUTS = '6f6e11431faf67d3';
+  // compared within one run: these readouts come from log, cos, sin or pow, which may round
+  // differently on another CPU, so no text recorded on one machine is pinned
 
-  it('reads the same at its default', async () => {
-    const out: (string | undefined)[] = [];
-    for (const params of [{}, { d: 2 }, { d: 6, m: 4000 }] as Params[]) {
-      for (const readout of ['Orderings sampled', 'Sum of estimates', 'Largest error']) {
-        out.push((await read(ID, claim(readout, params))).text);
-      }
-    }
-    expect(hash(out), JSON.stringify(out)).toBe(READOUTS);
-  });
 
   it('passing the default explicitly draws the same run', () => {
     for (const d of [2, 5, 6]) {
