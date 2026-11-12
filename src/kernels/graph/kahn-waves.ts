@@ -34,22 +34,32 @@ export const kernel: GraphKernel<WavesResult> = {
         for (const e of g.out[u]) {
           ops.scan(e);
           const v = g.ev[e];
-          if (--indeg[v] === 0) { next.push(v); wave[v] = w + 1; ops.group(v, w + 1); ops.discover(v); }
+          if (--indeg[v] === 0) { next.push(v); wave[v] = w + 1; ops.group(v, w + 1); }
         }
       }
+      // the next wave joins the frontier only once this one is removed, so the frontier is
+      // always one wave and its largest size is the widest wave
+      for (const v of next) ops.discover(v);
       current = next;
       ops.round();
       yield;
     }
     return { wave, order };
   },
-  report(r) {
+  report(r, g) {
     const waves = Math.max(...r.wave) + 1;
     const sizes = new Array<number>(waves).fill(0);
     for (const w of r.wave) if (w >= 0) sizes[w]++;
+    // the most vertices on a chain ending at each vertex, in the order they were removed (a
+    // topological order), from the edges alone and not from the wave numbers
+    const chain = new Array<number>(g.n).fill(1);
+    for (const u of r.order) {
+      for (const e of g.out[u]) chain[g.ev[e]] = Math.max(chain[g.ev[e]], chain[u] + 1);
+    }
     return [
       { label: 'Waves', value: String(waves) },
       { label: 'Widest wave', value: `${Math.max(...sizes)} vertices` },
+      { label: 'Longest dependency chain', value: `${Math.max(...chain)} vertices` },
     ];
   },
 };
