@@ -109,6 +109,46 @@ describe('source-family: link threshold', () => {
   });
 });
 
+describe('source-family: shingle length', () => {
+  it('is a range control with the old constant 3 as its default', () => {
+    expect(defOf('shingle')).toMatchObject({ kind: 'range', label: 'Shingle length (words)', min: 1, max: 5, step: 1, value: 3, rebuild: true });
+  });
+
+  it('round-trips through a shared link', () => {
+    const defs = plate().params;
+    const d: Params = Object.fromEntries(defs.map((x) => [x.key, x.value]));
+    for (const k of [1, 2, 5]) expect(parse(defs, serialise(defs, { ...d, shingle: k }, 7)), `${k}`).toEqual({ seed: 7, params: { shingle: k } });
+  });
+
+  it('links over k-shingles: the link graph\'s components at every length and a few thresholds', () => {
+    const d = defOf('shingle');
+    expect(d, 'the plate declares the control').toBeDefined();
+    for (const k of settings(d!)) {
+      for (const t of [0, 0.1, 0.3, 0.8]) {
+        for (const x of inputs()) {
+          const tr = trace(kernel, x, { threshold: t, shingle: k });
+          const n = x.docs.length;
+          const at = `k=${k} t=${t} n=${n}`;
+          expect(sources(tr.result as FamilyResult), at).toBe(components(x, t, k));
+          expect(tr.counts[0], at).toBe((n * (n - 1)) / 2);
+          expect(tr.counts[1], at).toBe(n - sources(tr.result as FamilyResult));
+        }
+      }
+    }
+  }, 120_000);
+
+  it('drives the plate\'s readouts', async () => {
+    const x = input('documents', N, '', SEED);
+    for (const k of [1, 5]) {
+      for (const t of [0.3, 0.6]) {
+        const s = await read(ID, claim('Sources found', { shingle: k, threshold: t }));
+        expect(s.reason).toBeUndefined();
+        expect(s.value, `k=${k} t=${t}`).toBe(components(x, t, k));
+      }
+    }
+  });
+});
+
 describe('source-family at its defaults is what it was before the controls', () => {
   // recorded on the code before the controls existed (779097a): every event and count
   const TRACES = '4133f6aea1708e11';
@@ -120,7 +160,7 @@ describe('source-family at its defaults is what it was before the controls', () 
   it('records the same trace, with the defaults passed or absent', () => {
     const absent = runs({});
     expect(hash(absent)).toBe(TRACES);
-    expect(runs({ threshold: 0.3 })).toEqual(absent);
+    expect(runs({ threshold: 0.3, shingle: 3 })).toEqual(absent);
   });
 
   it('pauses after each document\'s row of pairs, so linking every pair never fills one frame', () => {
