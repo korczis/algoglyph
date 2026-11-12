@@ -41,14 +41,19 @@ export function normalise(name: string): Normal {
 
 export interface JaroWinkler { jaro: number; jw: number; m: number; t: number; matchA: number[]; matchB: number[]; prefix: number }
 
+/** Winkler's prefix bonus: scale × prefix (up to 4) × (1 − Jaro), added when Jaro exceeds boost. */
+export interface Winkler { scale?: number; boost?: number }
+
 /** Jaro–Winkler similarity with Winkler's prefix bonus (scale 0.1, prefix up to 4, boost above 0.7). */
-export function jaroWinkler(a: string, b: string, eq: (i: number, j: number) => boolean = (i, j) => a[i] === b[j]): JaroWinkler {
-  const steps = jaroWinklerSteps(a, b, eq);
+export function jaroWinkler(a: string, b: string, eq: (i: number, j: number) => boolean = (i, j) => a[i] === b[j],
+  w: Winkler = {}): JaroWinkler {
+  const steps = jaroWinklerSteps(a, b, eq, w);
   for (;;) { const r = steps.next(); if (r.done) return r.value; }
 }
 
 /** `jaroWinkler` pausing (`null`) after each character of the first string. */
-export function* jaroWinklerSteps(a: string, b: string, eq: (i: number, j: number) => boolean = (i, j) => a[i] === b[j]): Generator<null, JaroWinkler> {
+export function* jaroWinklerSteps(a: string, b: string, eq: (i: number, j: number) => boolean = (i, j) => a[i] === b[j],
+  { scale = 0.1, boost = 0.7 }: Winkler = {}): Generator<null, JaroWinkler> {
   const la = a.length; const lb = b.length;
   if (!la && !lb) return { jaro: 1, jw: 1, m: 0, t: 0, matchA: [] as number[], matchB: [] as number[], prefix: 0 };
   const win = Math.max(0, Math.floor(Math.max(la, lb) / 2) - 1);
@@ -70,7 +75,7 @@ export function* jaroWinklerSteps(a: string, b: string, eq: (i: number, j: numbe
   const jaro = m ? (m / la + m / lb + (m - t) / m) / 3 : 0;
   let prefix = 0;
   while (prefix < Math.min(4, la, lb) && a[prefix] === b[prefix]) prefix++;
-  const jw = jaro > 0.7 ? jaro + prefix * 0.1 * (1 - jaro) : jaro;
+  const jw = jaro > boost ? jaro + prefix * scale * (1 - jaro) : jaro;
   return { jaro, jw, m, t, matchA, matchB: jb, prefix };
 }
 
