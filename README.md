@@ -258,7 +258,7 @@ Gapped insertion sort: keep the sorted keys in an array about (1 + ε) n long wi
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/odd-even-sort">031 · Odd-even transposition sort</a></b><br>
-Alternate two kinds of round over neighbouring pairs: the odd round compares (0, 1), (2, 3), …, the even round (1, 2), (3, 4), …, and every pair out of order is exchanged.<br>
+Alternate two kinds of round over neighbouring pairs: counting positions from 0, the odd round compares (1, 2), (3, 4), …, the even round (0, 1), (2, 3), …, and every pair out of order is exchanged; the run begins with an odd round.<br>
 <sub>Elementary sorts · n best, n² average and worst; extra space 1 · sorting, quadratic, stable, in-place, adaptive, parallel, brick sort</sub>
 </td>
 <td width="50%" valign="top">

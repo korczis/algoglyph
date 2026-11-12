@@ -21,6 +21,26 @@ related:
   - bubble-sort
   - insertion-sort
   - selection-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - 'Count n(n − 1)/2 comparisons on every input: only the writes depend on the data.'
+  - 'See the Array writes stay at most twice the inversions, from none on Already sorted to n(n − 1) on Reversed.'
+  - 'Compare with selection sort, which makes the same comparisons with at most one exchange per position.'
+  misconceptions:
+  - 'Exchanging a distant inverted pair can leave more inversions than before; it creates some with the keys between them, yet always removes at least one in total.'
+algorithm:
+  paradigm: incremental
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (an exchange is two writes)'
+  best: 'n(n − 1)/2 comparisons and no writes (Already sorted)'
+  average: 'on every input, n(n − 1)/2 comparisons and at most 2 × inversions array writes'
+  worst: 'n(n − 1)/2 comparisons and n(n − 1) array writes (Reversed)'
 ---
 
 For each position i, compare the key there with every key to its right and exchange the two whenever the right one is smaller; after the inner loop, position i holds the minimum of the rest.

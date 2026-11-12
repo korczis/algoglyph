@@ -25,6 +25,28 @@ related:
   - bubble-sort
   - insertion-sort
   - shaker-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites:
+  - insertion-sort
+  objectives:
+  - 'Read the Array writes as twice the inversions: each exchange of neighbours removes exactly one.'
+  - 'Count the comparisons between twice the inversions and twice the inversions plus n − 1, the extra ones from the walk forward over keys already seen.'
+  - 'Compare with insertion sort on Nearly sorted to see the price of exchanges instead of shifts.'
+  misconceptions:
+  - 'Gnome sort is a method of its own; it removes the same inversions as insertion sort, one exchange each.'
+algorithm:
+  paradigm: incremental
+  properties:
+    stable: true
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (an exchange is two writes)'
+  best: 'n − 1 comparisons and no writes (Already sorted)'
+  average: 'on every input, array writes = 2 × inversions, and 2 × inversions ≤ comparisons ≤ 2 × inversions + n − 1'
+  worst: 'n(n − 1) comparisons and n(n − 1) array writes (Reversed)'
 ---
 
 One index and one rule: if the key before it is not larger, step forward; otherwise exchange the pair and step back. The sort is done when the index walks off the end.

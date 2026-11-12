@@ -21,6 +21,27 @@ complexity: n best, n² average and worst; extra space n
 related:
   - binary-insertion-sort
   - insertion-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - insertion-sort
+  objectives:
+  - 'Watch the run spread from the middle of the auxiliary strip in both directions, each key shifting the shorter side.'
+  - 'Count n auxiliary writes on Already sorted and on Reversed, where every key lands at an end of the run without a shift.'
+  - 'Count exactly n array writes on every input, the copy back from the output area.'
+  misconceptions:
+  - 'Growing in both directions changes the growth of the shifts; it saves a constant factor, and they stay quadratic.'
+algorithm:
+  paradigm: incremental
+  properties:
+    in_place: false
+    comparison_based: true
+bounds:
+  model: 'comparisons, array writes and auxiliary writes (a shift in the output area is one auxiliary write)'
+  best: 'n auxiliary writes (Already sorted, Reversed), and never fewer than Σ_{i=1}^{n−1} ⌊lg i⌋ comparisons'
+  average: 'on every input, exactly n array writes'
+  worst: 'Σ_{i=1}^{n−1} (⌊lg i⌋ + 1) comparisons (Reversed), and O(n²) auxiliary writes'
 ---
 
 Insertion sort into an output area about twice the size of the input: the first key goes in the middle, and the sorted run grows in both directions, each new key opening its slot by shifting whichever side of the run is shorter.
