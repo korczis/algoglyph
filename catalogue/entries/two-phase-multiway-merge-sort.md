@@ -52,7 +52,7 @@ claims:
     readout: Passes
     expect: { value: 2 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 External mergesort with exactly one merging pass: phase 1 sorts memory loads into runs, phase 2 merges all of the runs at once with one input block per run and one output block in memory.

@@ -51,7 +51,7 @@ claims:
     readout: Phase
     expect: { value: 13 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 A tape sort whose every pass is a cascade: a (T − 1)-way merge onto the empty tape until the shortest input runs out, then a (T − 2)-way merge onto the tape just emptied, and so on down to a two-way merge and a final copy.

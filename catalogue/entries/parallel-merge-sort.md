@@ -51,7 +51,7 @@ claims:
     readout: Comparisons
     expect: { value: 511 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Mergesort in rounds: every worker sorts its share, then pairs of runs are merged, round after round, until one run is left. The parallel formulations of the sources also split each merge among the workers, cutting it into equal output pieces whose start points a binary search finds in both inputs at once; the plate gives every pairwise merge to one lane.

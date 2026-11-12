@@ -51,7 +51,7 @@ claims:
     readout: Comparisons
     expect: { value: 1968 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Quicksort with many pivots: draw a random sample, sort it, take k − 1 evenly spaced sample keys as splitters, distribute every key into one of k buckets by binary search among the splitters, and sort each bucket recursively.

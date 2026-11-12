@@ -48,7 +48,7 @@ claims:
     readout: Rounds
     expect: { value: 4 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Quicksort with the partitioning shared among workers. In the formulations of the sources the group agrees on a random pivot, every worker partitions its own share, the counts of the two sides decide how many workers take each side, and both subgroups recurse; the plate's kernel hands every segment of a recursion level to a lane of its own and partitions it there in three ways around a random pivot, so the lanes multiply as the segments shrink.

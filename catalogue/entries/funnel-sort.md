@@ -49,7 +49,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 3392 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A mergesort for a memory hierarchy whose sizes it does not know: split the input into n^(1/3) pieces of n^(2/3), sort each recursively, and merge them with a single funnel, a recursively laid out tree of binary mergers with a buffer on every edge.

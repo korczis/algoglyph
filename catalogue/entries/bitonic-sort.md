@@ -48,7 +48,7 @@ claims:
     readout: Comparisons
     expect: { value: 11520 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Batcher's bitonic network: sort pairs in alternating directions so that neighbours form a sequence that rises then falls, merge those bitonic blocks with half-cleaners, and double the block size until one merge orders the whole array.

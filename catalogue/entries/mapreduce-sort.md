@@ -47,7 +47,7 @@ claims:
     readout: Comparisons
     expect: { value: 508 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 In MapReduce sorting is almost free: map emits each record under its key, reduce copies its input unchanged, and the framework does the work, because within one partition it hands the intermediate pairs to reduce in increasing key order.

@@ -52,7 +52,7 @@ claims:
     readout: Array writes
     expect: { above: 8468 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Partition as in quicksort, sort one side with a method X that normally needs extra memory, and let the other side serve as that memory; then repeat on the side that was used as scratch space.

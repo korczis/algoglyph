@@ -50,7 +50,7 @@ claims:
     readout: Rounds
     expect: { value: 4 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Samplesort with one bucket per processor: sample the distributed input, pick p − 1 splitters, let every processor classify its own keys among them, exchange the buckets in a single all-to-all step, and let each processor sort what it received.

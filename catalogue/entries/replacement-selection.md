@@ -35,7 +35,7 @@ claims:
     readout: Average run length
     expect: { value: 15 }
     setup:
-      params: { shape: random, n: 255, speed: 2000 }
+      params: { shape: random, n: 255 }
 ---
 
 A priority queue that produces initial runs about twice the size of memory.

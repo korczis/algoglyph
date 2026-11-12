@@ -51,7 +51,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 512 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Tree sort made I/O-optimal by laziness: insert every key into a buffer tree, whose internal nodes each carry a buffer of about M keys, then empty all buffers and read the leaves from left to right.

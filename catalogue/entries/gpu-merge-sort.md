@@ -50,7 +50,7 @@ claims:
     readout: Rounds
     expect: { value: 5 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Two phases: every block of threads sorts its tile in fast on-chip memory, then sorted runs are merged in pairs, round after round, with every merge cut into many equal, independent pieces so that thousands of threads stay busy even when only a few long runs remain.

@@ -51,7 +51,7 @@ claims:
     readout: Comparisons
     expect: { value: 1971 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Multiway distribution for files: sort a random sample in memory, take evenly spaced splitters from it, send every record in one pass to the bucket file of its interval, and sort each bucket the same way until it fits in memory.

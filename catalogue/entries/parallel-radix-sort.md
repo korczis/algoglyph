@@ -54,7 +54,7 @@ claims:
     readout: Rounds
     expect: { value: 6 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 LSD radix sort with every pass shared among p workers: each worker counts the digits of its share in a local histogram, one prefix sum over all histograms tells every worker where its elements with each digit go, and the elements are moved.

@@ -53,7 +53,7 @@ claims:
     readout: Array writes
     expect: { value: 0 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A recursive samplesort that splits the input into k buckets per level, in place and in parallel. In the authors' algorithm elements go into small per-bucket buffers, full buffers are written back over slots already read, and whole blocks are then permuted into their buckets; the plate's kernel moves single keys instead, by a cycle-leader permutation.

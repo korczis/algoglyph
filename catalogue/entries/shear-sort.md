@@ -49,7 +49,7 @@ claims:
     readout: Rounds
     expect: { value: 253 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Sort a two-dimensional mesh into snake order by alternating phases: sort every row (even rows ascending, odd rows descending), then sort every column top to bottom, and finish with one more row phase.

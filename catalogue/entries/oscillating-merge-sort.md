@@ -52,7 +52,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 2048 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 A tape sort that does not wait for all the runs: it forms a few runs, merges them at once by reading the tapes backwards, forms a few more, and so swings between run formation and merging until one run is left.

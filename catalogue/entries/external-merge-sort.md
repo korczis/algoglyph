@@ -59,7 +59,7 @@ claims:
     readout: Passes
     expect: { value: 4 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Sort a file larger than memory in two phases: cut it into memory-sized pieces, sort each one into a run on disk, then merge k runs at a time in passes until a single run is left.

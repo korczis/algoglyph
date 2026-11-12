@@ -49,7 +49,7 @@ claims:
     readout: Comparisons
     expect: { value: 0 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 Bucket sort with files for buckets: cut the key range into fixed intervals, append every record in one sequential pass to the file of its interval, sort the buckets that fit in memory and bucket the larger ones again over their own range.

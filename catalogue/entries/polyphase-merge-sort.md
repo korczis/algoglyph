@@ -50,7 +50,7 @@ claims:
     readout: Phase
     expect: { value: 10 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Tape sorting without idle output tapes: spread the runs unevenly over all tapes but one, merge one run from each onto the empty tape until an input tape runs dry, and let that tape be the next output.

@@ -45,7 +45,7 @@ claims:
     readout: Array writes
     expect: { value: 512 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 PSRS: every processor sorts its own block first and takes samples at regular intervals; the gathered samples give p − 1 pivots; every processor cuts its already sorted block at the pivots, sends piece i to processor i, and merges the sorted pieces it receives.

@@ -52,7 +52,7 @@ claims:
     readout: Rounds
     expect: { value: 16 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Samplesort with a branchless classifier: the splitters sit in an implicit search tree in an array, each element walks it by arithmetic on comparison results, and its bucket number is stored in an oracle before the elements are copied out to their buckets.

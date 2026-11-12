@@ -51,7 +51,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 512 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Key-indexed counting split among p workers: each worker builds a histogram of its share, one prefix sum over all histograms (by key value, then by worker) gives every worker the start of its slots for each key, and each worker writes its elements there without coordinating with the others.

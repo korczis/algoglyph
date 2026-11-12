@@ -37,7 +37,7 @@ claims:
     readout: Merge passes done
     expect: { value: 4 }
     setup:
-      params: { speed: 60 }
+      params: { records: 240, memory: 8, ways: 3 }
 ---
 
 Sort runs that fit in memory, distribute them over tapes, and merge them in passes.

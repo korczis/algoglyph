@@ -49,7 +49,7 @@ claims:
     readout: Comparisons
     expect: { value: 10721 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Hoare's partitioning carried over to files: one sequential pass splits the file around a pivot into smaller and larger parts, and each part is split again until it fits in memory and is sorted there.

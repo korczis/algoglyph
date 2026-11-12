@@ -50,7 +50,7 @@ claims:
     readout: Passes
     expect: { value: 1 }
     setup:
-      params: { shape: few-unique, n: 512, speed: 2000 }
+      params: { shape: few-unique, n: 512 }
 ---
 
 LSD radix sort on files: every pass reads the whole file and appends each record to the bucket file of its current digit, least significant first; the bucket files, concatenated in digit order, are the input of the next pass.

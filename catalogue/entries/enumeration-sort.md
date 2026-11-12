@@ -48,7 +48,7 @@ claims:
     readout: Comparisons
     expect: { value: 222312 }
     setup:
-      params: { shape: sorted, n: 472, speed: 2000 }
+      params: { shape: sorted, n: 472 }
 ---
 
 Comparison counting: the final position of a key is the number of keys smaller than it, so compare every key with every other, sum the results per key, and move each key once to its rank.

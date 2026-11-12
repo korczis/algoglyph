@@ -52,7 +52,7 @@ claims:
     readout: Passes
     expect: { value: 11 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 The oldest external sort: tapes allow only sequential reading and writing, so sort memory loads into runs, spread the runs over tapes, and merge runs from several tapes onto others, pass after pass, until one run is left.

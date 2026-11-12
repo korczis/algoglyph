@@ -49,7 +49,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 515 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Sorting on Hadoop MapReduce with a range partitioner: a sorted sample of N − 1 keys bounds the key range of each of N reducers, so every key of reducer i is smaller than every key of reducer i + 1, and the reducers' files in order are the sorted output.

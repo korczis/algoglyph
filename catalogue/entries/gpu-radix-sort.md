@@ -53,7 +53,7 @@ claims:
     readout: Rounds
     expect: { value: 9 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Parallel LSD radix sort shaped for a graphics processor: the input is cut into tiles, one block of threads per tile; in every digit pass a block sorts its tile by the digit in fast on-chip memory, writes a histogram, a global prefix sum over all histograms (by digit, then by block) gives each block its write positions, and the block scatters its elements there.
