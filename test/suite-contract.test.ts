@@ -28,6 +28,11 @@ const rustTests = readdirSync('crates').flatMap((c) => {
   return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.rs')).map((f) => join(dir, f)) : [];
 });
 
+/** Assertions that read the wall clock (performance.now, Date.now) inside expect(). */
+export function wallClockAsserts(source: string): number {
+  return [...source.matchAll(/expect\([^;]*\b(performance\.now|Date\.now)\(\)/g)].length;
+}
+
 /** Wall-clock bounds a Rust test sets, in seconds. */
 export function rustBounds(source: string): number[] {
   const out: number[] = [];
@@ -58,6 +63,18 @@ describe('the test suite', () => {
     expect(ownLimits("it('x', { timeout: 5_000 }, () => {});")).toEqual([5000]);
     expect(ownLimits('    const run = drive(plate, { speed: 2000 }, 600);')).toEqual([]);
   });
+
+  it('finds a wall-clock reading inside an assertion', () => {
+    expect(wallClockAsserts('expect(performance.now() - t0).toBeLessThan(5);')).toBe(1);
+    expect(wallClockAsserts('while (performance.now() < stop) {')).toBe(0);
+  });
+
+  for (const f of files.filter((x) => x !== 'budget.test.ts')) {
+    it(`${f} asserts nothing about wall-clock time`, () => {
+      // a wall-clock reading may end a loop, never decide a test: budgets are CPU time
+      expect(wallClockAsserts(readFileSync(join('test', f), 'utf8')), f).toBe(0);
+    });
+  }
 
   for (const f of files) {
     it(`${f} sets no per-test limit shorter than the global ${global} ms`, () => {
