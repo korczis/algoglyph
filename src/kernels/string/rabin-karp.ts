@@ -1,5 +1,5 @@
 import { S, type StringKernel } from '../../engines/string/trace';
-import { align, board, compare, everywhere, found, SEARCH_CHART } from './_search';
+import { align, board, compare, everywhere, found, SEARCH_CHART, searchParams } from './_search';
 
 // The hash of a window is its characters read as a base-R number modulo a prime q. Sliding
 // one position removes the leading character and appends the next in constant time; only when
@@ -15,7 +15,7 @@ export const kernel: StringKernel<'search', number[]> = {
   }, {
     kind: 'select', key: 'R', label: 'Radix', value: '256', rebuild: true,
     options: [{ value: '256', label: '256' }, { value: '31', label: '31' }, { value: '2', label: '2' }],
-  }],
+  }, ...searchParams()],
   *run(ops, { text, pattern: p }, params) {
     const q = Number(params.q ?? 1000003) || 1000003;
     const R = Number(params.R ?? 256) || 256;

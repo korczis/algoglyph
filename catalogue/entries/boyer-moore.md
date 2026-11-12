@@ -29,6 +29,24 @@ bounds:
   model: character comparisons, the good-suffix table's included
   average: about n / m on large alphabets
   worst: O(n m) as written here
+claims:
+  - id: pattern-4-dna-matches-indexof
+    statement: >-
+      With a pattern of 4 DNA letters in n = 512 the search finds 3 matches, the count
+      String.prototype.indexOf finds in the same seeded text, however far the shifts jump.
+    readout: Matches
+    expect: { value: 3 }
+    setup:
+      params: { shape: dna, n: 512, m: '4' }
+  - id: pattern-64-repetitive-matches
+    statement: >-
+      On Repetitive input of n = 512 with m = 64 the search finds the 4 occurrences of a…ab that
+      String.prototype.indexOf finds in the same seeded text, one ending at each lone b.
+    readout: Matches
+    expect: { value: 4 }
+    setup:
+      params: { shape: repetitive, n: 512, m: '64' }
+
 ---
 
 Compare from the right end of the pattern and jump by the mismatched character: sublinear in practice.

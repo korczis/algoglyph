@@ -50,6 +50,33 @@ claims:
     expect: { value: 100 }
     setup:
       params: { R: '31' }
+  - id: pattern-32-hash-updates-identity
+    statement: >-
+      With the pattern length fixed at 32 on DNA of n = 512 characters, the pattern and the first
+      window take m hash steps each and each of the n − m slides one more: 2m + (n − m) = 544
+      updates, exactly.
+    readout: Hash updates
+    expect: { value: 544 }
+    setup:
+      params: { shape: dna, n: 512, m: '32' }
+  - id: pattern-8-hash-updates-identity
+    statement: >-
+      With the pattern length fixed at 8 on DNA of n = 96 characters, the count is 2m + (n − m) =
+      16 + 88 = 104 updates, exactly.
+    readout: Hash updates
+    expect: { value: 104 }
+    setup:
+      params: { shape: dna, n: 96, m: '8' }
+  - id: pattern-4-dna-matches-indexof
+    statement: >-
+      With a pattern of 4 DNA letters in n = 512 the search finds 3 matches, the count
+      String.prototype.indexOf finds in the same seeded text, whatever spurious hits the hash
+      makes.
+    readout: Matches
+    expect: { value: 3 }
+    setup:
+      params: { shape: dna, n: 512, m: '4' }
+
 ---
 
 Compare rolling hashes of each window with the pattern's, characters only on a match.

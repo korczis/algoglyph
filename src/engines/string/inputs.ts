@@ -200,17 +200,19 @@ export const KINDS: Record<InputKind, KindDef> = {
     scale: [64, 128, 256, 512, 1024, 2048],
     shapes: [{ value: 'words', label: 'English words' }, { value: 'dna', label: 'DNA (ACGT)' },
       { value: 'repetitive', label: 'Repetitive (aaa…ab, pattern grows with n)' }],
-    make(rnd, n, shape) {
+    make(rnd, n, shape, opts) {
+      // the search kernels' pattern length (src/kernels/string/_search.ts): 'auto' draws it
+      const fixed = Number(opts.m) > 0 ? Number(opts.m) : 0;
       if (shape === 'repetitive') {
         // the worst case of the naive search: a pattern a…ab of length n/16 over runs of a whose
         // lone b's lie one to three pattern lengths apart, the last at the end of the text
-        const m = Math.max(6, Math.floor(n / 16));
+        const m = fixed ? Math.min(fixed, n) : Math.max(6, Math.floor(n / 16));
         const cells = new Array<string>(n).fill('a');
         for (let at = n - 1; at >= m - 1; at -= m + Math.floor(rnd() * 2 * m)) cells[at] = 'b';
         return { text: cells.join(''), pattern: `${'a'.repeat(m - 1)}b` };
       }
       const text = shape === 'dna' ? Array.from({ length: n }, () => pick(rnd, 'ACGT')).join('') : prose(rnd, n);
-      const m = Math.min(text.length, shape === 'dna' ? 6 : int(rnd, 4, 7));
+      const m = Math.min(text.length, fixed || (shape === 'dna' ? 6 : int(rnd, 4, 7)));
       const at = int(rnd, 0, text.length - m);
       return { text, pattern: text.slice(at, at + m) };
     },

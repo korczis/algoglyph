@@ -1,7 +1,20 @@
+import type { ParamDef } from '../../core/plate';
 import { S, type StringOps } from '../../engines/string/trace';
 
 export const SEARCH_COUNTERS = { compare: 'Character comparisons' };
 export const SEARCH_CHART = { title: 'Work along the text', x: 'text position', y: 'count so far' };
+
+/**
+ * The pattern's length, one control every search plate shares (src/engines/string/inputs.ts
+ * reads it): 'auto' is the old draw, 4 to 7 characters of English words, 6 of DNA, max(6, n/16)
+ * on Repetitive input; a number fixes m, at most the text's length. 128 at most: brute force
+ * then counts no more than it did on Repetitive input at n 2048, m(n − m + 1) at m = 128.
+ */
+export const searchParams = (): ParamDef[] => [{
+  kind: 'select', key: 'm', label: 'Pattern length', value: 'auto', rebuild: true,
+  options: [{ value: 'auto', label: 'As the input draws it' },
+    ...[4, 6, 8, 16, 32, 64, 128].map((m) => ({ value: String(m), label: `${m} characters` }))],
+}];
 
 /** The text, the pattern lined up under it, and the matches found so far. */
 export function board(ops: StringOps, text: string, pattern: string): void {
