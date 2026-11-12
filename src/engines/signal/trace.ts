@@ -202,10 +202,14 @@ export class Recording {
 
   constructor(run: Run) { this.it = run[Symbol.iterator](); }
 
-  /** Resume for about `ms` milliseconds; true once the run has finished. */
-  pump(ms: number): boolean {
+  /**
+   * Resume for at most `maxSteps` steps (views and pauses, counted) and at most about `ms`
+   * milliseconds, whichever ends first, and at least one step; true once the run has finished.
+   * The count bounds the work on a slow machine, the time bounds it under load.
+   */
+  pump(ms: number, maxSteps = Infinity): boolean {
     const end = performance.now() + ms;
-    while (!this.done) {
+    for (let k = 0; k < maxSteps && !this.done; k++) {
       const r = this.it.next();
       this.steps++;
       if (r.done) this.done = true;

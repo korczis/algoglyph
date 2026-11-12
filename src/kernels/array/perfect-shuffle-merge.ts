@@ -9,6 +9,9 @@ import type { ArrayKernel, ArrayOps } from '../../engines/array/trace';
 // their logical positions, a shuffle rewrites that order through the auxiliary array, and a
 // compare-exchange that involves a pad needs no comparison (the pad is the larger key).
 export const kernel: ArrayKernel = {
+  // its trace grows as n lg² n words: 786k at n = 512 (3 MB), whose rebuild frame measured
+  // 36.5 ms in the budget gate, against 197k words at n = 256
+  maxN: 256,
   run(a: ArrayOps) {
     const n = a.n;
     if (n < 2) return;

@@ -25,6 +25,22 @@ interface Budget {
 const budget = parse(readFileSync('config/budgets.yaml', 'utf8')) as Budget;
 const widest = Math.max(...budget.widths);
 
+/**
+ * The all-maximum base, then one variant per option of each select that changes the work: a
+ * select can switch the whole run (a lab's "all kernels" group traced one kernel per frame), and
+ * its cost shows only past the first frames (review of feature/sorting-wasm: 30-32 ms at frames
+ * 45-260 of the sorting lab's "all" group, unseen by the settings window).
+ */
+function selects(defs: ParamDef[]): Params[] {
+  const b = base(defs);
+  const out = [b];
+  for (const d of defs) {
+    if (d.kind !== 'select' || d.cosmetic) continue;
+    for (const o of d.options) if (o.value !== b[d.key]) out.push({ ...b, [d.key]: o.value });
+  }
+  return out;
+}
+
 /** Every range at its maximum, with the defaults for everything else. */
 function base(defs: ParamDef[]): Params {
   const out: Params = {};
@@ -41,6 +57,7 @@ function corners(defs: ParamDef[]): Params[] {
   const b = base(defs);
   const out = [b];
   for (const d of defs) {
+    if (d.cosmetic) continue;
     if (d.kind === 'select') {
       for (const o of d.options) if (o.value !== b[d.key]) out.push({ ...b, [d.key]: o.value });
     } else if (d.kind === 'range' && d.min !== d.max) {
@@ -218,8 +235,9 @@ const CHECKS: Record<string, (label: string, plate: Plate) => void> = {
     }
   },
   rebuild(label, plate) {
-    const params = base(plate.params);
-    judge(`${label} past the end of a run at ${widest} px`, best(() => rebuild(plate, params, widest)));
+    for (const params of selects(plate.params)) {
+      judge(`${label} past the end of a run at ${widest} px ${JSON.stringify(params)}`, best(() => rebuild(plate, params, widest)));
+    }
   },
   drag(label, plate) {
     const params = base(plate.params);
