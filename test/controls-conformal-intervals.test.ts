@@ -5,7 +5,7 @@
 // split conformal interval at level l with n calibration cases covers ⌈(n + 1) l⌉ / (n + 1) of
 // new cases on average, which lies in [l, l + 1/(n + 1)), whatever the model or its training.
 import { describe, expect, it } from 'vitest';
-import type { Params, SelectParam } from '../src/core/plate';
+import type { Params, RangeParam, SelectParam } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
 import { trace, type StochasticKernel } from '../src/engines/stochastic/trace';
 import { kernel as conformal, type ConformalResult } from '../src/kernels/stochastic/conformal-intervals';
@@ -88,6 +88,57 @@ describe('conformal-intervals: nominal level shown', () => {
   it('runs the same at the default passed explicitly', () => {
     for (const seed of [1, 4242]) {
       const a = trace(k, { [KEY]: '0.9', reps: 30 }, seed);
+      const b = trace(k, { reps: 30 }, seed);
+      expect(a.frames).toEqual(b.frames);
+      expect(a.result).toEqual(b.result);
+    }
+  });
+});
+
+describe('conformal-intervals: training cases', () => {
+  const KEY = 'ntrain';
+  const range = () => defOf(KEY) as RangeParam | undefined;
+
+  it('is a range control with the old 80 as its default', async () => {
+    expect(range()).toMatchObject({ kind: 'range', label: 'Training cases', min: 10, step: 5, value: 80, rebuild: true });
+    // the highest degree, 7, needs eight points to fit; the default sits on the grid
+    expect(range()!.min).toBeGreaterThanOrEqual(8);
+    expect((80 - range()!.min) % range()!.step).toBe(0);
+    expect(range()!.max).toBeGreaterThanOrEqual(80);
+    expect((await loadPlate(ID))!.params.find((x) => x.key === KEY)).toEqual(range());
+  });
+
+  it('round-trips through a shared link', async () => {
+    await roundTrips(KEY, [10, 45, range()!.max]);
+  });
+
+  it('fits on that many cases, every radius finite at the highest degree and fewest cases', () => {
+    for (const n of [10, 35, range()!.max]) {
+      const t = trace(k, { [KEY]: n, degree: 7, reps: 20 }, 9);
+      const rows = Object.fromEntries(t.frames[0].stats.map((s) => [s.label, s.value]));
+      expect(rows['Training / calibration / test cases'], `${n}`).toBe(`${n.toLocaleString('en-US')} / 60 / 200`);
+      expect(Number.isFinite(t.result.radius), `${n}`).toBe(true);
+      // every case is drawn as x then noise: two draws per training case more or fewer
+      const base = trace(k, { degree: 7, reps: 20 }, 9);
+      expect(t.draws - base.draws, `${n}`).toBe(2 * 20 * (n - 80));
+    }
+  });
+
+  it('drives the readouts: coverage in [0.9, 0.9 + 1/61] give or take three standard errors at any training size', async () => {
+    const [lo, hi] = band(0.9, 60, 150);
+    for (const n of [10, range()!.max]) {
+      for (const degree of [1, 7]) {
+        const r = await read(ID, claim(covering(0.9), { [KEY]: n, degree }));
+        expect(r.reason, `${n}`).toBeUndefined();
+        expect(r.value!, `n=${n} degree=${degree}`).toBeGreaterThanOrEqual(lo);
+        expect(r.value!, `n=${n} degree=${degree}`).toBeLessThanOrEqual(hi);
+      }
+    }
+  });
+
+  it('runs the same at the default passed explicitly', () => {
+    for (const seed of [1, 4242]) {
+      const a = trace(k, { [KEY]: 80, reps: 30 }, seed);
       const b = trace(k, { reps: 30 }, seed);
       expect(a.frames).toEqual(b.frames);
       expect(a.result).toEqual(b.result);

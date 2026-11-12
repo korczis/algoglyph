@@ -82,6 +82,34 @@ claims:
     expect: { value: 95, tolerance: 1.3 }
     setup:
       params: { level: "0.95", ncal: 19 }
+  - id: fewest-training-cases-cover-at-the-guaranteed-rate
+    statement: >-
+      Fitted on only 10 training cases, the 90% split conformal interval still covers between 90%
+      and 91.6% of test cases over 150 experiments with 60 calibration cases, give or take the
+      same three standard errors (about 1.1 points): the guarantee needs only exchangeable
+      calibration and test cases, so the training size changes the width, never the coverage.
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
+    setup:
+      params: { ntrain: 10 }
+  - id: overfitted-model-covers-at-the-guaranteed-rate
+    statement: >-
+      A degree-7 polynomial fitted on 10 training cases, nearly interpolating them, still gives a
+      90% split conformal interval covering between 90% and 91.6% of test cases over 150
+      experiments, give or take the same three standard errors (about 1.1 points).
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
+    setup:
+      params: { ntrain: 10, degree: 7 }
+  - id: most-training-cases-cover-at-the-guaranteed-rate
+    statement: >-
+      Fitted on 400 training cases, the 90% split conformal interval covers between 90% and 91.6%
+      of test cases over 150 experiments, give or take the same three standard errors (about 1.1
+      points): the training size moves the width, never the coverage.
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
+    setup:
+      params: { ntrain: 400 }
 ---
 
 Intervals from held-out residuals that cover the truth at the stated rate.

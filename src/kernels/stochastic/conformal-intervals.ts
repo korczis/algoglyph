@@ -84,6 +84,11 @@ export const kernel: StochasticKernel<ConformalResult> = {
       options: [{ value: 'growing', label: 'Growing with x' }, { value: 'constant', label: 'Constant' }],
     },
     { kind: 'range', key: 'degree', label: 'Model: polynomial degree', min: 1, max: 7, step: 1, value: 3, rebuild: true },
+    // at least 10 training cases: the highest degree, 7, needs eight points to fit. At most 400,
+    // as many as the calibration cases: the budget held at 2000 too, but there the faint
+    // training dots bury the test cases the plot colours by covered or missed, and the fit's own
+    // error, about √((degree + 1) / n) of the noise, is already a seventh of it at 400.
+    { kind: 'range', key: 'ntrain', label: 'Training cases', min: 10, max: 400, step: 5, value: 80, rebuild: true },
     { kind: 'range', key: 'ncal', label: 'Calibration cases', min: 19, max: 400, step: 1, value: 60, rebuild: true },
     repetitionsParam(),
     levelParam(),
@@ -95,7 +100,7 @@ export const kernel: StochasticKernel<ConformalResult> = {
     const kind = str(cfg, 'noise');
     const degree = num(cfg, 'degree');
     const nCal = num(cfg, 'ncal');
-    const nTrain = 80;
+    const nTrain = num(cfg, 'ntrain');
     const reps = num(cfg, 'reps');
     const level = shownLevel(cfg);
     const name = levelName(level);
