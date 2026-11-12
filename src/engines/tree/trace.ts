@@ -516,7 +516,8 @@ export function workload(kind: InputKind, shape: string, n: number, seed: number
     w.deletes = sample(words, Math.floor(n / 2), rnd);
   } else if (kind === 'pairs') {
     w.sites = n;
-    const m = Math.ceil(1.5 * n);
+    // connections per site: the union-find kernels' control (src/kernels/tree/_union-find.ts)
+    const m = Math.ceil((opts.perSite ?? 1.5) * n);
     if (shape === 'chain') {
       for (let i = 0; i + 1 < n; i++) w.pairs.push([i, i + 1]);
       while (w.pairs.length < m && n > 1) {

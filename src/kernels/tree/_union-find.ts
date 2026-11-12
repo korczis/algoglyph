@@ -1,7 +1,15 @@
 // Union-find on sites 0..n-1, worked through the array: a[i] is site i's component id or
 // parent, a[n + i] the size of the tree rooted at i where a kernel weights its unions. Each
 // array access is counted, the classic cost model of these algorithms.
+import type { ParamDef } from '../../core/plate';
 import type { TreeOps } from '../../engines/tree/trace';
+
+/** The control every union-find plate shares, so they stay in step: the workload makes
+ * ⌈p n⌉ connections over n sites (the chain input lays its n − 1 links first). */
+export const unionFindParams = (): ParamDef[] => [{
+  kind: 'range', key: 'perSite', label: 'Unions per site', min: 0.5, max: 1.5, step: 0.25, value: 1.5,
+  rebuild: true, hint: 'Connections made: ⌈p n⌉ for n sites.',
+}];
 
 export interface UnionFind {
   weighted?: boolean;
