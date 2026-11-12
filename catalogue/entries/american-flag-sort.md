@@ -23,6 +23,33 @@ related:
   - msd-radix-sort
   - quicksort-three-way
   - three-way-radix-quicksort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [msd-radix-sort]
+  objectives:
+  - 'Run Random permutation at 512 keys: no comparison at all and 1,516 array writes, since every pile of the last byte holds a single key.'
+  - 'Run Already sorted: no write, since every key already lies in its pile and no cycle starts.'
+  - 'Explain why a pile of fewer than 16 keys goes to insertion sort, the only place the plate counts a comparison, and why on 1..n only 257 to 270 keys leave such a pile.'
+  misconceptions:
+  - 'An in-place radix sort has to compare keys to find their places; on Random permutation at 512 keys American flag sort makes 1,516 array writes and no comparison.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+bounds:
+  model: 'comparisons (only in the insertion sort of piles under 16 keys) and array writes (each exchange two); no auxiliary write'
+  best: 'no write on Already sorted, and from 16 keys no comparison there either, unless a block of 256 keys (keys agreeing on all but the lowest byte) holds 2 to 15 of them, m − 1 comparisons for its m'
+  average: 'no comparison on a permutation of 1..n for 16 ≤ n ≤ 512, except 257 ≤ n ≤ 270; 1,516 array writes on Random permutation at 512 keys'
+claims:
+  - id: random-no-comparison
+    statement: >-
+      On Random permutation at 512 keys American flag sort makes no comparison: every pile of the lowest byte holds one key, so no pile reaches the insertion sort.
+    readout: Comparisons
+    expect: { value: 0 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 An in-place MSD radix sort: count how many keys fall into each of the 256 piles of the current byte, compute where the piles begin, permute the keys home by following cycles, then sort every pile on the next byte.

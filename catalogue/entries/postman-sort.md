@@ -22,6 +22,32 @@ related:
   - burstsort
   - lsd-radix-sort
   - msd-radix-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [msd-radix-sort]
+  objectives:
+  - 'Read the Array writes: exactly n on every input, each key written once when the buckets are concatenated.'
+  - 'Run Few distinct keys at 512 keys: the keys span a single decimal digit, so one distribution and 512 Auxiliary writes; Random permutation needs three digits and 1,528.'
+  - 'Explain why there is no comparison: every bucket is chosen by a digit of the key.'
+  misconceptions:
+  - 'A top-down radix sort gathers the keys back into the array after every digit, as LSD radix sort does; Postman''s sort writes the array once, n = 512 writes at 512 keys.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    in_place: false
+    comparison_based: false
+bounds:
+  model: 'array writes (one per key, the concatenated buckets written back) and auxiliary writes (each cell of the drawn bucket strip that changes); no comparison'
+  average: 'no comparison and exactly n array writes on every input; from two keys at least n auxiliary writes, exactly n when the keys span fewer than 10 values, one decimal digit'
+claims:
+  - id: one-write-per-key
+    statement: >-
+      On Random permutation at 512 keys Postman's sort makes exactly n = 512 array writes: the buckets of all three decimal digits are formed aside and the array is written once.
+    readout: Array writes
+    expect: { value: 512 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Sort the way mail is sorted: distribute the records into buckets by the most significant part of the key, then sort each bucket the same way by the next part, and concatenate the buckets in order.
