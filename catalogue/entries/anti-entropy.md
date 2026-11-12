@@ -72,6 +72,42 @@ claims:
     expect: { against: Result, against_number: 3, tolerance: 0 }
     setup:
       params: { heal: 90 }
+  - id: writes-stop-early
+    statement: >-
+      Stopping the writes at 35% of the run (3,500 ms) bounds how many there are: each of the 4
+      replicas writes first within 150 ms and then every 120 to 420 ms until 3,500 ms, so it
+      makes at least 1 + ⌊3,350 / 420⌋ = 8 and at most 1 + ⌊3,500 / 120⌋ = 30 writes: between
+      32 and 120 in all.
+    readout: Writes
+    expect: { range: [32, 120] }
+    setup:
+      params: { writeStop: 35 }
+  - id: no-duplicate-when-writes-stop-early
+    statement: >-
+      With the writes stopping at 35% of the run, still no replica receives any write twice: the
+      answer is exactly the writes above the asker's marks whenever the writes stop, so exactly 0.
+    readout: Duplicates received
+    expect: { value: 0 }
+    setup:
+      params: { writeStop: 35 }
+  - id: transfers-are-exact-when-writes-stop-early
+    statement: >-
+      With the writes stopping at 35% of the run, the writes transferred are still exactly
+      (replicas − 1) × writes, the result line's third number; an exact identity, no tolerance.
+    readout: Writes transferred
+    expect: { against: Result, against_number: 3, tolerance: 0 }
+    setup:
+      params: { writeStop: 35 }
+  - id: converges-after-the-later-of-stop-and-heal
+    statement: >-
+      With the writes stopping at 35% of the run (3,500 ms) and the partition healing at 40%
+      (4,000 ms), each side writes inside the cut from 3,000 ms, 500 ms that are longer than the
+      420 ms between writes, so nothing converges before max(3,500, 4,000) = 4,000 ms; they
+      converge before the run ends at 10,000 ms.
+    readout: Converged at
+    expect: { range: [4000, 10000] }
+    setup:
+      params: { writeStop: 35, heal: 40 }
 ---
 
 Peers compare what they have and send only what the other lacks.

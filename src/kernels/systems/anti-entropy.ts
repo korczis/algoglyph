@@ -21,7 +21,12 @@ export interface AntiEntropyResult {
 
 export const kernel: SystemsKernel<AntiEntropyResult> = {
   network: true,
-  params: [{ kind: 'range', key: 'replicas', label: 'Replicas', min: 2, max: 6, step: 1, value: 4, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'replicas', label: 'Replicas', min: 2, max: 6, step: 1, value: 4, rebuild: true },
+    // at most 40: writing longer only adds writes and transfers, and the run was already at its
+    // heaviest; at least 35, so that both sides still write inside the partition from 30%
+    { kind: 'range', key: 'writeStop', label: 'Writes stop at (% of run)', min: 35, max: 40, step: 5, value: 40, rebuild: true },
+  ],
   setup: (p) => ({
     lanes: Array.from({ length: num(p, 'replicas') }, (_, i) => `replica ${String.fromCharCode(65 + i)}`),
     horizon: 10000,
@@ -34,7 +39,8 @@ export const kernel: SystemsKernel<AntiEntropyResult> = {
     const busy = new Array<boolean>(R).fill(false);
     const lockTimer: (ReturnType<typeof net.at> | null)[] = new Array(R).fill(null);
     const wait = 2 * net.cfg.delay[1] + 5;
-    const writeUntil = net.horizon * 0.4;
+    // (writeStop / 100) first: 40 / 100 is the double 0.4, so the default stops where it did
+    const writeUntil = net.horizon * (Number(p.writeStop ?? 40) / 100);
 
     const lock = (i: number) => {
       busy[i] = true;

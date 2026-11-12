@@ -85,3 +85,56 @@ describe('anti-entropy: partition heals at', () => {
     }
   });
 });
+
+describe('anti-entropy: writes stop at', () => {
+  it('is a range control of the plate, the old constant its default', () => {
+    // up to 40: writing longer only adds writes and their transfers, and at 80% of the run the
+    // trace is about 8% longer than at the plate's heaviest setting today (6 replicas, 5 ms
+    // delay, no loss or partition); 35 is the least that still writes on both sides of the cut
+    expect(defOf('writeStop')).toMatchObject({ kind: 'range', label: 'Writes stop at (% of run)', min: 35, max: 40, step: 5, value: 40, rebuild: true });
+  });
+
+  it('round-trips through a shared link', () => {
+    const defs = plateOf(ID).params;
+    const d: Params = Object.fromEntries(defs.map((x) => [x.key, x.value]));
+    expect(parse(defs, serialise(defs, { ...d, writeStop: 35 }, 7))).toEqual({ seed: 7, params: { writeStop: 35 } });
+  });
+
+  it('stops the writes at writeStop × horizon, with no duplicate and every transfer exact', () => {
+    const d = defOf('writeStop');
+    expect(d, 'the plate declares the control').toBeDefined();
+    const k = kernelOf(ID) as SystemsKernel<AntiEntropyResult>;
+    for (const writeStop of settings(d!)) for (const heal of [40, 60, 90]) for (const seed of SEEDS) {
+      for (const net of [{}, { delay: 120, loss: 40 }, { delay: 5, loss: 0, partition: false }] as Params[]) {
+        const label = `writeStop ${writeStop} heal ${heal} seed ${seed} ${JSON.stringify(net)}`;
+        const run = simulate(k, defaultParams(k, { ...net, writeStop, heal }), seed);
+        const stop = (HORIZON * writeStop) / 100;
+        const marks = run.net.events.filter((e) => e.k === 'mark' && /^w\d+$/.test(e.label));
+        expect(Math.max(...marks.map((e) => (e as { t: number }).t)), label).toBeLessThanOrEqual(stop);
+        identities(run.result, label);
+        if (Number.isNaN(run.result.convergedAt)) continue;
+        expect(run.result.convergedAt, label).toBeGreaterThan(stop);
+        // each side writes in [3,000, stop), longer than the 420 ms between writes
+        if (run.net.cfg.partition) {
+          expect(run.result.convergedAt, label).toBeGreaterThanOrEqual(Math.max(stop, (HORIZON * heal) / 100));
+        }
+      }
+    }
+  });
+
+  it('drives the plate\'s readouts', async () => {
+    const r = await read(ID, claim('Converged at', { writeStop: 35, heal: 40 }));
+    expect(r.reason).toBeUndefined();
+    expect(r.value!).toBeGreaterThanOrEqual(4000);
+    const t = await read(ID, claim('Writes transferred', { writeStop: 35 }, { against: 'Result', against_number: 3, tolerance: 0 }));
+    expect(t.reason).toBeUndefined();
+    expect(t.value, 'transfers − (replicas − 1) × writes').toBe(0);
+    const w35 = await read(ID, claim('Writes', { writeStop: 35 }));
+    const w40 = await read(ID, claim('Writes', {}));
+    // each of the 4 replicas writes from within 150 ms every 120 to 420 ms: by 3,500 ms at least
+    // 1 + ⌊3,350 / 420⌋ = 8 and at most 1 + ⌊3,500 / 120⌋ = 30 writes
+    expect(w35.value!).toBeGreaterThanOrEqual(32);
+    expect(w35.value!).toBeLessThanOrEqual(120);
+    expect(w35.value!, 'stopping earlier never adds writes on the same seed').toBeLessThanOrEqual(w40.value!);
+  });
+});
