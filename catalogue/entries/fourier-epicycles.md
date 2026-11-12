@@ -4,6 +4,9 @@ title: Epicycle Engine
 taxonomy: signals/transforms
 status: live
 engine: custom
+sources:
+  - id: smith-dsp-guide
+    ref: 'Chapter 31: The Complex Fourier Transform'
 tags:
   - Fourier
   - complex numbers

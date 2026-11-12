@@ -48,6 +48,13 @@ sources:
     author: Edward N. Lorenz
     year: 1963
     kind: paper
+  - id: smith-dsp-guide
+    title: The Scientist and Engineer's Guide to Digital Signal Processing
+    author: Steven W. Smith
+    publisher: California Technical Publishing
+    year: 1997
+    kind: book
+    url: https://www.dspguide.com/
   - id: pocorgtfo
     title: PoC||GTFO
     author: Manul Laphroaig (ed.)
