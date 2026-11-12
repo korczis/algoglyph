@@ -6,17 +6,13 @@ title: "Sorting and selection: the bespoke plates"
 slug: sorting-and-selection-custom-plates
 priority: p2
 profile: implementation
-objective: "Make live: balanced-multiway-merge, burnt-pancake-sort, miracle-sort, stalin-sort."
+objective: "Make live: balanced-multiway-merge, burnt-pancake-sort."
 why: "Derived from the catalogue (ADR 0004): these entries are planned in this wing for this engine."
 scope:
   - src/plates/balanced-multiway-merge
   - src/plates/burnt-pancake-sort
-  - src/plates/miracle-sort
-  - src/plates/stalin-sort
   - catalogue/entries/balanced-multiway-merge.md
   - catalogue/entries/burnt-pancake-sort.md
-  - catalogue/entries/miracle-sort.md
-  - catalogue/entries/stalin-sort.md
 depends_on: []
 acceptance_criteria:
   - Every entry named in the objective has status live, and its kernel or plate exists.

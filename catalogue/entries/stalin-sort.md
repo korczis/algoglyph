@@ -2,7 +2,7 @@
 id: stalin-sort
 title: Stalin sort
 taxonomy: sorting/esoteric
-status: planned
+status: live
 engine: custom
 sources:
   - id: depaula-2018
@@ -34,6 +34,6 @@ It is a joke about the definition of sorting. The sorting problem asks for a per
 
 With distinct keys the survivors are exactly the left-to-right maxima, and Knuth's analysis of finding the maximum shows that on a random permutation the running maximum changes H_n − 1 times on average, so about ln n keys survive. The longest non-decreasing subsequence is typically far longer, and patience sorting finds it; as an algorithm for the problem it really solves, Stalin sort is still poor.
 
-This is a bespoke plate: the output drops keys, so it is not a permutation of the input and cannot pass the array harness. The plate marks each key as kept or eliminated as the sweep passes, and counts the survivors against the expected harmonic number; Random permutation at n = 256 shows how little survives, and on Reversed only the first key does.
+This is a bespoke plate: the output drops keys, so it is not a permutation of the input and cannot pass the array harness. The plate marks each key of the input as kept or eliminated as the sweep passes and shows, below it, the survivors compacted to the front of the array as the kernel writes them. The chart follows the survivors along the sweep, for this run and as the mean of the finished runs, against H_i, the expected number among the first i keys of a random permutation; Random permutation at n = 256 shows how little survives, and on Reversed only the first key does.
 
 The joke is internet folklore with no citable origin; the best-known source is a community repository that collects implementations, cited here for the rule, not for its history. Strand sort turns the same greedy pass into a correct sort by keeping the rejected keys, pulling another strand from them and merging, and natural mergesort keeps every run instead of discarding.
