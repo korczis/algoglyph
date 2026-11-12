@@ -3,9 +3,10 @@ import { fmt, pm, Sampler, SortedSample } from '../../engines/stochastic/sample'
 import { taskNetwork, type Task } from '../../engines/stochastic/scenarios';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
 
-/** The PERT-Beta shape of a task: alpha = 1 + 4 (m - a) / (b - a), beta = 1 + 4 (b - m) / (b - a). */
-export function pertShape(t: Pick<Task, 'a' | 'm' | 'b'>): [number, number] {
-  return [1 + (4 * (t.m - t.a)) / (t.b - t.a), 1 + (4 * (t.b - t.m)) / (t.b - t.a)];
+/** The PERT-Beta shape of a task with weight λ (4 classically): alpha = 1 + λ (m - a) / (b - a),
+ * beta = 1 + λ (b - m) / (b - a), so its mean is (a + λm + b) / (λ + 2). */
+export function pertShape(t: Pick<Task, 'a' | 'm' | 'b'>, lambda = 4): [number, number] {
+  return [1 + (lambda * (t.m - t.a)) / (t.b - t.a), 1 + (lambda * (t.b - t.m)) / (t.b - t.a)];
 }
 
 /** Earliest finish of every task and of the project (tasks in topological order), and the
@@ -30,7 +31,7 @@ export interface PertResult {
   finishes: number[];
   /** Share of runs in which each task lay on the critical path. */
   criticality: number[];
-  /** The project length with every task at its PERT mean (a + 4m + b) / 6. */
+  /** The project length with every task at its PERT mean (a + λm + b) / (λ + 2). */
   deterministic: number;
 }
 
@@ -41,14 +42,21 @@ const FRAMES = 140;
 // finish and which tasks were critical. The finishes' quantiles are the schedule's P50 to P90.
 export const kernel: StochasticKernel<PertResult> = {
   palette: 'ember',
-  params: [{ kind: 'range', key: 'n', label: 'Simulated projects', min: 500, max: 40000, step: 500, value: 6000, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'n', label: 'Simulated projects', min: 500, max: 40000, step: 500, value: 6000, rebuild: true },
+    // λ = 0 is the uniform distribution on [a, b] (below it the shapes fall under 1, and far
+    // enough under 0); past 10 every task is nearly fixed at m and the merge bias the plate shows
+    // fades. The cost is the same at every λ: the same two Gamma draws a task
+    { kind: 'range', key: 'lambda', label: 'PERT weight λ', min: 0, max: 10, step: 0.5, value: 4, rebuild: true },
+  ],
   chart: { title: 'Schedule quantiles as runs accumulate', x: { label: 'runs', log: true }, y: { label: 'project length' } },
   *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const tasks = taskNetwork(s);
     const n = num(cfg, 'n');
-    const shapes = tasks.map(pertShape);
-    const means = tasks.map((t) => (t.a + 4 * t.m + t.b) / 6);
+    const lambda = num(cfg, 'lambda');
+    const shapes = tasks.map((t) => pertShape(t, lambda));
+    const means = tasks.map((t) => (t.a + lambda * t.m + t.b) / (lambda + 2));
     const det = longestPath(tasks, means);
     const finishes: number[] = [];
     // kept sorted as it grows, so the quantiles never need a full re-sort
