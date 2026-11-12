@@ -8,6 +8,7 @@ import type { Engine, KernelInfo } from '../types';
 import { makeGraph, SHAPE_LABELS, type Graph, type Shape } from './graph';
 import { defaultParams, E, emptyCounts, modularity, OP, start, V, work, type GraphKernel, type Options,
   type ReadoutKey, type Running, type SeriesKey, type Trace } from './trace';
+import { count } from '../../core/format';
 
 const HOLD_FRAMES = 90;
 const SCALING_N = [16, 32, 64, 128];
@@ -22,7 +23,7 @@ const FRAME_UNITS = 8_000;
 const STATS_EVERY = 6;
 const CHART_EVERY = 18;
 
-const fmt = (x: number) => (Number.isInteger(x) ? x.toLocaleString('en-US')
+const fmt = (x: number) => (Number.isInteger(x) ? count(x)
   : Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 1 ? x.toFixed(2) : x.toPrecision(3));
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */

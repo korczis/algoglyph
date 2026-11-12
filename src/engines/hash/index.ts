@@ -10,13 +10,14 @@ import { apply, DELETED, EMPTY, KIND, OP, STRIDE, Table, trace, tracer, type Has
   type Step, type Tracer,
   type Trace } from './table';
 import { scalingWorkload, STREAM_LABELS, STREAMS, workload, type Stream } from './workload';
+import { count } from '../../core/format';
 
 const HOLD_FRAMES = 90;
 export const SCALING_N = [16, 32, 64, 128, 256, 512];
 /** Trace events a lab's scaling measurement may record in one frame. */
 export const FRAME_EVENTS = 40_000;
 
-const fmt = (x: number) => x.toLocaleString('en-US');
+const fmt = count;
 const dec = (x: number, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '–');
 const KIND_NAME = ['insert', 'search', 'delete'];
 

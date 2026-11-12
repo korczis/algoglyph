@@ -9,6 +9,7 @@ import type { Engine, KernelInfo } from '../types';
 import { Board, drawBoard } from './board';
 import { input, KINDS, type InputKind } from './inputs';
 import { Recording, traceSteps, work, type StringKernel } from './trace';
+import { count } from '../../core/format';
 
 const HOLD_FRAMES = 120;
 /**
@@ -18,7 +19,7 @@ const HOLD_FRAMES = 120;
  */
 export const RECORD_EVENTS = 6000;
 export const REPLAY_EVENTS = 5000;
-const fmt = (x: number) => x.toLocaleString('en-US');
+const fmt = count;
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
 export function exponent(points: [number, number][]): number {
