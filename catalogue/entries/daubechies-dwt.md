@@ -13,7 +13,25 @@ tags:
   - multi-scale
   - dwt
 complexity: 'O(N · L) for a filter of length L; each level halves the work'
-motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Convolve the approximation with the scaling filter h and the wavelet filter g, keeping every second output.
+  - See why the Daubechies filters' orthonormality makes the inverse the transpose and the reconstruction exact to rounding.
+  - Keep only the largest coefficients and rebuild, and compare Haar's blocky approximations with D8's.
+algorithm:
+  paradigm: transform
+bounds:
+  model: real multiplies of the analysis filter bank
+  worst: 'N·L at the first level for a filter of length L, half that at each next: 2NL(1 − 2^−J) for J levels, below 2NL'
+claims:
+  - id: reconstruction-exact-to-rounding
+    statement: >-
+      The filters are orthonormal, so rebuilding from every coefficient reproduces the signal to
+      rounding: no sample is off by 10⁻⁹.
+    readout: Perfect reconstruction, largest error
+    expect: { below: 1.0e-9 }
 ---
 
 A signal split into detail and approximation, octave by octave.

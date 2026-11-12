@@ -14,6 +14,18 @@ complexity: 'O(W · τmax) per frame'
 motivation: Acoustic measurement and synthesis use it every day.
 related:
   - xcorr-alignment
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Compute the difference function d(τ) over a frame and normalise it by its own running mean.
+  - Take the first dip below the threshold, followed to its local minimum, and refine it with a parabola.
+  - See why the first dip keeps YIN off sub-harmonics, and how a strong second harmonic still reads an octave high.
+  misconceptions:
+  - The first-dip rule guards only against octave-low errors; a strong second harmonic still gives an octave-high one.
+bounds:
+  model: real multiplies per frame
+  worst: 'W·τmax for the difference function over a frame of W samples, and 2τmax for its normalisation'
 ---
 
 A difference function with cumulative normalisation that finds the fundamental period.

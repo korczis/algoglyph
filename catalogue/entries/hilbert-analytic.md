@@ -16,6 +16,21 @@ complexity: 'O(N log N): one forward and one inverse FFT'
 motivation: Acoustic measurement and synthesis use it every day.
 related:
   - fm-synthesis
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites:
+  - fft-butterfly
+  objectives:
+  - Build the analytic signal by transforming, doubling the positive bins, zeroing the negative ones and transforming back.
+  - Read the envelope as its magnitude and the instantaneous frequency as the step of its phase.
+  - See why every frequency is a whole number of cycles in the record, so the FFT sees it as periodic.
+algorithm:
+  paradigm: transform
+bounds:
+  model: butterflies
+  best: 'N log2 N for N samples, padded to a power of two: one forward and one inverse FFT'
+  worst: 'N log2 N for N samples, padded to a power of two: one forward and one inverse FFT'
 ---
 
 The envelope and instantaneous frequency of a signal from its analytic counterpart.
