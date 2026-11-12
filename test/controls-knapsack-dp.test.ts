@@ -80,7 +80,7 @@ describe('knapsack-dp: capacity per item', () => {
         }
       }
     }
-  }, 60_000);
+  });
 
   it('drives the plate\'s readouts', async () => {
     const n = knapsack.size.value;
@@ -96,7 +96,7 @@ describe('knapsack-dp: capacity per item', () => {
       expect(best.reason).toBeUndefined();
       expect(best.value, `c=${c}`).toBe(brute(weights, values, W));
     }
-  }, 60_000);
+  });
 });
 
 describe('the grid engine at the defaults is what it was before the control', () => {
@@ -117,7 +117,7 @@ describe('the grid engine at the defaults is what it was before the control', ()
       }));
     });
     expect(hash(all)).toBe(TRACES);
-  }, 60_000);
+  });
 
   it('every grid plate offers the same controls, the new one aside', () => {
     const defs = live.map((e) => [e.id, plateOf(e.id).params.filter((d) => d.key !== KEY)]);
@@ -130,5 +130,5 @@ describe('the grid engine at the defaults is what it was before the control', ()
       out.push((await read('knapsack-dp', { id: 'x', statement: '', readout, expect: { value: 0 } })).text);
     }
     expect(hash(out), JSON.stringify(out)).toBe(KNAPSACK_READOUTS);
-  }, 60_000);
+  });
 });
