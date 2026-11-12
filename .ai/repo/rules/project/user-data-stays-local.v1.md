@@ -32,6 +32,8 @@ the reader's trust and the gates at once.
   marker `~<rows>.<digest>`. A token read from a link passes the same parser.
 - Whenever a copied link would carry the data, the page says "a copied link carries your data"
   next to the copy action and in the data card.
+- A control works on a reader's data at every value, or the declaration lists it in `ignores`:
+  the page then disables it and says why, and a test proves it changes nothing on data.
 - Claims, pacing and labs run on seeded input only. A plate on a reader's data labels it "Your
   data", and its readouts stay measured.
 

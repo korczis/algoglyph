@@ -53,6 +53,8 @@ a reader hands on when they copy a link.
    - the rows it accepts (`min`, `max`);
    - a byte cap;
    - `replaces`, the key of the plate's select that gains the option `data:<id>`;
+   - `ignores`, the controls that only shape the seeded input: the page disables them while the
+     data is picked and says why, and a test proves that they change nothing on data;
    - `url_bytes`, the longest encoded table a link carries.
 
    The registry adds the option when it joins code and entry. A kind that has no parser is not in
