@@ -8,7 +8,7 @@ import { bounded, cellWithin, stepsWithin } from '../../core/budget';
 
 /** Spins in the lattice at most, and spin updates (spins × sweeps) per frame (src/core/budget.ts). */
 export const MAX_SITES = 90_000;
-export const SPIN_UPDATES_PER_FRAME = 900_000;
+export const SPIN_UPDATES_PER_FRAME = 500_000;
 
 // How fast the drawn spin follows the real one, and how fast a flip's glow fades, per frame.
 const FOLLOW = 0.35;
