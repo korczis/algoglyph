@@ -80,3 +80,7 @@ labs:
     title: Transforms lab
     summary: Transforms applied to one seeded signal side by side, each one's real multiplies counted and its growth measured as the signal lengthens.
     engine: signal
+  - id: hulls
+    title: Convex hull lab
+    summary: Every convex hull algorithm on the same points with the same budget of orientation tests per frame, ranked by when it closes its hull, with each one's work measured as n grows.
+    engine: geometry
