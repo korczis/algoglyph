@@ -13,8 +13,6 @@ tags:
   - bst
 complexity: "O(n log n + k) expected for k intersections, with an unbalanced search tree on random heights"
 related:
-  - general-sweep
-  - ccw-intersection
   - bst-delete-join
 schema: algoglyph.entry/v2
 pedagogy:

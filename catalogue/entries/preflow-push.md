@@ -13,9 +13,6 @@ tags:
   - max flow
   - push relabel
 complexity: "O(V³) with a FIFO queue of active vertices"
-related:
-  - ford-fulkerson
-  - edmonds-karp
 ---
 
 Flood the network from the source and push excess downhill until it drains.

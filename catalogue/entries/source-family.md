@@ -13,8 +13,6 @@ tags:
 motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(N² s) for N documents of s shingles each"
 related:
-  - minhash-lsh
-  - simhash
   - union-find-entity-merge
 relations:
   - { type: uses, target: quick-union, reason: "Linked documents are merged by quick-union (the smaller index as root, with path halving)." }

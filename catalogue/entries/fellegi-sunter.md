@@ -12,7 +12,6 @@ tags:
 motivation: Resolving one company or person across noisy public registries needs it.
 complexity: "O(n² f) field comparisons for n records and f fields, then O(n² f) per EM iteration"
 related:
-  - blocking-sorted-neighbourhood
   - jaro-winkler
 schema: algoglyph.entry/v2
 pedagogy:

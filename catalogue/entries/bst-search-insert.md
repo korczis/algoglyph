@@ -14,7 +14,6 @@ tags:
   - symbol table
 complexity: about 1.39 lg n compares per search on random keys, n in the worst case
 related:
-  - bst-delete-join
   - red-black-tree
 schema: algoglyph.entry/v2
 pedagogy:

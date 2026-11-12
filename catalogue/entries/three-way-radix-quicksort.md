@@ -15,7 +15,6 @@ tags:
 complexity: "about 2 n ln n character comparisons for random strings; linear in the characters examined for long shared prefixes"
 related:
   - quicksort-three-way
-  - msd-radix-sort
   - ternary-search-trie
 schema: algoglyph.entry/v2
 pedagogy:

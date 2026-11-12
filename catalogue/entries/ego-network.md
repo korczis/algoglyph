@@ -14,7 +14,6 @@ motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(V + E) within the neighbourhood"
 interaction: "Tap a vertex to make it the subject."
 related:
-  - breadth-first-search
   - personalised-pagerank
 ---
 

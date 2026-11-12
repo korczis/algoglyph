@@ -13,7 +13,6 @@ tags:
   - radix search
 complexity: about lg n bit tests and one full comparison per search
 related:
-  - binary-trie
   - digital-search-tree
 schema: algoglyph.entry/v2
 pedagogy:

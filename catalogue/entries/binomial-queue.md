@@ -12,8 +12,6 @@ tags:
   - binomial trees
   - mergeable
 complexity: lg n per insert, remove-max and join
-related:
-  - binary-heap
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

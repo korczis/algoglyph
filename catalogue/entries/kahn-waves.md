@@ -14,7 +14,6 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: "O(V + E)"
 related:
   - topological-sort
-  - critical-path
   - sugiyama-layout
 schema: algoglyph.entry/v2
 pedagogy:

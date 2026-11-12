@@ -16,8 +16,6 @@ motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(E) per round; the error shrinks by a factor d per round"
 interaction: "Tap a vertex to make it the subject."
 related:
-  - pagerank
-  - ego-network
   - spreading-activation
 ---
 

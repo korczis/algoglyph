@@ -11,8 +11,6 @@ tags:
   - search
   - symbol table
 complexity: 'O(n) per search; a hit costs its position, a miss the whole list'
-related:
-  - binary-search
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

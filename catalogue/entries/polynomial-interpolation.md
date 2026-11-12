@@ -14,9 +14,6 @@ tags:
   - lagrange
   - runge
 complexity: 'O(n²) for the divided differences, O(n) per evaluation'
-related:
-  - cubic-splines
-  - least-squares
 ---
 
 The polynomial through n points, and how it oscillates between equally spaced ones.

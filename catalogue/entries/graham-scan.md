@@ -16,7 +16,6 @@ tags:
 complexity: "O(n log n), dominated by the angular sort"
 related:
   - simple-closed-path
-  - gift-wrapping
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

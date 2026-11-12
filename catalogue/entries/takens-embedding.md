@@ -12,9 +12,6 @@ tags:
   - false nearest neighbours
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
 complexity: 'O(N²) per dimension for the false-neighbour search over N vectors'
-related:
-  - recurrence-plot
-  - lyapunov-exponent
 ---
 
 An attractor reconstructed from one observed signal and its delays.

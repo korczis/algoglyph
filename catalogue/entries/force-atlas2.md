@@ -15,7 +15,6 @@ complexity: "O(V² + E) per iteration with exact repulsion; O(V log V + E) with 
 related:
   - geo-graph
   - sugiyama-layout
-  - fibonacci-sphere
 ---
 
 Repulsion between all vertices, attraction along edges and gravity to the centre, settling into a readable map.

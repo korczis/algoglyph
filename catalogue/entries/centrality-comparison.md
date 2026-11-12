@@ -14,7 +14,6 @@ tags:
 motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "degree O(E); closeness O(VE); eigenvector O(E) per power-iteration round"
 related:
-  - brandes-betweenness
   - pagerank
 ---
 

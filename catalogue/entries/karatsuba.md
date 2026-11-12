@@ -13,7 +13,6 @@ tags:
 complexity: '3^lg n = n^1.585 multiplications for n coefficients'
 related:
   - strassen
-  - horner-evaluation
 ---
 
 Three half-size products instead of four: n^1.58 instead of n².

@@ -16,9 +16,7 @@ tags:
 complexity: "O(V + E)"
 interaction: "Tap a vertex to start from it."
 related:
-  - breadth-first-search
   - topological-sort
-  - articulation-points
 ---
 
 Go as deep as possible, back up only when stuck; the tree edges and back edges it leaves.

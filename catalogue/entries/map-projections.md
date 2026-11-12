@@ -13,8 +13,6 @@ tags:
   - distortion
 motivation: Crisis maps and geospatial analysis are built from it.
 complexity: "O(1) per projected point; the Křovák inverse iterates its latitude to convergence"
-related:
-  - haversine-hhi
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

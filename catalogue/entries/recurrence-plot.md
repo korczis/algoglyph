@@ -14,7 +14,6 @@ motivation: Decisions made under uncertainty, and checked afterwards, rest on it
 complexity: 'O(N²) for N states'
 related:
   - takens-embedding
-  - hurst-dfa
 ---
 
 When the trajectory returns near where it has been, drawn as a matrix whose texture changes with regime.

@@ -12,8 +12,6 @@ tags:
   - lcg
   - spectral test
 complexity: 'O(1) per number; period at most m'
-related:
-  - additive-congruential
 ---
 
 x ← (ax + c) mod m, and the lattice its consecutive pairs fall on.

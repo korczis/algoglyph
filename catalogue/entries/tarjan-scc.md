@@ -15,9 +15,6 @@ tags:
   - low link
 motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(V + E)"
-related:
-  - ownership-cycles
-  - kosaraju-scc
 ---
 
 One DFS with a stack and low links pops each strong component as it completes.

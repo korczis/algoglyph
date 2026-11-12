@@ -11,9 +11,6 @@ tags:
   - polygons
   - angular sort
 complexity: "O(n log n), the angular sort"
-related:
-  - graham-scan
-  - point-in-polygon
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

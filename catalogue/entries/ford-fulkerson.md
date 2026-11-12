@@ -15,10 +15,8 @@ tags:
   - cuts
 complexity: "O(E f) for integer capacities, f the maximum flow"
 related:
-  - edmonds-karp
   - preflow-push
   - min-cost-flow
-  - bipartite-matching
 ---
 
 Push flow along any path with spare capacity until none is left; the saturated edges form a cut.

@@ -304,6 +304,9 @@ export function loadCatalogue(root, { code = true } = {}) {
     if (r.type === 'relation' && !relTypes.has(r.value)) errors.push(`${r.rel}: ${r.path}: ${r.value} is not a relation type of relations.yaml`);
     if (r.type === 'entry' && r.value === r.from) errors.push(`${r.rel}: ${r.path}: an entry does not relate to itself`);
   }
+  for (const [a, b] of twoSidedPairs(entries)) {
+    errors.push(`relations: ${a} and ${b} each declare the other; a link is declared once and its reverse derived (node scripts/relations-one-side.mjs)`);
+  }
   // typed edges: declared once, the inverse derived from the relation table
   const edges = [];
   for (const e of entries) {

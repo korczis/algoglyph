@@ -14,7 +14,6 @@ tags:
   - divide and conquer
 complexity: "O(n log n) expected, O(n²) worst case"
 related:
-  - gift-wrapping
   - graham-scan
 schema: algoglyph.entry/v2
 pedagogy:

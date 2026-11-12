@@ -13,8 +13,6 @@ tags:
   - integration
   - quadrature
 complexity: 'n + 1 evaluations; error O(h²) for trapezoids, O(h⁴) for Simpson on smooth integrands'
-related:
-  - adaptive-quadrature
 ---
 
 Areas under a curve from trapezoids and parabolas, and how fast their error falls.

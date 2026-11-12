@@ -14,8 +14,6 @@ tags:
   - rolling hash
   - fingerprints
 complexity: "O(n + m) expected; O(n m) when every window collides"
-related:
-  - brute-force-search
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

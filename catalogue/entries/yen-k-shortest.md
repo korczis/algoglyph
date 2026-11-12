@@ -14,7 +14,6 @@ complexity: "O(k V E log V) with a binary heap"
 interaction: "Tap a vertex to start from it."
 related:
   - dijkstra
-  - credible-path
 ---
 
 The best path, then the best that differs from it, and so on, by spur paths.

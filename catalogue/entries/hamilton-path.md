@@ -12,8 +12,6 @@ tags:
   - np-complete
   - paths
 complexity: "exponential in the worst case; the problem is NP-complete"
-related:
-  - euler-tour
 ---
 
 A path through every vertex once, found by exhaustive search with backtracking.

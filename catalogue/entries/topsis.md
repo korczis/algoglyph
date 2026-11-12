@@ -11,8 +11,6 @@ tags:
   - ideal point
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
 complexity: 'O(m k) for m options and k criteria'
-related:
-  - pareto-front
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

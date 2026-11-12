@@ -13,7 +13,6 @@ tags:
   - nearest neighbour
 complexity: "O(log n) expected per insertion and per nearest-neighbour query on random points; a rectangle query visits O(√n + k) nodes when the tree is balanced"
 related:
-  - grid-method
   - r-tree
 schema: algoglyph.entry/v2
 pedagogy:

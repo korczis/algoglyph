@@ -16,10 +16,7 @@ tags:
 complexity: "O(E log V) with a binary heap"
 interaction: "Tap a vertex to start from it."
 related:
-  - credible-path
   - prim-mst
-  - bellman-ford
-  - breadth-first-search
 ---
 
 Settle vertices in order of distance, relaxing the edges of each one settled.

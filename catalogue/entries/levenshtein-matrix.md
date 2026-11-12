@@ -14,7 +14,6 @@ tags:
   - fuzzy matching
 motivation: Resolving one company or person across noisy public registries needs it.
 related:
-  - jaro-winkler
   - longest-common-subsequence
   - myers-diff
 complexity: "O(|a| · |b|) time and cells"

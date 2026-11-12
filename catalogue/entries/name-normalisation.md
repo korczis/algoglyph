@@ -13,8 +13,6 @@ tags:
 motivation: Resolving one company or person across noisy public registries needs it.
 complexity: "O(n) in the length of the name, plus sorting its tokens"
 related:
-  - blocking-sorted-neighbourhood
-  - double-metaphone
   - fellegi-sunter
 schema: algoglyph.entry/v2
 pedagogy:

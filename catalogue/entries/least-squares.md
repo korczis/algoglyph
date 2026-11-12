@@ -13,7 +13,6 @@ tags:
 complexity: 'O(m n²) for m samples and n coefficients by Householder QR'
 related:
   - polynomial-interpolation
-  - gaussian-elimination
 ---
 
 The curve that minimises the sum of squared vertical distances.

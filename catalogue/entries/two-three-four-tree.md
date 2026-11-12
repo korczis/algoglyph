@@ -14,9 +14,6 @@ tags:
   - 2-3-4
   - split
 complexity: between log4 n and lg n levels; every leaf at the same depth
-related:
-  - red-black-tree
-  - b-tree
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

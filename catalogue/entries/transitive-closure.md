@@ -12,9 +12,6 @@ tags:
   - reachability
   - matrix
 complexity: "O(V³)"
-related:
-  - floyd-warshall
-  - kosaraju-scc
 ---
 
 Who can reach whom, filled into a matrix one intermediate vertex at a time.

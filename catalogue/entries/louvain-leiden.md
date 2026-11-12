@@ -14,8 +14,6 @@ tags:
   - clustering
 motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(E) per sweep of local moving"
-related:
-  - label-propagation
 ---
 
 Move vertices to the neighbour community that most raises modularity, then contract and repeat.

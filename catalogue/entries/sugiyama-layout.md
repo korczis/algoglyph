@@ -12,9 +12,7 @@ tags:
 motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: "crossing minimisation is NP-hard; each barycentre sweep sorts every layer, O(N log N) for N vertices and dummy nodes"
 related:
-  - kahn-waves
   - topological-sort
-  - force-atlas2
 ---
 
 Assign layers, order each layer to reduce crossings, then place: how plans are drawn.

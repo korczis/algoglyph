@@ -12,8 +12,6 @@ tags:
   - seeding
 motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(nk) per Lloyd iteration and O(nk) for the seeding"
-related:
-  - dbscan
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

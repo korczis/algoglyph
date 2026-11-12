@@ -12,10 +12,6 @@ tags:
   - topological order
   - dfs
 complexity: "O(V + E)"
-related:
-  - kahn-waves
-  - depth-first-search
-  - dag-shortest-paths
 ---
 
 Reverse postorder of a DFS puts every edge pointing forward.

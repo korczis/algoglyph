@@ -13,7 +13,6 @@ tags:
 motivation: Crisis maps and geospatial analysis are built from it.
 complexity: "O(log n) height; insertion visits one path, a quadratic split costs O(M²)"
 related:
-  - kd-tree
   - grid-method
 schema: algoglyph.entry/v2
 pedagogy:

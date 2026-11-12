@@ -12,8 +12,6 @@ tags:
   - maps
 motivation: Crisis maps and geospatial analysis are built from it.
 complexity: "O(V² + E) per iteration"
-related:
-  - force-atlas2
 ---
 
 A force layout whose vertices are pulled towards their places on a map.

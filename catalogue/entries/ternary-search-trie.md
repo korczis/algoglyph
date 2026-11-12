@@ -12,8 +12,6 @@ tags:
   - strings
   - ternary
 complexity: character comparisons in proportion to the key length plus lg n on random input
-related:
-  - multiway-trie
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

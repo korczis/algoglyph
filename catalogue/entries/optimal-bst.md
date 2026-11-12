@@ -13,8 +13,6 @@ tags:
   - dynamic programming
   - search trees
 complexity: "Θ(n³) time, Θ(n²) space (Knuth's monotone-root bound gives Θ(n²))"
-related:
-  - matrix-chain
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

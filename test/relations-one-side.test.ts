@@ -16,4 +16,14 @@ describe('relations: declared on one side', () => {
     ]);
     expect(pairs).toEqual([['a', 'b']]);
   });
+
+  it('the catalogue declares no link on both sides', () => {
+    const { errors } = loadCatalogue(root, { code: false });
+    expect((errors as string[]).filter((e) => e.includes('each declare the other'))).toEqual([]);
+  });
+
+  it('the collapse script has nothing left to do', () => {
+    const out = execFileSync('node', ['scripts/relations-one-side.mjs', '--check'], { cwd: root, encoding: 'utf8' });
+    expect(out).toContain('0 two-sided pair(s)');
+  });
 });
