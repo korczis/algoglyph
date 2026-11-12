@@ -20,7 +20,7 @@
 // passes (σₚτ/M ≪ σₓ), plane-wave illumination, point-like slits (the envelope is flat across the
 // fringes measured). ΔxΔp here are standard deviations (≥ ħ/2), not the lecture's order-of-
 // magnitude Δx·Δp ≈ h.
-import { Fft } from '../../quantum-tunnelling/schrodinger';
+import { Fft } from '../fft/fft';
 import { erf } from './math';
 
 export type WallState = 'gaussian' | 'chirped';
