@@ -19,8 +19,13 @@ interface Exports {
   ag_sort_fingerprint(): number;
   ag_sort_input(n: number): number;
   ag_sort_edges(m: number): number;
-  ag_sort_run(k: number, n: number, m: number, seedHi: number, seedLo: number, base: number,
-    kp: number, maxSteps: number, trace: number): number;
+  ag_sort_option_count(): number;
+  ag_sort_option_name(i: number): number;
+  ag_sort_option_name_len(i: number): number;
+  ag_sort_reads(k: number): number;
+  ag_sort_options(): number;
+  ag_sort_run(k: number, n: number, m: number, seedHi: number, seedLo: number, maxSteps: number,
+    trace: number): number;
   ag_sort_result(): number;
   ag_sort_steps(): number;
   ag_sort_output(): number;
@@ -33,7 +38,7 @@ interface Exports {
 }
 
 /** The ABI layout this file reads (abi.rs ABI_VERSION); a module of another layout is refused. */
-export const ABI = 3;
+export const ABI = 4;
 /** Step op codes: the low four bits of a step's first word (prelude.rs `op`). */
 export const SOP = {
   cmp: 0, cmpv: 1, swap: 2, set: 3, read: 4, mark: 5, auxWrite: 6, phase: 7, lane: 8, round: 9,
@@ -53,6 +58,8 @@ export interface KernelMeta {
   stable: (typeof STABILITY)[number];
   inPlace: boolean;
   kind: (typeof KINDS)[number];
+  /** The tunable options the kernel's source reads (the module's ag_sort_reads). */
+  options: string[];
 }
 
 export interface RunCounts {
@@ -82,8 +89,11 @@ export interface WasmRun {
 
 export interface RunOptions {
   seed?: number;
-  base?: number;
-  k?: number;
+  /**
+   * Tunable options by the module's names (ag_sort_option_name), whole numbers; an option left
+   * out, or 0, is the kernel's own default. A name the kernel does not read is refused.
+   */
+  options?: Readonly<Record<string, number>>;
   edges?: [number, number][];
   maxSteps?: number;
   trace?: boolean;
@@ -98,6 +108,8 @@ export interface Sorting {
   /** The largest input and arc list the module accepts (exported by it, never restated). */
   maxN: number;
   maxEdges: number;
+  /** The tunable options the module takes, in the order of its option words. */
+  options: string[];
   /** What a cached trace is keyed by: the module's content hash and the ABI layout. */
   build: string;
 }
@@ -113,14 +125,18 @@ async function instantiate(): Promise<Sorting> {
   if (abi !== ABI) throw new Error(`sorting-wasm: the module speaks ABI ${abi}, this adapter ${ABI}`);
   const utf8 = new TextDecoder();
   const text = (ptr: number, len: number) => utf8.decode(new Uint8Array(x.memory.buffer, ptr, len));
+  const options = Array.from({ length: x.ag_sort_option_count() },
+    (_, i) => text(x.ag_sort_option_name(i), x.ag_sort_option_name_len(i)));
   const kernels: KernelMeta[] = Array.from({ length: x.ag_sort_count() }, (_, index) => {
     const m = x.ag_sort_meta(index);
+    const reads = x.ag_sort_reads(index);
     return {
       index,
       id: text(x.ag_sort_id(index), x.ag_sort_id_len(index)),
       stable: STABILITY[m & 3],
       inPlace: Boolean(m & 4),
       kind: KINDS[m >>> 3],
+      options: options.filter((_, i) => reads & (1 << i)),
     };
   });
   const byId = new Map(kernels.map((k) => [k.id, k]));
@@ -153,9 +169,21 @@ async function instantiate(): Promise<Sorting> {
     if (!ep) throw new RangeError(`sorting-wasm: the module refused room for ${edges.length} arcs`);
     const ev = new Uint32Array(x.memory.buffer, ep, 2 * edges.length);
     edges.forEach(([a, b], i) => { ev[2 * i] = a; ev[2 * i + 1] = b; });
+    const words = new Uint32Array(options.length);
+    for (const [name, value] of Object.entries(opt.options ?? {})) {
+      const i = options.indexOf(name);
+      if (i < 0 || !meta.options.includes(name)) {
+        throw new RangeError(`sorting-wasm: ${id} does not read an option ${name} (it reads ${meta.options.join(', ') || 'none'})`);
+      }
+      if (!(Number.isInteger(value) && value >= 0 && value <= 0xffffffff)) {
+        throw new RangeError(`sorting-wasm: option ${name} = ${value} is not a whole u32`);
+      }
+      words[i] = value;
+    }
+    new Uint32Array(x.memory.buffer, x.ag_sort_options(), options.length).set(words);
     const seed = opt.seed ?? 0x5eed1234;
     const code = x.ag_sort_run(meta.index, n, edges.length, Math.floor(seed / 2 ** 32) >>> 0, seed >>> 0,
-      opt.base ?? 0, opt.k ?? 0, opt.maxSteps ?? 0, opt.trace === false ? 0 : 1);
+      opt.maxSteps ?? 0, opt.trace === false ? 0 : 1);
     if (code < 0) throw new Error(`sorting-wasm: ${id} refused the call`);
     const buf = x.memory.buffer;
     const r = new Float64Array(buf, x.ag_sort_result(), RESULT_LEN);
@@ -188,6 +216,7 @@ async function instantiate(): Promise<Sorting> {
     scenario: (id) => x.ag_sort_scenario(find(id).index),
     maxN,
     maxEdges,
+    options,
     build: `${hash}|abi${abi}`,
   };
 }

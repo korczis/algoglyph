@@ -2,8 +2,8 @@
 //! section 5.4.1 and 5.2.4; the "two-way merge with distribution passes" of early tape
 //! sorting).
 //!
-//! Simulation with three tapes A, B, C and a memory of M items (M = ceil(sqrt n), at
-//! least 4). Run generation writes sorted memory loads to tape A. Then every pass first
+//! Simulation with three tapes A, B, C and a memory of M items (M = `options.memory` when
+//! it is at least 2, otherwise ceil(sqrt n), at least 4). Run generation writes sorted memory loads to tape A. Then every pass first
 //! distributes the runs of A alternately onto B and C (a copying pass, the cost that
 //! balanced merging avoids with more tapes), then merges run i of B with run i of C back
 //! onto A, halving the number of runs. `aux` shows the three tapes. Run i of B and run i
@@ -12,6 +12,9 @@
 //!
 //! Passes (`t.round()`): a pass reads and writes every item once: run generation, then every
 //! distribution and every merge; the closing copy into the array belongs to the last merge.
+//! Run generation leaves ceil(n / M) runs and every distribution-and-merge halves their
+//! number, rounding up, so a run takes 1 + 2 ceil(log_2 ceil(n / M)) passes. The memory M is
+//! an option (`options.memory`, a plate control through the sidecar; 0 keeps the default).
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -21,12 +24,12 @@ pub const META: Meta = Meta {
     kind: Kind::External,
 };
 
-pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
+pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     let n = v.len();
     if n < 2 {
         return Outcome::Sorted;
     }
-    let m = memory_size(n);
+    let m = memory_size(n, opt);
     t.round();
     t.phase(&format!("run generation onto tape A, memory M = {m}"));
     let mut a = generate_runs(t, v, m);
@@ -72,8 +75,12 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, _opt: &Options) -> Outcome {
     Outcome::Sorted
 }
 
-/// Memory size M of the simulation: ceil(sqrt n), at least 4 items.
-fn memory_size(n: usize) -> usize {
+/// Memory size M of the simulation: `options.memory` when it is at least 2, otherwise
+/// ceil(sqrt n), at least 4 items.
+fn memory_size(n: usize, opt: &Options) -> usize {
+    if opt.memory >= 2 {
+        return opt.memory as usize;
+    }
     let mut m = 4;
     while m * m < n {
         m += 1;
@@ -310,5 +317,49 @@ mod tests {
         let (out2, _, t2) = run(&input, &count_only());
         assert_eq!(out2, out);
         assert_eq!(t2.counts(), t.counts());
+    }
+
+    /// Smallest p with 2^p >= r.
+    fn ceil_log2(r: usize) -> u64 {
+        let (mut p, mut reach) = (0, 1usize);
+        while reach < r {
+            reach *= 2;
+            p += 1;
+        }
+        p
+    }
+
+    #[test]
+    fn the_default_memory_is_ceil_sqrt_n() {
+        let mut r = SplitMix64::new(5);
+        for &n in &[2usize, 9, 16, 17, 100, 512, 1000] {
+            let input = random(n, -50, 50, &mut r);
+            let mut m = 4;
+            while m * m < n {
+                m += 1;
+            }
+            let opt = Options { max_steps: 1_000_000, ..Options::default() };
+            let set = Options { memory: m as u32, ..opt.clone() };
+            let (a, _, ta) = run(&input, &opt);
+            let (b, _, tb) = run(&input, &set);
+            assert_eq!(a, b);
+            assert_eq!(ta.counts(), tb.counts(), "n = {n}");
+            assert_eq!(ta.words(), tb.words(), "n = {n}");
+        }
+    }
+
+    #[test]
+    fn passes_are_one_plus_two_ceil_log2_of_the_runs_across_m() {
+        let mut r = SplitMix64::new(17);
+        for &n in &[64usize, 200, 512] {
+            let input = random(n, 0, 1000, &mut r);
+            for m in (4..=64u32).step_by(4) {
+                let (out, outcome, t) = run(&input, &Options { memory: m, ..count_only() });
+                assert_eq!(outcome, Outcome::Sorted);
+                assert!(out.windows(2).all(|w| w[0].key <= w[1].key));
+                let runs = n.div_ceil(m as usize);
+                assert_eq!(t.counts().rounds, 1 + 2 * ceil_log2(runs), "n {n} M {m}");
+            }
+        }
     }
 }

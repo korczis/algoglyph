@@ -15,6 +15,7 @@ complexity: lg M compares per key; runs of expected length 2M on random input
 related:
   - binary-heap
   - balanced-multiway-merge
+  - heapsort
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate
