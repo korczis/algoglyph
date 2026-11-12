@@ -67,7 +67,7 @@ const cents = (a: number, b: number) => 1200 * Math.log2(a / b);
 export const kernel: SignalKernel = {
   rate: 14,
   params: [
-    { kind: 'range', key: 'f0', label: 'Starting pitch (Hz)', min: 100, max: 600, step: 5, value: 196 },
+    { kind: 'range', key: 'f0', label: 'Starting pitch (Hz)', min: 100, max: 600, step: 1, value: 196 },
     { kind: 'range', key: 'glide', label: 'Glide (semitones)', min: -12, max: 12, step: 1, value: 7 },
     { kind: 'range', key: 'vib', label: 'Vibrato depth (cents)', min: 0, max: 100, step: 5, value: 30 },
     { kind: 'range', key: 'snr', label: 'SNR (dB)', min: 0, max: 60, step: 1, value: 25 },

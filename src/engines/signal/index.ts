@@ -41,7 +41,7 @@ function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
   const rate = kernel.rate ?? 8;
   const params: ParamDef[] = [
     ...own,
-    { kind: 'range', key: 'speed', label: 'Replay speed (views per second)', min: 1, max: 60, step: 1, value: rate },
+    { kind: 'range', key: 'speed', label: 'Replay speed (views per second)', min: 0.5, max: 60, step: 0.1, value: rate },
     { kind: 'toggle', key: 'loop', label: 'New signal when done', value: true },
     paletteParam('spectral'),
   ];
