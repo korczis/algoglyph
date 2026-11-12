@@ -2,7 +2,7 @@
 id: worstsort
 title: Worstsort
 taxonomy: sorting/esoteric
-status: planned
+status: live
 engine: custom
 sources:
   - id: lerma-2014
@@ -30,6 +30,6 @@ Lerma's question was how inefficient a sort can be without cheating: no idle loo
 
 Bubble sort of m items costs on the order of m² comparisons, so one level over n! permutations costs at least about (n!)², two levels at least about ((n!)!)², and so on. Choosing the level by an increasing computable function f makes the running time exceed f itself: there is no computable ceiling on how slow a reasonable sort can be. Unlike bogosort, whose best case is linear, every input costs the same, and the permutation lists really are built, so memory explodes with time.
 
-This is a bespoke plate: the kernel refuses inputs longer than five keys, while the array engine starts at n = 8. The plate lets the reader choose n from 2 to 5 and the number of levels where it is still feasible, shows the list of permutations being bubble-sorted, and counts every key comparison inside the lexicographic ones, so the reader can watch the counts jump by factorials from one n to the next.
+This is a bespoke plate: the kernel refuses inputs longer than five keys, while the array engine starts at n = 8. The plate lets the reader choose n from 2 to 5 and the number of levels where it is still feasible, shows the list of permutations being bubble-sorted, one row per permutation, and counts every key comparison inside the lexicographic ones, so the reader can watch the counts jump by factorials from one n to the next. At the kernel's own choice of levels (two for n ≤ 2, one for 3 ≤ n ≤ 5) it runs the kernel's algorithm step by step and shows the compiled kernel's count for the same input beside its own; a level whose list would be too long to build is refused and named. The chart sets the counted lexicographic comparisons and swaps of the bubble sort against what the list itself determines: its swaps are its inversions, and it runs one pass more than the largest number of greater items standing before any item.
 
 Lerma links the question to computability: worstsort is itself computable, so busy-beaver functions still outgrow it, but any fixed computable bound can be beaten. Slowsort is the gentler cousin, deliberately slow and deterministic but with a fixed subexponential cost.

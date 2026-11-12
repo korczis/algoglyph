@@ -198,8 +198,9 @@ export class Stage {
  * at a time, so at most one extra WebGL context exists besides the live stage.
  */
 export function thumbnail(plate: Plate, params: Params, seed: number, theme: Theme,
-  width = 400, height = 250): Promise<string> {
+  width = 400, height = 250, signal?: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException('thumbnail cut', 'AbortError')); return; }
     const host = document.createElement('div');
     host.setAttribute('aria-hidden', 'true');
     host.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none;';
@@ -224,6 +225,12 @@ export function thumbnail(plate: Plate, params: Params, seed: number, theme: The
         sim.setup();
       };
       p.draw = () => {
+        // cut between chunks: a render left running would take the frames of the page shown now
+        if (signal?.aborted) {
+          p.noLoop();
+          finish(() => reject(new DOMException('thumbnail cut', 'AbortError')));
+          return;
+        }
         try {
           for (let k = 0; k < chunk && done < frames; k++, done++) {
             p.push();

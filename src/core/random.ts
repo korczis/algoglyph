@@ -12,8 +12,11 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
+/** The largest seed; seeds run 1 … SEED_MAX, the range a shared link accepts (src/core/share.ts). */
+export const SEED_MAX = 0x7fffffff;
+
 export function freshSeed(): number {
-  return Math.floor(Math.random() * 0x7fffffff);
+  return 1 + Math.floor(Math.random() * SEED_MAX);
 }
 
 export function shuffle<T>(items: T[], rnd: () => number): T[] {

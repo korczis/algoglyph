@@ -15,7 +15,7 @@ const x = instance.exports as unknown as {
   ag_fluid_free(h: number): void;
 };
 
-describe('wasm kernels', () => {
+describe('stable-fluids: the wasm kernels', () => {
   it('stable fluids in wasm reproduce the native fixture exactly', () => {
     expect(x.ag_fluid_scenario_checksum(fixture.n, fixture.steps)).toBe(fixture.checksum);
   });

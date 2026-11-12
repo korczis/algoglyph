@@ -2,7 +2,7 @@
 id: stooge-sort
 title: Stooge sort
 taxonomy: sorting/esoteric
-status: planned
+status: live
 engine: custom
 sources:
   - id: cormen-2009
@@ -29,4 +29,4 @@ It is always correct: after the first call the largest keys of the front part si
 
 Cormen and colleagues pose it as a textbook problem, credited with a wink to fictional professors named after the Three Stooges; it exercises a correctness proof by induction with careful rounding of the thirds and a recurrence with an unusual exponent. Its original author is unknown. Three calls on two thirds push the exponent above 2, where mergesort's two calls on halves give n log n: the contrast is the lesson.
 
-This is a bespoke plate: at the array engine's largest size the run takes tens of millions of comparisons, too many to record and replay as a trace. The plate caps n (it stays watchable up to about a hundred keys), lets the reader choose the input shape, and plots the measured comparisons against n^2.71; Already sorted is a good default, since stooge sort does all of its work without changing anything after the first exchange.
+This is a bespoke plate: at the array engine's largest size the run takes tens of millions of comparisons, too many to record and replay as a trace. The plate caps n at 128 keys, lets the reader choose the input shape, and runs the kernel's recursion step by step on an explicit stack, drawing the calls that wait on it. The chart plots, on log-log axes, the comparisons the compiled kernel counts for every n up to the chosen one, the exact recurrence C(n) = 1 + 3·C(n − ⌊n/3⌋), this run's count as it rises, and n^(log 3 / log 1.5) through the chosen n; the readouts give the exponent fitted to the kernel's counts. The rounding of the thirds makes the curve a staircase around the power. Try Already sorted too: stooge sort does all of its work without changing anything.

@@ -187,6 +187,58 @@ describe('review round: values, seeds, routes and timing', () => {
   });
 });
 
+import { freshSeed } from '../src/core/random';
+import type { ParamValue } from '../src/core/plate';
+
+describe('review round 2: seed range, canonical order, length, float noise', () => {
+  it('freshSeed draws only seeds a shared link accepts', () => {
+    const real = Math.random;
+    try {
+      for (const r of [0, 1e-12, 0.5, 1 - 1e-12]) {
+        Math.random = () => r;
+        const s = freshSeed();
+        expect(parseSeed(`seed=${s}`), String(r)).toBe(s);
+      }
+    } finally {
+      Math.random = real;
+    }
+  });
+
+  it('writes changed parameters in definition order whatever the object order', () => {
+    const forward = { n: 65, dt: 0.0045, mode: 'b', trail: false };
+    const backward = { trail: false, mode: 'b', dt: 0.0045, n: 65 };
+    expect(serialise(defs, backward, 3)).toBe(serialise(defs, forward, 3));
+    expect(serialise(defs, forward, 3)).toBe('seed=3&n=65&dt=0.0045&mode=b&trail=0');
+  });
+
+  it('writes code-set float noise on the control grid', () => {
+    expect(serialise(defs, { n: 40, dt: 0.0030000000000000005, mode: 'a', trail: true }, 1))
+      .toBe('seed=1');
+    const d: RangeParam = { kind: 'range', key: 'x', label: 'x', min: 0, max: 3, step: 0.1, value: 1 };
+    expect(serialise([d], { x: 1.4000000000000001 }, 1)).toBe('seed=1&x=1.4');
+  });
+
+  it('every live plate and lab fits its longest link in 1024 characters', async () => {
+    const longest = (d: ParamDef): ParamValue => {
+      if (d.kind === 'toggle') return !d.value;
+      if (d.kind === 'select') {
+        return d.options.reduce((a, o) => (o.value.length > a.length && o.value !== d.value ? o.value : a), '');
+      }
+      return [d.min, d.max].reduce((a, v) => (String(v).length > String(a).length ? v : a));
+    };
+    const plates: { id: string; params: ParamDef[] }[] = [];
+    for (const e of ENTRIES.filter((x) => x.status === 'live')) plates.push({ id: `p/${e.id}`, params: (await loadPlate(e.id))!.params });
+    for (const l of CATALOGUE.labs) if (labRunnable(l.id)) plates.push({ id: `lab/${l.id}`, params: (await loadLab(l.id))!.params });
+    for (const { id, params } of plates) {
+      const v: Params = {};
+      for (const d of params) v[d.key] = longest(d) || d.value;
+      const url = `https://korczis.github.io/algoglyph/#/${id}?${serialise(params, v, SEED_MAX)}`;
+      expect(url.length, id).toBeLessThanOrEqual(1024);
+    }
+  });
+
+});
+
 describe('the collection status filter in the route', () => {
   it('reads ?status= on the collection and on a taxonomy node, and ignores anything else', () => {
     expect(parseRoute('#/?status=live').status).toBe('live');

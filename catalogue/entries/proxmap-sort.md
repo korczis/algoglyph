@@ -2,7 +2,7 @@
 id: proxmap-sort
 title: ProxmapSort
 taxonomy: sorting/distribution
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -13,9 +13,8 @@ tags:
   - union-find
   - forest
 complexity: proportional to the tree height per find, n in the worst case
-related:
-  - quick-find
-  - weighted-quick-union
+relations:
+  - { type: variant_of, target: quick-find, reason: "Cheap unions, at the price of finds that climb a tree." }
 ---
 
 Each object points to a parent; a union links one root under the other and a find climbs to the root.

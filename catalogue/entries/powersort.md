@@ -2,7 +2,7 @@
 id: powersort
 title: Powersort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

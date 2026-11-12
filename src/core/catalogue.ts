@@ -31,7 +31,29 @@ export interface Entry {
   /** Entries this one names as related, and the entries that name it (derived). */
   related: string[];
   backlinks: string[];
+  aliases: string[];
+  pedagogy: Pedagogy | null;
+  algorithm: AlgorithmFacts | null;
+  bounds: Bounds | null;
+  experiments: Experiment[];
+  /** Typed links, declared or derived from catalogue/relations.yaml. */
+  links: Link[];
+  /** Derived from code and tests; never authored (ADR 0005 §3). */
+  evidence: { implemented: boolean; tested: 'harness' | 'unit' | null };
+  maturity: { reached: string[]; next: string | null };
 }
+
+export interface Link { to: string; type: string; title: string; reason: string; derived: boolean }
+export interface Pedagogy {
+  difficulty?: string; prerequisites?: string[]; objectives?: string[]; misconceptions?: string[]; questions?: string[];
+}
+export interface AlgorithmFacts {
+  paradigm?: string; properties?: Record<string, boolean>; preconditions?: string[]; postconditions?: string[];
+  invariants?: string[]; limitations?: string[];
+}
+export interface Bounds { model?: string; best?: string; average?: string; worst?: string; space?: string }
+export interface Experiment { id: string; title: string; params?: Record<string, string | number | boolean>; observe?: string }
+export interface RelationType { id: string; title: string; inverse_title?: string; meaning: string }
 
 export interface TaxNode {
   key: string;
@@ -65,6 +87,7 @@ export interface Source {
 }
 
 export interface Catalogue {
+  relationTypes: RelationType[];
   /** The fewest live entries a lab runs with (scripts/lib/catalogue.mjs LAB_MIN). */
   labMin: number;
   nodes: TaxNode[];
@@ -115,16 +138,22 @@ export function labsUnder(key: string): Lab[] {
   return CATALOGUE.labs.filter((l) => l.entries.some((id) => ids.has(id)));
 }
 
-/** Everything an entry links to, each id once: its own links, their reverse, its lab mates
- * and its shelf siblings, in that order. */
+/** Everything an entry links to, each id once, grouped by why: its typed links first (declared
+ * and derived), then its lab mates and its shelf siblings. */
 export function links(e: Entry): { id: string; why: string }[] {
   const out = new Map<string, string>();
   const add = (id: string, why: string) => { if (id !== e.id && !out.has(id) && BY_ID.has(id)) out.set(id, why); };
-  for (const r of e.related) add(r, 'related');
-  for (const r of e.backlinks) add(r, 'refers here');
-  for (const l of e.labs) for (const id of LABS.get(l)?.entries ?? []) add(id, 'same lab');
-  for (const x of ENTRIES) if (x.taxonomy === e.taxonomy) add(x.id, 'same shelf');
+  for (const l of e.links) add(l.to, l.title);
+  for (const l of e.labs) for (const id of LABS.get(l)?.entries ?? []) add(id, 'Same lab');
+  for (const x of ENTRIES) if (x.taxonomy === e.taxonomy) add(x.id, 'Same shelf');
   return [...out].map(([id, why]) => ({ id, why }));
+}
+
+/** The same links as groups of one reason each, in the order they were found. */
+export function linkGroups(e: Entry): { why: string; entries: Entry[] }[] {
+  const groups = new Map<string, Entry[]>();
+  for (const l of links(e)) (groups.get(l.why) ?? groups.set(l.why, []).get(l.why))!.push(BY_ID.get(l.id) as Entry);
+  return [...groups].map(([why, entries]) => ({ why, entries }));
 }
 
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -137,4 +166,29 @@ export function search(entries: Entry[], query: string): Entry[] {
   const words = fold(query).split(/\s+/).filter(Boolean);
   if (!words.length) return entries;
   return entries.filter((e) => words.every((w) => HAY.get(e.id)?.includes(w)));
+}
+
+/** A run of prose: plain text, or a route to a page of the atlas with that page's title. */
+export interface Segment { text: string; href?: string }
+
+const ROUTE = /#\/(p|c|lab)\/([a-z0-9](?:[a-z0-9/-]*[a-z0-9])?)/g;
+
+/**
+ * Prose split into text and links. An author writes a route (`#/p/<id>`, `#/c/<path>`,
+ * `#/lab/<id>`); the link text is derived from the catalogue, so a renamed entry renames every
+ * mention. A route nothing resolves stays text (scripts/check-facts.mjs refuses it at commit).
+ */
+export function prose(text: string): Segment[] {
+  const out: Segment[] = [];
+  let at = 0;
+  for (const m of text.matchAll(ROUTE)) {
+    const [route, kind, key] = m;
+    const title = kind === 'p' ? entry(key)?.title : kind === 'c' ? node(key)?.title : lab(key)?.title;
+    if (!title) continue;
+    if (m.index > at) out.push({ text: text.slice(at, m.index) });
+    out.push({ text: title, href: route });
+    at = m.index + route.length;
+  }
+  if (at < text.length) out.push({ text: text.slice(at) });
+  return out;
 }

@@ -2,7 +2,7 @@
 id: burstsort
 title: Burstsort
 taxonomy: sorting/radix
-status: planned
+status: live
 engine: array
 labs:
   - sorting

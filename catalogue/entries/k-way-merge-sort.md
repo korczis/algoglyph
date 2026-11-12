@@ -2,7 +2,7 @@
 id: k-way-merge-sort
 title: Mergesort, k-way
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting

@@ -2,7 +2,7 @@
 id: flashsort
 title: Flashsort
 taxonomy: sorting/distribution
-status: planned
+status: live
 engine: array
 labs:
   - sorting

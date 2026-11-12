@@ -1,13 +1,14 @@
 import './styles/app.css';
 import Alpine from 'alpinejs';
 import 'flowbite';
-import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, links, node, roots, search, source,
+import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, linkGroups, node, prose, roots, search, source,
   trail, under, type Entry, type Lab, type Status, type TaxNode } from './core/catalogue';
 import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
 import { parseRoute } from './core/route';
 import { HashWriter, parse as parseShared, serialise } from './core/share';
+import { ThumbQueue } from './core/thumbs';
 import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
 
@@ -26,12 +27,12 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 // Not reactive on purpose: p5 instances must never be wrapped in Alpine proxies.
 let stage: Stage | null = null;
 let plateCode: Plate | null = null;
-let thumbQueue: string[] = [];
 // the query of the route being loaded, applied once the plate's controls are known
 let pendingQuery = '';
 const hashWriter = new HashWriter(250);
-let thumbBusy = false;
 let thumbObserver: IntersectionObserver | null = null;
+// the gallery's queue: renders only while the collection is shown (src/core/thumbs.ts)
+let thumbs: ThumbQueue | null = null;
 
 function currentTheme(): Theme {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
@@ -120,12 +121,17 @@ Alpine.data('app', () => ({
   init() {
     window.addEventListener('hashchange', () => this.route());
     window.addEventListener('keydown', (e) => this.key(e));
+    thumbs = new ThumbQueue(
+      (id, signal) => this.renderThumb(id, signal),
+      (id) => this.view === 'browse' && !this.thumbs[id]
+        && !!document.querySelector(`[data-thumb="${CSS.escape(id)}"]`),
+    );
     thumbObserver = new IntersectionObserver((seen) => {
       for (const s of seen) {
         const id = (s.target as HTMLElement).dataset.thumb;
         if (!id) continue;
         if (s.isIntersecting) this.queueThumb(id);
-        else thumbQueue = thumbQueue.filter((x) => x !== id);
+        else thumbs?.drop(id);
       }
     }, { rootMargin: '200px' });
     this.$watch('params', () => {
@@ -153,8 +159,19 @@ Alpine.data('app', () => ({
   sourceTitle(id: string): string { return source(id)?.title ?? id; },
   sourceAuthor(id: string): string { return source(id)?.author ?? ''; },
   wingOf(e: Entry): TaxNode | undefined { return node(e.path[0]); },
-  linksOf(e: Entry): { entry: Entry; why: string }[] {
-    return links(e).slice(0, 18).map((l) => ({ entry: entry(l.id) as Entry, why: l.why }));
+  linkGroups(e: Entry) { return linkGroups(e); },
+  prose(text: string) { return prose(text); },
+  entryOf(id: string): Entry | undefined { return entry(id); },
+  /** True keys of a properties map, as badge labels. */
+  traits(e: Entry): { label: string; on: boolean }[] {
+    const p = e.algorithm?.properties ?? {};
+    return Object.entries(p).map(([k, on]) => ({ label: k.replace(/_/g, ' '), on: Boolean(on) }));
+  },
+  applyPreset(x: { params?: Record<string, string | number | boolean> }) {
+    if (!plateCode || !x.params) return;
+    const known = new Set(plateCode.params.map((d) => d.key));
+    for (const [k, v] of Object.entries(x.params)) if (known.has(k)) this.params[k] = v;
+    void this.mount();
   },
   shelfOf(e: Entry): TaxNode | undefined { return node(e.taxonomy); },
 
@@ -200,6 +217,7 @@ Alpine.data('app', () => ({
       stage?.unmount();
       plateCode = null;
       this.view = 'browse';
+      thumbs?.resume();
       this.nodeKey = r.key;
       this.currentId = '';
       this.status = r.status ?? 'all';
@@ -208,6 +226,9 @@ Alpine.data('app', () => ({
       this.$nextTick(() => this.observeThumbs());
       return;
     }
+    // a plate or a lab owns the main thread: the gallery's queue stops and forgets its cards
+    thumbObserver?.disconnect();
+    thumbs?.close();
     const changed = r.id !== this.currentId || r.view !== this.view;
     this.view = r.view;
     if (changed) {
@@ -342,7 +363,7 @@ Alpine.data('app', () => ({
     if (this.view !== 'browse') void this.mount();
     void this.drawChart();
     this.thumbs = {};
-    thumbQueue = [];
+    thumbs?.clear();
     this.$nextTick(() => this.observeThumbs());
   },
 
@@ -371,40 +392,29 @@ Alpine.data('app', () => ({
 
   // ---- lazy thumbnails: rendered for cards in view, one at a time ---------------------------
   observeThumbs() {
-    if (!thumbObserver) return;
+    if (!thumbObserver || this.view !== 'browse') return;
+    // disconnect delivers no leaving callbacks: cards gone from the page leave the queue here
     thumbObserver.disconnect();
-    document.querySelectorAll<HTMLElement>('[data-thumb]').forEach((el) => thumbObserver?.observe(el));
+    const cards = [...document.querySelectorAll<HTMLElement>('[data-thumb]')];
+    thumbs?.keep(new Set(cards.map((el) => el.dataset.thumb ?? '')));
+    cards.forEach((el) => thumbObserver?.observe(el));
   },
   queueThumb(id: string) {
-    if (this.thumbs[id] || thumbQueue.includes(id)) return;
+    if (this.thumbs[id]) return;
     const cached = cacheGet(`${THUMB_CACHE}:${this.theme}:${id}`);
     if (cached) { this.thumbs[id] = cached; return; }
-    thumbQueue.push(id);
-    void this.drainThumbs();
+    thumbs?.add(id);
   },
-  async drainThumbs() {
-    if (thumbBusy) return;
-    thumbBusy = true;
-    try {
-      while (thumbQueue.length) {
-        const id = thumbQueue.shift() as string;
-        const theme = this.theme;
-        try {
-          const p = await loadPlate(id);
-          if (!p) continue;
-          const { thumbnail } = await stageModule();
-          const url = await thumbnail(p, defaults(p), posterSeed(id), theme);
-          if (theme !== this.theme) continue;
-          this.thumbs[id] = url;
-          cacheSet(`${THUMB_CACHE}:${theme}:${id}`, url);
-        } catch (err) {
-          console.error(`thumbnail ${id}`, err);
-        }
-        await new Promise((r) => window.setTimeout(r, 16));
-      }
-    } finally {
-      thumbBusy = false;
-    }
+  async renderThumb(id: string, signal: AbortSignal) {
+    const p = await loadPlate(id);
+    if (!p || signal.aborted) return;
+    const { thumbnail } = await stageModule();
+    if (signal.aborted) return;
+    const theme = this.theme;
+    const url = await thumbnail(p, defaults(p), posterSeed(id), theme, undefined, undefined, signal);
+    if (theme !== this.theme) return;
+    this.thumbs[id] = url;
+    cacheSet(`${THUMB_CACHE}:${theme}:${id}`, url);
   },
 
   key(e: KeyboardEvent) {

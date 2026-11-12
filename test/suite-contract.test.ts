@@ -3,7 +3,7 @@
 // limit of its own judges the machine, not the code. A quantum integrator test with its own 20 s
 // limit took 24.5 s on the x86 runner and failed a deploy (Pages run 43142783431) though its
 // physics passed. Time budgets belong to test/budget.test.ts, which measures CPU time.
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -20,7 +20,40 @@ export function ownLimits(source: string): number[] {
   return out;
 }
 
+// The Rust tests follow the same contract: a time bound there only guards against a hang. A 1 s
+// bound on a Rhai refusal failed a deploy at 2.4 s on the x86 runner (Pages run 43147327731).
+const HANG_GUARD_S = 30;
+const rustTests = readdirSync('crates').flatMap((c) => {
+  const dir = join('crates', c, 'tests');
+  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.rs')).map((f) => join(dir, f)) : [];
+});
+
+/** Assertions that read the wall clock (performance.now, Date.now) inside expect(). */
+export function wallClockAsserts(source: string): number {
+  return [...source.matchAll(/expect\([^;]*\b(performance\.now|Date\.now)\(\)/g)].length;
+}
+
+/** Wall-clock bounds a Rust test sets, in seconds. */
+export function rustBounds(source: string): number[] {
+  const out: number[] = [];
+  for (const m of source.matchAll(/Duration::from_secs\(([0-9_]+)\)/g)) out.push(Number(m[1].replace(/_/g, '')));
+  for (const m of source.matchAll(/Duration::from_millis\(([0-9_]+)\)/g)) out.push(Number(m[1].replace(/_/g, '')) / 1000);
+  return out;
+}
+
 describe('the test suite', () => {
+  it('finds a short Rust bound when one is set', () => {
+    expect(rustBounds('if took >= Duration::from_secs(1) {')).toEqual([1]);
+    expect(rustBounds('Duration::from_millis(500)')).toEqual([0.5]);
+  });
+
+  for (const f of rustTests) {
+    it(`${f} bounds time only as a hang guard (at least ${HANG_GUARD_S} s)`, () => {
+      const short = rustBounds(readFileSync(f, 'utf8')).filter((s) => s < HANG_GUARD_S);
+      expect(short, `${f}: a time bound guards a hang, never a speed`).toEqual([]);
+    });
+  }
+
   it('has a global test timeout', () => {
     expect(global).toBeGreaterThan(0);
   });
@@ -30,6 +63,18 @@ describe('the test suite', () => {
     expect(ownLimits("it('x', { timeout: 5_000 }, () => {});")).toEqual([5000]);
     expect(ownLimits('    const run = drive(plate, { speed: 2000 }, 600);')).toEqual([]);
   });
+
+  it('finds a wall-clock reading inside an assertion', () => {
+    expect(wallClockAsserts('expect(performance.now() - t0).toBeLessThan(5);')).toBe(1);
+    expect(wallClockAsserts('while (performance.now() < stop) {')).toBe(0);
+  });
+
+  for (const f of files.filter((x) => x !== 'budget.test.ts')) {
+    it(`${f} asserts nothing about wall-clock time`, () => {
+      // a wall-clock reading may end a loop, never decide a test: budgets are CPU time
+      expect(wallClockAsserts(readFileSync(join('test', f), 'utf8')), f).toBe(0);
+    });
+  }
 
   for (const f of files) {
     it(`${f} sets no per-test limit shorter than the global ${global} ms`, () => {

@@ -13,8 +13,8 @@ tags:
   - union-find
   - amortised
 complexity: O(m α(n)) array accesses for m operations
-related:
-  - weighted-quick-union
+relations:
+  - { type: improves_on, target: weighted-quick-union, reason: "Flattening every path a find walks makes later finds almost constant." }
 ---
 
 Point every node a find passes straight at the root, making each operation almost constant time.

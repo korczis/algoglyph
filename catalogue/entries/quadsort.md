@@ -2,7 +2,7 @@
 id: quadsort
 title: Quadsort
 taxonomy: sorting/mergesort
-status: planned
+status: live
 engine: array
 labs:
   - sorting
