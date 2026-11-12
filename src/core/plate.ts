@@ -12,6 +12,11 @@ interface ParamBase {
   label: string;
   /** Changing this parameter rebuilds the simulation instead of steering the running one. */
   rebuild?: boolean;
+  /**
+   * Changes how the picture looks, never how much work a frame does (a palette). The main-thread
+   * budget gate measures every other control's corners and skips these.
+   */
+  cosmetic?: boolean;
   hint?: string;
 }
 

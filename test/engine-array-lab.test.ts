@@ -54,3 +54,19 @@ describe('array lab: one kernel traced per frame', () => {
     });
   }
 });
+
+describe('array engine: a kernel may bound its own n (ArrayKernel.maxN)', () => {
+  it('the plate slider stops at the kernel bound and labs at the smallest bound of their kernels', async () => {
+    const { loadPlate } = await import('../src/registry');
+    const { kernel } = await import('../src/kernels/array/perfect-shuffle-merge');
+    expect(kernel.maxN).toBeGreaterThan(0);
+    const plate = (await loadPlate('perfect-shuffle-merge'))!;
+    const n = plate.params.find((d) => d.key === 'n');
+    expect(n?.kind === 'range' && n.max).toBe(kernel.maxN);
+    for (const l of labs) {
+      const lab = (await loadLab(l.id))!;
+      const ln = lab.params.find((d) => d.key === 'n');
+      expect(ln?.kind === 'range' && ln.max <= 256).toBe(true);
+    }
+  });
+});
