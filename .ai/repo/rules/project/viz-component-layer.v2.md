@@ -71,6 +71,15 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   subnormal floats, which x86 processors compute far slower than Apple silicon; a test of the
   plate's module proves its decayed state holds no subnormal value.
 - A parameter that changes the structure (grid size, counts, scene) sets `rebuild: true`.
+- How fast a run is drawn is derived from `config/pacing.yaml` and from the run itself, never
+  typed (ADR 0008): every plate declares `pace` (a kind and a unit; an `emergent` stream or a
+  `still` plate with its reason), paces through `src/core/pace.ts` (`Pacer`, `paceParam`), and
+  keeps no rate control of its own unless it is emergent or still. A fractional rate is carried
+  between frames, never rounded up; the applied rate is clamped to the engine's own per-frame
+  maximum, so the budget gate's heaviest corner does not move; the end-of-run hold is
+  `HOLD_FRAMES`. At its defaults a paced run lasts within its kind's window and shows at most its
+  kind's ceiling of changes a second, proven by `test/pacing.test.ts` for every live plate and lab
+  and driven to its end by `npm run test:pacing`.
 
 # Failure behaviour
 

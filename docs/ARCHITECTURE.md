@@ -62,6 +62,7 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a one-off visualisation | `src/plates/<id>/plate.ts` with a default `PlateCode` + its entry (`engine: custom`) | path |
 | code shared by bespoke plates | `src/plates/_shared/<name>/` (no `plate.ts`, so never a plate) | imported |
 | a bound on per-frame work | `cellWithin` / `stepsWithin` / `bounded` from `src/core/budget.ts` | `test/budget/` |
+| a plate's pace | `pace` on the `PlateCode` and a `Pacer` from `src/core/pace.ts` (an engine's plates have both); the numbers are `config/pacing.yaml` | `test/pacing.test.ts`, `test/pacing/` |
 | a comparison | a `labs.yaml` entry; entries opt in with `labs: [<id>]` | the entries that name it |
 | a chart | `ctx.chart({ title, x, y, series })` from any plate or engine | rendered by `src/core/charts.ts` |
 | a heavy kernel | Rust in `crates/algoglyph-kernels`, a C ABI in `crates/algoglyph-kernels/src/wasm.rs`, a plate that imports `src/wasm/algoglyph_kernels.wasm?init` | built by `scripts/wasm.sh` |
@@ -124,6 +125,28 @@ legend appears from two series, direct labels up to four, and a crosshair toolti
 (`mode: three`) for engines whose scenes outgrow it; adding it means one renderer path in
 `src/core/stage.ts`, which stays the only place a canvas is created.
 
+## Pacing
+
+How fast a run is drawn is derived, never typed (ADR 0008). `config/pacing.yaml` holds the
+contract: per kind of run (`replay`, a finite trace; `views`, a recorded run; `stream`, an
+endless one) the run length a default aims at, the window it must land in, and the ceiling and
+floor of changes a second; the frame rate it counts in, the hold after a run, and the range of
+the pace control. The site reads it through `virtual:pacing` (`scripts/lib/vite-pacing.mjs`,
+checked by `scripts/lib/pacing.mjs`).
+
+`src/core/pace.ts` turns it into a rate. `calm(kind, length)` is the changes per frame that make
+a run of that length last the target, within the ceiling and the floor; `Pacer` applies it,
+carrying the fraction between frames, so a frame applies whole changes and a quarter of a change
+per frame is one change every fourth frame. A run whose length is learnt while it replays goes at
+the ceiling until its length is known, then at the rate that ends it on time. The control is
+`paceParam()`: a multiplier, "× calm", 1 by default, on a log slider (`RangeParam.log`), clamped
+to the engine's own per-frame maximum. The readout row "Pace" shows the multiplier, the rate in
+the plate's unit and how long the run lasts. A run too long to watch counts a coarser change
+where the kernel has one (rounds, notes, key operations), else starts from the largest input
+whose calm run fits (`fitSize`). A plate declares how it is paced in `PlateCode.pace`; an
+integrator or an emergent pattern declares `emergent` with its reason and keeps its own controls,
+a progressively rendered picture declares `still`.
+
 ## Routes and shared links
 
 `src/core/route.ts` parses every route in one place:
@@ -143,7 +166,8 @@ snapped to the slider's step. A select value must be one of its options, and a t
 0, 1, true or false; anything else is dropped and the default stays. The seed must be a
 decimal integer from 1 to `SEED_MAX`, the range `freshSeed()` draws from, so two links never
 alias to one generator state. Every range default lies on its own grid, so opening a link never
-moves a knob. `test/share.test.ts` round-trips every live entry and every runnable lab.
+moves a knob. A key a plate no longer has is ignored: a link from before ADR 0008 that carries
+`speed` opens at the calm pace. `test/share.test.ts` round-trips every live entry and every runnable lab.
 
 A plate may also offer `reset()` on its `Sim`. The stage then shows "Reset view" (key V), which
 returns to the starting view without a rebuild. On a paused plate the stage runs a short burst
@@ -220,6 +244,7 @@ just verify                        # everything CI runs, in CI's order
 | `project.derived-facts` | `scripts/check-facts.mjs` (policy `config/derived-facts.yaml`), `test/derived-facts.test.ts`; its Rust port's equivalence, `crates/algoglyph-cli/tests/equivalence.rs` | pre-commit, verify, CI; the port in CI |
 | `project.viz-component-layer` | the live↔code check, `test/registry.test.ts`, the browser gate | verify, CI |
 | `project.no-fake-science` | the engine harness tests, `cargo test`, the wasm fixture test | verify, CI |
+| pacing (`project.viz-component-layer`, ADR 0008) | `test/pacing.test.ts`: the file, the derivation, and every live plate and lab declaring its pace and, at its defaults, lasting within its window under its ceiling (counted, each rule with a refused case); `test/pacing/` drives every run to its end, one process per wing, run alone (`npm run test:pacing`) | verify, CI |
 | main-thread budget (`project.viz-component-layer`) | `test/budget/` over every live plate and lab: every width and heavy corner, past the end of a run, during a slider drag; CPU time calibrated by a reference workload; budgets in `config/budgets.yaml`; run alone (`npm run test:budget`) | verify, CI |
 | every claim holds (ADR 0007) | `test/claims.test.ts`: the plate run headless with the claim's setup until its readouts settle; the named readout's first number against `expect`; `evidence.claims` derived by `scripts/lib/catalogue.mjs` | verify, CI |
 | no wall-clock judgement in correctness tests (`project.viz-component-layer`) | `test/suite-contract.test.ts`: no test sets a limit shorter than `testTimeout` | verify, CI |
