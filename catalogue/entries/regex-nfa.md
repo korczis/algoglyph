@@ -14,6 +14,16 @@ tags:
 complexity: "O(m n) for a pattern of length m and a text of length n"
 related:
   - knuth-morris-pratt
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Read the pattern wrapped in parentheses as an automaton, one state per character.
+  - Follow match edges for literals and '.', and epsilon edges for parentheses, |, *, + and ?.
+  - Keep the whole set of states after each text character, closed under epsilon edges, instead of backtracking.
+bounds:
+  model: states examined
+  worst: 'at most m + 2 per text character for a pattern of m characters (m + 2 states with its two parentheses, besides the accept state): O(m n)'
 ---
 
 Compile a pattern to a nondeterministic automaton and run every state set at once.

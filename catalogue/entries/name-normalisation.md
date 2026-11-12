@@ -16,6 +16,19 @@ related:
   - blocking-sorted-neighbourhood
   - double-metaphone
   - fellegi-sunter
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Decompose each character and drop its combining marks, and replace letters such as Ł and ß by their usual spelling.
+  - Drop academic titles and recognise a legal form from the joined letters of the last tokens.
+  - Sort the remaining tokens so that word order no longer matters.
+  misconceptions:
+  - Normalisation does not catch a typo; that needs a similarity measure on top.
+bounds:
+  model: characters folded
+  best: one per character of the name
+  worst: one per character of the name
 ---
 
 Fold case and diacritics, strip titles and legal-form suffixes, order the tokens: the canonical name.

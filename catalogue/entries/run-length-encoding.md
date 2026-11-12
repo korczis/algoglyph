@@ -14,6 +14,16 @@ complexity: "O(n) for n symbols"
 related:
   - lzw-compression
   - huffman-coding
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Grow a run while the next symbol equals the current one, and emit it as a count and the symbol.
+  - Split a run longer than 255 into pieces, because a count occupies one byte.
+  - See scanline runs shrink and English prose, with runs mostly of length one, grow to about twice the input.
+bounds:
+  model: symbol comparisons
+  worst: 'n − 1 for n symbols: each symbol after the first is compared once with the run it may extend'
 ---
 
 Replace each run of a repeated symbol with the symbol and a count.

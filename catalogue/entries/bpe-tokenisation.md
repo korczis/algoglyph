@@ -15,6 +15,16 @@ complexity: "O(k n) for k merges over n characters as written here"
 related:
   - huffman-coding
   - lzw-compression
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Count every adjacent pair of tokens and merge the most frequent one, the first to occur on a tie.
+  - Replace the merged pair's occurrences from left to right, until the budget is spent or no pair occurs twice.
+  - See later merges build on earlier tokens and assemble whole frequent words.
+bounds:
+  model: pairs counted
+  worst: 'at most k(n − 1) for a budget of k merges over n characters, every adjacent pair counted before each merge: O(k n)'
 ---
 
 Merge the most frequent adjacent pair, again and again, until a vocabulary of tokens remains.

@@ -15,6 +15,20 @@ complexity: "O(1) per keystream bit; period 2^w − 1 for a primitive feedback p
 related:
   - crc-division
   - linear-congruential
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Shift the register once per step, the leaving bit the keystream and the entering bit the XOR of the taps.
+  - XOR the keystream with the message bits to encrypt, and again to decrypt.
+  - See a primitive feedback polynomial visit every non-zero state once, period 2^w − 1.
+  misconceptions:
+  - A long period is not secrecy; being linear, the keystream is predictable from 2w of its bits.
+bounds:
+  model: shifts and tap XORs
+  best: 'one shift and t − 1 tap XORs per keystream bit, for t taps'
+  worst: 'one shift and t − 1 tap XORs per keystream bit, for t taps'
+  space: w bits of register
 ---
 
 A shift register whose feedback taps are a polynomial over GF(2), period up to 2ⁿ − 1.

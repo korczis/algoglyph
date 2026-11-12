@@ -16,6 +16,16 @@ related:
   - fellegi-sunter
   - name-normalisation
   - union-find-entity-merge
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Build each record's key from its name with the diacritics folded.
+  - Compare only records with equal keys (standard blocking), or each record with the next w − 1 in key order (sorted neighbourhood).
+  - Weigh the share of pairs no longer compared against the true duplicate pairs still among the candidates.
+bounds:
+  model: candidate pairs, sorted neighbourhood with window w
+  worst: 'Σᵢ min(w − 1, n − 1 − i) ≤ (w − 1) n for n records, against n(n − 1)/2 for all pairs; the sort takes O(n log n) key comparisons'
 ---
 
 Compare only records that share a key or sort near each other, instead of every pair.

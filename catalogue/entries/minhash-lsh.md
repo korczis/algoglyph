@@ -15,6 +15,19 @@ complexity: "O(N s k) hash evaluations for N documents of s shingles and k = b·
 related:
   - simhash
   - source-family
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Keep, for each of b·r seeded mixing functions, the minimum over a document's hashed 3-shingles.
+  - See two signatures agree in a position with probability equal to the sets' Jaccard similarity.
+  - Cut signatures into b bands of r rows, and see a pair of similarity s become a candidate with probability 1 − (1 − s^r)^b.
+algorithm:
+  paradigm: randomized
+bounds:
+  model: hash evaluations and bucket insertions
+  best: 'k = b·r per distinct shingle of each document, N s k for N documents of s shingles; N bucket insertions per band'
+  worst: 'k = b·r per distinct shingle of each document, N s k for N documents of s shingles; N bucket insertions per band'
 ---
 
 Signatures whose agreement estimates Jaccard similarity, banded so that only likely pairs are compared.

@@ -16,6 +16,16 @@ related:
   - levenshtein-matrix
   - longest-common-subsequence
   - diff3-merge
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Read the edit graph, a step right a deletion, a step down an insertion and a diagonal free where tokens are equal.
+  - Extend in round d the furthest-reaching path on every diagonal from −d to d, then slide it along equal tokens.
+  - Read D, the shortest edit script's length, from the first round to reach the far corner, and the LCS as (N + M − D)/2.
+bounds:
+  model: paths extended and token comparisons
+  worst: 'd + 1 paths extended in round d, at most (D + 1)(D + 2)/2 in all; O((N + M) D) token comparisons'
 ---
 
 The shortest edit script found as the furthest-reaching paths along the diagonals of the edit graph.
