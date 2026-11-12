@@ -555,7 +555,7 @@ Merge the two rarest symbols until one tree is left: the optimal prefix code.<br
 <table>
 <tr>
 <td width="50%" valign="top">
-<b><a href="https://korczis.github.io/algoglyph/#/p/bowyer-watson-delaunay">113 · Empty Circles</a></b><br>
+<b><a href="https://korczis.github.io/algoglyph/#/p/bowyer-watson-delaunay">113 · Empty Circles: Bowyer–Watson Delaunay</a></b><br>
 Bowyer–Watson insertion builds a Delaunay triangulation one point at a time, on exact lattice predicates: each point tears out every triangle whose circumcircle it falls inside and stitches the hole shut.<br>
 <sub>Proximity · O(1) expected cavity; walks of about √n triangles in random order · computational geometry, Delaunay, Voronoi, Bowyer–Watson</sub>
 <br><sub>Pointer: Click to insert a point.</sub>

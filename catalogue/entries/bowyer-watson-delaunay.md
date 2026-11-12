@@ -1,6 +1,6 @@
 ---
 id: bowyer-watson-delaunay
-title: Empty Circles
+title: 'Empty Circles: Bowyer–Watson Delaunay'
 taxonomy: geometry/proximity
 status: live
 engine: custom
