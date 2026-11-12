@@ -2740,7 +2740,7 @@ entries:
     aliases: ["bogo-bogo-sort"]
     family: "esoteric"
     broader: "bogosort"
-    custom_plate: "grows far faster than n!: no input of the array engine’s sizes finishes"
+    custom_plate: "at least n! − 1 expected shuffles even in the kernel’s simplified form: no input of the array engine’s sizes finishes"
   - id: "bozosort"
     kernel: "bozosort"
     atlas_id: "TA-10.03"
