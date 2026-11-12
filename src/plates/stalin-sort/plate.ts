@@ -1,12 +1,14 @@
 // Stalin sort: the sweep judges each key against the last survivor; the input row shows every
 // key's fate, the array row shows the survivors compacted to the front as the kernel writes them.
 // The chart follows the survivors along the sweep, this run and the mean of the finished runs,
-// against H_i, the expected number of left-to-right maxima among i random distinct keys.
+// against H_i, the expected number of left-to-right maxima among i random distinct keys. The
+// `runs` control stops the sweeps after k completed runs (../_shared/settle/settle.ts).
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
 import { caption, drawBars, padding, slotWidth, type Box } from '../_shared/bars/bars';
 import { STEP_PACE, stepPaceParam, stepPacer } from '../_shared/kernel-mirror/controls';
 import { chartOf, fmt, Series } from '../_shared/live-chart/series';
+import { RunCounter, runsParam } from '../_shared/settle/settle';
 import { input, isSorted, runSeed, SHAPES, shapeOf, shapeParam } from '../_shared/sort-input/input';
 import { harmonic } from '../_shared/theory/combinatorics';
 import { isSubsequence, stalinRun, survivors, type StalinRun } from './stalin';
@@ -21,6 +23,7 @@ const stalinSort: PlateCode = {
   params: [
     { kind: 'range', key: 'n', label: 'Keys n', min: 2, max: 512, step: 1, value: 64, rebuild: true },
     shapeParam(SHAPES, 'random'),
+    runsParam(),
     stepPaceParam(),
     paletteParam('spectral'),
   ],
@@ -33,10 +36,8 @@ const stalinSort: PlateCode = {
     let k = 0;
     let run: StalinRun;
     let hold = 0;
-    let runs = 0;
     let keptSum = 0;
-    let lastKept = NaN;
-    let lastSubsequence = true;
+    const completed = new RunCounter(params);
     // survivors after i keys, summed over the finished runs (index i - 1)
     const sumAt = new Float64Array(n);
     let live = new Series('this run, survivors so far (counted)');
@@ -50,11 +51,11 @@ const stalinSort: PlateCode = {
     };
 
     const finish = () => {
-      runs++;
       const s = survivors(run);
       keptSum += s.length;
-      lastKept = s.length;
-      lastSubsequence = isSubsequence(s, run.input) && isSorted(s);
+      const ok = isSubsequence(s, run.input) && isSorted(s);
+      completed.complete(`${fmt(s.length)} survivors, ${fmt(run.stepper.t.counts.cmp)} comparisons, `
+        + (ok ? 'a sorted subsequence of the input (checked)' : 'NOT a sorted subsequence'));
       let kept = 0;
       for (let i = 0; i < n; i++) {
         if (run.state.fate[i] === 1) kept++;
@@ -63,7 +64,7 @@ const stalinSort: PlateCode = {
     };
 
     return {
-      pace: () => pacer.report(false, params),
+      pace: () => pacer.report(completed.stopped, params),
       setup() {
         p.textFont('monospace');
         next();
@@ -75,13 +76,19 @@ const stalinSort: PlateCode = {
             k++;
             next();
           }
+        } else if (run.stepper.done) {
+          // held on its k-th completed run; a raised limit lets the next run start
+          if (!completed.stopped) {
+            k++;
+            next();
+          }
         } else {
           const before = run.state.at;
           run.stepper.advance(ctx.thumbnail ? 4 : pacer.take(params));
           if (run.state.at !== before || run.stepper.done) live.push(Math.max(1, run.state.at), run.state.kept);
           if (run.stepper.done) {
             finish();
-            hold = ctx.thumbnail ? 1 : HOLD;
+            if (!completed.stopped) hold = ctx.thumbnail ? 1 : HOLD;
           }
         }
         render();
@@ -134,16 +141,14 @@ const stalinSort: PlateCode = {
     function publish() {
       const t = run.stepper.t;
       const mean = new Series('mean of finished runs (counted)');
+      const runs = completed.count;
       if (runs) for (let i = 0; i < n; i++) mean.push(i + 1, sumAt[i] / runs);
       ctx.stats([
         { label: 'kept / eliminated so far', value: `${fmt(run.state.kept)} / ${fmt(Math.max(0, run.state.at - run.state.kept))}` },
         { label: 'comparisons, reads, writes', value: `${fmt(t.counts.cmp)}, ${fmt(t.counts.read)}, ${fmt(t.counts.write)}` },
-        { label: 'finished runs', value: fmt(runs) },
+        ...completed.rows(),
         { label: 'mean survivors per run', value: runs ? fmt(keptSum / runs, 2) : '–' },
         { label: 'H_n, expected for a Random permutation', value: shape === 'random' ? fmt(harmonic(n), 2) : 'not this input shape' },
-        { label: 'last result', value: runs
-          ? `${fmt(lastKept)} survivors, ${lastSubsequence ? 'a sorted subsequence of the input (checked)' : 'NOT a sorted subsequence'}`
-          : '–' },
         pacer.row(params),
       ]);
       ctx.chart(chartOf('Survivors along the sweep', { label: 'keys judged' }, { label: 'survivors' },
