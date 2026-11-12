@@ -29,6 +29,12 @@ claims:
       lies at its true delay, to the sample.
     readout: 'Direct path: measured vs true delay'
     expect: { against: 'Direct path: measured vs true delay', against_number: 2, tolerance: 0 }
+  - id: second-harmonic-arrives-l-ln-2-early
+    statement: >-
+      The second-order distortion arrives earlier by L·ln 2, to one sample (0.125 ms at 8 kHz)
+      plus the readout's 0.1 ms rounding.
+    readout: '2nd-harmonic response: measured vs L·ln 2'
+    expect: { against: '2nd-harmonic response: measured vs L·ln 2', against_number: 2, tolerance: 0.25 }
 ---
 
 An exponential sweep through a system, deconvolved into its impulse response.

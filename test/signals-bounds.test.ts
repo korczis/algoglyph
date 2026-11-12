@@ -149,6 +149,18 @@ describe('signals: exact bounds against metered runs', () => {
 });
 
 describe('signals: what the notes say about the plates', () => {
+  it('sine-sweep-ir: the second-order response arrives L·ln 2 before the linear one', () => {
+    const k = kernelOf('sine-sweep-ir');
+    const params = Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value]));
+    for (const seed of [1, 2, 3, 4242]) {
+      const views = recordAll(k.run(params, seed, new Meter()));
+      const row = views[views.length - 1].stats.find((r) => r.label === '2nd-harmonic response: measured vs L·ln 2');
+      const [measured, predicted] = (row?.value.match(/[\d.]+/g) ?? []).map(Number);
+      // one sample at 8 kHz is 0.125 ms, and each value is shown to 0.1 ms
+      expect(Math.abs(measured - predicted), `seed ${seed}: ${row?.value}`).toBeLessThanOrEqual(0.25);
+    }
+  });
+
   it('biquad-filters: a low-pass gains exactly Q at its corner, and the Q control cannot reach 1/√2', () => {
     const gainAt = (f: ReturnType<typeof design>, f0: number) => {
       const w = (2 * Math.PI * f0) / 16000;
