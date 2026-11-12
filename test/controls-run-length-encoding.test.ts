@@ -60,7 +60,7 @@ describe('run-length-encoding: mean run', () => {
     const r = await read(ID, claim('Pairs emitted', { n: 1024, meanRun: 400 }));
     expect(r.reason).toBeUndefined();
     expect(r.value).toBe(want);
-  }, 60_000);
+  });
 });
 
 describe('run-length-encoding: count width', () => {
@@ -110,5 +110,5 @@ describe('run-length-encoding: count width', () => {
       // a pair is a count of `bits` and a symbol of 8, the total rounded up to whole bytes
       expect(o.value, bits).toBe(Math.ceil((pairsOf(x.text, MAX[bits]) * (Number(bits) + 8)) / 8));
     }
-  }, 60_000);
+  });
 });

@@ -89,5 +89,5 @@ describe('myers-diff: tokens per edit', () => {
       const l = await read(ID, claim('Longest common subsequence', { n, every }));
       expect(l.value, `every ${every}`).toBe(lcs(x.a, x.b));
     }
-  }, 60_000);
+  });
 });

@@ -77,5 +77,5 @@ describe('regex-nfa: pattern nesting', () => {
       expect(r.reason).toBeUndefined();
       expect(r.value, `depth ${depth}: ${x.pattern}`).toBe(ends(x.pattern, x.text).length);
     }
-  }, 60_000);
+  });
 });

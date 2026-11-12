@@ -77,5 +77,5 @@ describe('ico-check-digit: share corrupted', () => {
       const f = await read(ID, claim('Intact but invalid', { corrupt: rate }));
       expect(f.value, `rate ${rate}`).toBe(0);
     }
-  }, 60_000);
+  });
 });

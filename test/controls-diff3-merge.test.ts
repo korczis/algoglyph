@@ -88,5 +88,5 @@ describe('diff3-merge: lines per edit', () => {
     // fewer edits per side at 12 than at 6: the line comparisons of the two diffs fall
     const cmp = async (every: number) => (await read(ID, claim('Line comparisons', { n: 40, every }))).value!;
     expect(await cmp(12)).toBeLessThan(await cmp(6));
-  }, 60_000);
+  });
 });
