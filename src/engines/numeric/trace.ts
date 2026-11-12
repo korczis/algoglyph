@@ -2,6 +2,7 @@
 // does where the count is the point (multiplications, function evaluations, pivots), and returns
 // a run: the panels it is drawn in and the steps the plate replays, each step a set of layers in
 // data coordinates plus readouts computed from the run itself. Nothing here draws.
+import type { DataTable } from '../../core/data';
 import type { Chart, ParamDef, Params, Stat } from '../../core/plate';
 import { count } from '../../core/format';
 
@@ -60,6 +61,8 @@ export interface NumericRun {
 export interface RunInput {
   seed: number;
   params: Params;
+  /** A reader's own data by declared id (ADR 0010), when the plate's context carries any. */
+  data?: (id: string) => DataTable | null;
 }
 
 export interface Probe {

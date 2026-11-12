@@ -225,7 +225,7 @@ function plate(info: KernelInfo, kernel: NumericKernel): PlateCode {
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
-      let r = new Replay(kernel.run({ seed: ctx.seed, params: merged(kernel, ctx) }));
+      let r = new Replay(kernel.run({ seed: ctx.seed, params: merged(kernel, ctx), data: ctx.data }));
       const pacer = new Pacer('views', 'views', MAX_VIEWS_PER_FRAME);
       pacer.start(r.last);
       // the next input, built a slice per frame while the finished run stays on screen
@@ -246,7 +246,7 @@ function plate(info: KernelInfo, kernel: NumericKernel): PlateCode {
             else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
               generation++;
               hold = 0;
-              next = building(kernel, { seed: ctx.seed + generation * 7919, params: merged(kernel, ctx) });
+              next = building(kernel, { seed: ctx.seed + generation * 7919, params: merged(kernel, ctx), data: ctx.data });
               advanceBuild();
             }
           }
