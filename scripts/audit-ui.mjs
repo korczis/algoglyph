@@ -9,8 +9,8 @@
 //   - every live plate and every runnable lab mounts a canvas of non-zero size and publishes a
 //     readout
 //   - every routed figure page (ADR 0009) mounts its plate with its setup, opens on its canonical
-//     link (the seed alone: the setup is the link's base) and keeps a seed it is given, and the
-//     figure collection and chapter indexes pass axe
+//     link (the seed alone: the setup is the link's base), keeps a seed it is given and shows one
+//     card per figure claim, and the figure collection and chapter indexes pass axe
 //   - every documented field an entry declares is on its page (dark desktop pass, every plate):
 //     its objectives, prerequisites, paradigm, bounds model and difficulty, and one card per
 //     claim (ADR 0007; that a claim's readout exists is test/claims.test.ts's to prove)
@@ -332,6 +332,8 @@ try {
         await p.waitForTimeout(400);
         const hash = await p.evaluate(() => location.hash);
         if (hash !== `${f.route}?seed=4242`) fail(where, `opened as ${hash}, not ${f.route}?seed=4242`);
+        const cards = await p.evaluate(() => document.querySelectorAll('[data-doc="figure-claim"]').length);
+        if (cards !== f.claims.length) fail(where, `${cards} figure claim card(s) for ${f.claims.length} claim(s)`);
         await p.goto(`${base}${f.route}?seed=99`, { waitUntil: 'load' });
         await readout(p, where, `${base}${f.route}?seed=99`);
         if (!(await p.evaluate(() => location.hash)).endsWith('?seed=99')) fail(where, 'did not keep the seed of its link');

@@ -4,10 +4,13 @@
 // entry schema's own). Everything a page needs beyond what is authored is derived here: the
 // chapter key and route of each figure, its neighbours, whether it is routed, and the backlink
 // from its plate. A figure is routed exactly when its chapter carries a source review and its
-// plate is a live, tested entry; nothing authored says so.
+// plate is a live, tested entry; nothing authored says so. A figure's claims have an entry's
+// form and are run by test/claims.test.ts whether the figure is routed or not: the physics of a
+// setup is gated before its page exists.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { claimErrors } from './claims.mjs';
 import { check, loadSchema, resolveRefs } from './schema.mjs';
 
 const CHAPTER_FILE = /^([a-z0-9][a-z0-9-]*?)-(I|II|III)-(\d{2})\.yaml$/;
@@ -87,6 +90,7 @@ export function loadFigures(root, { entries, sources, errors }) {
       if (seen.has(fig.id)) err(`figure ${fig.id} is recorded twice`);
       seen.add(fig.id);
       if (!fig.id.startsWith(`${doc.chapter}-`)) err(`figure ${fig.id} is not numbered in chapter ${doc.chapter}`);
+      for (const m of claimErrors(fig.claims ?? [])) err(`figure ${fig.id} ${m}`);
       const plate = byId.get(fig.plate);
       const live = plate?.status === 'live' && Boolean(plate?.evidence?.tested);
       return {
@@ -99,6 +103,8 @@ export function loadFigures(root, { entries, sources, errors }) {
         plate: fig.plate,
         setup: fig.setup ?? {},
         pedagogy: fig.pedagogy ?? null,
+        // read by the one claims instrument with this figure's setup under each claim's own
+        claims: fig.claims ?? [],
         route: `#/${coll.id}/${key}/${fig.id}`,
         source: fig.anchor ? `${doc.url}#${fig.anchor}` : doc.url,
         routed: reviewed && live,

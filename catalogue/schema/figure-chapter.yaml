@@ -48,3 +48,4 @@ fields:
         plate: { type: entry, required: true, doc: The live entry whose plate models it. }
         setup: { type: any, doc: Values of that plate's own parameters the page opens with (test/figures.test.ts checks them). }
         pedagogy: { ref: entry.pedagogy }
+        claims: { ref: entry.claims, doc: "Outcomes the page's run measures (ADR 0007), read by the one instrument with the figure's setup under each claim's own." }

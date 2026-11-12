@@ -546,6 +546,33 @@
                 </div>
               </div>
             </template>
+            <!-- The figure's claims (ADR 0007, ADR 0009): read by the one instrument with this page's setup -->
+            <template x-if="currentFigure.figure.claims.length">
+              <section class="mt-5" aria-labelledby="figure-claims-title" data-doc="figure-claims">
+                <h2 id="figure-claims-title" class="mb-3 text-sm font-semibold tracking-wide text-gray-900 uppercase dark:text-white">What this page's run shows<span class="ml-2 font-normal normal-case tracking-normal text-gray-600 dark:text-gray-300">checked by every build</span></h2>
+                <div class="grid gap-3 md:grid-cols-2">
+                  <template x-for="c in currentFigure.figure.claims" :key="'fc' + c.id">
+                    <div data-doc="figure-claim" class="p-4 border border-gray-200 rounded-lg dark:border-gray-700">
+                      <p class="mb-3 text-sm text-gray-900 dark:text-white" x-text="c.statement"></p>
+                      <dl class="grid gap-2 text-sm sm:grid-cols-3">
+                        <div>
+                          <dt class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Reads</dt>
+                          <dd><button type="button" @click="focusReadout(c.readout)" class="font-medium text-left underline text-primary-700 hover:no-underline dark:text-primary-400" x-text="c.readout"></button></dd>
+                        </div>
+                        <div>
+                          <dt class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Expects</dt>
+                          <dd class="font-mono text-gray-900 dark:text-white" x-text="claimExpects(c)"></dd>
+                        </div>
+                        <div>
+                          <dt class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Run</dt>
+                          <dd class="text-gray-600 dark:text-gray-300" x-text="'this page, ' + claimSetup(c)"></dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </template>
+                </div>
+              </section>
+            </template>
             <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
               <span x-text="'Figure numbers and sections compared with the online edition by ' + (currentFigure.chapter.review ? currentFigure.chapter.review.by + ' on ' + currentFigure.chapter.review.date : '') + '.'"></span>
               <template x-for="s in currentFigure.chapter.sameAs" :key="s.url"><span> The source gives <a :href="s.url" target="_blank" rel="noopener" class="underline" x-text="'Vol. ' + s.volume + ', ch. ' + s.chapter"></a> as almost the same chapter.</span></template>

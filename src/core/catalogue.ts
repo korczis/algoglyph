@@ -61,6 +61,8 @@ export interface Figure {
   plate: string;
   setup: Record<string, string | number | boolean>;
   pedagogy: Pedagogy | null;
+  /** Outcomes the page's run measures (ADR 0007), with the figure's setup under each. */
+  claims: Claim[];
   route: string;
   /** The chapter's canonical URL, with the figure's anchor once the review recorded it. */
   source: string;

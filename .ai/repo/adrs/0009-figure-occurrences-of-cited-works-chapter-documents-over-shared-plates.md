@@ -70,6 +70,6 @@ audio of it may enter the repository. Every figure page is original prose and or
   no review adds no page and no claim run, and says so in `catalogue --check`'s plan.
 - A solver used by figures is an ordinary live entry with its own tests and claims, so its
   physics is gated whether or not any figure is routed.
-- Figure-level claims (§2) land with the step that runs them in `test/claims.test.ts` and shows
-  them on the page; until then the schema has no `claims` key for a figure and the physics
-  claims sit on the plates' entries.
+- A figure's claims (§2) have an entry claim's form (the schema's `claims` is a `ref` to the
+  entry schema's) and `test/claims.test.ts` runs them whether the figure is routed or not, so a
+  setup's physics is gated before its page exists; the page shows them in its own card.
