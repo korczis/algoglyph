@@ -36,6 +36,18 @@ algorithm:
     stable: false
   postconditions:
     - A run that ends leaves the keys ascending; it ends with probability 1, after no fixed number of shuffles.
+claims:
+  - id: mean-shuffles-meet-the-geometric-mean
+    statement: >-
+      Over 400 completed runs on Random permutations of 5 keys, the mean shuffles per run lies
+      within 23.9 of the mean theory expects for the same inputs, 120 for each unsorted input and
+      0 for a sorted one: four standard errors, 4·√(14,161/400) = 23.8, from the geometric
+      variance n!(n! − 1) of an unsorted input averaged over the inputs, plus 0.1 for the two
+      readouts' rounding.
+    readout: mean shuffles per run
+    expect: { against: 'expected n!/Πmᵢ! per unsorted input', tolerance: 23.9 }
+    setup:
+      params: { n: 5, shape: random, runs: 400 }
 bounds:
   model: 'per run (the this-run readout): shuffles, comparisons (the sortedness check stops at the first descent) and swaps (a shuffle of n keys is n − 1 swaps)'
   best: 'Already sorted: n − 1 comparisons, no shuffle and no swap'

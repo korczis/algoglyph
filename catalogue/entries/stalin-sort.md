@@ -41,6 +41,17 @@ algorithm:
     stable: true
   postconditions:
     - The kept prefix holds the input's non-strict left-to-right maxima, a sorted subsequence of the input.
+claims:
+  - id: mean-survivors-meet-the-harmonic-number
+    statement: >-
+      Over 100 completed runs on Random permutations of 64 keys, the mean survivors per run lies
+      within 0.72 of H_64 = 4.74, the expected number of left-to-right maxima: four standard
+      errors, 4·√(3.114/100) = 0.71, from their variance H_n − Σ 1/i² = 3.114, plus 0.01 for the
+      two readouts' rounding.
+    readout: mean survivors per run
+    expect: { against: 'H_n, expected for a Random permutation', tolerance: 0.72 }
+    setup:
+      params: { n: 64, shape: random, runs: 100 }
 bounds:
   model: 'comparisons, reads and writes (each survivor compacted to the front) and survivors'
   best: 'Already sorted: n survivors and no write'

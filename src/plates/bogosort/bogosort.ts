@@ -49,6 +49,13 @@ export function expectedShuffles(keys: readonly number[]): number {
   return isSorted(keys) ? 0 : arrangements(keys);
 }
 
+/** The variance of that geometric count: (1 − p)/p² with p = 1/arrangements, 0 when sorted. */
+export function shufflesVariance(keys: readonly number[]): number {
+  if (isSorted(keys)) return 0;
+  const m = arrangements(keys);
+  return m * (m - 1);
+}
+
 export interface BogoRun {
   keys: number[];
   stepper: Stepper;
