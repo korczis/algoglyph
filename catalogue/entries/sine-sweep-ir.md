@@ -15,6 +15,26 @@ motivation: Acoustic measurement and synthesis use it every day.
 related:
   - xcorr-alignment
   - biquad-filters
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Convolve an exponential sweep with its inverse filter and see it collapse into a band-limited impulse.
+  - Deconvolve the recording of the sweep into the impulse response of the room it passed through.
+  - See the k-th order distortion arrive L·ln k earlier and separate from the linear response.
+claims:
+  - id: direct-path-at-its-delay
+    statement: >-
+      The deconvolved response is a band-limited impulse at each path, so the direct path's peak
+      lies at its true delay, to the sample.
+    readout: 'Direct path: measured vs true delay'
+    expect: { against: 'Direct path: measured vs true delay', against_number: 2, tolerance: 0 }
+  - id: second-harmonic-arrives-l-ln-2-early
+    statement: >-
+      The second-order distortion arrives earlier by L·ln 2, to one sample (0.125 ms at 8 kHz)
+      plus the readout's 0.1 ms rounding.
+    readout: '2nd-harmonic response: measured vs L·ln 2'
+    expect: { against: '2nd-harmonic response: measured vs L·ln 2', against_number: 2, tolerance: 0.25 }
 ---
 
 An exponential sweep through a system, deconvolved into its impulse response.
