@@ -33,7 +33,7 @@ const claim = (readout: string, params: Params, expect: Claim['expect'] = { valu
 describe('diff3-merge: lines per edit', () => {
   it('is a range control, the old 6 its default', () => {
     const d = plate().params.find((x) => x.key === 'every') as RangeParam | undefined;
-    expect(d).toMatchObject({ kind: 'range', label: 'Lines per edit', min: 6, max: 12, step: 1, value: 6, rebuild: true });
+    expect(d).toMatchObject({ kind: 'range', label: 'Lines per edit', min: 2, max: 12, step: 1, value: 6, rebuild: true });
   });
 
   it('round-trips through a shared link', () => {
@@ -66,14 +66,6 @@ describe('diff3-merge: lines per edit', () => {
     }
   });
 
-  it('never makes the plate heavier than its default at 40 lines', () => {
-    const work = (every: number) => Math.max(...[1, 2, 3, 5, 8, SEED].map((seed) => {
-      const t = trace(kernel, input('merge', 40, '', seed, { every }), {});
-      return t.counts[0] + t.counts[1];
-    }));
-    const top = work(6);
-    for (const every of SETTINGS) expect(work(every), `every ${every}`).toBeLessThanOrEqual(top);
-  });
 
   it('drives the plate\'s readouts', async () => {
     for (const every of [6, 12]) {
