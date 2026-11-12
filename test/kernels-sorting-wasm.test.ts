@@ -89,32 +89,49 @@ function rowOps(keys: number[]) {
   return { ops, row: () => row, writes: () => writes };
 }
 
-/** The auxiliary-row checks of one kernel: lanes, and the row against Rust's final state. */
+/** The lane checks of a layout on a row of `n` cells: inside the row, and shared only when it must be. */
+function checkLanes(layout: Map<number, { start: number; cells: number; width: number }>, n: number, at: string) {
+  const lanes = [...layout.values()].sort((x, y) => x.start - y.start);
+  const shared = lanes.length > n;
+  for (const [k, l] of lanes.entries()) {
+    expect(l.cells, `${at}: a lane of at least one cell`).toBeGreaterThanOrEqual(1);
+    expect(l.start, `${at}: inside the row`).toBeGreaterThanOrEqual(0);
+    expect(l.start + l.cells, `${at}: inside the row`).toBeLessThanOrEqual(n);
+    if (shared) expect(l.cells, `${at}: more structures than cells, one cell each`).toBe(1);
+    else if (k) expect(l.start, `${at}: lanes do not overlap`).toBeGreaterThanOrEqual(lanes[k - 1].start + lanes[k - 1].cells);
+    for (const i of [0, l.width - 1]) {
+      expect(auxCell(l, i), at).toBeGreaterThanOrEqual(l.start);
+      expect(auxCell(l, i), at).toBeLessThan(l.start + l.cells);
+    }
+  }
+}
+
+/**
+ * The auxiliary-row checks of one kernel at every size and shape the harness uses: its lanes on
+ * the array engine's row of n cells, the replay through the array engine itself (no cell outside
+ * its row, the Rust output and aux write count), and, on a row with reserveAux and clearAux,
+ * the drawn row against Rust's final auxiliary state.
+ */
 function checkAuxRow(id: string) {
-  for (const shape of SHAPES) {
-    const data = input(shape, 97, 13);
-    const r = S.run(id, data, { seed: seedOf(data) });
-    // on the array engine's row of n cells: own lanes, inside the row, never shared
-    const lanes = [...auxLayout(r, data.length).values()].sort((x, y) => x.start - y.start);
-    for (const [k, l] of lanes.entries()) {
-      expect(l.cells, `${shape}: a lane of at least one cell`).toBeGreaterThanOrEqual(1);
-      expect(l.start + l.cells, `${shape}: inside the row`).toBeLessThanOrEqual(data.length);
-      if (k) expect(l.start, `${shape}: lanes do not overlap`).toBeGreaterThanOrEqual(lanes[k - 1].start + lanes[k - 1].cells);
-      for (const i of [0, l.width - 1]) {
-        expect(auxCell(l, i)).toBeGreaterThanOrEqual(l.start);
-        expect(auxCell(l, i)).toBeLessThan(l.start + l.cells);
+  for (const n of SIZES) {
+    for (const shape of SHAPES) {
+      const at = `${shape} n=${n}`;
+      const data = input(shape, n, 13 + n);
+      const r = S.run(id, data, { seed: seedOf(data) });
+      checkLanes(auxLayout(r, data.length), data.length, at);
+      const t = trace({ run: (a: ArrayOps) => replay(a, r) }, data);
+      expect(t.output, at).toEqual([...r.output]);
+      if (n) expect(t.counts.auxWrites, at).toBe(r.counts.auxWrites);
+      const m = rowOps(data);
+      replay(m.ops, r);
+      if (n) expect(m.writes(), at).toBe(r.counts.auxWrites);
+      const want = new Array<number>(m.row().length).fill(0);
+      const exact = auxLayout(r, Number.MAX_SAFE_INTEGER);
+      for (const [p, cells] of finalAux(r)) {
+        cells.forEach((k, i) => { if (k !== undefined && exact.get(p)) want[auxCell(exact.get(p)!, i)] = k; });
       }
+      if (n) expect(m.row(), `${at}: the drawn row is Rust's final auxiliary state`).toEqual(want);
     }
-    // on a row as wide as the structures need: Rust's final state, cell by cell
-    const m = rowOps(data);
-    replay(m.ops, r);
-    expect(m.writes(), shape).toBe(r.counts.auxWrites);
-    const want = new Array<number>(m.row().length).fill(0);
-    const exact = auxLayout(r, Number.MAX_SAFE_INTEGER);
-    for (const [p, cells] of finalAux(r)) {
-      cells.forEach((k, i) => { if (k !== undefined) want[auxCell(exact.get(p)!, i)] = k; });
-    }
-    expect(m.row(), `${shape}: the drawn row is Rust's final auxiliary state`).toEqual(want);
   }
 }
 
@@ -272,11 +289,32 @@ for (const { e, kernel } of played) {
   });
 }
 
-describe('sorting wasm auxiliary rows of the mapped kernels not yet live', () => {
+describe('sorting wasm auxiliary rows of every mapped array kernel, live or not', () => {
+  // the live ones are checked again under their entry's id above; a planned one is checked here,
+  // so it cannot hide a layout bug until the day it goes live
   const live = new Set(played.map((x) => x.kernel.kernelId));
   const pending = RECORDS.filter((r) => !r.existing && !live.has(r.kernel)
     && ENTRIES.find((e) => e.id === r.id)?.engine === 'array');
-  for (const r of pending) it(`${r.kernel}: own lanes, and Rust's final auxiliary state`, () => checkAuxRow(r.kernel));
+  for (const r of pending) {
+    it(`${r.kernel}: lanes inside the row at every size, and Rust's final auxiliary state`, () => checkAuxRow(r.kernel));
+  }
+
+  it('lays out any number and width of structures on any row, never outside it', () => {
+    // a synthetic run: aux writes only, structure p of width w
+    const run = (widths: number[]): WasmRun => {
+      const steps: number[] = [];
+      widths.forEach((w, p) => { for (let i = 0; i < w; i++) steps.push(SOP.auxWrite | (p << 8), i, 1); });
+      return { steps: new Int32Array(steps) } as unknown as WasmRun;
+    };
+    for (const row of [1, 2, 3, 5, 8, 97]) {
+      for (const widths of [[1], [3], [1, 1, 1], [2, 1, 4], [1000, 1, 1], [5, 5, 5, 5, 5, 5, 5, 5, 5], [1, 2, 3, 4, 5, 6, 7]]) {
+        const layout = auxLayout(run(widths), row);
+        expect(layout.size, `${row} ${widths}`).toBe(widths.length);
+        checkLanes(layout, row, `row ${row}, widths ${widths}`);
+      }
+    }
+    expect(auxLayout(run([3, 2]), 0).size, 'a row of no cells has no lanes').toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------

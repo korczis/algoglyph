@@ -74,9 +74,15 @@ export interface AuxLane { start: number; cells: number; width: number }
 export const auxCell = (l: AuxLane, i: number) => l.start + Math.floor((i * l.cells) / l.width);
 
 /**
- * Each auxiliary structure of a run (by its name's string id) on a row of `row` cells: in order
- * of first appearance, side by side, as wide as the structure when they all fit, else each with
- * its share of the row (at least one cell). Lanes never overlap and never wrap.
+ * Each auxiliary structure of a run (by its name's string id) on a row of `row` cells, in order
+ * of first appearance, side by side. Total for every row of at least one cell and any number and
+ * width of structures, and never outside the row:
+ *   - they all fit: each as wide as itself, exactly;
+ *   - there are no more structures than cells: each gets its share (at least one cell) and folds
+ *     its cells into it by scale, and no two structures share a cell;
+ *   - there are more structures than cells: each is folded into one cell, structure k of S into
+ *     cell floor(k * row / S), so neighbours share a cell, deterministically.
+ * A row of no cells (an empty array) has no lanes, and the replay then draws no auxiliary cell.
  */
 export function auxLayout(r: WasmRun, row: number): Map<number, AuxLane> {
   const width = new Map<number, number>();
@@ -86,22 +92,29 @@ export function auxLayout(r: WasmRun, row: number): Map<number, AuxLane> {
     const p = s[e] >>> 8;
     width.set(p, Math.max(width.get(p) ?? 0, s[e + 1] + 1));
   }
-  const total = [...width.values()].reduce((x, w) => x + w, 0);
   const lanes = new Map<number, AuxLane>();
-  if (!width.size || row <= 0) return lanes;
-  const fits = total <= row;
+  const n = Math.floor(row);
+  if (!width.size || !(n >= 1)) return lanes;
+  const entries = [...width.entries()];
+  const count = entries.length;
+  const total = entries.reduce((x, [, w]) => x + w, 0);
+  if (count > n) {
+    entries.forEach(([p, w], k) => lanes.set(p, { start: Math.floor((k * n) / count), cells: 1, width: w }));
+    return lanes;
+  }
+  const fits = total <= n;
   // a share of the row each, at least one cell; the widest give back what the narrow took
-  const cells = [...width.values()].map((w) => (fits ? w : Math.max(1, Math.floor((w * row) / total))));
-  let over = cells.reduce((x, c) => x + c, 0) - row;
+  const cells = entries.map(([, w]) => (fits ? w : Math.max(1, Math.min(w, Math.floor((w * n) / total)))));
+  let over = cells.reduce((x, c) => x + c, 0) - n;
   while (over > 0) {
-    const i = cells.indexOf(Math.max(...cells));
-    if (cells[i] <= 1) break;
-    cells[i]--;
+    let i = 0;
+    for (let j = 1; j < cells.length; j++) if (cells[j] > cells[i]) i = j;
+    cells[i]--; // never below one: count <= n, so the sum reaches n before every lane is one cell
     over--;
   }
   let start = 0;
-  [...width.entries()].forEach(([p, w], i) => {
-    lanes.set(p, { start, cells: Math.min(cells[i], w), width: w });
+  entries.forEach(([p, w], i) => {
+    lanes.set(p, { start, cells: cells[i], width: w });
     start += cells[i];
   });
   return lanes;
@@ -141,7 +154,8 @@ export function replay(a: ArrayOps, r: WasmRun, emitted = 0): void {
       case SOP.read: a.get(p); events++; break;
       case SOP.mark: if (s[e + 1] > p) { a.range(p, s[e + 1] - 1); events++; } break;
       case SOP.auxWrite: {
-        const lane = lanes.get(p)!;
+        const lane = lanes.get(p);
+        if (!lane) break; // no row to draw on (an empty array)
         const i = s[e + 1];
         const cell = auxCell(lane, i);
         let on = live.get(p);
