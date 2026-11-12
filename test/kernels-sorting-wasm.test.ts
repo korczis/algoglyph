@@ -65,7 +65,11 @@ describe('sorting wasm module', () => {
   it('gives no algorithm a second live plate', () => {
     const owner = new Map<string, string>();
     for (const e of entries.filter((x) => x.status === 'live')) {
-      const kernels = fileKernel(e.id) ? recordsOf(e.id).map((r) => r.kernel) : [kernelOf(e.id)!];
+      // an entry with its own code (a TypeScript kernel, or a bespoke plate of another engine
+      // that mirrors its record's kernel) owns its records' kernels; the adapter plays the rest
+      const own = fileKernel(e.id) || e.engine !== 'array';
+      const kernels = own ? recordsOf(e.id).map((r) => r.kernel) : [kernelOf(e.id)!];
+      expect(kernels.every(Boolean), `${e.id}: no kernel`).toBe(true);
       for (const k of kernels) {
         expect(owner.get(k), `${k} plays ${owner.get(k)} and ${e.id}`).toBeUndefined();
         owner.set(k, e.id);
