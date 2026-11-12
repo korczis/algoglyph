@@ -25,6 +25,24 @@ sources:
     title: Stable Fluids (SIGGRAPH 1999)
     author: Jos Stam
     kind: paper
+  - id: johnson-1974-packing-bounds
+    title: Worst-Case Performance Bounds for Simple One-Dimensional Packing Algorithms (SIAM Journal on Computing 3(4), 299–325)
+    author: D. S. Johnson, A. Demers, J. D. Ullman, M. R. Garey, R. L. Graham
+    year: 1974
+    kind: paper
+    url: https://doi.org/10.1137/0203025
+  - id: dosa-sgall-2013-first-fit
+    title: 'First Fit bin packing: A tight analysis (STACS 2013, LIPIcs 20, 538–549)'
+    author: György Dósa, Jiří Sgall
+    year: 2013
+    kind: paper
+    url: https://doi.org/10.4230/LIPIcs.STACS.2013.538
+  - id: dosa-2007-ffd
+    title: The Tight Bound of First Fit Decreasing Bin-Packing Algorithm Is FFD(I) ≤ 11/9 OPT(I) + 6/9 (ESCAPE 2007, LNCS 4614, 1–11)
+    author: György Dósa
+    year: 2007
+    kind: paper
+    url: https://doi.org/10.1007/978-3-540-74450-4_1
   - id: pocorgtfo
     title: PoC||GTFO
     author: Manul Laphroaig (ed.)
