@@ -171,10 +171,12 @@ describe('sorting wasm module', () => {
   it('gives no algorithm a second live plate', () => {
     const owner = new Map<string, string>();
     for (const e of entries.filter((x) => x.status === 'live')) {
-      // an entry whose own code plays stands for all its records' kernels; a played one for its one
-      const own = recordsOf(e.id).every((r) => r.existing);
+      // an entry whose own code plays (records all existing, or a bespoke plate of another
+      // engine that mirrors its record's kernel) stands for all its records' kernels; a played
+      // one for its one
+      const own = recordsOf(e.id).every((r) => r.existing) || e.engine !== 'array';
       const kernels = own ? recordsOf(e.id).map((r) => r.kernel) : [kernelOf(e.id)!];
-      if (!own) expect(kernels[0], `${e.id}: live, played by no kernel`).toBeDefined();
+      expect(kernels.every(Boolean), `${e.id}: live, played by no kernel`).toBe(true);
       for (const k of kernels) {
         expect(owner.get(k), `${k} plays ${owner.get(k)} and ${e.id}`).toBeUndefined();
         owner.set(k, e.id);
