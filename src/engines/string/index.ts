@@ -16,8 +16,8 @@ const HOLD_FRAMES = 120;
  * (a kernel pauses at least every STEP_EVENTS), and a replay applies at most REPLAY_EVENTS,
  * whatever the speed asks. Counted, so CI's slower runners do the same work per frame.
  */
-export const RECORD_EVENTS = 10000;
-export const REPLAY_EVENTS = 8000;
+export const RECORD_EVENTS = 6000;
+export const REPLAY_EVENTS = 5000;
 const fmt = (x: number) => x.toLocaleString('en-US');
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
