@@ -26,5 +26,6 @@ local_headroom: 0.6     # outside CI (no CI env var) the budgets are this fracti
 # the gate before a missing picture or readout counts as a failure. Generous on purpose: a wait
 # costs time only when something is genuinely missing.
 browser:
-  readout_ms: 120000      # a plate or lab mounts its canvas and publishes its first readout
+  readout_ms: 30000       # a plate or lab mounts its canvas and publishes its first readout; a page
+                          # slower than this is a finding to fix, not a wait to raise
   thumb_ms: 90000         # each gallery thumbnail of a wing (the wing's budget is this × its cards)

@@ -111,8 +111,9 @@ const planned = model.entries.filter((e) => e.status === 'planned');
 const labs = model.labs.filter((l) => l.entries.filter((id) => live.some((e) => e.id === id)).length >= 2);
 // Waits are data (config/budgets.yaml, `browser`): they bound how long a page may take to show
 // its first picture and readout on the machine running the gate, a shared CI runner included.
-// A 30 s readout wait failed the union-find lab at 390 px on a CI job that ran 50 minutes beside
-// other jobs (Pages run 43133085956); a wait only costs time when something is genuinely missing.
+// A lab that took 45 s to show its first readout on the x86 runner, against about 2 s for its
+// neighbours (Pages run 43133085956), was a slow page, not a short wait: the readout wait stays a
+// gate, and a page that misses it is fixed.
 const BROWSER = parseYaml(readFileSync('config/budgets.yaml', 'utf8')).browser;
 const THUMB_MS = BROWSER.thumb_ms;
 const READOUT_MS = BROWSER.readout_ms;
