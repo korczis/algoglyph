@@ -16,3 +16,11 @@ labs:
     title: Hashing lab
     summary: Every hashing scheme on the same key stream with the same operation budget per frame, ranked by when it finishes, with probes per search and each one's work measured as n grows.
     engine: hash
+  - id: search-trees
+    title: Search tree lab
+    summary: Plain, root-inserting, randomized, splay, red-black, AVL, 2-3-4 and B-trees on the same keys with the same step budget per frame, ranked by when each finishes, with the measured cost of a search against lg n as n grows towards 1024; a curve whose next run would outgrow one frame stops there and says so.
+    engine: tree
+  - id: union-find
+    title: Union-find lab
+    summary: Quick-find, quick-union, weighted quick-union and path compression on the same connections, with the measured array accesses per union as the number of sites grows; a curve whose next run would outgrow one frame stops there and says so.
+    engine: tree
