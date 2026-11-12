@@ -20,7 +20,7 @@ installBrowserStubs();
 interface Budget {
   create_ms: number; frame_ms: number; frames: number; repeats: number;
   widths: number[]; horizon_frames: number; horizon_cpu_ms: number; drag_steps: number;
-  reference_cpu_ms: number;
+  reference_cpu_ms: number; local_headroom: number;
 }
 const budget = parse(readFileSync('config/budgets.yaml', 'utf8')) as Budget;
 const widest = Math.max(...budget.widths);
@@ -50,10 +50,18 @@ function corners(defs: ParamDef[]): Params[] {
   return out;
 }
 
+/**
+ * The seed of the run being measured. Each repeat takes a new one: a plate that caches a run by
+ * its seed (a trace cache) would otherwise answer the second and third repeats from memory, and
+ * the best of them would measure the cache instead of the work (the sorting lab measured 36 ms
+ * warm against 39-59 ms cold, review of feature/sorting-wasm).
+ */
+let seed = 4242;
+
 function context(plate: Plate, params: Params, width: number): PlateContext {
   const ground = GROUNDS.dark;
   return {
-    width, height: Math.round(width / plate.aspect), params, seed: 4242, rnd: mulberry32(4242),
+    width, height: Math.round(width / plate.aspect), params, seed, rnd: mulberry32(seed),
     theme: 'dark', bg: ground.bg, fg: ground.fg, thumbnail: false,
     palette: () => lookupPalette(String(params.palette ?? 'ember')),
     stats() {}, chart() {},
@@ -102,7 +110,17 @@ export function referenceCpuMs(): number {
 }
 
 let factor = 1;
-const scaled = () => ({ create: budget.create_ms * factor, frame: budget.frame_ms * factor });
+/**
+ * Outside CI the budgets are tightened by `local_headroom`: four branches passed this gate on a
+ * developer's machine and failed it on CI's runners within the hour (40.8 ms, 64.6 ms, 74.2 ms
+ * against 40), because GC and memory behaviour differ more than the reference workload captures.
+ * A plate that fits the tighter local budget fits CI's.
+ */
+const headroom = process.env.CI ? 1 : budget.local_headroom;
+const scaled = () => ({
+  create: budget.create_ms * factor * headroom,
+  frame: budget.frame_ms * factor * headroom,
+});
 
 function frame(sim: Sim): number {
   const t = cpuMs();
@@ -174,6 +192,7 @@ function drag(plate: Plate, params: Params, width: number): Reading {
 function best(run: () => Reading): Reading {
   let out: Reading = { create: Infinity, frame: Infinity, at: '' };
   for (let r = 0; r < budget.repeats; r++) {
+    seed = 4242 + 7919 * r;
     const m = run();
     out = { create: Math.min(out.create, m.create), frame: Math.min(out.frame, m.frame), at: m.at || out.at };
     if (out.create <= scaled().create && out.frame <= scaled().frame) break;
@@ -183,7 +202,8 @@ function best(run: () => Reading): Reading {
 
 function judge(where: string, m: Reading) {
   const at = m.at ? ` (${m.at})` : '';
-  const on = factor > 1 ? `, this machine ${factor.toFixed(2)}× the reference` : '';
+  const on = (factor > 1 ? `, this machine ${factor.toFixed(2)}× the reference` : '')
+    + (headroom < 1 ? `, local headroom ${headroom}` : '');
   const b = scaled();
   expect(m.create, `${where}: ${m.create.toFixed(0)} ms to create${on}`).toBeLessThanOrEqual(b.create);
   expect(m.frame, `${where}: ${m.frame.toFixed(1)} ms per frame${at}${on}`).toBeLessThanOrEqual(b.frame);
