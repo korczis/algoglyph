@@ -80,6 +80,8 @@ export interface Sim {
   draw(): void;
   pressed?(x: number, y: number): void;
   dragged?(x: number, y: number): void;
+  /** Return to the starting view without rebuilding (e.g. undo zooms); the stage offers it. */
+  reset?(): void;
 }
 
 /** What a plate's code provides: behaviour only. Everything a person reads about the plate

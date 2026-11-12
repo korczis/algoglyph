@@ -301,6 +301,15 @@ export const mandelbrotJulia: PlateCode = {
         if (isJulia) buildInset();
         restart(0);
       },
+      reset() {
+        // back to the starting view; a c picked with the pointer is the picture, so it stays
+        const picked: [number, number] | null = pointer ? [cr, ci] : null;
+        this.setup();
+        if (picked) {
+          [cr, ci] = picked;
+          restart(UNKNOWN);
+        }
+      },
       pressed(x, y) {
         if (pointer) pick(x, y);
         else zoom(x, y);
