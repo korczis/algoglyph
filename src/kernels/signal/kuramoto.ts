@@ -73,8 +73,10 @@ export const kernel: SignalKernel = {
     const width = 0.5;
     const { omega, kc } = frequencies(n, dist, width, rnd);
     const theta = Float64Array.from({ length: n }, () => 2 * Math.PI * rnd());
-    const sorted = Array.from(omega).sort((a, b) => a - b);
-    const rank = Float64Array.from(omega, (w) => sorted.indexOf(w) / Math.max(1, n - 1));
+    // each oscillator's rank by natural frequency, by one sort of the indices
+    const rank = new Float64Array(n);
+    Array.from(omega.keys()).sort((a, b) => omega[a] - omega[b]).forEach((i, k) => { rank[i] = k / Math.max(1, n - 1); });
+    yield null;
     const steps = 2500; const every = 25;
     const rs: number[] = [];
     const unwrapped = Float64Array.from(theta);
@@ -90,6 +92,7 @@ export const kernel: SignalKernel = {
       }
       const { r, psi } = order(theta);
       rs.push(r);
+      if (s % 5 === 0 && s % every !== 0) yield null;
       if (s % every !== 0) continue;
       history.push(Float64Array.from(unwrapped));
       // effective frequencies over the last 20 time units, measured from the unwrapped phases
