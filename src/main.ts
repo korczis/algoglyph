@@ -32,7 +32,7 @@ function currentTheme(): Theme {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 }
 
-interface Route { view: View; key: string; id: string; seed?: number }
+interface Route { view: View; key: string; id: string; seed?: number; status?: Status | 'all' }
 
 function parseHash(): Route {
   const raw = location.hash.replace(/^#\/?/, '');
@@ -40,12 +40,14 @@ function parseHash(): Route {
   const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
   const seed = Number(new URLSearchParams(query).get('seed'));
   const s = Number.isInteger(seed) && seed > 0 ? seed : undefined;
+  const st = new URLSearchParams(query).get('status');
+  const status = st === 'live' || st === 'planned' || st === 'all' ? st : undefined;
   if (parts[0] === 'p' && parts[1] && entry(parts[1])) return { view: 'plate', key: '', id: parts[1], seed: s };
   if (parts[0] === 'lab' && parts[1] && findLab(parts[1])) return { view: 'lab', key: '', id: parts[1], seed: s };
   if (parts[0] === 'c' && parts.length > 1 && node(parts.slice(1).join('/'))) {
-    return { view: 'browse', key: parts.slice(1).join('/'), id: '' };
+    return { view: 'browse', key: parts.slice(1).join('/'), id: '', status };
   }
-  return { view: 'browse', key: '', id: '' };
+  return { view: 'browse', key: '', id: '', status };
 }
 
 function cacheGet(key: string): string | null {
@@ -98,7 +100,7 @@ const posterSeed = (id: string) => 1009 + 7919 * ENTRIES.findIndex((e) => e.id =
 
 Alpine.data('app', () => ({
   facts: FACTS,
-  factCards: factCards(FACTS),
+  factCards: factCards(FACTS, CATALOGUE.labs.find((l) => labRunnable(l.id))?.id),
   wings: roots(),
   labs: CATALOGUE.labs,
   mosaic: spread(LIVE, MOSAIC_SIZE),
@@ -205,7 +207,7 @@ Alpine.data('app', () => ({
       this.view = 'browse';
       this.nodeKey = r.key;
       this.currentId = '';
-      this.status = 'all';
+      this.status = r.status ?? 'all';
       if (r.key) this.open[r.key.split('/')[0]] = true;
       document.title = r.key ? `${node(r.key)?.title} · algoglyph` : 'algoglyph';
       this.$nextTick(() => this.observeThumbs());
