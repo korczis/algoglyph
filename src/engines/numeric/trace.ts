@@ -3,6 +3,7 @@
 // a run: the panels it is drawn in and the steps the plate replays, each step a set of layers in
 // data coordinates plus readouts computed from the run itself. Nothing here draws.
 import type { Chart, ParamDef, Params, Stat } from '../../core/plate';
+import { count } from '../../core/format';
 
 export type XY = [number, number];
 
@@ -156,11 +157,11 @@ export function fmt(v: number, digits = 4): string {
   if (v === 0) return '0';
   const a = Math.abs(v);
   if (a < 1e-3 || a >= 1e7) return v.toExponential(2);
-  if (Number.isInteger(v)) return v.toLocaleString('en-US');
+  if (Number.isInteger(v)) return count(v);
   return Number(v.toPrecision(digits)).toLocaleString('en-US', { maximumFractionDigits: 8 });
 }
 
-export const int = (v: number) => v.toLocaleString('en-US');
+export const int = (v: number) => count(v);
 
 /** The bounding range of values with a margin, for a panel axis. */
 export function span(values: Iterable<number>, margin = 0.06): [number, number] {

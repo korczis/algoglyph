@@ -56,6 +56,10 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   `PIECES_PER_FRAME`, grid `BUILD_EVENTS_PER_FRAME`); a kernel whose units cost more than the
   engine's flat unit declares it (a graph kernel yields the uncounted work it did, a grid kernel
   whose events resume a deep recursion sets `eventCost`).
+- A lab never puts two heavy pieces of work in one frame: it traces at most one kernel a frame,
+  shows a new generation's panes on a frame that traces nothing, and measures no size larger than
+  the input its slider allows (`test/engine-array-lab.test.ts` counts the traces per frame).
+  Readout counts go through `src/core/format.ts` (`count`), one `Intl.NumberFormat` made once.
 - Correctness tests are not judged on wall-clock time: no test sets a limit shorter than the
   suite's `testTimeout`, and a Rust test's time bound is only a hang guard of at least 30 s
   (`test/suite-contract.test.ts`); time is judged only by the budget gate, in CPU time.
