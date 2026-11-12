@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { fadeTrace } from './trace';
 import {
   bounds, generationsPerFrame, Life, parseRule, PATTERNS, ruleString, type Pattern, type Rule,
 } from './life';
@@ -131,11 +132,9 @@ export const lifeLikeAutomata: PlateCode = {
       const { cells, age, died } = life;
       const px = raster.data;
       for (let i = 0; i < cells.length; i++) {
-        let t = trail[i];
-        if (died[i]) {
-          t = 255;
-          died[i] = 0;
-        } else t = (t * fade) | 0;
+        const m = died[i];
+        const t = fadeTrace(trail[i], m, fade);
+        if (m) died[i] = 0;
         trail[i] = t;
         let k: number;
         let lut: Uint8Array;

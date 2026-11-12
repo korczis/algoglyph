@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { fadeTrace } from '../life-like-automata/trace';
 import { parseTurmite, Turmite, type Ant } from './ant';
 
 const TURMITES = ['RL', 'RLR', 'LLRR', 'LRRRRRLLR', 'RRLLLRLLLRRR'];
@@ -94,11 +95,9 @@ export const langtonTurmites: PlateCode = {
       const { grid, touched } = ant;
       const px = raster.data;
       for (let i = 0; i < grid.length; i++) {
-        let t = trail[i];
-        if (touched[i]) {
-          t = 255;
-          touched[i] = 0;
-        } else t = (t * fade) | 0;
+        const m = touched[i];
+        const t = fadeTrace(trail[i], m, fade);
+        if (m) touched[i] = 0;
         trail[i] = t;
         const k = (grid[i] * 256 + t) * 3;
         const o = i * 4;

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
+import langtonTurmites from '../src/plates/langton-turmites/plate';
+import lifeLikeAutomata from '../src/plates/life-like-automata/plate';
+import { fadeTrace } from '../src/plates/life-like-automata/trace';
 import {
   bounds, CELL_BUDGET, generationsPerFrame, Life, parseRule, PATTERNS, ruleString,
   type Pattern,
@@ -221,6 +224,32 @@ describe('frame budget', () => {
         if (n > 1) expect(n * cells).toBeLessThanOrEqual(CELL_BUDGET);
         if (n < asked) expect((n + 1) * cells).toBeGreaterThan(CELL_BUDGET);
       }
+    }
+  });
+});
+
+describe('fading traces', () => {
+  it('reach exactly 0 at the slowest fade of either plate and never hold a subnormal', () => {
+    const fades = [lifeLikeAutomata, langtonTurmites].map((plate) => {
+      const d = plate.params.find((q) => q.key === 'fade');
+      return d && d.kind === 'range' ? d.max : NaN;
+    });
+    for (const fade of fades) {
+      expect(fade).toBeLessThan(1);
+      const trail = new Uint8Array(64);
+      for (let i = 0; i < trail.length; i++) trail[i] = fadeTrace(0, 1, fade);
+      let frames = 0;
+      while (trail.some((v) => v !== 0)) {
+        for (let i = 0; i < trail.length; i++) {
+          trail[i] = fadeTrace(trail[i], 0, fade);
+          const v = trail[i];
+          expect(v === 0 || v >= Number.MIN_VALUE * 2 ** 52).toBe(true);
+          expect(Number.isInteger(v)).toBe(true);
+        }
+        frames++;
+        expect(frames).toBeLessThan(2000);
+      }
+      expect(frames).toBeGreaterThan(100);
     }
   });
 });
