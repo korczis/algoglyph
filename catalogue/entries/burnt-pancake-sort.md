@@ -20,6 +20,27 @@ complexity: at most 3n flips for the simple method; n² moves in every case; ext
 related:
   - pancake-sort
   - selection-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [pancake-sort]
+  objectives:
+  - 'Choose Already sorted with all burnt side up at 12 pancakes: 34 flips, 3n − 2, the most the simple method needs for any stack.'
+  - 'Choose Already sorted with all burnt side down: no flip at all.'
+  - 'Read comparisons, swaps, turns: n(n − 1)/2 comparisons on every stack, 66 for 12 pancakes, as in pancake sort.'
+  misconceptions:
+  - 'One more bit per pancake changes the order of growth; the simple method still needs at most 3n − 2 flips, linear like pancake sort''s 2n − 3, and the same n(n − 1)/2 comparisons.'
+algorithm:
+  paradigm: greedy
+  properties:
+    stable: false
+  postconditions:
+    - The stack is in order and every burnt side faces down.
+bounds:
+  model: 'flips (the plate''s flips readout) and comparisons (the search for the largest pancake left)'
+  best: 'no flip on Already sorted with every burnt side down'
+  average: 'n(n − 1)/2 comparisons on every stack'
+  worst: 'at most 3n − 2 flips by the simple method (at most three per size, one for the last pancake), checked on every signed stack of up to five pancakes and reached by Already sorted with every burnt side up; the best method needs between 3n/2 − 1 and 2n + 3 flips (Gates and Papadimitriou), bounds Cohen and Blum tightened'
 ---
 
 Pancake sorting with a burnt side: a flip reverses the top k pancakes and turns each of them over, and the stack is sorted only when it is in order and every burnt side faces down.
