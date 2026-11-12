@@ -87,7 +87,7 @@ const posterSeed = (id: string) => 1009 + 7919 * ENTRIES.findIndex((e) => e.id =
 
 Alpine.data('app', () => ({
   facts: FACTS,
-  factCards: factCards(FACTS),
+  factCards: factCards(FACTS, CATALOGUE.labs.find((l) => labRunnable(l.id))?.id),
   wings: roots(),
   labs: CATALOGUE.labs,
   mosaic: spread(LIVE, MOSAIC_SIZE),
@@ -202,7 +202,7 @@ Alpine.data('app', () => ({
       this.view = 'browse';
       this.nodeKey = r.key;
       this.currentId = '';
-      this.status = 'all';
+      this.status = r.status ?? 'all';
       if (r.key) this.open[r.key.split('/')[0]] = true;
       document.title = r.key ? `${node(r.key)?.title} · algoglyph` : 'algoglyph';
       this.$nextTick(() => this.observeThumbs());
