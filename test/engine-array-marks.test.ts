@@ -186,10 +186,10 @@ const BEFORE: Record<string, string> = {
   'counting-sort 512': 'dba1a1b70198034da8fa552962a1ecce1e7d6e7155a17cf940dec33435bf02c2',
   'quickselect 64': '0cb0b65d0712abd07eb7c6c309db80c6540175c9d36b2b45c910c7c1165d824b',
   'quickselect 512': 'ffc89f7e61d896966aa73203ce412de44fd8d6299a7233495edd6b6c3c48ffe7',
-  // re-recorded twice for intended lab changes, each checked by undoing it: 370dbba stopped a lab
-  // measuring past its own n slider (the scaling chart lost its n = 512 points), then the new
-  // panes were shown on a frame of their own, one frame after the last trace
-  lab: 'b405ad1829aae267026e2de7972caf304132af0b6b901952bc084ac54d199ccc',
+  // re-recorded three times for intended lab changes, each checked by undoing it: 370dbba stopped
+  // a lab measuring past its own n slider (the scaling chart lost its n = 512 points), the new
+  // panes were shown on a frame of their own, and a frame that traces now draws nothing
+  lab: '7aec723861f5d2f2644368c80adc63c4e5d5f310f2ec8c26305f5d9d47c77403',
 };
 
 describe('array engine: a TypeScript kernel draws exactly as before phases, lanes and rounds', () => {
