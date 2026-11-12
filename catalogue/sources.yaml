@@ -43,6 +43,11 @@ sources:
     year: 2007
     kind: paper
     url: https://doi.org/10.1007/978-3-540-74450-4_1
+  - id: lorenz-1963
+    title: Deterministic Nonperiodic Flow (Journal of the Atmospheric Sciences)
+    author: Edward N. Lorenz
+    year: 1963
+    kind: paper
   - id: pocorgtfo
     title: PoC||GTFO
     author: Manul Laphroaig (ed.)

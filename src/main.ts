@@ -1,7 +1,7 @@
 import './styles/app.css';
 import Alpine from 'alpinejs';
 import 'flowbite';
-import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, links, node, roots, search, source,
+import { CATALOGUE, children, entry, ENTRIES, lab as findLab, labsUnder, linkGroups, node, prose, roots, search, source,
   trail, under, type Entry, type Lab, type Status, type TaxNode } from './core/catalogue';
 import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
@@ -159,8 +159,19 @@ Alpine.data('app', () => ({
   sourceTitle(id: string): string { return source(id)?.title ?? id; },
   sourceAuthor(id: string): string { return source(id)?.author ?? ''; },
   wingOf(e: Entry): TaxNode | undefined { return node(e.path[0]); },
-  linksOf(e: Entry): { entry: Entry; why: string }[] {
-    return links(e).slice(0, 18).map((l) => ({ entry: entry(l.id) as Entry, why: l.why }));
+  linkGroups(e: Entry) { return linkGroups(e); },
+  prose(text: string) { return prose(text); },
+  entryOf(id: string): Entry | undefined { return entry(id); },
+  /** True keys of a properties map, as badge labels. */
+  traits(e: Entry): { label: string; on: boolean }[] {
+    const p = e.algorithm?.properties ?? {};
+    return Object.entries(p).map(([k, on]) => ({ label: k.replace(/_/g, ' '), on: Boolean(on) }));
+  },
+  applyPreset(x: { params?: Record<string, string | number | boolean> }) {
+    if (!plateCode || !x.params) return;
+    const known = new Set(plateCode.params.map((d) => d.key));
+    for (const [k, v] of Object.entries(x.params)) if (known.has(k)) this.params[k] = v;
+    void this.mount();
   },
   shelfOf(e: Entry): TaxNode | undefined { return node(e.taxonomy); },
 
