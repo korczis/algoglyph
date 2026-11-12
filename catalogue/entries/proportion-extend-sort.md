@@ -20,6 +20,26 @@ tags:
 complexity: n log n in every case; extra space log n
 related:
   - quicksort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [quicksort]
+  objectives:
+  - 'Watch the sorted region on the left spread outwards in stages, each extension at most p = 16 times the sorted part it extends.'
+  - 'Count Already sorted: no array writes at all, since no key of an extension falls below its pivot.'
+  - 'Explain why a pivot taken from keys already in order cannot be a bad guess the way an unsorted key can.'
+  misconceptions:
+  - 'An n log n worst case for a quicksort needs a heapsort fallback; proportion extend sort gets it from pivots drawn from its sorted prefix.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (an exchange is two writes)'
+  average: 'close to n lg n − O(n) comparisons on random keys, in Chen''s experiments'
+  worst: 'O(n log n) comparisons, with a constant that depends on p (Chen 2001)'
 ---
 
 Keep a sorted prefix and extend it: take an unsorted block up to p times its length, partition it around the median of the prefix, and recurse on both sides, each again a sorted part followed by an unsorted one.

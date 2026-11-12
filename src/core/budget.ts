@@ -1,7 +1,7 @@
 // Work bounds for plates whose cost grows with the canvas or with the steps asked per frame.
 // One source for the arithmetic, so every plate bounds its work the same way and the readout can
 // say what was actually done (ADR 0004, rule project.viz-component-layer; proven per plate by
-// test/budget.test.ts at every width and every heavy corner).
+// test/budget/ at every width and every heavy corner).
 
 /**
  * The steps a frame may take: as many as asked, but no more than the budget allows at the given

@@ -14,6 +14,17 @@ complexity: "O(n) dictionary lookups for n characters"
 related:
   - run-length-encoding
   - huffman-coding
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Start the dictionary with the 256 single bytes and read the text as its UTF-8 bytes.
+  - Grow the current phrase while phrase plus byte is known; otherwise emit its code and learn phrase plus byte.
+  - See why the decoder can rebuild the same dictionary from the codes alone, one step behind.
+bounds:
+  model: dictionary lookups
+  best: one per input byte
+  worst: 'one per input byte, n for n bytes'
 ---
 
 Grow a dictionary of phrases while reading and emit the index of the longest known one.

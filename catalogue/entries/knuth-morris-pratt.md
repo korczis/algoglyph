@@ -16,6 +16,20 @@ tags:
 complexity: "O(n + m) comparisons: at most 2n in the search and 2m in the prefix function"
 related:
   - brute-force-search
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - brute-force-search
+  objectives:
+  - Fill the prefix function by matching the pattern against itself, pi[q] being the longest proper prefix of pattern[0..q] that is also its suffix.
+  - Slide the pattern after a mismatch so that pi[q − 1] characters still match, never moving back in the text.
+  - See the count stay linear on Repetitive input, where brute force's grows as n².
+algorithm:
+  paradigm: search
+bounds:
+  model: character comparisons, the prefix function's included
+  worst: 'at most 2n in the search and 2m in the prefix function: O(n + m)'
 ---
 
 A mismatch tells how far the pattern can shift, so the text is never read backwards.

@@ -99,7 +99,7 @@ describe('signal engine: recording off the frame path', () => {
         expect(c.runs - runs, `${d.key}: one re-record after the drag`).toBe(1);
         expect(frames, `${d.key}: it waits for the controls to settle`).toBeGreaterThanOrEqual(SETTLE_FRAMES);
         expect(c.last[d.key], `${d.key}: the run on screen is the one for the final setting`).toBe(params[d.key]);
-        // the drag's time is the budget gate's to judge (test/budget.test.ts, calibrated CPU time);
+        // the drag's time is the budget gate's to judge (test/budget/, calibrated CPU time);
         // a raw frame budget here failed the deploy of d40a563 at 42.2 ms on a loaded runner
         void worst;
       }

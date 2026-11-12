@@ -514,7 +514,7 @@ describe('stochastic engine budgets', () => {
    * blocked frame. */
   const PIECE_MS = 25;
   // CPU time of this process, not wall-clock: a stall of the machine is not the kernel's work
-  // (the instrument of test/budget.test.ts; a loaded runner stalled pages 50x, run 43133085956)
+  // (the instrument of test/budget/; a loaded runner stalled pages 50x, run 43133085956)
   const cpuMs = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
   const maxParams = (k: StochasticKernel): Params => {
     const out: Params = {};
@@ -572,7 +572,7 @@ describe('stochastic engine budgets', () => {
     let swapped = false;
     let preparing = 0;
     // CPU time of this process, not wall-clock: preemption by other processes is not a stall
-    // (the same instrument as test/budget.test.ts)
+    // (the same instrument as test/budget/)
     const cpu = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
     for (let i = 0; i < 20000 && !swapped; i++) {
       const a = cpu();

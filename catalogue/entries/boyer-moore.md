@@ -16,6 +16,19 @@ tags:
 complexity: "O(n m) worst case as written here; about n / m comparisons on large alphabets"
 related:
   - knuth-morris-pratt
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Compare from the right end of the pattern and slide by the larger of the bad-character and good-suffix shifts.
+  - Build the good-suffix shifts from the pattern's borders before the search.
+  - See English words end most alignments after one comparison, while DNA's four letters keep the shifts short.
+algorithm:
+  paradigm: search
+bounds:
+  model: character comparisons, the good-suffix table's included
+  average: about n / m on large alphabets
+  worst: O(n m) as written here
 ---
 
 Compare from the right end of the pattern and jump by the mismatched character: sublinear in practice.

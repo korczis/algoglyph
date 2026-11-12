@@ -18,6 +18,18 @@ related:
   - levenshtein-matrix
   - trigram-similarity
   - fellegi-sunter
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Match each character of the first name to an equal, unmatched character within the window of the second.
+  - Count matched characters in a different order as transpositions, halved, and compute Jaro.
+  - Add Winkler's bonus for up to four shared leading characters when Jaro exceeds 0.7.
+  misconceptions:
+  - The window does not tolerate moved words; a given name moved after the surname defeats it.
+bounds:
+  model: character comparisons
+  worst: 'at most |a| · min(|b|, 2w + 1) for the window w = ⌊max(|a|, |b|)/2⌋ − 1: O(|a| · |b|)'
 ---
 
 Matching characters within a window, transpositions halved, and a bonus for a shared prefix.
