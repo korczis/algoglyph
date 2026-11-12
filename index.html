@@ -546,7 +546,8 @@
                           </label>
                           <span class="font-mono text-xs text-gray-500 dark:text-gray-400" x-text="fmt(params[d.key], d)"></span>
                         </div>
-                        <input type="range" :id="'param-' + d.key" :min="d.min" :max="d.max" :step="d.step" x-model.number="params[d.key]" @change="changed(d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                        <input x-show="!d.log" type="range" :id="d.log ? null : 'param-' + d.key" :min="d.min" :max="d.max" :step="d.step" x-model.number="params[d.key]" @change="changed(d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                        <input x-show="d.log" type="range" :id="d.log ? 'param-' + d.key : null" min="0" :max="LOG_STEPS" step="1" :value="logPos(d)" @input="setLog(d, $event.target.value)" @change="changed(d)" :aria-valuetext="fmt(params[d.key], d)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
                       </div>
                     </template>
                     <template x-if="d.kind === 'select'">

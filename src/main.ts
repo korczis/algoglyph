@@ -7,12 +7,14 @@ import { factCards, facts, pick, spread } from './core/facts';
 import { defaults, type Chart, type ParamDef, type Params, type Plate, type Stat, type Theme } from './core/plate';
 import { freshSeed } from './core/random';
 import { parseRoute } from './core/route';
-import { HashWriter, parse as parseShared, serialise } from './core/share';
+import { HashWriter, parse as parseShared, serialise, snap } from './core/share';
 import { ThumbQueue } from './core/thumbs';
 import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
 
 import type { View } from './core/route';
+
+const LOG_STEPS = 1000;
 
 const THUMB_CACHE = 'algoglyph:thumb:v3';
 const FACTS = facts(CATALOGUE);
@@ -194,8 +196,21 @@ Alpine.data('app', () => ({
     return LIVE[(Math.max(0, i) + offset + LIVE.length) % LIVE.length];
   },
 
+  /** Positions of a log slider (RangeParam.log): the pace multiplier spans 1/8 to 4096. */
+  LOG_STEPS,
+  logPos(d: ParamDef): number {
+    if (d.kind !== 'range') return 0;
+    const v = Math.max(d.min, Number(this.params[d.key]));
+    return Math.round((LOG_STEPS * Math.log(v / d.min)) / Math.log(d.max / d.min));
+  },
+  setLog(d: ParamDef, pos: string) {
+    if (d.kind !== 'range') return;
+    this.params[d.key] = snap(d, d.min * (d.max / d.min) ** (Number(pos) / LOG_STEPS));
+  },
+
   fmt(value: unknown, d: ParamDef): string {
     if (d.kind !== 'range') return String(value);
+    if (d.log) return `×${Number(Number(value).toPrecision(3))}`;
     const decimals = d.step < 1 ? Math.min(4, Math.ceil(-Math.log10(d.step))) : 0;
     return Number(value).toFixed(decimals);
   },
