@@ -50,6 +50,15 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   plate's work and not the machine's speed or load; each repeat takes a new seed, so a cache
   never answers for the work; outside CI the budgets carry `local_headroom`, so a plate that
   passes on a developer's machine passes on CI's runners.
+- A frame's share of a run is counted, never only timed: a wall-clock slice always finishes the
+  step it started, and under load a frame's CPU outgrows its wall time. Engines that resume a
+  run per frame bound it by a count (graph `FRAME_UNITS`, signal `STEPS_PER_FRAME`, stochastic
+  `PIECES_PER_FRAME`, grid `BUILD_EVENTS_PER_FRAME`); a kernel whose units cost more than the
+  engine's flat unit declares it (a graph kernel yields the uncounted work it did, a grid kernel
+  whose events resume a deep recursion sets `eventCost`).
+- Correctness tests are not judged on wall-clock time: no test sets a limit shorter than the
+  suite's `testTimeout` (`test/suite-contract.test.ts`); time is judged only by the budget gate,
+  in CPU time.
 - Work that grows with the canvas or with the steps asked per frame is bounded with
   `src/core/budget.ts` (`cellWithin`, `stepsWithin`), and the readout says what was done
   (`bounded`): a bounded quantity is never shown as the value asked. A state that decays
