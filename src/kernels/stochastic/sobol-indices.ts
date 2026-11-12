@@ -19,10 +19,8 @@ export function additive(a: number[]): SobolModel {
   return { d: a.length, lo: 0, hi: 1, f: (x) => a.reduce((t, ai, i) => t + ai * x[i], 0), first: s, total: s.slice() };
 }
 
-/** The Ishigami function on [-π, π]³ with a = 7, b = 0.1, and its known indices. */
-export function ishigami(): SobolModel {
-  const a = 7;
-  const b = 0.1;
+/** The Ishigami function on [-π, π]³ (classically a = 7, b = 0.1), and its known indices. */
+export function ishigami(a = 7, b = 0.1): SobolModel {
   const pi4 = Math.PI ** 4;
   const v1 = 0.5 * (1 + (b * pi4) / 5) ** 2;
   const v2 = (a * a) / 8;
@@ -52,13 +50,16 @@ export const kernel: StochasticKernel<SobolResult> = {
       options: [{ value: 'ishigami', label: 'Ishigami (interaction)' }, { value: 'additive', label: 'Additive linear' }],
     },
     { kind: 'range', key: 'n', label: 'Base samples N', min: 200, max: 20000, step: 200, value: 4000, rebuild: true },
+    // 0 takes the second input out of f; past 10 its share a²/8 crowds out the other two
+    // inputs' bars. The cost is the same at every a
+    { kind: 'range', key: 'a', label: 'Ishigami a', min: 0, max: 10, step: 0.5, value: 7, rebuild: true, when: { key: 'model', values: ['ishigami'] } },
   ],
   chart: { title: 'First-order indices as samples grow', x: { label: 'evaluations', log: true }, y: { label: 'S_i' } },
   *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const m = str(cfg, 'model') === 'additive'
       ? additive(Array.from({ length: 4 }, () => s.uniform(0.2, 3)))
-      : ishigami();
+      : ishigami(num(cfg, 'a'));
     const n = num(cfg, 'n');
     const d = m.d;
     const draw = () => Array.from({ length: d }, () => s.uniform(m.lo, m.hi));
@@ -106,6 +107,7 @@ export const kernel: StochasticKernel<SobolResult> = {
         { label: 'Output variance', value: fmt(v, 4) },
         { label: 'Sum of first-order indices', value: `${fmt(first.reduce((a, b) => a + b, 0), 3)} (1 when additive)` },
         { label: 'Largest error against analytic', value: fmt(Math.max(...first.map((si, i) => Math.abs(si - m.first[i])), ...total.map((ti, i) => Math.abs(ti - m.total[i]))), 4) },
+        ...first.map((si, i) => ({ label: `Indices of x${i + 1}`, value: `first-order ${fmt(si, 3)}, total ${fmt(total[i], 3)}` })),
       ]);
       yield;
     }

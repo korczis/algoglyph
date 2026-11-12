@@ -50,6 +50,41 @@ claims:
     expect: { below: 0.044 }
     setup:
       params: { model: additive }
+  - id: without-a-the-second-input-drops-out
+    statement: >-
+      At Ishigami a = 0 the term a sin² x₂ vanishes and f no longer depends on x₂, so every hybrid
+      f(A_B(2)) equals f(A) exactly: the second input's first-order estimate is exactly 0.
+    readout: Indices of x2
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { a: 0 }
+  - id: without-a-the-second-total-is-its-first
+    statement: >-
+      For the same reason the second input's total estimate, half the mean square of
+      f(A) − f(A_B(2)), is exactly 0 too: it equals the first-order estimate to the last digit.
+    readout: Indices of x2
+    expect: { against: Indices of x2, against_number: 2, tolerance: 0 }
+    setup:
+      params: { a: 0 }
+  - id: without-a-indices-near-analytic
+    statement: >-
+      At a = 0 the analytic indices are V₁/V = 0.563 and V₁₃/V = 0.437 for the first and third
+      inputs, V₂ = a²/8 = 0; every estimate lies within 0.120 of its analytic value with
+      N = 4,000, the mean (0.039) plus four standard deviations (0.020) of the largest error over
+      200 other seeds.
+    readout: Largest error against analytic
+    expect: { below: 0.120 }
+    setup:
+      params: { a: 0 }
+  - id: large-a-indices-near-analytic
+    statement: >-
+      At a = 10 the second input's share is V₂/V = (100/8)/V = 0.618, and every estimate lies
+      within 0.057 of its analytic value with N = 4,000, the mean (0.022) plus four standard
+      deviations (0.009) of the largest error over 200 other seeds.
+    readout: Largest error against analytic
+    expect: { below: 0.057 }
+    setup:
+      params: { a: 10 }
 ---
 
 The share of output variance each input explains, alone and with the others.
