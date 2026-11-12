@@ -15,6 +15,24 @@ complexity: "O(f · 64) bit votes per document of f distinct words, O(64) to com
 related:
   - minhash-lsh
   - source-family
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Let every distinct word vote on 64 bits with its count, and keep the sign of each total as the fingerprint.
+  - See the Hamming distance of two fingerprints fall as the cosine similarity of their word counts rises.
+  - See why stories that share common English words lie closer than independent fingerprints would.
+bounds:
+  model: bit votes and fingerprint bits compared
+  best: '64 f bit votes for a document of f distinct words; 64 bits compared per pair of fingerprints'
+  worst: '64 f bit votes for a document of f distinct words; 64 bits compared per pair of fingerprints'
+claims:
+  - id: different-stories-closer-than-independent
+    statement: >-
+      Independent 64-bit fingerprints differ in 32 bits on average; the synthetic stories share
+      common English words, so different stories lie closer than that.
+    readout: Mean distance, different stories
+    expect: { below: 32 }
 ---
 
 A fingerprint whose Hamming distance follows the documents' cosine similarity.

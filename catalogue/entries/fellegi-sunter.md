@@ -14,6 +14,18 @@ complexity: "O(n² f) field comparisons for n records and f fields, then O(n² f
 related:
   - blocking-sorted-neighbourhood
   - jaro-winkler
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  objectives:
+  - Turn every pair of records into an agreement vector over given name, surname, birth year and town.
+  - Fit m and u per field by EM, without labels, and weight agreement by log2(m/u) and disagreement by log2((1 − m)/(1 − u)).
+  - Call a pair a match above log2((1 − p)/p), where its posterior passes one half.
+algorithm:
+  paradigm: iterative-refinement
+bounds:
+  model: field comparisons and EM pair updates
+  worst: '4 · n(n − 1)/2 field comparisons for n records, every pair on four fields; n(n − 1)/2 pair updates per EM iteration'
 ---
 
 Each field adds the log ratio of agreeing among matches to agreeing among non-matches.

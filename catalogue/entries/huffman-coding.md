@@ -14,6 +14,20 @@ tags:
 complexity: n lg n for n symbols with a binary heap
 related:
   - binary-heap
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - binary-heap
+  objectives:
+  - Join the two lightest trees under a new parent until one tree is left.
+  - Read a symbol's code as its path, and see why no code is a prefix of another.
+  - Compare the encoded length, the sum of weight times depth, with the entropy bound.
+algorithm:
+  paradigm: greedy
+bounds:
+  model: key comparisons in the binary heap
+  worst: O(n lg n) for n symbols
 ---
 
 Merge the two rarest symbols until one tree is left: the optimal prefix code.

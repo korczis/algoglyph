@@ -16,6 +16,21 @@ related:
   - minhash-lsh
   - simhash
   - union-find-entity-merge
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - weighted-quick-union
+  objectives:
+  - Compare every pair of documents by the Jaccard similarity of their word 3-shingles.
+  - Link a pair at 0.3 or more, or when both carry the same agency credit and headline, and merge linked documents by union-find.
+  - Count the sources found against the stories the input was generated from, by pairwise precision and recall.
+algorithm:
+  paradigm: union-find
+bounds:
+  model: pairs compared and unions
+  best: 'n(n − 1)/2 pairs compared for n documents'
+  worst: 'n(n − 1)/2 pairs compared and at most n − 1 unions for n documents'
 ---
 
 Several republications of one wire story are one source, not several; credits reveal the family.

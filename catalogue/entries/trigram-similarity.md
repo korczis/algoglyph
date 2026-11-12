@@ -18,6 +18,17 @@ related:
   - jaro-winkler
   - levenshtein-matrix
   - minhash-lsh
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Lower-case each word, pad it with two spaces in front and one behind, and cut it into three-character slices.
+  - Divide the shared trigrams by the distinct trigrams in either string.
+  - See why a typing slip or a different word order costs little, while dropping diacritics changes many trigrams.
+bounds:
+  model: trigrams sliced and set lookups
+  best: '|w| + 1 trigrams for each word w of either string; one set lookup per distinct trigram of the first'
+  worst: '|w| + 1 trigrams for each word w of either string; one set lookup per distinct trigram of the first'
 ---
 
 Two strings compared by the overlap of their three-character slices.

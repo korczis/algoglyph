@@ -14,6 +14,17 @@ motivation: Resolving one company or person across noisy public registries needs
 complexity: "O(1) per number: seven multiplications and one remainder"
 related:
   - crc-division
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Weight the first seven digits 8 to 2, sum them and take (11 − sum mod 11) mod 10 as the check digit.
+  - See why one changed digit, or two adjacent distinct digits swapped, always changes the remainder.
+  - See why a corruption that moves the sum between remainders 0 and 10 is not caught.
+bounds:
+  model: digits weighted and numbers checked
+  best: 7 digits weighted and 1 check per number
+  worst: 7 digits weighted and 1 check per number
 ---
 
 The weighted sum modulo 11 that makes the last digit of a Czech company number check the rest.

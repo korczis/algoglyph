@@ -18,6 +18,20 @@ related:
   - longest-common-subsequence
   - myers-diff
 complexity: "O(|a| · |b|) time and cells"
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Fill cell (i, j) with the least of delete, insert and keep or substitute from its three neighbours.
+  - Read the distance from the bottom-right cell.
+  - Walk back through the cells that produced each minimum to list one cheapest edit script.
+algorithm:
+  paradigm: dynamic-programming
+bounds:
+  model: cells written and character comparisons
+  best: '(|a| + 1)(|b| + 1) cells and |a| · |b| comparisons'
+  worst: '(|a| + 1)(|b| + 1) cells and |a| · |b| comparisons'
+  space: '(|a| + 1)(|b| + 1) cells'
 ---
 
 The edit table filled cell by cell, and the cheapest path of insertions, deletions and substitutions through it.

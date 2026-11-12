@@ -15,6 +15,17 @@ complexity: "O(n) for n tokens: the grammar needs one token of lookahead and nev
 related:
   - infix-to-postfix
   - postfix-evaluation
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Write one procedure per grammar rule, so that the call stack follows the parse tree.
+  - See expr loop over + and −, term over *, and factor call itself after ^ so that exponentiation groups to the right.
+  - Evaluate on return and emit the operators in postfix order, checkable against shunting-yard.
+bounds:
+  model: tokens consumed
+  best: n for n tokens
+  worst: 'n for n tokens: each consumed once, with one token of lookahead and no backtracking'
 ---
 
 One procedure per grammar rule, the call stack shaped like the parse tree.
