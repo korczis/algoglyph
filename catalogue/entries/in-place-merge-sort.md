@@ -7,8 +7,10 @@ engine: array
 labs:
   - sorting
 sources:
+  - id: katajainen-1996
+    ref: the algorithm, and its comparison and move bounds
   - id: huang-1988
-    ref: the linear-time in-place merge
+    ref: block merging, the alternative linear-time in-place merge
   - id: huang-1992
     ref: the stable constant-space follow-up
   - id: kim-2004
@@ -42,6 +44,7 @@ algorithm:
 bounds:
   model: 'comparisons, array writes (an exchange is two writes) and auxiliary writes'
   average: 'no auxiliary write on any input, every array write half of an exchange; more comparisons on Already sorted than on Reversed from 3 keys on'
+  worst: 'at most n log₂ n + O(n) comparisons and 3n log₂ n + O(n) moves, an exchange being three moves (Katajainen, Pasanen and Teuhola)'
 claims:
   - id: no-auxiliary-write
     statement: >-
@@ -52,10 +55,12 @@ claims:
       params: { shape: random, n: 512, speed: 2000 }
 ---
 
-Bottom-up mergesort without the auxiliary array: every merge of two neighbouring runs happens inside the input itself, with a constant number of extra variables, using Huang and Langston's block merge.
+Mergesort without an auxiliary array, after Katajainen, Pasanen and Teuhola: the part of the input not yet sorted serves as the work area, and a merge writes its output into that area by exchanges, so the keys the area held move to where the runs were and nothing is lost.
 
-Each merge cuts the two runs into blocks of about √n keys, borrows one block as an internal buffer, reorders the other blocks by their last keys and merges them by exchanging with the buffer; finally the buffer is sorted and put back. Every write is an exchange within the array, so the auxiliary strip stays empty while ordinary mergesort fills it on every pass. Start with Random permutation at n = 128 and compare the write count with mergesort-top-down.
+To sort a range it first sorts one half into the other half, which leaves the second half sorted and the first half free as work area. Then, round after round, it sorts half of the remaining unsorted part into the other half of it and merges that sorted piece with the sorted tail, using what is still unsorted as the work area; sorting into the area means sorting the two halves of the piece in place by the same method and merging them into it. Each round halves the unsorted part, and the last one or two keys are inserted by exchanges.
 
-The merge is linear and constant-space, so log n merge levels give n log n in every case. The price is stability: exchanges with the buffer reorder equal keys, so this formulation is not stable. Huang and Langston's later paper makes merging and sorting stable in constant space, at the cost of more intricate steps such as building the buffer from distinct keys; SymMerge takes another route, rotations instead of a buffer, and pays n log² n time.
+A merge into the work area compares the two front keys and exchanges the smaller one with the next cell of the area, so every write on the plate is half of an exchange and the Auxiliary writes stay at zero on every input. Start with Random permutation at n = 512 and compare the Array writes with mergesort-top-down: 18,186 against 4,608, the price of merging without a buffer. Already sorted is not the easy case: at 512 keys it costs 6,011 comparisons, Reversed 1,593.
 
-Short runs are merged by simple rotations, because the block bookkeeping does not pay for itself there; on long runs rotations would be quadratic, which is the whole reason for the buffer. Reach for it only where extra memory is genuinely unavailable: with an auxiliary array, plain mergesort moves fewer keys.
+The authors prove that this straightforward variant makes at most n log₂ n + O(n) comparisons and 3n log₂ n + O(n) moves, and give a more advanced variant whose moves fall to εn log₂ n for any fixed ε > 0. The price of the exchanges is stability: moving a key into the work area exchanges it with whatever the area held, which can carry it past an equal key, and even the two keys of [1, 1] come out reordered.
+
+Other routes to in-place merging exist and are not what this plate runs. Huang and Langston merge two runs in linear time and constant space by cutting them into blocks of about √n keys and using one block as an internal buffer, and their later paper makes merging and sorting stable in constant space; SymMerge merges by rotations instead and pays n log² n time. Reach for an in-place mergesort only where extra memory is genuinely unavailable: with an auxiliary array, plain mergesort moves far fewer keys.
