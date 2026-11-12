@@ -62,6 +62,33 @@ export function expectedShuffles(keys: readonly number[]): number {
   return e;
 }
 
+/**
+ * The variance V_m of the shuffles of a call on a uniform prefix of m keys. The call costs
+ * X_m = Y + B·(1 + X_m′): Y, the cost of sorting its first m − 1 keys, is X_{m−1}; B, a failed
+ * check, is 1 with probability q = 1 − 1/m and independent of Y; X_m′ is a fresh call. With
+ * E[1 + X_m] = m!, V_m = V_{m−1} + q(V_m + m!²) − q²·m!², so V_m = m·V_{m−1} + q·m!², V_1 = 0.
+ */
+export function callVariance(m: number): number {
+  let v = 0;
+  for (let j = 2; j <= m; j++) v = j * v + (1 - 1 / j) * factorial(j) ** 2;
+  return v;
+}
+
+/**
+ * The variance of the shuffles from this input of distinct keys: every prefix whose last key is
+ * not its largest fails once, deterministically, and then costs a fresh call on a uniform prefix
+ * (expectedShuffles), independently of the others; so the variances V_m of those prefixes add.
+ */
+export function shufflesVariance(keys: readonly number[]): number {
+  let v = 0;
+  let max = -Infinity;
+  for (let m = 1; m <= keys.length; m++) {
+    if (m >= 2 && keys[m - 1] < max) v += callVariance(m);
+    max = Math.max(max, keys[m - 1]);
+  }
+  return v;
+}
+
 export interface BbsRun {
   keys: number[];
   stepper: Stepper;

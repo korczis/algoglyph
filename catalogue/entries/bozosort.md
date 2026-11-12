@@ -33,6 +33,18 @@ algorithm:
   paradigm: randomized
   properties:
     stable: false
+claims:
+  - id: mean-swaps-meet-the-markov-expectation
+    statement: >-
+      Over 400 completed runs on Random permutations of 5 keys with any random pair swapped, the
+      mean swaps per run lies within 33.0 of the exact Markov expectation for the same inputs,
+      164.06 averaged over all of them: four standard errors, 4·√(27,008.4/400) = 32.9, with each
+      walk's variance from the chain's second moment averaged over the inputs, plus 0.1 for the
+      two readouts' rounding.
+    readout: mean swaps per run
+    expect: { against: 'expected swaps (exact Markov chain)', tolerance: 33 }
+    setup:
+      params: { n: 5, shape: random, rule: any, runs: 400 }
 bounds:
   model: 'per run: swaps (one per random pair drawn), comparisons (the sortedness check before every draw) and inversions (recounted after every swap)'
   best: 'Already sorted: n − 1 comparisons and no swap'

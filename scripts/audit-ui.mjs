@@ -71,9 +71,11 @@ const fail = (where, what) => failures.push(`${where}: ${what}`);
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 if (PREVIEWS) mkdirSync(PREVIEWS, { recursive: true });
 
-// Locally the installed Chrome; CI sets AUDIT_CHANNEL= (empty) to use the Chromium that
-// `playwright-core install chromium` downloaded.
-const channel = process.env.AUDIT_CHANNEL ?? 'chrome';
+// Playwright's own Chromium (`playwright-core install chromium`) unless AUDIT_CHANNEL names a
+// channel; the lundra runner sets AUDIT_CHANNEL=chrome (ADR 0003). Not Google Chrome by default:
+// on macOS every headless Google Chrome launch left a ~1.4 GB code_sign_clone in the user temp
+// folder, and 25 of them (36 GB) filled the shared disk on 2026-11-12.
+const channel = process.env.AUDIT_CHANNEL ?? '';
 const browser = await chromium.launch({
   ...(channel ? { channel } : {}),
   headless: true,

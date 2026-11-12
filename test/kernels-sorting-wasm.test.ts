@@ -23,7 +23,7 @@ import { p5Stub } from './support/p5-stub';
 interface SidecarRecord { id: string; kernel: string; existing?: boolean }
 interface Manifest {
   abi: number; max_n: number;
-  kernels: { id: string; stable: string; in_place: boolean; kind: string }[];
+  kernels: { id: string; stable: string; in_place: boolean; kind: string; options: string[] }[];
 }
 const RECORDS = (parse(readFileSync('catalogue/sorting-sidecar.yaml', 'utf8')) as { entries: SidecarRecord[] })
   .entries;
@@ -234,8 +234,8 @@ describe('sorting wasm module', () => {
   it('declares what its manifest says, and the limits it exports', () => {
     for (const m of MANIFEST.kernels) {
       const k = S.meta(m.id)!;
-      expect({ stable: k.stable, in_place: k.inPlace, kind: k.kind }, m.id)
-        .toEqual({ stable: m.stable, in_place: m.in_place, kind: m.kind });
+      expect({ stable: k.stable, in_place: k.inPlace, kind: k.kind, options: k.options }, m.id)
+        .toEqual({ stable: m.stable, in_place: m.in_place, kind: m.kind, options: m.options });
     }
     expect(S.maxN).toBe(MANIFEST.max_n);
     expect(S.build).toMatch(new RegExp(`\\|abi${MANIFEST.abi}$`));
@@ -444,7 +444,8 @@ type Counts = { compares: number; swaps: number; writes: number; auxWrites: numb
 const EQUIV_N = 64;
 const RATIO = 4;
 const SLOPE = 0.3;
-const SETTINGS: RunOptions[] = [{}, ...[1, 2, 3, 4].map((k) => ({ k })), ...[2, 4, 16, 256].map((base) => ({ base }))];
+const SETTINGS: RunOptions[] = [{}, ...[1, 2, 3, 4].map((k) => ({ options: { k } })),
+  ...[2, 4, 16, 256].map((base) => ({ options: { base } }))];
 
 const fromTrace = (t: Trace): Counts => ({
   compares: t.counts.compares, swaps: t.counts.swaps, writes: t.counts.writes - 2 * t.counts.swaps,
@@ -452,7 +453,10 @@ const fromTrace = (t: Trace): Counts => ({
 });
 const tsCounts = (id: string, data: number[]) => fromTrace(trace(fileKernel(id)!, data));
 function rustCounts(kernel: string, data: number[], opt: RunOptions): Counts {
-  const r = S.run(kernel, data, { ...opt, seed: seedOf(data) });
+  // a setting names only options the kernel reads; the others leave it at its default
+  const reads = S.meta(kernel)?.options ?? [];
+  const options = Object.fromEntries(Object.entries(opt.options ?? {}).filter(([o]) => reads.includes(o)));
+  const r = S.run(kernel, data, { ...opt, options, seed: seedOf(data) });
   return fromTrace(trace({ run: (a: ArrayOps) => replay(a, r) }, data));
 }
 const work = (c: Counts) => c.compares + c.writes + 2 * c.swaps + c.auxWrites;
@@ -545,9 +549,17 @@ describe('sorting trace cache', () => {
     expect(traceCache(S).stats().values).toBeGreaterThan(0);
     expect(traceCache(S).build).toBe(S.build);
     const base = traceKey('k', [1, 2], { seed: 1, maxSteps: 9 });
-    for (const opt of [{ trace: false }, { edges: [[0, 1]] as [number, number][] }, { base: 2 }, { k: 3 }]) {
+    const variants: RunOptions[] = [{ trace: false }, { edges: [[0, 1]] }, { options: { base: 2 } },
+      { options: { k: 3 } }, { options: { k: 3, memory: 8 } }];
+    for (const opt of variants) {
       expect(traceKey('k', [1, 2], { seed: 1, maxSteps: 9, ...opt }), JSON.stringify(opt)).not.toBe(base);
     }
+    // two different options, or the same values under other names, never share a key
+    expect(traceKey('k', [1, 2], { options: { k: 3 } })).not.toBe(traceKey('k', [1, 2], { options: { base: 3 } }));
+    // an option at 0 is the kernel's default, and its order of naming is no part of the run
+    expect(traceKey('k', [1, 2], { options: { k: 0 } })).toBe(traceKey('k', [1, 2], {}));
+    expect(traceKey('k', [1, 2], { options: { k: 3, memory: 8 } }))
+      .toBe(traceKey('k', [1, 2], { options: { memory: 8, k: 3 } }));
     expect(hashWords([1, 2, 3])).not.toBe(hashWords([1, 2, 4]));
     expect(hashWords([1, 2, 3])).not.toBe(hashWords([1, 2, 3, 0]));
   });

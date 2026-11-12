@@ -15,13 +15,18 @@ export const kernel: GeometryKernel = {
   task: 'range',
   input: 'points',
   n: { min: 1, max: 800, value: 150, step: 1 },
-  params: [...RANGE_PARAMS, { kind: 'range', key: 'M', label: 'Entries per node (M)', min: 4, max: 16, step: 1, value: 6 }],
+  params: [
+    ...RANGE_PARAMS,
+    { kind: 'range', key: 'M', label: 'Entries per node (M)', min: 4, max: 16, step: 1, value: 6 },
+    // at most 0.5, so 2m ≤ M + 1: both groups of a split can reach m
+    { kind: 'range', key: 'fill', label: 'Minimum fill (fraction of M)', min: 0.2, max: 0.5, step: 0.05, value: 0.4 },
+  ],
   counters: [['visit', 'Node visits'], ['area', 'Area computations'], ['split', 'Node splits'], ['rangeVisit', 'Range query visits'], ['box', 'Rectangle tests']],
   scaling: [32, 64, 128, 256, 512, 1024, 2048],
   *run(g) {
     const pts = g.input.points;
     const M = Math.max(4, Number(g.params.M ?? 6));
-    const m = Math.max(2, Math.floor(M * 0.4));
+    const m = Math.max(2, Math.floor(M * Math.min(0.5, Number(g.params.fill ?? 0.4))));
     g.base(dots(pts, { a: 130, r: 2 }));
     const pbox = (i: number): Box => ({ x0: pts[i].x, y0: pts[i].y, x1: pts[i].x, y1: pts[i].y });
     const boxes = (nd: RNode): Box[] => (nd.leaf ? nd.items.map(pbox) : nd.kids.map((k) => k.box));

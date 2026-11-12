@@ -6,7 +6,8 @@
 //   - the exact recurrence of the algorithm's comparisons (theory, computed from the definition),
 //   - a reference power of n (the master theorem's exponent, or a fit to the small sizes),
 // with this run's own count rising at its n. The comparisons never depend on the keys; the swaps
-// do, and the readouts set the mirror's against the kernel's on the same input.
+// do, and the readouts set the mirror's against the kernel's on the same input. The `runs`
+// control stops the plate after k completed runs (../settle/settle.ts), holding the k-th.
 import type p5 from 'p5';
 import { paletteParam, ramp } from '../../../core/palette';
 import { num, type PlateCode, type PlateContext } from '../../../core/plate';
@@ -15,6 +16,7 @@ import { STEP_PACE, stepPaceParam, stepPacer } from '../kernel-mirror/controls';
 import type { Stepper } from '../kernel-mirror/tracer';
 import { countOnly, sortingNow, type WasmRun } from '../kernel-mirror/wasm';
 import { chartOf, fmt, Series } from '../live-chart/series';
+import { RunCounter, runsParam } from '../settle/settle';
 import { input, isSorted, runSeed, SHAPES, shapeOf, shapeParam } from '../sort-input/input';
 
 /** Where the recursion stands: the call being worked on and the calls still waiting. */
@@ -62,6 +64,7 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
       { kind: 'range', key: 'n', label: 'Keys n', min: spec.n.min, max: spec.n.max, step: 1,
         value: spec.n.value, rebuild: true },
       shapeParam(SHAPES, 'random'),
+      runsParam(),
       stepPaceParam(),
       paletteParam('spectral'),
     ],
@@ -76,6 +79,7 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
       let kernelOnInput: WasmRun | undefined;
       let hold = 0;
       let sweepN = 2;
+      const completed = new RunCounter(params);
       const kernel = new Series(`${spec.kernel} kernel (wasm), measured`);
       const theory = new Series('exact recurrence (theory)');
       for (let m = 2; m <= n; m++) theory.push(m, spec.recurrence(m));
@@ -103,7 +107,7 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
       };
 
       return {
-        pace: () => pacer.report(false, params),
+        pace: () => pacer.report(completed.stopped, params),
         setup() {
           p.textFont('monospace');
           next();
@@ -115,9 +119,21 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
               k++;
               next();
             }
+          } else if (run.stepper.done) {
+            // held on its k-th completed run; a raised limit lets the next run start
+            if (!completed.stopped) {
+              k++;
+              next();
+            }
           } else {
             run.stepper.advance(ctx.thumbnail ? 64 : pacer.take(params));
-            if (run.stepper.done) hold = ctx.thumbnail ? 1 : HOLD;
+            if (run.stepper.done) {
+              const c = run.stepper.t.counts;
+              const sorted = run.stepper.outcome === 'sorted' && isSorted(run.keys);
+              completed.complete(`${fmt(c.cmp)} comparisons, ${fmt(c.swap)} swaps, `
+                + (sorted ? 'ascending (checked)' : `NOT sorted (${run.stepper.outcome})`));
+              if (!completed.stopped) hold = ctx.thumbnail ? 1 : HOLD;
+            }
           }
           sweep();
           render();
@@ -167,7 +183,7 @@ export function scalingPlate(spec: ScalingSpec): PlateCode {
           rows.push({ label: 'result', value: run.stepper.outcome === 'sorted' && isSorted(run.keys)
             ? 'ascending, verified' : `NOT sorted (${run.stepper.outcome})` });
         }
-        ctx.stats([...rows, pacer.row(params)]);
+        ctx.stats([...rows, ...completed.rows(), pacer.row(params)]);
         const live = new Series('this run, counted live');
         live.push(n, 1);
         live.push(n, Math.max(1, t.counts.cmp));

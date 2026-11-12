@@ -126,6 +126,13 @@ export const bowyerWatsonDelaunay: PlateCode = {
         { value: 'circle', label: 'Circle + noise' },
       ],
     },
+    {
+      // the side of the integer lattice the points snap to (bowyer.ts): 4096 is the largest on
+      // which the predicates stay exact; a coarse one merges points and lines them up
+      kind: 'select', key: 'lattice', label: 'Lattice side', value: String(LATTICE),
+      rebuild: true,
+      options: [64, 256, 1024, LATTICE].map((v) => ({ value: String(v), label: `${v} × ${v}` })),
+    },
     { kind: 'toggle', key: 'circles', label: 'Show circumcircles', value: true },
     { kind: 'toggle', key: 'voronoi', label: 'Show Voronoi dual', value: false },
     {
@@ -144,9 +151,11 @@ export const bowyerWatsonDelaunay: PlateCode = {
     const W = ctx.width;
     const H = ctx.height;
     // lattice units per canvas pixel
-    const s = (LATTICE - 1) / Math.max(W, H);
-    const snap = (v: number) => Math.min(LATTICE - 1, Math.max(0, Math.round(v * s)));
-    let mesh = new Delaunay();
+    // a caller that names no lattice gets the default, 4096
+    const side = params.lattice === undefined ? LATTICE : num(params, 'lattice');
+    const s = (side - 1) / Math.max(W, H);
+    const snap = (v: number) => Math.min(side - 1, Math.max(0, Math.round(v * s)));
+    let mesh = new Delaunay(side);
     let queue: Pt[] = [];
     let next = 0;
     let recent: Insertion[] = [];
@@ -175,7 +184,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
     return {
       pace: () => pacer.report(next >= queue.length, params),
       setup() {
-        mesh = new Delaunay();
+        mesh = new Delaunay(side);
         queue = scatter(str(params, 'distribution'), num(params, 'points'), W, H, ctx.rnd);
         next = 0;
         pacer.start(queue.length);

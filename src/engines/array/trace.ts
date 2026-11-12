@@ -59,6 +59,25 @@ export interface ArrayOps {
   round(): void;
 }
 
+/**
+ * A constant of a kernel that its plate tunes: a slider over whole numbers whose value reaches
+ * the kernel's run under `name`. `default` is the kernel's own value, so a plate at its defaults
+ * runs exactly what the kernel always ran. Whoever provides the kernel declares them from data
+ * (a sorting kernel from its sidecar record's `options`), never per kernel in engine code.
+ */
+export interface KernelOption {
+  name: string;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  default: number;
+  unit?: string;
+}
+
+/** The values of a kernel's options, by name: the plate's, or each option's default. */
+export type OptionValues = Readonly<Record<string, number>>;
+
 export interface ArrayKernel {
   /** 'sort' leaves the array ascending; 'select' places the k-th smallest at index k. */
   goal?: 'sort' | 'select';
@@ -73,7 +92,10 @@ export interface ArrayKernel {
    * 'Layers', 'Passes'); 'Rounds' when it says nothing. Only a kernel that calls round() shows it.
    */
   roundUnit?: string;
-  run(a: ArrayOps, k: number): void;
+  /** The constants the plate offers as controls (KernelOption); each reaches run() by name. */
+  options?: readonly KernelOption[];
+  /** `options`: the option values of this run; an option left out is at its default. */
+  run(a: ArrayOps, k: number, options?: OptionValues): void;
 }
 
 export interface Counts {
@@ -121,10 +143,11 @@ class Stop extends Error {}
 
 /**
  * Run `kernel` on a copy of `input`, recording every operation. `order` replaces `<` as the key
- * order (tests use it to compare by key only and so observe stability).
+ * order (tests use it to compare by key only and so observe stability); `options` are the values
+ * of the kernel's options (ArrayKernel.options), its defaults where left out.
  */
 export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_CAP,
-  order: (x: number, y: number) => boolean = (x, y) => x < y): Trace {
+  order: (x: number, y: number) => boolean = (x, y) => x < y, options?: OptionValues): Trace {
   const a = input.slice();
   let aux = new Array<number>(a.length).fill(0);
   let buf = new Int32Array(3 * 4096);
@@ -204,7 +227,7 @@ export function trace(kernel: ArrayKernel, input: number[], k = 0, cap = EVENT_C
   };
   let truncated = false;
   try {
-    kernel.run(ops, k);
+    kernel.run(ops, k, options);
   } catch (e) {
     if (!(e instanceof Stop)) throw e;
     truncated = true;

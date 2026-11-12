@@ -11,6 +11,10 @@ export const kernel: GeometryKernel = {
   input: 'orthogonal',
   shapes: ['mixed'],
   n: { min: 2, max: 400, value: 60, step: 2, label: 'Segments' },
+  // the share of horizontals (src/engines/geometry/input.ts isHorizontal): ⌈n · s⌉ of the n
+  // segments, so the sweep handles 2⌈n · s⌉ + (n − ⌈n · s⌉) events. Half and half is the top: it
+  // has the most events and the most horizontal-vertical pairs
+  params: [{ kind: 'range', key: 'horiz', label: 'Horizontal share (%)', min: 10, max: 50, step: 10, value: 50 }],
   counters: [['visit', 'Tree node visits'], ['pop', 'Events'], ['compare', 'Comparisons'], ['found', 'Intersections']],
   scaling: [16, 32, 64, 128, 256, 512, 1024],
   *run(g) {

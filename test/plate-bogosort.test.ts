@@ -84,7 +84,7 @@ describe('bogosort plate', () => {
       h.frames(60);
       const s = h.stats();
       expect(Object.keys(s).length, JSON.stringify(params)).toBeGreaterThan(4);
-      expect(lead(s['finished runs'])).toBeGreaterThanOrEqual(0);
+      expect(lead(s['completed runs'])).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -93,7 +93,7 @@ describe('bogosort plate', () => {
     const h = headless(plate, { pace: steps(16) });
     h.frames(2400);
     const s = h.stats();
-    const runs = lead(s['finished runs']);
+    const runs = lead(s['completed runs']);
     expect(runs).toBeGreaterThan(5);
     const c = h.chart()!;
     expect(c.series.map((x) => x.name)).toEqual(['mean shuffles per run (measured)', 'expected n!/Πmᵢ! per unsorted input']);

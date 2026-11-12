@@ -60,6 +60,20 @@ claims:
     expect: { value: 4 }
     setup:
       params: { shape: random, n: 512 }
+  - id: passes-at-fan-in-2
+    statement: >-
+      At 512 keys with memory M = 16 run generation leaves 32 runs, and two-way merging takes five passes over them, six passes in all: 1 + ⌈log₂ 32⌉.
+    readout: Passes
+    expect: { value: 6 }
+    setup:
+      params: { shape: random, n: 512, memory: 16, k: 2 }
+  - id: passes-at-fan-in-8
+    statement: >-
+      The same 32 runs merged eight at a time take two passes, three in all: raising the fan-in from 2 to 8 halves the passes, 1 + ⌈log₈ 32⌉.
+    readout: Passes
+    expect: { value: 3 }
+    setup:
+      params: { shape: random, n: 512, memory: 16, k: 8 }
 ---
 
 Sort a file larger than memory in two phases: cut it into memory-sized pieces, sort each one into a run on disk, then merge k runs at a time in passes until a single run is left.
