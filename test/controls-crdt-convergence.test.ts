@@ -89,7 +89,7 @@ describe('crdt-convergence: writes stop at', () => {
   it('is a range control of the plate, the old constant its default', () => {
     // up to 55: writing longer adds writes and their marks, and at 80% of the run the trace is
     // about 7% longer than at the plate's heaviest setting today (6 replicas, no partition)
-    expect(defOf('writeStop')).toMatchObject({ kind: 'range', label: 'Writes stop at (% of run)', min: 35, max: 55, step: 5, value: 55, rebuild: true });
+    expect(defOf('writeStop')).toMatchObject({ kind: 'range', label: 'Writes stop at (% of run)', min: 35, max: 80, step: 5, value: 55, rebuild: true });
   });
 
   it('round-trips through a shared link', () => {
