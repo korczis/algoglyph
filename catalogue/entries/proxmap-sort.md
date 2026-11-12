@@ -22,6 +22,31 @@ related:
   - bucket-sort
   - flashsort
   - insertion-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [bucket-sort]
+  objectives:
+  - 'Run Random permutation at 512 keys: the map sends every key of 1..n to a subarray of its own, and no comparison is made.'
+  - 'Run Few distinct keys at 512 keys: four subarrays of equal keys, one comparison for every key after the first in each, n − 4 = 508.'
+  - 'Read the Auxiliary writes on Already sorted: exactly 2n, the n hit counts and the output array filling in order.'
+  misconceptions:
+  - 'The insertion step makes ProxmapSort quadratic on repeated keys; a key that follows equal keys stops at its first comparison, so Few distinct keys at 512 keys costs 508.'
+algorithm:
+  properties:
+    stable: true
+    in_place: false
+bounds:
+  model: 'comparisons (inserting each key among the keys already in its subarray), array writes (the output copied back, one per key) and auxiliary writes (each cell of the drawn hit-count and output strips that changes)'
+  average: 'n array writes and at least 2n auxiliary writes on every input with two distinct keys or more, exactly 2n on Already sorted; when the keys span fewer than n values, as on every plate input, n − d comparisons for d distinct keys'
+claims:
+  - id: equal-keys-stop-at-once
+    statement: >-
+      On Few distinct keys at 512 keys ProxmapSort makes n − 4 = 508 comparisons: each of the four key values has a subarray of its own, and a key inserted after equal keys stops at its first comparison.
+    readout: Comparisons
+    expect: { value: 508 }
+    setup:
+      params: { shape: few-unique, n: 512, speed: 2000 }
 ---
 
 Map every key to a subarray of the output with a monotone function, count the hits per subarray, turn the counts into start positions (the proximity map), then insert each key into its subarray by insertion among the keys already there.
