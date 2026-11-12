@@ -646,6 +646,7 @@
                 <span class="text-sm text-gray-500 dark:text-gray-400">This picture, reproducibly</span>
                 <button type="button" @click="copyLink()" class="inline-flex items-center p-2 text-xs font-medium uppercase rounded-lg text-primary-700 sm:text-sm hover:bg-gray-100 dark:text-primary-500 dark:hover:bg-gray-700" x-text="copied ? 'Copied' : 'Copy link'"></button>
               </div>
+              <p x-show="dataTravels" x-cloak data-data-travels class="mt-2 text-sm font-medium text-yellow-800 dark:text-yellow-300">A copied link carries your data.</p>
             </div>
 
             <div class="p-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800">
@@ -690,6 +691,49 @@
                 </template>
               </div>
             </div>
+
+            <!-- A reader's own data (ADR 0010): read in this tab, never sent; the card says when a link carries it -->
+            <template x-for="s in (view === 'plate' ? dataSlots : [])" :key="currentId + ':data:' + s.id">
+              <section class="p-4 bg-white rounded-lg shadow sm:p-6 dark:bg-gray-800" :aria-labelledby="'data-title-' + s.id" data-data-card>
+                <h2 :id="'data-title-' + s.id" class="mb-2 text-xl font-bold leading-none text-gray-900 dark:text-white" x-text="s.title"></h2>
+                <p class="mb-1 text-sm text-gray-600 dark:text-gray-300">Read in this tab only: nothing is uploaded or stored.</p>
+                <p class="mb-3 text-sm text-gray-600 dark:text-gray-300"><span x-text="s.accepts"></span> with the columns <span class="font-mono" x-text="s.columns"></span>; <span x-text="s.rows"></span>.</p>
+                <p x-show="s.note" class="mb-4 text-sm text-gray-600 dark:text-gray-300" x-text="s.note"></p>
+                <div x-show="s.marker" class="p-4 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-700 dark:text-blue-300" role="status">
+                  <span x-show="s.same === null">This link was made with a local file of <span x-text="s.marker && s.marker.rows"></span> rows (digest <span class="font-mono" x-text="s.marker && s.marker.digest"></span>). Attach it to restore it; until then the plate runs its default input.</span>
+                  <span x-show="s.same === true">This is the data the link was made with.</span>
+                  <span x-show="s.same === false">This is not the data the link was made with: its digest differs.</span>
+                </div>
+                <div x-show="s.selected && !s.loaded && !s.marker" class="p-4 mb-4 text-sm text-gray-800 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600" role="status">Attach data to run on it; until then the plate runs its default input.</div>
+                <label :for="'data-file-' + s.id" @dragover.prevent @drop.prevent="dropFile(s.id, $event)" class="flex flex-col items-center justify-center w-full h-32 mb-3 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 focus-within:ring-2 focus-within:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500 dark:hover:bg-gray-600">
+                  <svg class="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                  <span class="text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold">Choose a file</span> or drag and drop</span>
+                  <span class="text-xs text-gray-600 dark:text-gray-400" x-text="s.accepts"></span>
+                  <input :id="'data-file-' + s.id" type="file" class="sr-only" :accept="s.formats" @change="attachFile(s.id, $event)">
+                </label>
+                <label :for="'data-paste-' + s.id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Or paste it</label>
+                <textarea :id="'data-paste-' + s.id" rows="4" x-model="pasted[s.id]" spellcheck="false" class="block p-2.5 w-full font-mono text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="x,y&#10;0,1.2&#10;1,2.9"></textarea>
+                <div class="flex flex-wrap gap-2 mt-3">
+                  <button type="button" @click="usePasted(s.id)" class="px-4 py-2 text-sm font-medium text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800">Use pasted data</button>
+                  <button type="button" x-show="s.loaded || s.marker" @click="clearData(s.id)" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-white dark:focus:ring-gray-700">Remove your data</button>
+                </div>
+                <div x-show="s.errors.length" class="p-4 mt-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-700 dark:text-red-300" role="alert" data-data-errors>
+                  <p class="font-medium">This data was not used:</p>
+                  <ul class="mt-1.5 list-disc list-inside">
+                    <template x-for="(e, i) in s.errors" :key="s.id + ':e' + i">
+                      <li><span x-show="e.where" x-text="e.where + ': '"></span><span x-text="e.reason"></span></li>
+                    </template>
+                  </ul>
+                </div>
+                <div x-show="s.loaded" class="p-4 mt-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-700 dark:text-green-300" role="status" data-data-loaded>
+                  <span x-text="s.loaded ? `${s.loaded.rows} rows from ${s.loaded.from}, digest ${s.loaded.digest}` : ''"></span><span x-show="s.loaded && !s.selected">; pick it in the parameters to run on it.</span>
+                </div>
+                <div x-show="s.loaded && s.selected" class="p-4 mt-4 text-sm rounded-lg" :class="s.travels ? 'text-yellow-800 bg-yellow-50 dark:bg-gray-700 dark:text-yellow-300' : 'text-blue-800 bg-blue-50 dark:bg-gray-700 dark:text-blue-300'" role="status">
+                  <span x-show="s.travels">A copied link carries your data. Share it only where you would share the data itself.</span>
+                  <span x-show="!s.travels">A copied link does not carry your data, only its row count and digest: whoever opens it sees the default input until they attach the same file.</span>
+                </div>
+              </section>
+            </template>
           </div>
 
           <!-- How to read a plate -->

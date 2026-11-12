@@ -310,6 +310,50 @@ try {
         }
       }
 
+      // a reader's own data (ADR 0010): refused with its row named, attached, run on, announced as
+      // carried by the link, restored from the link alone, and never sent anywhere. Every declaring
+      // plate in the dark desktop pass, the first one elsewhere.
+      const declaring = live.filter((e) => e.data?.length);
+      for (const [i, e] of (theme === 'dark' && desktop ? declaring : declaring.slice(0, 1)).entries()) {
+        const d = e.data[0];
+        const where = `${label} data ${e.id}`;
+        log(where);
+        const url = `${base}#/p/${e.id}?seed=4242`;
+        await p.goto(url, { waitUntil: 'load' });
+        await readout(p, where, url);
+        const sent = [];
+        const watch = (r) => {
+          const u = r.url();
+          if (u.startsWith('data:') || u.startsWith('blob:')) return;
+          if (!u.startsWith(base) || r.method() !== 'GET') sent.push(`${r.method()} ${u}`);
+        };
+        p.on('request', watch);
+        const card = p.locator('[data-data-card]').first();
+        await p.fill(`#data-paste-${d.id}`, `${d.columns.map((c) => c.key).join(',')}\n1,oops\n2,3`);
+        await card.getByRole('button', { name: 'Use pasted data' }).click();
+        const refused = await p.waitForSelector('[data-data-errors]', { state: 'visible', timeout: 5000 }).then(() => true, () => false);
+        if (!refused) fail(where, 'a value that is not a number was not refused on the page');
+        const n = Math.max(d.rows.min, 12);
+        const csv = [d.columns.map((c) => c.key).join(','),
+          ...Array.from({ length: n }, (_, k) => d.columns.map((c, j) => (j === 0 ? k : (k * k * 7 + 3) % 23)).join(','))].join('\n');
+        await p.setInputFiles(`#data-file-${d.id}`, { name: 'mine.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+        const ran = await p.waitForFunction(() => [...document.querySelectorAll('#main dl > div')]
+          .some((r) => r.querySelector('dt')?.textContent === 'Input' && /^your data/.test(r.querySelector('dd')?.textContent ?? '')),
+        null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
+        if (!ran) fail(where, 'the plate did not report running on the attached data');
+        const href = p.url();
+        if (!href.includes(`d.${d.id}=`)) fail(where, 'the link does not carry the attached data');
+        if (!(await p.isVisible('[data-data-travels]'))) fail(where, 'the page does not say that a copied link carries the data');
+        if (i === 0) { await overflow(p, where); await axe(p, where); }
+        await p.goto('about:blank');
+        await p.goto(href, { waitUntil: 'load' });
+        const back = await p.waitForFunction(() => /from the link/.test(document.querySelector('[data-data-loaded]')?.textContent ?? ''),
+          null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
+        if (!back) fail(where, 'opening the link did not restore the data');
+        p.off('request', watch);
+        for (const r of sent) fail(where, `a request left the page while it held a reader's data: ${r}`);
+      }
+
       // the labs: each runs its kernels side by side and reports per kernel
       for (const [i, l] of labs.entries()) {
         const where = `${label} lab ${l.id}`;
