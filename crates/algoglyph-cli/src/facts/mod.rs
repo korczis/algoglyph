@@ -15,11 +15,12 @@ use std::process::{Command, ExitCode, Stdio};
 use serde::Serialize;
 
 use crate::{catalogue, plugins::Plugins};
-pub use policy::Policy;
+pub use policy::{Limits, Policy};
 
 #[derive(Debug, clap::Args)]
 pub struct Args {
-    /// Print the findings as JSON ({ findings, files, exempt }), as `check-facts.mjs --json`.
+    /// Print the report as JSON ({ findings, files, exempt, scanned, applied }), as
+    /// `check-facts.mjs --json` prints it.
     #[arg(long)]
     json: bool,
     /// Repository root (default: the enclosing git work tree).
@@ -47,6 +48,8 @@ struct Report<'a> {
     findings: &'a [Finding],
     files: usize,
     exempt: &'a [policy::Exempt],
+    scanned: &'a [String],
+    applied: Vec<policy::Applied<'a>>,
 }
 
 fn git(root: &Path, args: &[&str]) -> Result<String, String> {
@@ -82,11 +85,8 @@ fn ignored(root: &Path, path: &str) -> bool {
 
 /// Files under `dir`, relative to it, sorted.
 fn walk(dir: &Path, base: &Path, out: &mut Vec<String>) -> Result<(), String> {
-    for item in fs::read_dir(dir)
-        .map_err(|e| format!("{}: {e}", dir.display()))?
-        .flatten()
-    {
-        let path = item.path();
+    for item in fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))? {
+        let path = item.map_err(|e| format!("{}: {e}", dir.display()))?.path();
         if path.is_dir() {
             walk(&path, base, out)?;
         } else if let Ok(rel) = path.strip_prefix(base) {
@@ -108,11 +108,12 @@ pub fn run(args: &Args) -> Result<ExitCode, String> {
         .checks
         .clone()
         .unwrap_or_else(|| root.join("tools/checks"));
-    let plugins = Plugins::discover(&checks)?;
+    let plugins = Plugins::discover(&checks, &policy.rhai)?;
     let gate = scan::Gate::new(&policy, &model, &plugins)?;
     let exists = |p: &str| root.join(p).exists() || ignored(&root, p);
 
     let mut findings = Vec::new();
+    let mut scanned: Vec<String> = Vec::new();
     let files = match &args.fixtures {
         Some(dir) => {
             let mut list = Vec::new();
@@ -121,6 +122,7 @@ pub fn run(args: &Args) -> Result<ExitCode, String> {
             for rel in &list {
                 let text = fs::read_to_string(dir.join(rel)).map_err(|e| format!("{rel}: {e}"))?;
                 findings.extend(gate.scan(rel, &text, &exists)?);
+                scanned.push(rel.clone());
             }
             list.len()
         }
@@ -138,6 +140,7 @@ pub fn run(args: &Args) -> Result<ExitCode, String> {
                 let bytes = fs::read(&full).map_err(|e| format!("{f}: {e}"))?;
                 let text = String::from_utf8_lossy(&bytes);
                 findings.extend(gate.scan(f, &text, &exists)?);
+                scanned.push(f.to_string());
             }
             selected.len()
         }
@@ -148,6 +151,8 @@ pub fn run(args: &Args) -> Result<ExitCode, String> {
             findings: &findings,
             files,
             exempt: &policy.exempt,
+            scanned: &scanned,
+            applied: scanned.iter().flat_map(|f| policy.applied(f)).collect(),
         };
         println!(
             "{}",

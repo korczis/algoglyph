@@ -19,6 +19,27 @@ pub struct Exempt {
     pub because: String,
 }
 
+/// Bounds on every Rhai check (the policy's `rhai` block).
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Limits {
+    pub max_operations: u64,
+    pub max_call_levels: usize,
+    pub max_expr_depth: usize,
+    pub max_function_expr_depth: usize,
+    pub max_string_size: usize,
+    pub max_array_size: usize,
+    pub max_map_size: usize,
+}
+
+/// One exemption that applies to one scanned file.
+#[derive(Debug, Serialize)]
+pub struct Applied<'a> {
+    pub file: String,
+    pub path: &'a str,
+    pub checks: &'a [String],
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Policy {
     pub nouns: Vec<String>,
@@ -32,6 +53,7 @@ pub struct Policy {
     pub record_keys: Vec<String>,
     #[serde(default)]
     pub exempt: Vec<Exempt>,
+    pub rhai: Limits,
     #[serde(skip)]
     include: Vec<Regex>,
     #[serde(skip)]
@@ -82,6 +104,20 @@ impl Policy {
     pub fn selects(&self, path: &str) -> bool {
         self.include.iter().any(|re| re.is_match(path))
             && !self.exclude.iter().any(|re| re.is_match(path))
+    }
+
+    /// The declared exemptions a scanned file falls under.
+    pub fn applied<'a>(&'a self, file: &str) -> Vec<Applied<'a>> {
+        self.exempt
+            .iter()
+            .zip(&self.exempt_paths)
+            .filter(|(_, re)| re.is_match(file))
+            .map(|(x, _)| Applied {
+                file: file.to_string(),
+                path: &x.path,
+                checks: &x.checks,
+            })
+            .collect()
     }
 
     /// Whether a check is exempt for a path, by a declared exemption with its reason.

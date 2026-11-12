@@ -1,7 +1,7 @@
 //! The Rust port of the derived-facts gate against the Node gate it ports (ADR 0005 §6): both run
 //! on the repository and on `test/fixtures/derived-facts/`, and must report the same findings,
-//! the same number of files and the same exemptions. The Node script stays the gate; this test
-//! is what lets the port replace it.
+//! read the same files and apply the same exemptions to each. The Node script stays the gate;
+//! this test is what lets the port replace it.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -65,14 +65,38 @@ fn both(extra: &[&str]) -> (Value, Value) {
     )
 }
 
+/// A report's list under `key`, each item as JSON text, sorted.
+fn sorted(report: &Value, key: &str) -> Vec<String> {
+    let mut list: Vec<String> = report[key]
+        .as_array()
+        .unwrap_or_else(|| panic!("the report has no {key} list"))
+        .iter()
+        .map(Value::to_string)
+        .collect();
+    list.sort();
+    list
+}
+
 fn assert_equivalent(node: &Value, rust: &Value) {
     assert_eq!(
         findings(node),
         findings(rust),
         "findings differ (left: node, right: rust)"
     );
-    assert_eq!(node["files"], rust["files"], "files scanned differ");
+    assert_eq!(node["files"], rust["files"], "files selected differ");
+    // what each gate actually read, not only how many it selected
+    assert_eq!(
+        sorted(node, "scanned"),
+        sorted(rust, "scanned"),
+        "files scanned differ"
+    );
+    assert!(!sorted(rust, "scanned").is_empty(), "nothing was scanned");
     assert_eq!(node["exempt"], rust["exempt"], "declared exemptions differ");
+    assert_eq!(
+        sorted(node, "applied"),
+        sorted(rust, "applied"),
+        "applied exemptions differ"
+    );
 }
 
 #[test]

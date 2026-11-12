@@ -11,6 +11,10 @@
 //!              YAML record subtrees and closed plan objects left out
 //! returns      an array of #{ line, text }: the line number and the offending text
 //!
+//! limits      config/derived-facts.yaml `rhai`: operations, call levels, sizes; a check that
+//!              reaches one is refused (exit 2); `import` resolves nothing; print and debug
+//!              write to stderr
+//!
 //! find_all(text, pattern)          every match of a JavaScript-syntax pattern
 //! find_all(text, pattern, flags)   with JavaScript flags ("i" case-insensitive; "g" implied)
 //!                                  each match is #{ text, start } (start counts characters)
@@ -23,8 +27,10 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use fancy_regex::Regex;
+use rhai::module_resolvers::DummyModuleResolver;
 use rhai::{Array, Dynamic, Engine, EvalAltResult, Map, Scope, AST};
 
+use crate::facts::Limits;
 use crate::jsre;
 
 pub struct Plugin {
@@ -82,10 +88,20 @@ fn matches(
         .collect())
 }
 
-fn engine() -> Engine {
+fn engine(limits: &Limits) -> Engine {
     let mut engine = Engine::new();
-    // Rhai's default nesting limits (lower in a debug build) refuse a check's nested loops
-    engine.set_max_expr_depths(256, 256);
+    // a check runs on every commit: bounded by the policy, so a runaway script fails fast
+    engine.set_max_operations(limits.max_operations);
+    engine.set_max_call_levels(limits.max_call_levels);
+    engine.set_max_expr_depths(limits.max_expr_depth, limits.max_function_expr_depth);
+    engine.set_max_string_size(limits.max_string_size);
+    engine.set_max_array_size(limits.max_array_size);
+    engine.set_max_map_size(limits.max_map_size);
+    // a check sees only the file it is given: no other script, and nothing on stdout, which
+    // carries the --json report
+    engine.set_module_resolver(DummyModuleResolver::new());
+    engine.on_print(|text| eprintln!("{text}"));
+    engine.on_debug(|text, source, at| eprintln!("{}:{at}: {text}", source.unwrap_or("check")));
     let cache: Cache = Rc::default();
     let two = Rc::clone(&cache);
     engine.register_fn("find_all", move |text: &str, pattern: &str| {
@@ -97,18 +113,35 @@ fn engine() -> Engine {
     engine
 }
 
+/// The policy key of the limit an error reached, if it reached one.
+fn limit_reached(error: &EvalAltResult) -> Option<&'static str> {
+    match error {
+        EvalAltResult::ErrorInFunctionCall(_, _, inner, _)
+        | EvalAltResult::ErrorInModule(_, inner, _) => limit_reached(inner),
+        EvalAltResult::ErrorTooManyOperations(_) => Some("max_operations"),
+        EvalAltResult::ErrorStackOverflow(_) => Some("max_call_levels"),
+        EvalAltResult::ErrorDataTooLarge(what, _) => Some(match what.to_lowercase() {
+            w if w.contains("string") => "max_string_size",
+            w if w.contains("array") => "max_array_size",
+            _ => "max_map_size",
+        }),
+        _ => None,
+    }
+}
+
 impl Plugins {
-    /// Every `*.rhai` in `dir`, in name order; a directory that does not exist holds none.
-    pub fn discover(dir: &Path) -> Result<Self, String> {
-        let engine = engine();
-        let mut paths: Vec<PathBuf> = match fs::read_dir(dir) {
-            Ok(listing) => listing
-                .flatten()
-                .map(|e| e.path())
-                .filter(|p| p.extension().is_some_and(|x| x == "rhai"))
-                .collect(),
-            Err(_) => Vec::new(),
-        };
+    /// Every `*.rhai` in `dir`, in name order. The directory is the convention: one that cannot
+    /// be read is an error, never an empty set of checks.
+    pub fn discover(dir: &Path, limits: &Limits) -> Result<Self, String> {
+        let engine = engine(limits);
+        let listing = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let mut paths = Vec::new();
+        for item in listing {
+            let path = item.map_err(|e| format!("{}: {e}", dir.display()))?.path();
+            if path.extension().is_some_and(|x| x == "rhai") {
+                paths.push(path);
+            }
+        }
         paths.sort();
         let mut list = Vec::new();
         for path in paths {
@@ -161,7 +194,13 @@ impl Plugins {
                 "check",
                 (Dynamic::from_map(file),),
             )
-            .map_err(|e| format!("{}: {e}", where_()))?;
+            .map_err(|e| match limit_reached(&e) {
+                Some(key) => format!(
+                    "{}: refused at the Rhai limit {key} (config/derived-facts.yaml, rhai): {e}",
+                    where_()
+                ),
+                None => format!("{}: {e}", where_()),
+            })?;
         found
             .into_iter()
             .map(|item| {
