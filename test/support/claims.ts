@@ -4,28 +4,17 @@
 // code of its own; the evidence is this run, never an authored value.
 import { GROUNDS, palette as lookupPalette } from '../../src/core/palette';
 import { defaults, type Params, type PlateContext, type Stat } from '../../src/core/plate';
+import { type Claim, DEFAULT_SEED, expectationText } from '../../src/core/claims';
 import { mulberry32 } from '../../src/core/random';
 import { loadPlate } from '../../src/registry';
 import { p5Stub } from './p5-stub';
 
-export interface Claim {
-  id: string;
-  statement: string;
-  readout: string;
-  expect: {
-    value?: number; tolerance?: number; range?: [number, number]; below?: number; above?: number;
-    /** Compare with another readout (or another number of the same one): the claim judges
-     * readout − against, with tolerance (|difference|), below or above. */
-    against?: string; against_number?: number;
-  };
-  setup?: { params?: Params; seed?: number };
-}
+export type { Claim } from '../../src/core/claims';
 
 /** A run has settled when every readout has stayed the same for this many frames. */
 export const SETTLE_FRAMES = 120;
 /** A run that has not settled after this many frames is a failed claim, not a long wait. */
 export const MAX_FRAMES = 20_000;
-export const DEFAULT_SEED = 4242;
 
 const NUMBER = /[-−]?\d[\d,]*(?:\.\d+)?(?:[eE][-+−]?\d+)?/g;
 
@@ -108,16 +97,5 @@ export function holds(claim: Claim, value: number): boolean {
   return Math.abs(value - (x.value as number)) <= (x.tolerance ?? 0);
 }
 
-/** The expectation in words, for a failure message. */
-export function expected(claim: Claim): string {
-  const x = claim.expect;
-  if (x.against !== undefined) {
-    const of = `${claim.readout} − ${x.against}${x.against_number ? ` (number ${x.against_number})` : ''}`;
-    if (x.tolerance !== undefined) return `|${of}| ≤ ${x.tolerance}`;
-    return x.below !== undefined ? `${of} below ${x.below}` : `${of} above ${x.above}`;
-  }
-  if (x.range) return `in [${x.range[0]}, ${x.range[1]}]`;
-  if (x.below !== undefined) return `below ${x.below}`;
-  if (x.above !== undefined) return `above ${x.above}`;
-  return `${x.value} ± ${x.tolerance ?? 0}`;
-}
+/** The expectation in words, for a failure message: the page's own formatter. */
+export const expected = expectationText;
