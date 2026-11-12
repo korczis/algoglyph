@@ -83,6 +83,9 @@ function rowOps(keys: number[]) {
       row[k] = v; writes++;
     },
     range: () => {},
+    phase: () => {},
+    lane: () => {},
+    round: () => {},
     reserveAux: (c) => { row = new Array<number>(Math.max(c, row.length)).fill(0); },
     clearAux: (lo, hi) => { for (let k = lo; k <= hi; k++) row[k] = 0; },
   };
