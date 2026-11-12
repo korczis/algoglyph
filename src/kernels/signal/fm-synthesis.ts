@@ -67,10 +67,19 @@ export function predicted(fm: number, beta: number, orders = ORDERS, M = 64): nu
   return Array.from({ length: 2 * orders + 1 }, (_, i) => Math.abs(acc.get(alias(FC + (i - orders) * fm).bin) ?? 0));
 }
 
+/**
+ * The measured amplitudes at fc + n·fm, n = -orders .. orders, each read in the bin it folds to
+ * (as `predicted` folds it): a sideband below 0 Hz or above the Nyquist frequency is read where
+ * sampling puts it, never as an empty bin. The spectrum is a magnitude, so the sign the fold
+ * gives is the one `predicted` takes the absolute value of.
+ */
+export function measure(a: Float64Array, fm: number, orders = ORDERS): number[] {
+  return Array.from({ length: 2 * orders + 1 }, (_, i) => a[alias(FC + (i - orders) * fm).bin]);
+}
+
 /** Measured amplitudes at fc + n·fm for n = -orders .. orders. */
 export function sidebands(fm: number, beta: number, orders = ORDERS, meter?: Meter): number[] {
-  const a = spectrum(fmTone(fm, beta, meter), meter);
-  return Array.from({ length: 2 * orders + 1 }, (_, i) => a[FC + (i - orders) * fm] ?? 0);
+  return measure(spectrum(fmTone(fm, beta, meter), meter), fm, orders);
 }
 
 // The carrier's frequency swings by β·fm; the spectrum is a carrier and sidebands fm apart,
@@ -93,7 +102,7 @@ export const kernel: SignalKernel = {
       const beta = (s / steps) * bmax;
       const y = fmTone(fm, beta, meter);
       const a = spectrum(y, meter);
-      const side = Array.from({ length: 2 * ORDERS + 1 }, (_, i) => a[FC + (i - ORDERS) * fm] ?? 0);
+      const side = measure(a, fm);
       const want = predicted(fm, beta);
       let worst = 0;
       side.forEach((v, i) => { worst = Math.max(worst, Math.abs(v - want[i])); });
