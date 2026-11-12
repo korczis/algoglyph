@@ -29,8 +29,11 @@ export function combine(a: Mass, b: Mass): { mass: Mass | null; conflict: number
       else conflict += w;
     }
   }
-  if (conflict >= 1 - 1e-12) return { mass: null, conflict };
-  return { mass: out.map((v) => v / (1 - conflict)), conflict };
+  // 1 - K, summed from the products that landed rather than subtracted from 1, so that a run of
+  // near-total conflicts does not drift the combined mass away from summing to 1
+  const kept = out.reduce((a, b) => a + b, 0);
+  if (!kept || conflict >= 1 - 1e-12) return { mass: null, conflict };
+  return { mass: out.map((v) => v / kept), conflict };
 }
 
 /** Belief: the mass of every subset of x. */
@@ -60,8 +63,8 @@ const HOLD = 30;
 const SHOWN = [1, 2, 4, 3, 5, 6];
 
 // Each synthetic source commits mass to two or three sets of hypotheses and keeps the rest on
-// the whole frame (what it does not know). Sources are combined one at a time; belief is
-// what the evidence forces, plausibility what it still allows.
+// the whole frame (what it does not know), none when the least mass on Θ is 0. Sources are
+// combined one at a time; belief is what the evidence forces, plausibility what it still allows.
 export const kernel: StochasticKernel<DempsterResult> = {
   palette: 'spectral',
   params: [
@@ -79,7 +82,8 @@ export const kernel: StochasticKernel<DempsterResult> = {
       const focal = 2 + s.int(2);
       const weights = Array.from({ length: focal }, () => s.gamma(1));
       const total = weights.reduce((a, b) => a + b, 0);
-      const rest = ign + (1 - ign) * 0.3 * s.uniform();
+      // at a least mass of 0 a source commits everything, so two of them can be in total conflict
+      const rest = ign && ign + (1 - ign) * 0.3 * s.uniform();
       weights.forEach((w) => { m[1 + s.int(6)] += (1 - rest) * (w / total); });
       m[FULL] += rest;
       sources.push(m);

@@ -43,6 +43,12 @@ claims:
     expect: { value: 0.3, tolerance: 0.071 }
     setup:
       params: { prior: hopeful, n: 500 }
+  - id: grid-mean-matches-the-closed-form
+    statement: >-
+      The grid's posterior mean agrees with the closed-form Beta(a + events, b + non-events) mean to
+      within the width of one of its 400 cells (0.0025).
+    readout: Posterior mean
+    expect: { against: Closed form Beta mean, tolerance: 0.0025 }
 ---
 
 A prior turned into a posterior one piece of evidence at a time.
