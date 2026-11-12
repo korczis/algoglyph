@@ -33,6 +33,33 @@ claims:
     expect: { value: 1, tolerance: 0 }
     setup:
       params: { noise: 0 }
+  - id: true-hypothesis-ranks-first-without-diagnostic-evidence
+    statement: >-
+      With no misleading evidence, every item that fits all hypotheses alike rates each of them N
+      or C, which adds nothing to any score, and every other item rates the true hypothesis N, C or
+      CC, so the true hypothesis still scores 0 and ranks first when 80% of the items are bland as
+      when none is; the expectation is exact.
+    readout: Rank of the hypothesis the case was built on
+    expect: { value: 1, tolerance: 0 }
+    setup:
+      params: { noise: 0, bland: 0.8 }
+  - id: every-item-bland-every-hypothesis-ties
+    statement: >-
+      When every item fits every hypothesis alike (bland 1) all 12 items are counted as fitting
+      every hypothesis alike; the expectation is exact, a count of the plate's 12 items.
+    readout: Items that fit every hypothesis alike
+    expect: { value: 12, tolerance: 0 }
+    setup:
+      params: { bland: 1 }
+  - id: every-item-bland-no-lead
+    statement: >-
+      When every item fits every hypothesis alike no cell is rated I or II, so every score is 0 and
+      the least contradicted hypothesis leads the runner-up by exactly 0: evidence that fits
+      everything cannot rank anything.
+    readout: Lead over the runner-up
+    expect: { value: 0, tolerance: 0 }
+    setup:
+      params: { bland: 1 }
 ---
 
 Evidence against hypotheses in a matrix, ranked by what contradicts each the least.

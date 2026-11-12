@@ -4,8 +4,8 @@ import { bool, num, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
 import { chartGate } from '../_shared/publish';
 import {
-  cycle, diagnosticity, inconsistency, inconsistencyByRow, placeLabel, rank, RATING_LABEL, standing,
-  synthetic, type Matrix,
+  BLAND, cycle, diagnosticity, inconsistency, inconsistencyByRow, placeLabel, rank, RATING_LABEL,
+  standing, synthetic, type Matrix,
 } from './ach';
 
 export const achMatrix: PlateCode = {
@@ -18,6 +18,11 @@ export const achMatrix: PlateCode = {
     { kind: 'range', key: 'e', label: 'Items of evidence', min: 3, max: 24, step: 1, value: 12, rebuild: true },
     { kind: 'range', key: 'noise', label: 'Evidence that misleads', min: 0, max: 0.6, step: 0.05,
       value: 0.15, rebuild: true, hint: 'Chance that an item contradicts the hypothesis that is true.' },
+    // up to 1, where every item fits everything alike and every hypothesis ties at 0; a bland
+    // item draws less than a rated one, so the top costs no more than the default
+    { kind: 'range', key: 'bland', label: 'Evidence that fits every hypothesis', min: 0, max: 1,
+      step: 0.05, value: BLAND, rebuild: true,
+      hint: 'Chance that an item is rated alike (all N or all C) for every hypothesis.' },
     paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New case when done', value: true },
     paletteParam('spectral'),
@@ -41,7 +46,8 @@ export const achMatrix: PlateCode = {
       const rnd = mulberry32(ctx.seed + generation * 15485863);
       const k = num(params, 'h');
       truth = Math.floor(rnd() * k);
-      m = synthetic(rnd, k, num(params, 'e'), truth, num(params, 'noise'));
+      m = synthetic(rnd, k, num(params, 'e'), truth, num(params, 'noise'),
+        num(params, 'bland'));
       shown = 0;
       acc = 0;
       hold = 0;

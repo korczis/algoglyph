@@ -89,11 +89,14 @@ export function cycle(r: Rating): Rating {
 
 const WEIGHTS = [0.5, 1, 1.5];
 
+/** The chance that an item fits every hypothesis alike, unless the plate's control sets it. */
+export const BLAND = 0.2;
+
 /** A synthetic case: hypothesis `truth` is true; each item of evidence is drawn so that it
  * mostly fits the truth (contradicting it with probability `noise`), rates the others at
  * random, and with probability `bland` fits everything equally. */
 export function synthetic(rnd: () => number, hypotheses: number, items: number, truth: number,
-  noise: number, bland = 0.2): Matrix {
+  noise: number, bland = BLAND): Matrix {
   const pick = <T>(xs: readonly T[]) => xs[Math.floor(rnd() * xs.length)];
   const cells: Rating[][] = [];
   const evidence: Evidence[] = [];
