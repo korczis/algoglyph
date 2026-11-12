@@ -12,12 +12,13 @@ import { mulberry32 } from '../src/core/random';
 import { parse, serialise } from '../src/core/share';
 import { optionParams, optionValues } from '../src/engines/array';
 import { loadPlate } from '../src/registry';
-import { input, SHAPES, type KernelOption } from '../src/engines/array/trace';
-import { loadSorting, type WasmRun } from '../src/kernels/sorting-wasm/_abi';
+import { EVENT_CAP, input, SHAPES, type KernelOption } from '../src/engines/array/trace';
+import { loadSorting, SOP, STRIDE, type WasmRun } from '../src/kernels/sorting-wasm/_abi';
 import {
   optionWords, seedOf, sidecarKernel, traceCache, traceKey, traceOf, wasmKernel,
 } from '../src/kernels/sorting-wasm/_adapter';
 import { kernelOf, optionsOf } from '../src/kernels/sorting-wasm/_sidecar';
+import { corners } from './support/budget';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 installBrowserStubs();
@@ -172,10 +173,224 @@ describe('sorting options: the plate', () => {
     }
   });
 
+  it("puts every option at both ends of its slider, at the largest input, among the budget gate's corners", async () => {
+    // the gate (test/support/budget.ts) derives its heavy corners from the plate's own controls,
+    // so each option is measured at its extremes with no subject listed by hand (npm run test:budget)
+    for (const t of TUNED) {
+      const plate = (await loadPlate(t.id))!;
+      const nMax = (plate.params.find((d) => d.key === 'n') as { max: number }).max;
+      const cs = corners(plate.params);
+      for (const o of t.options) {
+        for (const end of [o.min, o.max]) {
+          expect(cs.some((c) => c[o.name] === end && c.n === nMax), `${t.id}: ${o.name} = ${end}`).toBe(true);
+        }
+      }
+    }
+  });
+
   it('refuses an option that would shadow a control of the plate', () => {
     const k = { run() {}, options: [{ name: 'n', label: 'N', min: 1, max: 2, step: 1, default: 1 }] };
     expect(() => optionParams(k, ['shape', 'n'])).toThrow('array engine: option n is already a control of the plate');
     expect(optionValues(k, {})).toEqual({ n: 1 });
     expect(optionValues(k, { n: 2 })).toEqual({ n: 2 });
   });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The laws. Each option a sidecar record declares has one here, keyed `<kernel>:<option>`, and
+// is asserted at every value of its slider (the other options at their defaults unless the law
+// varies them together). The expected values are computed from the algorithm's definition, by
+// integer arithmetic, never from the kernel's output.
+
+/** The smallest p with base^p >= x: ceil(log_base x), by multiplication. */
+function ceilLog(base: number, x: number): number {
+  let p = 0;
+  for (let reach = 1; reach < x; reach *= base) p++;
+  return p;
+}
+/** Digits of `range` in base b: the smallest d >= 1 with b^d > range (an LSD sort's passes). */
+const digits = (b: number, range: number) => Math.max(1, ceilLog(b, range + 1));
+/** The default memory of the external sorts: ceil(sqrt n), at least 4. */
+function autoMemory(n: number): number {
+  let m = 4;
+  while (m * m < n) m++;
+  return m;
+}
+/** Distinct lanes of a run, from its own lane words. */
+function lanes(r: WasmRun): number {
+  const seen = new Set<number>();
+  for (let e = 0; e < r.steps.length; e += STRIDE) if ((r.steps[e] & 15) === SOP.lane) seen.add(r.steps[e + 1]);
+  return seen.size;
+}
+/** The labels of a run's range marks, in order. */
+function markLabels(r: WasmRun): string[] {
+  const out: string[] = [];
+  for (let e = 0; e < r.steps.length; e += STRIDE) if ((r.steps[e] & 15) === SOP.mark) out.push(r.strings[r.steps[e + 2]] ?? '');
+  return out;
+}
+/** A permutation of 1..n (its key range is n - 1). */
+const perm = (n: number) => input('random', n, 3 * n + 1);
+const run = (kernel: string, keys: number[], options: Record<string, number>) => {
+  const r = S.run(kernel, keys, { seed: seedOf(keys), options, maxSteps: EVENT_CAP });
+  expect(r.outcome, `${kernel} ${JSON.stringify(options)}`).toBe('sorted');
+  return r;
+};
+const valuesOf = (kernel: string, name: string) => {
+  const o = TUNED.find((t) => t.kernel === kernel)!.options.find((x) => x.name === name)!;
+  return grid(o);
+};
+
+type Law = (kernel: string) => void;
+const lanesAreP: Law = (kernel) => {
+  for (const n of [128, 512]) {
+    for (const p of valuesOf(kernel, 'k')) expect(lanes(run(kernel, perm(n), { k: p })), `${kernel} n ${n} p ${p}`).toBe(p);
+  }
+};
+const LAWS: Record<string, { law: string; check: Law }> = {
+  'external-merge-sort:k': {
+    law: 'passes = 1 + ceil(log_k ceil(n / M)), across k (and M)',
+    check: (kernel) => {
+      for (const n of [64, 200, 512]) {
+        for (const k of valuesOf(kernel, 'k')) {
+          for (const m of valuesOf(kernel, 'memory')) {
+            const runs = Math.ceil(n / (m || autoMemory(n)));
+            expect(run(kernel, perm(n), { k, memory: m }).counts.rounds, `n ${n} k ${k} M ${m}`).toBe(1 + ceilLog(k, runs));
+          }
+        }
+      }
+    },
+  },
+  'external-merge-sort:memory': {
+    law: 'passes = 1 + ceil(log_k ceil(n / M)), across M (and k): fall as M grows',
+    check: (kernel) => {
+      const at = (m: number) => run(kernel, perm(512), { k: 2, memory: m }).counts.rounds;
+      expect(valuesOf(kernel, 'memory').filter((m) => m).map(at))
+        .toEqual(valuesOf(kernel, 'memory').filter((m) => m).map((m) => 1 + ceilLog(2, Math.ceil(512 / m))));
+      expect([at(4), at(16), at(64)]).toEqual([8, 6, 4]);
+      expect(at(0)).toBe(1 + ceilLog(2, Math.ceil(512 / 23)));
+    },
+  },
+  'tape-merge-sort:memory': {
+    law: 'passes = 1 + 2 ceil(log_2 ceil(n / M)) across M',
+    check: (kernel) => {
+      for (const n of [64, 200, 512]) {
+        for (const m of valuesOf(kernel, 'memory')) {
+          const runs = Math.ceil(n / (m || autoMemory(n)));
+          expect(run(kernel, perm(n), { memory: m }).counts.rounds, `n ${n} M ${m}`).toBe(1 + 2 * ceilLog(2, runs));
+        }
+      }
+    },
+  },
+  'k-way-merge-sort:k': {
+    law: 'merges = (n - 1) / (k - 1) at n = k^j, and one per range of two or more keys of its k-way split',
+    check: (kernel) => {
+      const merges = (r: WasmRun) => markLabels(r).filter((l) => /^\d+-way merge$/.test(l));
+      for (const k of valuesOf(kernel, 'k')) {
+        for (let n = k; n <= 512; n *= k) expect(merges(run(kernel, perm(n), { k })).length, `k ${k} n ${n}`).toBe((n - 1) / (k - 1));
+        // any n: one merge per range of at least two keys, a range of m split into min(k, m) parts
+        const count = (m: number): number => {
+          if (m < 2) return 0;
+          const parts = Math.min(k, m);
+          let c = 1;
+          for (let p = 0; p < parts; p++) c += count(Math.floor(((p + 1) * m) / parts) - Math.floor((p * m) / parts));
+          return c;
+        };
+        for (const n of [100, 333, 512]) {
+          const ms = merges(run(kernel, perm(n), { k }));
+          expect(ms.length, `k ${k} n ${n}`).toBe(count(n));
+          expect(ms.at(-1), `k ${k} n ${n}: the last merge is the top one`).toBe(`${Math.min(k, n)}-way merge`);
+        }
+      }
+    },
+  },
+  'd-ary-heapsort:k': {
+    law: 'on equal keys a sift stops after one look at its children: (n - 1) + sum min(d, e - 1) comparisons',
+    check: (kernel) => {
+      for (const n of [2, 17, 100, 512]) {
+        const keys = new Array<number>(n).fill(7);
+        for (const d of valuesOf(kernel, 'k')) {
+          let extract = 0;
+          for (let e = 2; e <= n - 1; e++) extract += Math.min(d, e - 1);
+          expect(run(kernel, keys, { k: d }).counts.cmp, `n ${n} d ${d}`).toBe(n - 1 + extract);
+        }
+      }
+      // and no sift climbs more levels than the heap is deep: depth(end - 1) for a heap of `end`
+      const keys = perm(512);
+      for (const d of valuesOf(kernel, 'k')) {
+        const depth = (i: number): number => (i === 0 ? 0 : 1 + depth(Math.floor((i - 1) / d)));
+        const r = run(kernel, keys, { k: d });
+        let end = 512;
+        let swaps = -1; // the swap that moves the maximum out is not a level of the sift
+        let inExtract = false;
+        for (let e = 0; e < r.steps.length; e += STRIDE) {
+          const op = r.steps[e] & 15;
+          if (op === SOP.phase) inExtract = r.strings[r.steps[e] >>> 8] === 'extract maxima';
+          if (!inExtract) continue;
+          if (op === SOP.swap) swaps++;
+          if (op === SOP.mark) {
+            end--;
+            expect(swaps, `d ${d}: sift of a heap of ${end}`).toBeLessThanOrEqual(depth(Math.max(0, end - 1)));
+            swaps = -1;
+          }
+        }
+        expect(end, `d ${d}: one sift per extraction`).toBe(1);
+      }
+    },
+  },
+  'psrs:k': { law: 'lanes = p', check: lanesAreP },
+  'parallel-samplesort:k': { law: 'lanes = p', check: lanesAreP },
+  'parallel-counting-sort:k': { law: 'lanes = p', check: lanesAreP },
+  'ps4o:k': { law: 'lanes = p', check: lanesAreP },
+  'terasort:k': { law: 'lanes = p', check: lanesAreP },
+  'mapreduce-sort:k': { law: 'lanes = p', check: lanesAreP },
+  'parallel-merge-sort:k': {
+    law: 'one lane per non-empty block of ceil(n / p) keys, B = ceil(n / ceil(n / p)) (p when every block has keys), '
+      + 'and rounds = 1 + ceil(log_2 B): a local sort, then pairwise merges',
+    check: (kernel) => {
+      for (const n of [128, 512]) {
+        for (const p of valuesOf(kernel, 'k')) {
+          const blocks = Math.ceil(n / Math.ceil(n / p));
+          const r = run(kernel, perm(n), { k: p });
+          expect([lanes(r), r.counts.rounds], `n ${n} p ${p}`).toEqual([blocks, 1 + ceilLog(2, blocks)]);
+        }
+      }
+      // at n = 512 every block of every p on the slider has keys: lanes = p exactly
+      for (const p of valuesOf(kernel, 'k')) expect(lanes(run(kernel, perm(512), { k: p })), `p ${p}`).toBe(p);
+    },
+  },
+  'parallel-radix-sort:k': { law: 'lanes = p', check: lanesAreP },
+  'parallel-radix-sort:base': {
+    law: 'two rounds and n writes per digit: rounds = 2 d, writes = d n, d = digits of the key range in base b',
+    check: (kernel) => {
+      for (const n of [128, 512]) {
+        for (const b of valuesOf(kernel, 'base')) {
+          const r = run(kernel, perm(n), { base: b });
+          const d = digits(b, n - 1);
+          expect([r.counts.rounds, r.counts.write], `n ${n} b ${b}`).toEqual([2 * d, d * n]);
+        }
+      }
+    },
+  },
+  'external-radix-sort:base': {
+    law: 'one pass and n writes per digit: passes = d, writes = d n, d = digits of the key range in base b',
+    check: (kernel) => {
+      for (const n of [128, 512]) {
+        for (const b of valuesOf(kernel, 'base')) {
+          const r = run(kernel, perm(n), { base: b });
+          const d = digits(b, n - 1);
+          expect([r.counts.rounds, r.counts.write], `n ${n} b ${b}`).toEqual([d, d * n]);
+        }
+      }
+    },
+  },
+};
+
+describe('sorting options: the counted law of each, across its range', () => {
+  it('every option a sidecar declares has its law here, and every law an option', () => {
+    const declared = TUNED.flatMap((t) => t.options.map((o) => `${t.kernel}:${o.name}`)).sort();
+    expect(Object.keys(LAWS).sort()).toEqual(declared);
+  });
+  for (const [key, { law, check }] of Object.entries(LAWS)) {
+    it(`${key}: ${law}`, () => check(key.split(':')[0]));
+  }
 });
