@@ -2,6 +2,7 @@
 // time (virtual:catalogue). Navigation, numbering, counts, search and labs are derived here;
 // nothing in the interface is written by hand (ADR 0004).
 import type { Claim } from './claims';
+import type { DataDecl } from './data';
 import model from 'virtual:catalogue';
 
 export type Status = 'live' | 'planned';
@@ -39,6 +40,8 @@ export interface Entry {
   experiments: Experiment[];
   /** What the plate measures, checked by test/claims.test.ts on every build (ADR 0007). */
   claims: Claim[];
+  /** Inputs a reader may supply (ADR 0010): each adds the option data:<id> to a select. */
+  data: DataDecl[];
   /** Typed links, declared or derived from catalogue/relations.yaml. */
   links: Link[];
   /** Derived from code and tests; never authored (ADR 0005 §3). */

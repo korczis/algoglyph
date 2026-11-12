@@ -180,6 +180,31 @@ alias to one generator state. Every range default lies on its own grid, so openi
 moves a knob. A key a plate no longer has is ignored: a link from before ADR 0008 that carries
 `speed` opens at the calm pace. `test/share.test.ts` round-trips every live entry and every runnable lab.
 
+### A reader's own data
+
+An entry may declare `data` (ADR 0010, rule `project.user-data-stays-local`). Each declared input
+carries:
+
+- a kind (`table` or `series`) and the formats it reads (CSV, JSON);
+- its columns, each with a unit and optional bounds;
+- the rows it accepts and a byte cap;
+- `replaces`, the select that gains the option `data:<id>`;
+- `url_bytes`, how much of it a link may carry.
+
+`src/registry.ts` adds the option when it joins code and entry. The page reads a file or a paste
+in the tab and validates it in `src/core/data.ts`: the byte cap before any parse, plain bounded
+numbers, and errors that name their row and column. `src/core/upload.ts` holds the tables in
+memory only. A plate reads one through `ctx.data(id)` while its select picks `data:<id>`. The
+numeric engine passes it to the kernel's run, and the geometry engine maps the points onto its
+integer grid with one scale (`fitToBox`) and counts the points that merge.
+
+The link carries a table as `d.<id>=<base64url canonical CSV>` when it fits `url_bytes`, and the
+page then says "a copied link carries your data". A larger table leaves only `~<rows>.<digest>`,
+and a re-attached file is reported as the same data or not. A token from a link passes the same
+parser as a file. Claims, pacing and labs run on seeded input only. The budget gate (test/budget/)
+measures every declaring plate on a synthetic table of `rows.max` rows, and the browser gate
+attaches data to every declaring plate and refuses any request that leaves the page.
+
 A plate may also offer `reset()` on its `Sim`. The stage then shows "Reset view" (key V), which
 returns to the starting view without a rebuild. On a paused plate the stage runs a short burst
 of frames (`src/core/loop.ts`), so a progressive render finishes before the pause holds again.

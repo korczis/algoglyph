@@ -14,6 +14,7 @@ import { homedir } from 'node:os';
 import { basename, join, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { claimErrors } from './claims.mjs';
+import { dataErrors } from './data.mjs';
 import { loadFigures } from './figures.mjs';
 import { check, loadSchema } from './schema.mjs';
 
@@ -258,6 +259,7 @@ export function loadCatalogue(root, { code = true } = {}) {
     if (summary.length < 20) err('the body must open with a summary of at least 20 characters');
     if (fm.status === 'live' && paras.length < 2) err('a live entry needs reading notes after its summary');
     for (const m of claimErrors(fm.claims ?? [])) err(m);
+    for (const m of dataErrors(fm.data ?? [])) err(m);
     const lower = text.toLowerCase();
     for (const [re, what] of LOCATORS) if (re.test(text)) err(`carries ${what}; this tree is public`);
     for (const t of terms) if (lower.includes(t)) err('names a term of the private deny-list; this tree is public');
@@ -267,7 +269,7 @@ export function loadCatalogue(root, { code = true } = {}) {
       tags: fm.tags ?? [], complexity: fm.complexity ?? '', interaction: fm.interaction ?? '',
       motivation: fm.motivation ?? '', order: Number.isFinite(fm.order) ? fm.order : null,
       aliases: fm.aliases ?? [], pedagogy: fm.pedagogy ?? null, algorithm: fm.algorithm ?? null,
-      bounds: fm.bounds ?? null, experiments: fm.experiments ?? [], claims: fm.claims ?? [],
+      bounds: fm.bounds ?? null, experiments: fm.experiments ?? [], claims: fm.claims ?? [], data: fm.data ?? [],
       declared: [
         ...(fm.related ?? []).map((t) => ({ type: 'related_to', target: t, reason: '' })),
         ...(fm.relations ?? []).map((r) => ({ type: r.type, target: r.target, reason: r.reason ?? '' })),

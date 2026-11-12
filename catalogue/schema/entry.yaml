@@ -118,3 +118,46 @@ fields:
             params: { type: any, doc: Parameter values by key; each must exist on the plate. }
             seed: { type: integer, doc: The run's seed; 4242 when absent. }
         source: { type: source, doc: The cited work the statement comes from, when it is not the entry's notes. }
+  data:
+    type: list
+    doc: >-
+      Inputs a reader may supply instead of the seeded one (ADR 0010, rule
+      project.user-data-stays-local). Each adds the option data:<id> to the plate's select named by
+      `replaces`; the page reads it in the browser only (src/core/data.ts) and a link carries it only
+      when its encoding fits `url_bytes`. Claims, pacing and labs never run on it.
+    of:
+      type: map
+      fields:
+        id: { type: id, required: true, doc: Unique within the entry; the link's key is d.<id>. }
+        title: { type: string, required: true, min_length: 4, doc: The option's label, as the reader sees it. }
+        kind: { type: enum, required: true, values: [table, series], doc: 'A table of named columns, or a series: a table of one column.' }
+        accepts:
+          type: list
+          required: true
+          min_items: 1
+          unique: true
+          of: { type: enum, values: [csv, json] }
+          doc: The formats read.
+        columns:
+          type: list
+          required: true
+          min_items: 1
+          doc: The columns in order, each with its unit and optional bounds.
+          of:
+            type: map
+            fields:
+              key: { type: id, required: true }
+              unit: { type: string, required: true, min_length: 1, doc: "The column's unit as a reader writes it; '1' for a pure number." }
+              min: { type: number }
+              max: { type: number }
+        rows:
+          type: map
+          required: true
+          doc: The rows accepted; max is an input the plate already runs within its budget.
+          fields:
+            min: { type: integer, required: true }
+            max: { type: integer, required: true }
+        bytes: { type: integer, required: true, doc: Cap on the text read, in UTF-8 bytes. }
+        replaces: { type: string, required: true, min_length: 1, doc: The key of the plate's select that gains the option. }
+        url_bytes: { type: integer, required: true, doc: The longest encoded table a link carries; a larger one leaves its digest. }
+        note: { type: string, min_length: 8, doc: What the plate does with the data, shown beside the input. }
