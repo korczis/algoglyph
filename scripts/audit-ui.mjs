@@ -274,15 +274,18 @@ try {
       for (const [i, e] of only.entries()) {
         const where = `${label} plate ${e.id}`;
         log(where);
-        const thumbsBefore = await p.evaluate(() => window.__thumbStarts);
         const url = `${base}#/p/${e.id}?seed=4242`;
         await p.goto(url, { waitUntil: 'load' });
         await readout(p, where, url);
         if (theme === 'dark' && desktop) await documented(p, where, e);
         if (i === 0) {
-          // the wings queued their cards; none of them may start once a plate owns the page
+          // the wings queued their cards; none of them may start once a plate owns the page. The
+          // count is taken once the plate has mounted: a render that began in the moment before
+          // the navigation is the gallery's, and counting from before the navigation failed a
+          // gate on exactly that (quick-find, light 1440 px, on bbe3cbb)
+          const mounted = await p.evaluate(() => window.__thumbStarts);
           await p.waitForTimeout(1500);
-          const behind = (await p.evaluate(() => window.__thumbStarts)) - thumbsBefore;
+          const behind = (await p.evaluate(() => window.__thumbStarts)) - mounted;
           if (behind > 0) fail(where, `${behind} gallery thumbnail render(s) started behind the plate`);
         }
         // previews let a plate develop for longer before its picture is taken
