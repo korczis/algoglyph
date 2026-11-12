@@ -1,0 +1,9 @@
+# Fixture for test/kernel-sidecar-fallback.test.ts: the smallest catalogue a sidecar can map.
+version: 1
+
+nodes:
+  - id: sorting
+    title: Sorting
+    summary: Fixture wing for the sidecar fallback test.
+    children:
+      - { id: simple, title: Simple sorts, summary: Fixture shelf for the sidecar fallback test. }

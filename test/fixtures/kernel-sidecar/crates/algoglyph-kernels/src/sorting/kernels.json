@@ -1,0 +1,13 @@
+{
+  "schema": "algoglyph-kernels/v1",
+  "version": "0.0.0",
+  "abi": 0,
+  "max_n": 0,
+  "kernels": [
+    { "id": "fixture-described-kernel", "stable": "no", "in_place": false, "kind": "comparison", "source": "00000000000000aa" },
+    { "id": "fixture-kept-kernel", "stable": "no", "in_place": false, "kind": "comparison", "source": "00000000000000aa" },
+    { "id": "fixture-planned-kernel", "stable": "no", "in_place": false, "kind": "comparison", "source": "00000000000000aa" },
+    { "id": "fixture-wasm-kernel", "stable": "no", "in_place": false, "kind": "comparison", "source": "00000000000000aa" },
+    { "id": "k", "stable": "no", "in_place": false, "kind": "comparison", "source": "00000000000000aa" }
+  ]
+}
