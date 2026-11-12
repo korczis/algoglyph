@@ -16,6 +16,20 @@ related:
   - kahn-waves
   - dag-shortest-paths
   - topological-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Run the forward pass that fixes each task's earliest start and the backward pass that gives each task its slack.
+    - Identify the critical tasks, those with no slack, and the tight dependencies between them.
+    - Explain why delaying a critical task delays the whole project by as much, while every other task can slip by its slack.
+claims:
+  - id: no-slack-tasks-are-the-marked-ones
+    statement: >-
+      Tasks with no slack are the ones marked: the marked tasks equal the critical tasks the
+      backward pass found, exactly.
+    readout: Critical (no slack)
+    expect: { against: Critical tasks, tolerance: 0 }
 ---
 
 The longest chain through a task graph, and the slack every other task has.
