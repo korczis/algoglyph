@@ -654,19 +654,19 @@ Map every key to a subarray of the output with a monotone function, count the hi
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/blitsort">097 · Blitsort</a></b><br>
-Fluxsort without the big buffer: a stable quicksort and mergesort hybrid that makes do with a small fixed buffer and solves everything that does not fit with rotations of adjacent blocks.<br>
+Fluxsort without the big buffer: a stable quicksort that makes do with a small fixed buffer and solves everything that does not fit with rotations of adjacent blocks.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space log n · sorting, hybrid, stable, in-place, adaptive, rotations</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/crumsort">098 · Crumsort</a></b><br>
-The in-place, unstable sibling of Fluxsort: the same analyser, the same pivot selection and the same hand-off of small or presorted ranges to quadsort, but partitioning in place with what its author calls a fulcrum partition.<br>
+The in-place, unstable sibling of Fluxsort: the same pivot selection and the same treatment of keys equal to the pivot, but partitioning in place with what its author calls a fulcrum partition.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space log n · sorting, hybrid, in-place, adaptive, branchless</sub>
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/fluxsort">099 · Fluxsort</a></b><br>
-A stable quicksort: partition top-down around a pivot, copying keys not larger than the pivot to the front of the array and larger keys to an auxiliary array, both in their original order; small or presorted ranges go to the quadsort mergesort.<br>
+A stable quicksort: partition top-down around a pivot, copying the keys smaller than the pivot to the front of the array and the others to an auxiliary buffer, both in their original order, then copying the buffer back behind them; small ranges are finished by binary insertion.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space n · sorting, hybrid, stable, adaptive, stable quicksort, branchless</sub>
 </td>
 <td width="50%" valign="top">
@@ -683,7 +683,7 @@ Pair the keys and compare within each pair, sort the larger keys recursively int
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/octosort">102 · Octosort</a></b><br>
-WikiSort's block merge sort with faster parts: the same skeleton of stable merging through a small internal buffer, with several building blocks replaced by quicker ones.<br>
+A stable bottom-up merge sort in constant extra memory: binary insertion sorts runs of 32 keys, then neighbouring runs are merged in pairs through a 32-key buffer when the shorter one fits it, and split by a binary search and a rotation when neither does; two runs already in order cost one comparison.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space 1 · sorting, hybrid, stable, in-place, adaptive, block merge</sub>
 </td>
 </tr>
@@ -695,20 +695,20 @@ Partition as in quicksort, sort one side with a method X that normally needs ext
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/weavesort">104 · Weave merge sort</a></b><br>
-A mergesort whose merge is replaced: sort both halves recursively, interleave them like the teeth of two combs so that keys of the left and right halves alternate, and let insertion sort tidy the nearly sorted result.<br>
-<sub>Hybrid sorts · n² in every case; extra space log n · sorting, hybrid, quadratic, in-place, interleaving</sub>
+A mergesort whose merge is replaced: sort both halves recursively and, unless they are already in order, interleave them like the teeth of two combs so that keys of the left and right halves alternate, and let insertion sort tidy the nearly sorted result.<br>
+<sub>Hybrid sorts · n best, n² worst; extra space log n · sorting, hybrid, quadratic, in-place, interleaving</sub>
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/wolfsort">105 · Wolfsort</a></b><br>
-Distribute the keys into buckets by value, about eight keys per bucket, sort each bucket with Fluxsort, and merge the buckets with the keys that overflowed them; presorted stretches go straight to quadsort.<br>
+Distribute the keys into buckets by value, about sixteen keys per bucket, and sort each bucket with Fluxsort; small inputs, and inputs whose keys all fall into one bucket, go to Fluxsort directly.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space n · sorting, hybrid, stable, adaptive, buckets</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/aks-sorting-network">106 · AKS sorting network</a></b><br>
 The network of Ajtai, Komlós and Szemerédi: depth on the order of log n and on the order of n log n comparators, both asymptotically optimal, built from approximate halvers applied over a tree of intervals.<br>
-<sub>Sorting networks · n log n in every case; extra space 1 · sorting, sorting network, oblivious, in-place, parallel, expander graphs</sub>
+<sub>Sorting networks · n log n comparators in log n depth (AKS); the plate's simplification n log² n comparators in log² n depth; extra space 1 · sorting, sorting network, oblivious, in-place, parallel, expander graphs</sub>
 </td>
 </tr>
 <tr>
@@ -763,7 +763,7 @@ A mergesort whose comparators are vector instructions: sort small blocks inside 
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/zig-zag-sort">115 · Zig-zag sort</a></b><br>
 Goodrich's deterministic, data-oblivious Shellsort variant: at each of log n levels the subarrays halve in size, and a zig pass left to right and a zag pass right to left apply a Reduce step to every pair of neighbouring subarrays.<br>
-<sub>Sorting networks · n log n in every case; extra space 1 · sorting, sorting network, oblivious, in-place, shellsort</sub>
+<sub>Sorting networks · n log n (Goodrich); the plate's simplification n log² n comparators in depth on the order of n; extra space 1 · sorting, sorting network, oblivious, in-place, shellsort</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/parallel-counting-sort">116 · Counting sort, parallel</a></b><br>

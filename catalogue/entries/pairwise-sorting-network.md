@@ -24,6 +24,32 @@ complexity: n log² n in every case; extra space 1
 related:
   - batcher-merge-exchange
   - bitonic-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [batcher-merge-exchange]
+  objectives:
+  - 'Run Random permutation at 512 keys: 9,727 comparators in 45 rounds, the size and depth of Batcher''s odd-even merge network.'
+  - 'Compare with Batcher''s merge exchange in the lab at any n: the comparator counts agree, also at sizes that are not powers of two.'
+  - 'Follow the Phase readout: first the pairs at distances 1, 2, 4, …, then the repairs at shrinking distances.'
+  misconceptions:
+  - 'Sorting the pairs first must cost extra comparators; Parberry''s order needs exactly as many as Batcher''s merge exchange at every n up to 1,024.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+bounds:
+  model: 'comparators (one comparison each, and an exchange of two writes when its keys are out of order) and rounds (one layer of disjoint comparators); no auxiliary write'
+  average: 'the same network on every input: ⌈lg n⌉(⌈lg n⌉ + 1)/2 rounds and as many comparators as Batcher''s merge exchange, (k² − k + 4)·2^(k−2) − 1 at n = 2^k, 9,727 in 45 rounds at 512 keys; no write on Already sorted'
+claims:
+  - id: batcher-depth
+    statement: >-
+      On Random permutation at 512 keys the pairwise network takes k(k + 1)/2 = 45 rounds for k = 9, the depth of Batcher's odd-even merge network, with the same 9,727 comparators.
+    readout: Rounds
+    expect: { value: 45 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 Parberry's network turns Batcher's order around: first sort neighbouring pairs, then pairs of pairs and so on, and only then repair the result with comparators at shrinking distances.
