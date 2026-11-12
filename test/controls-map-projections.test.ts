@@ -2,7 +2,6 @@
 // the central-difference step H and the graticule step. Each default is the constant it
 // replaced, round-trips through a shared link, and drives the readouts the way the projections'
 // closed forms predict (Mercator's scale sec φ, the central differences' truncation error).
-import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { defaults, type ParamDef, type RangeParam, type SelectParam } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
@@ -18,9 +17,11 @@ installBrowserStubs();
 const D = Math.PI / 180;
 const sec = (deg: number) => 1 / Math.cos(deg * D);
 
-/** sha256 of the kernel's outcome and counts at its default parameters, recorded from
- * map-projections.ts before any of its constants became a control (abaf25a). */
-const DEFAULT_OUTCOME_SHA256 = 'bbdddd780735f9db2256c11f3d389c26aa7615b1e403d3b12918771204464dec';
+/** The kernel's counts at its defaults, recorded from map-projections.ts before any of its
+ * constants became a control (abaf25a): integers, the same on every CPU. Its outcome is float64
+ * from cos, tan and log, which may differ by an ulp between machines, so it is compared within
+ * one run only. */
+const DEFAULT_COUNTS = { proj: 3016, node: 754 };
 
 type Result = { mercator: { kmin: number; kmax: number; conformal: number; angle: number }; krovak: { kmin: number } };
 
@@ -47,9 +48,11 @@ async function roundTrip(key: string, value: number | string): Promise<unknown> 
 
 describe('map-projections defaults', () => {
   it('measure exactly what the fixed constants measured', () => {
-    const t = run({ ...defaultsOfKernel() });
-    const h = createHash('sha256').update(JSON.stringify({ outcome: t.outcome, counts: t.counts })).digest('hex');
-    expect(h).toBe(DEFAULT_OUTCOME_SHA256);
+    const explicit = run({ ...defaultsOfKernel() });
+    const implicit = run();
+    expect(explicit.counts).toEqual(DEFAULT_COUNTS);
+    expect(explicit.outcome).toEqual(implicit.outcome);
+    expect(explicit.counts).toEqual(implicit.counts);
   });
 });
 

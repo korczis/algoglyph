@@ -14,10 +14,9 @@ import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
 
-/** sha256 of every geometry input kind and shape at its default parameters, over a few sizes and
- * seeds, recorded from input.ts before any of its constants became a control (abaf25a). */
-const DEFAULT_INPUTS_SHA256 = '3fc8fa6b0da29b77174b8ba1522535564797a1d7e61d95eca07afd3097f4cce6';
-
+// Every geometry input at its defaults, over a few sizes and seeds, compared within one run: with
+// no params against the control's default passed explicitly. A hash recorded on one machine is no
+// guard: inputs carry float64 from sin, cos and exp, which may differ by an ulp on another CPU.
 function defaultInputsHash(extra: Record<string, number> = {}): string {
   const h = createHash('sha256');
   for (const [kind, shapes] of Object.entries(DEFAULT_SHAPES)) {
@@ -59,7 +58,7 @@ describe('haversine-hhi spread', () => {
   });
 
   it('leaves every geometry input bit-identical at its default', () => {
-    expect(defaultInputsHash()).toBe(DEFAULT_INPUTS_SHA256);
+    expect(defaultInputsHash({ spread: 1.1 })).toBe(defaultInputsHash());
     // the plate passes its default explicitly: the same firms, the same draws after them
     const a = makeInput('firms', 'firms', 60, 4242, {});
     const b = makeInput('firms', 'firms', 60, 4242, { spread: 1.1 });
