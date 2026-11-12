@@ -95,3 +95,31 @@ describe('adsb-cpr gap between reports', () => {
     }, 120_000);
   }
 });
+
+describe('adsb-cpr pairs only reports within 10 s', () => {
+  // A dropped frame leaves the other parity's last report one gap older: at the default 8 s an
+  // even and an odd report 24 s (5760 m) apart can straddle a latitude zone edge (5654 m) and
+  // decode hundreds of kilometres off. A receiver pairs reports at most 10 s apart; so does the
+  // plate, and then every fix it decodes is within its own quantisation, on every seed.
+  it('never decodes a fix beyond its quantisation, with frames dropped', () => {
+    let dropped = 0;
+    let fixes = 0;
+    for (const gap of [8, 10]) {
+      for (let seed = 1; seed <= 40; seed++) {
+        const views = recordAll(kernel.run({ snr: 11, gap }, seed, new Meter()));
+        const last = views[views.length - 1];
+        dropped += Number(last.stats.find((s) => s.label.startsWith('Frames'))!.value.split(',')[2]);
+        for (const v of views) {
+          const err = v.stats.find((s) => s.label === 'Decoding error')!.value;
+          if (err === '—') continue;
+          fixes++;
+          const lat = pair(v.stats.find((s) => s.label === 'True position')!.value)[0];
+          expect(Number.parseFloat(err), `gap ${gap} seed ${seed}`).toBeLessThanOrEqual(quantisation(lat) + 0.01);
+        }
+      }
+    }
+    // the seeds do drop frames, and most frames still decode
+    expect(dropped).toBeGreaterThan(20);
+    expect(fixes).toBeGreaterThan(1500);
+  });
+});

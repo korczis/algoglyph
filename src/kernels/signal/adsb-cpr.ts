@@ -9,6 +9,8 @@ const R = 6371008.8;
 /** Seconds of flight between two reports by default; the `gap` control moves it within the usual
  * 10 s pairing limit. */
 export const GAP = 8;
+/** A receiver pairs an even and an odd report only this many seconds apart. */
+export const PAIRING = 10;
 
 /** Great-circle distance in metres. */
 export function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
@@ -47,6 +49,8 @@ export const kernel: SignalKernel = {
     const truthTrack: number[] = []; const decodedTrack: number[] = [];
     const errors: [number, number][] = [];
     const last: { 0?: [number, number]; 1?: [number, number] } = {};
+    // when each parity's last report arrived, in seconds of flight
+    const heard: [number, number] = [-Infinity, -Infinity];
     let ok = 0; let repaired = 0; let dropped = 0;
     const frames = 24;
     const lat0 = lat; const lon0 = lon;
@@ -63,6 +67,7 @@ export const kernel: SignalKernel = {
       const syn = syndrome(frame, meter);
       const fixed = repair(frame, meter);
       let decoded: { lat: number; lon: number } | null = null;
+      let stale = NaN; // the age of the other report, when it is too old to pair
       let status: string;
       if (fixed === null) { dropped++; status = `CRC failed (syndrome ${syn.toString(16).toUpperCase()}), frame dropped`; } else {
         if (fixed >= 0) repaired++;
@@ -70,7 +75,13 @@ export const kernel: SignalKernel = {
         status = fixed >= 0 ? `syndrome ${syn.toString(16).toUpperCase()}: bit ${fixed} repaired` : 'CRC remainder 0';
         const fl = fields(frame);
         last[fl.odd] = fl.cpr;
-        if (last[0] && last[1]) decoded = cprDecode(last[0], last[1], fl.odd);
+        heard[fl.odd] = k * gap;
+        // a dropped frame leaves the other report a gap older: past the pairing limit the two may
+        // lie in different zones, so the pair is refused rather than decoded far off
+        const age = k * gap - heard[1 - fl.odd];
+        if (last[0] && last[1] && age > PAIRING) stale = age;
+        if (last[0] && last[1] && age <= PAIRING) decoded = cprDecode(last[0], last[1], fl.odd);
+        if (Number.isFinite(stale)) status += `; the other report is ${stale} s old, past the ${PAIRING} s pairing limit`;
       }
       let err = NaN;
       if (decoded) {
@@ -113,7 +124,8 @@ export const kernel: SignalKernel = {
         ],
         stats: [
           { label: 'True position', value: `${lat.toFixed(5)}, ${lon.toFixed(5)}` },
-          { label: 'Decoded position', value: decoded ? `${decoded.lat.toFixed(5)}, ${decoded.lon.toFixed(5)}` : 'waiting for an even/odd pair' },
+          { label: 'Decoded position', value: decoded ? `${decoded.lat.toFixed(5)}, ${decoded.lon.toFixed(5)}`
+            : Number.isFinite(stale) ? `no pair within ${PAIRING} s` : 'waiting for an even/odd pair' },
           { label: 'Decoding error', value: Number.isFinite(err) ? `${err.toFixed(2)} m` : '—' },
           { label: 'Mean error over decoded fixes', value: Number.isFinite(meanErr) ? `${meanErr.toFixed(2)} m` : '—' },
           { label: 'Frames: passed CRC, of them repaired, dropped', value: `${ok}, ${repaired}, ${dropped}` },
