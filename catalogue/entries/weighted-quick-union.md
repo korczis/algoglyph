@@ -13,9 +13,8 @@ tags:
   - union-find
   - balanced
 complexity: at most lg n links per find
-related:
-  - quick-union
-  - path-compression
+relations:
+  - { type: improves_on, target: quick-union, reason: "Linking the smaller tree under the larger bounds every tree's height by lg n." }
 ---
 
 Link the smaller tree under the larger, so no tree grows taller than lg n.

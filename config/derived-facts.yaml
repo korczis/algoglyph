@@ -52,6 +52,9 @@ exempt:
   - path: 'test/derived-facts.test.ts'
     checks: [count, plate-number, link, path]
     because: The gate's own tests hold deliberately hand-typed counts, plate numbers and dangling links as the cases it must refuse.
+  - path: 'test/semantic.test.ts'
+    checks: [link]
+    because: The prose-link tests hold a deliberately dangling plate link, the case prose() must render as plain text.
   - path: '.ai/repo/sessions/**'
     checks: [count, plate-number, path]
     because: Closed session records are history written by Majordomus.

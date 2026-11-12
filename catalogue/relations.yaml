@@ -1,0 +1,14 @@
+# The relation types an entry may declare (ADR 0005 §2). An entry declares a relation once,
+# on one side; the inverse, the backlink and the graph edge are derived from this table.
+# symmetric: the relation reads the same both ways. inverse: the derived reverse type.
+# acyclic: a cycle is refused (a learner cannot need A before B before A).
+version: 1
+types:
+  - { id: related_to, title: Related, inverse_title: Related, symmetric: true, meaning: The two are worth reading together. }
+  - { id: variant_of, title: Variant of, inverse: has_variant, inverse_title: Variants, meaning: A changed version of the target that solves the same problem. }
+  - { id: improves_on, title: Improves on, inverse: improved_by, inverse_title: Improved by, meaning: Fixes a weakness of the target, at a stated cost. }
+  - { id: generalizes, title: Generalizes, inverse: specializes, inverse_title: Special case of, meaning: The target is a special case of this one. }
+  - { id: uses, title: Uses, inverse: used_by, inverse_title: Used by, meaning: Runs the target as a step. }
+  - { id: compares_with, title: Compare with, inverse_title: Compare with, symmetric: true, meaning: Solves the same problem with a different trade-off. }
+  - { id: derived_from, title: Derived from, inverse: derives, inverse_title: Leads to, meaning: Built from the target's idea. }
+  - { id: requires, title: Requires, inverse: required_by, inverse_title: Needed for, acyclic: true, meaning: Read the target first. Declared as pedagogy.prerequisites. }

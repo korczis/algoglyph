@@ -12,6 +12,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { check, loadSchema } from './schema.mjs';
 
 export const STATUSES = ['live', 'planned'];
 /** A lab compares at least this many entries; the site and the gate read the same constant. */
@@ -21,8 +22,7 @@ export const MODES = ['2d', 'webgl', 'three'];
 export const ENGINES = ['custom', 'array', 'tree', 'hash', 'graph', 'geometry', 'string',
   'numeric', 'signal', 'systems', 'stochastic', 'grid'];
 const ID = /^[a-z0-9][a-z0-9-]*$/;
-const ENTRY_KEYS = new Set(['id', 'title', 'taxonomy', 'status', 'engine', 'mode', 'labs',
-  'sources', 'tags', 'complexity', 'interaction', 'motivation', 'order', 'related']);
+// the keys an entry may carry are declared in catalogue/schema/entry.yaml, not here
 // A public tree never carries a locator into someone's machine or private code (ADR 0004 §8).
 const LOCATORS = [
   [/(^|[\s(])(~\/|\/Users\/|\/home\/)/, 'a home-directory path'],
@@ -174,6 +174,14 @@ export function loadCatalogue(root, { code = true } = {}) {
   const labsDoc = readYaml(join(dir, 'labs.yaml'), errors);
   const sourcesDoc = readYaml(join(dir, 'sources.yaml'), errors);
   const { byPath, leaves } = walkTaxonomy(tax.nodes, errors);
+  const schema = loadSchema(join(dir, 'schema/entry.yaml'));
+  const relationsDoc = readYaml(join(dir, 'relations.yaml'), errors);
+  const relTypes = new Map((relationsDoc.types ?? []).map((t) => [t.id, t]));
+  for (const t of relTypes.values()) {
+    if (t.inverse && relTypes.has(t.inverse)) errors.push(`relations.yaml ${t.id}: inverse ${t.inverse} must be a derived name, not a declarable type`);
+    if (t.symmetric && t.inverse) errors.push(`relations.yaml ${t.id}: a symmetric type has no inverse`);
+  }
+  const pendingRefs = [];
 
   const sources = new Map();
   for (const s of sourcesDoc.sources ?? []) {
@@ -209,14 +217,14 @@ export function loadCatalogue(root, { code = true } = {}) {
       continue;
     }
     const err = (m) => errors.push(`${rel}: ${m}`);
-    for (const k of Object.keys(fm)) if (!ENTRY_KEYS.has(k)) err(`unknown key ${k}`);
+    // the shape is the schema's (catalogue/schema/entry.yaml); the checks below are semantics
+    const shapeErrors = [];
+    const refs = [];
+    check(fm, { type: 'map', fields: schema.fields }, '', shapeErrors, refs);
+    for (const e of shapeErrors) err(e);
     const id = basename(f, '.md');
+    for (const r of refs) pendingRefs.push({ ...r, rel, from: id });
     if (fm.id !== id) err(`id ${fm.id} must equal the file name ${id}`);
-    if (!ID.test(id)) err(`id must match ${ID}`);
-    if (!fm.title) err('title is required');
-    if (!STATUSES.includes(fm.status)) err(`status must be one of ${STATUSES.join(', ')}`);
-    if (!ENGINES.includes(fm.engine)) err(`engine must be one of ${ENGINES.join(', ')}`);
-    if (fm.mode !== undefined && !MODES.includes(fm.mode)) err(`mode must be one of ${MODES.join(', ')}`);
     const leaf = String(fm.taxonomy ?? '');
     if (!byPath.has(leaf)) err(`taxonomy ${leaf || '(missing)'} is not a node of taxonomy.yaml`);
     else if (!leaves.includes(leaf)) err(`taxonomy ${leaf} is not a leaf`);
@@ -241,9 +249,62 @@ export function loadCatalogue(root, { code = true } = {}) {
       taxonomy: leaf, path: leaf.split('/'), labs: fm.labs ?? [], sources: cites,
       tags: fm.tags ?? [], complexity: fm.complexity ?? '', interaction: fm.interaction ?? '',
       motivation: fm.motivation ?? '', order: Number.isFinite(fm.order) ? fm.order : null,
+      aliases: fm.aliases ?? [], pedagogy: fm.pedagogy ?? null, algorithm: fm.algorithm ?? null,
+      bounds: fm.bounds ?? null, experiments: fm.experiments ?? [],
+      declared: [
+        ...(fm.related ?? []).map((t) => ({ type: 'related_to', target: t, reason: '' })),
+        ...(fm.relations ?? []).map((r) => ({ type: r.type, target: r.target, reason: r.reason ?? '' })),
+        ...(fm.pedagogy?.prerequisites ?? []).map((t) => ({ type: 'requires', target: t, reason: '' })),
+      ],
       related: Array.isArray(fm.related) ? fm.related : [],
       summary, notes: paras.slice(1), file: rel,
     });
+  }
+
+  // references the schema saw, resolved now that every entry is known
+  const known = new Set(entries.map((e) => e.id));
+  for (const r of pendingRefs) {
+    if (r.type === 'entry' && !known.has(r.value)) errors.push(`${r.rel}: ${r.path}: ${r.value} is not an entry`);
+    if (r.type === 'relation' && !relTypes.has(r.value)) errors.push(`${r.rel}: ${r.path}: ${r.value} is not a relation type of relations.yaml`);
+    if (r.type === 'entry' && r.value === r.from) errors.push(`${r.rel}: ${r.path}: an entry does not relate to itself`);
+  }
+  // typed edges: declared once, the inverse derived from the relation table
+  const edges = [];
+  for (const e of entries) {
+    for (const d of e.declared) {
+      const t = relTypes.get(d.type);
+      if (!t || !known.has(d.target) || d.target === e.id) continue;
+      edges.push({ from: e.id, to: d.target, type: d.type, title: t.title, reason: d.reason, derived: false });
+      edges.push({ from: d.target, to: e.id, type: t.symmetric ? d.type : (t.inverse ?? `${d.type}-of`),
+        title: t.inverse_title ?? t.title, reason: d.reason, derived: true });
+    }
+  }
+  // a relation that must be acyclic (a learner cannot need A before B before A)
+  for (const t of relTypes.values()) {
+    if (!t.acyclic) continue;
+    const next = new Map();
+    for (const x of edges) if (x.type === t.id && !x.derived) (next.get(x.from) ?? next.set(x.from, []).get(x.from)).push(x.to);
+    const state = new Map();
+    const visit = (v, path) => {
+      if (state.get(v) === 1) { errors.push(`relations: ${t.id} forms a cycle ${[...path, v].join(' -> ')}`); return; }
+      if (state.get(v) === 2) return;
+      state.set(v, 1);
+      for (const w of next.get(v) ?? []) visit(w, [...path, v]);
+      state.set(v, 2);
+    };
+    for (const v of next.keys()) visit(v, []);
+  }
+  // one edge per (from, to, type): a link declared on both sides, or declared and derived, is one
+  const seen = new Map();
+  for (const x of edges) {
+    const key = `${x.from}\u0000${x.to}\u0000${x.type}`;
+    const had = seen.get(key);
+    if (!had || (had.derived && !x.derived)) seen.set(key, x);
+  }
+  const unique = [...seen.values()].sort((x, y) => x.from.localeCompare(y.from) || x.type.localeCompare(y.type) || x.to.localeCompare(y.to));
+  for (const e of entries) {
+    e.links = unique.filter((x) => x.from === e.id).map(({ from: _f, ...x }) => x);
+    delete e.declared;
   }
 
   // links are declared one way; the reverse is derived, never authored
@@ -342,6 +403,7 @@ export function loadCatalogue(root, { code = true } = {}) {
       const kernel = found.kernels.find((k) => k.id === e.id);
       const has = e.engine === 'custom' ? plate
         : Boolean(kernel && kernel.engine === e.engine) || backed.has(e.id);
+      e.implemented = has;
       if (e.status === 'live' && !has) {
         const unmapped = sidecarFiles.length && SIDECAR_ENGINES.includes(e.engine)
           ? ` and no ${sidecarFiles.join(', ')} maps it` : '';
@@ -370,6 +432,42 @@ export function loadCatalogue(root, { code = true } = {}) {
     errors.push(`labs.yaml ${id}: a lab compares at least ${LAB_MIN} entries, it has ${lab.entries.length}`);
   }
 
+  // evidence (ADR 0005 §3): derived from code and tests, never authored. `tested` is the engine's
+  // harness (one test over every live kernel of the engine) or a unit test that imports the plate
+  const testDir = join(root, 'test');
+  const testText = existsSync(testDir) ? list(testDir, (_, f) => f.endsWith('.ts'))
+    .map((f) => readFileSync(join(testDir, f), 'utf8')).join('\n') : '';
+  // a plate built from shared code (src/plates/_shared/<module>) is tested by a test that imports
+  // the very modules its plate.ts imports, as binary-search is through sorted-search/search; a
+  // shared view (the drawing wrapper every such plate uses) proves no algorithm, so it is not one
+  const sharedTested = (id) => {
+    const plate = join(root, 'src', 'plates', id, 'plate.ts');
+    if (!existsSync(plate)) return false;
+    const shared = [...readFileSync(plate, 'utf8').matchAll(/from '\.\.\/(_shared\/[^']+)'/g)]
+      .map((m) => `plates/${m[1]}'`);
+    return shared.some((path) => testText.includes(path) && !path.endsWith("/view'"));
+  };
+  for (const e of entries) {
+    const implemented = Boolean(e.implemented);
+    const harness = e.engine !== 'custom' && existsSync(join(testDir, `kernels-${e.engine}.test.ts`));
+    const unit = testText.includes(`plates/${e.id}/`) || testText.includes(`kernels/${e.engine}/${e.id}`)
+      || new RegExp(`describe\\(['"\`]${e.id}[:'"\` ]`).test(testText)
+      || sharedTested(e.id);
+    e.evidence = { implemented, tested: implemented && (harness || unit) ? (harness ? 'harness' : 'unit') : null };
+    delete e.implemented;
+    // a live entry is an experiment someone runs: it is tested, or it is refused (the owner,
+    // 2026-11-12: every experiment standalone and tested, validated, verified, enforced)
+    if (e.status === 'live' && !e.evidence.tested) {
+      errors.push(`${e.file}: live, but no test names it (a describe('${e.id}'), an import of plates/${e.id}/ or kernels/${e.engine}/${e.id}, or the engine harness test/kernels-${e.engine}.test.ts)`);
+    }
+    // maturity: each profile needs the ones before it; the first one missing is the next gap
+    const documented = e.notes.length > 0 && e.sources.length > 0 && Boolean(e.pedagogy || e.algorithm || e.bounds);
+    const steps = [['catalogued', true], ['documented', documented], ['implemented', implemented], ['tested', Boolean(e.evidence.tested)]];
+    const reached = [];
+    for (const [name, ok] of steps) { if (!ok) break; reached.push(name); }
+    e.maturity = { reached, next: steps.find(([, ok]) => !ok)?.[0] ?? null };
+  }
+
   // the tree, with counts rolled up from the leaves
   const count = new Map([...byPath.keys()].map((k) => [k, { live: 0, planned: 0 }]));
   for (const e of entries) {
@@ -383,6 +481,7 @@ export function loadCatalogue(root, { code = true } = {}) {
     errors,
     model: {
       labMin: LAB_MIN,
+      relationTypes: [...relTypes.values()],
       nodes,
       roots: nodes.filter((n) => n.depth === 1).map((n) => n.key),
       entries: entries.map(({ file: _file, ...e }) => e),

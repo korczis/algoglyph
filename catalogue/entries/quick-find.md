@@ -13,8 +13,17 @@ tags:
   - union-find
   - connectivity
 complexity: "one array access per find, n per union: quadratic for n unions"
-related:
-  - quick-union
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+    - Answer connectivity queries with one array look-up, and see what unions cost for it.
+algorithm:
+  paradigm: union-find
+bounds:
+  model: array accesses
+  best: find O(1)
+  worst: union O(n), n unions O(n²)
 ---
 
 Every object carries its component id, so a find is one look-up and a union rewrites every member of one side.
