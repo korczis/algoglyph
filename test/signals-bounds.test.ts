@@ -147,3 +147,28 @@ describe('signals: exact bounds against metered runs', () => {
     }
   });
 });
+
+describe('signals: what the notes say about the plates', () => {
+  it('biquad-filters: a low-pass gains exactly Q at its corner, and the Q control cannot reach 1/√2', () => {
+    const gainAt = (f: ReturnType<typeof design>, f0: number) => {
+      const w = (2 * Math.PI * f0) / 16000;
+      const br = f.b[0] + f.b[1] * Math.cos(w) + f.b[2] * Math.cos(2 * w);
+      const bi = -(f.b[1] * Math.sin(w) + f.b[2] * Math.sin(2 * w));
+      const ar = 1 + f.a[1] * Math.cos(w) + f.a[2] * Math.cos(2 * w);
+      const ai = -(f.a[1] * Math.sin(w) + f.a[2] * Math.sin(2 * w));
+      return Math.hypot(br, bi) / Math.hypot(ar, ai);
+    };
+    for (const f0 of [50, 1000, 7000]) {
+      for (const q of [0.3, 0.7, Math.SQRT1_2, 2, 20]) expect(gainAt(design('lowpass', f0, q, 0), f0)).toBeCloseTo(q, 9);
+      // Butterworth: −3.0103 dB at the corner; the control's 0.7 is −3.098 dB
+      expect(20 * Math.log10(gainAt(design('lowpass', f0, Math.SQRT1_2, 0), f0))).toBeCloseTo(-3.0103, 4);
+      expect(20 * Math.log10(gainAt(design('lowpass', f0, 0.7, 0), f0))).toBeCloseTo(-3.098, 3);
+    }
+    const q = kernelOf('biquad-filters').params?.find((d) => d.key === 'q');
+    expect(q?.kind).toBe('range');
+    if (q?.kind !== 'range') return;
+    const settings = Array.from({ length: Math.round((q.max - q.min) / q.step) + 1 }, (_, i) => q.min + i * q.step);
+    expect(Math.min(...settings.map((v) => Math.abs(v - Math.SQRT1_2)))).toBeGreaterThan(0.005);
+    expect(settings.some((v) => Math.abs(v - 0.7) < 1e-9)).toBe(true);
+  });
+});
