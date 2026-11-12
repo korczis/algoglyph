@@ -1,4 +1,4 @@
-import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
+import { mix, paletteParam, ramp, type Palette, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import {
@@ -66,7 +66,30 @@ export const quantumTunnelling: PlateCode = {
     const top = ctx.height * 0.07;
     const ground = ctx.height * 0.56;
     const ribbonTop = ctx.height * 0.6;
-
+    let xs = new Float64Array(0);
+    let ys = new Float64Array(0);
+    /** Colour tables for the current palette, so drawing allocates no colour per pixel. */
+    const LUT = 256;
+    let lutFor: Palette | null = null;
+    const densityLut = new Uint8ClampedArray(LUT * 3);
+    const phaseLut = new Float64Array(LUT * 3);
+    const phaseStyle: string[] = [];
+    const tables = () => {
+      const pal = ctx.palette();
+      if (pal === lutFor) return;
+      lutFor = pal;
+      for (let i = 0; i < LUT; i++) {
+        const t = i / (LUT - 1);
+        const c = mix(ctx.bg, ramp(pal, 0.2 + 0.8 * t), Math.min(1, 1.6 * t));
+        densityLut.set(c, i * 3);
+        const h = ramp(pal, i / LUT, true);
+        phaseLut.set(h, i * 3);
+        phaseStyle[i] = rgba(h, 0.8);
+      }
+    };
+    /** Index of arg ψ in the cyclic phase table. */
+    const phaseIndex = (re: number, im: number) =>
+      Math.min(LUT - 1, Math.floor(((Math.atan2(im, re) + Math.PI) / (2 * Math.PI)) * LUT));
 
     /** The largest |ψ|² among the grid cells that column c covers, so no peak is skipped. */
     const binPeak = (c: number) => {
@@ -80,24 +103,33 @@ export const quantumTunnelling: PlateCode = {
       const d = raster.data;
       const stride = raster.w * 4;
       d.copyWithin(stride, 0, d.length - stride);
-      const pal = ctx.palette();
+      tables();
       const phase = str(params, 'colour') === 'phase';
       const { re, im } = wave;
+      const bg = ctx.bg;
+      const sep = mix(ctx.bg, ctx.fg, 0.28);
       for (let c = 0; c < cols; c++) {
-        let out: RGB;
-        if (separator) out = mix(ctx.bg, ctx.fg, 0.28);
-        else {
-          const t = Math.min(1, Math.sqrt(binPeak(c) / run.peak0) * 1.1);
-          const j = first[c];
-          const hue = phase
-            ? ramp(pal, (Math.atan2(im[j], re[j]) + Math.PI) / (2 * Math.PI), true)
-            : ramp(pal, 0.2 + 0.8 * t);
-          out = mix(ctx.bg, hue, Math.min(1, 1.6 * t));
+        const o = c * 4;
+        d[o + 3] = 255;
+        if (separator) {
+          d[o] = sep[0];
+          d[o + 1] = sep[1];
+          d[o + 2] = sep[2];
+          continue;
         }
-        d[c * 4] = out[0];
-        d[c * 4 + 1] = out[1];
-        d[c * 4 + 2] = out[2];
-        d[c * 4 + 3] = 255;
+        const t = Math.min(1, Math.sqrt(binPeak(c) / run.peak0) * 1.1);
+        if (phase) {
+          const h = phaseIndex(re[first[c]], im[first[c]]) * 3;
+          const a = Math.min(1, 1.6 * t);
+          d[o] = bg[0] + (phaseLut[h] - bg[0]) * a;
+          d[o + 1] = bg[1] + (phaseLut[h + 1] - bg[1]) * a;
+          d[o + 2] = bg[2] + (phaseLut[h + 2] - bg[2]) * a;
+        } else {
+          const l = Math.round(t * (LUT - 1)) * 3;
+          d[o] = densityLut[l];
+          d[o + 1] = densityLut[l + 1];
+          d[o + 2] = densityLut[l + 2];
+        }
       }
     };
 
@@ -117,6 +149,8 @@ export const quantumTunnelling: PlateCode = {
         }
         raster = new Raster(cols, Math.max(24, Math.floor((ctx.height - ribbonTop) / 2)));
         raster.fill(ctx.bg);
+        xs = new Float64Array(cols);
+        ys = new Float64Array(cols);
         rowSteps = Math.max(1, Math.round(run.tRun / (raster.h * DT)));
         runs = 0;
         last = null;
@@ -124,12 +158,15 @@ export const quantumTunnelling: PlateCode = {
       draw() {
         // step in chunks that end on ribbon rows, so the potential half steps fuse in between
         let left = ctx.thumbnail ? THUMB_STEPS : Math.max(1, Math.round(num(params, 'speed')));
+        // the chart is rebuilt only when its history grew
+        let fresh = false;
         while (left > 0) {
           const chunk = Math.min(left, rowSteps - (wave.steps % rowSteps));
           wave.step(chunk);
           left -= chunk;
           if (wave.steps % rowSteps !== 0) continue;
           pushRow(false);
+          fresh = true;
           const sh = run.shares();
           history.push([wave.t, sh.reflected, sh.inside, sh.transmitted]);
           if (run.done()) {
@@ -200,8 +237,6 @@ export const quantumTunnelling: PlateCode = {
         const { re, im } = wave;
         const amp = ((ground - top) * 0.42) / peak0;
         const ampPsi = ((ground - top) * 0.26) / Math.sqrt(peak0);
-        const xs = new Float64Array(cols);
-        const ys = new Float64Array(cols);
         for (let c = 0; c < cols; c++) {
           xs[c] = ((c + 0.5) / cols) * W;
           ys[c] = yE - binPeak(c) * amp;
@@ -213,11 +248,10 @@ export const quantumTunnelling: PlateCode = {
 
         if (str(params, 'colour') === 'phase') {
           const cw = W / cols + 0.6;
+          tables();
           for (let c = 0; c < cols; c++) {
             if (yE - ys[c] < 0.3) continue;
-            const j = first[c];
-            const hue = ramp(pal, (Math.atan2(im[j], re[j]) + Math.PI) / (2 * Math.PI), true);
-            g.fillStyle = rgba(hue, 0.8);
+            g.fillStyle = phaseStyle[phaseIndex(re[first[c]], im[first[c]])];
             g.fillRect(xs[c] - cw / 2, ys[c], cw, yE - ys[c]);
           }
         } else {
@@ -268,7 +302,7 @@ export const quantumTunnelling: PlateCode = {
         p.textAlign(p.LEFT, p.TOP);
         p.text(`V₀ ${v0.toFixed(2)}`, Math.max(10, px(edges[0]) + 4), yOf(v0) - 16);
 
-        ctx.chart({
+        if (fresh) ctx.chart({
           title: 'Where the probability went, this run',
           x: { label: 't (ħ = m = 1)' },
           y: { label: 'probability' },
