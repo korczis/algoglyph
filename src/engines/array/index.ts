@@ -235,6 +235,11 @@ function plate(info: KernelInfo, kernel: ArrayKernel): PlateCode {
 }
 
 function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): PlateCode {
+  // the largest input the lab races, and the largest it measures: a lab frame traces one kernel
+  // beside drawing every pane, so no trace may be larger than the input its slider allows (the
+  // scaling run at n 512 of an uncapped kernel took 14 ms of CPU alone, against about 10 at 256)
+  const labMax = Math.max(8, Math.floor(Math.min(256, ...kernels.map((k) => k.kernel.maxN ?? MAX_N)) / 8) * 8);
+  const labScalingN = (k: ArrayKernel) => scalingN(k).filter((n) => n <= labMax);
   const groups = [...new Set(kernels.map((k) => k.info.group))];
   const params: ParamDef[] = [
     {
@@ -242,7 +247,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
       options: [...groups.map((g) => ({ value: g, label: g })), { value: 'all', label: 'All kernels' }],
     },
     // the lab races every kernel on one input, so it stops at the smallest kernel bound
-    ...baseParams(48, Math.max(8, Math.floor(Math.min(256, ...kernels.map((k) => k.kernel.maxN ?? MAX_N)) / 8) * 8)),
+    ...baseParams(48, labMax),
   ];
   return {
     id: `lab-${id}`,
@@ -288,7 +293,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
           curves = chosen().map((k) => ({ info: k.info, pts: [], slope: NaN }));
           // a kernel's growth is measured up to its own bound, never past it in one frame
           const list = chosen();
-          pending = curves.flatMap((_, ci) => scalingN(list[ci].kernel).map((n) => [ci, n] as [number, number]));
+          pending = curves.flatMap((_, ci) => labScalingN(list[ci].kernel).map((n) => [ci, n] as [number, number]));
         }
       };
       let pending: [number, number][] = [];

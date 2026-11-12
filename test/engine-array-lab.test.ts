@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { CATALOGUE } from '../src/core/catalogue';
 import { palette as lookupPalette, GROUNDS } from '../src/core/palette';
-import type { Params, Plate, PlateContext, Stat } from '../src/core/plate';
+import type { Chart, Params, Plate, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
 import { labRunnable, loadLab } from '../src/registry';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
@@ -16,14 +16,15 @@ function mount(plate: Plate, thumbnail: boolean) {
   for (const d of plate.params) params[d.key] = d.value;
   params.group = 'all';
   let stats: Stat[] = [];
+  const charts: Chart[] = [];
   const ctx: PlateContext = {
     width: 640, height: 480, params, seed: 7, rnd: mulberry32(7), theme: 'dark',
     bg: GROUNDS.dark.bg, fg: GROUNDS.dark.fg, thumbnail,
-    palette: () => lookupPalette('ember'), stats(rows) { stats = rows; }, chart() {},
+    palette: () => lookupPalette('ember'), stats(rows) { stats = rows; }, chart(c) { charts.push(c); },
   };
   const sim = plate.create(p5Stub(), ctx);
   sim.setup();
-  return { sim, stats: () => stats };
+  return { sim, stats: () => stats, charts };
 }
 
 const labs = CATALOGUE.labs.filter((l) => l.engine === 'array' && labRunnable(l.id));
@@ -45,6 +46,20 @@ describe('array lab: one kernel traced per frame', () => {
       expect(seen.slice(0, first).every((x) => x === 0)).toBe(true);
       expect(new Set(seen.slice(first))).toEqual(new Set([seen[first]]));
       expect(seen[first]).toBeGreaterThan(1);
+    });
+    it(`${l.id}: measures no size larger than the input its slider allows`, async () => {
+      // a lab frame traces one kernel beside drawing every pane: a scaling point past the lab's
+      // own n bound would be the heaviest trace of the run (an uncapped kernel at 512)
+      const plate = (await loadLab(l.id))!;
+      const n = plate.params.find((d) => d.key === 'n');
+      if (n?.kind !== 'range') throw new Error('the lab has an n range');
+      const { sim, charts } = mount(plate, false);
+      for (let f = 0; f < 600; f++) sim.draw();
+      const scaling = charts.filter((c) => c.x.label === 'keys n');
+      let points = 0; let largest = 0;
+      for (const c of scaling) for (const s of c.series) for (const [x] of s.points) { points++; largest = Math.max(largest, x); }
+      expect(points).toBeGreaterThan(0);
+      expect(largest).toBeLessThanOrEqual(n.max);
     });
     it(`${l.id}: a thumbnail traces every kernel at once`, async () => {
       const plate = (await loadLab(l.id))!;
