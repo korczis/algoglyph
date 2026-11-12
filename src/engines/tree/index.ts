@@ -9,11 +9,12 @@ import type { Engine, KernelInfo } from '../types';
 import { drawArray, drawOutputs, drawScene, Motion, Replay, shape, type Box } from './scene';
 import { costOf, MAX_SYMBOLS, NIL, opGroups, SHAPES, trace, workload, type InputKind, type OpKind, type Trace,
   type TreeKernel } from './trace';
+import { count } from '../../core/format';
 
 const HOLD_FRAMES = 120;
 const SCALING_N = [16, 32, 64, 128, 256, 512, 1024];
 const LAB_MAX_N = 128;
-const fmt = (x: number) => x.toLocaleString('en-US');
+const fmt = count;
 const fix2 = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : '?');
 
 const SIZE: Record<InputKind, { min: number; max: number; value: number; label: string }> = {

@@ -11,9 +11,10 @@ import { DEFAULT_SHAPES, makeInput, SHAPE_LABELS } from './input';
 import { buildNow, Scaling, SLICE_MS, startBuild, type Build, type Request } from './build';
 import { record, type Box, type GeometryKernel } from './trace';
 import type { Track } from './track';
+import { count } from '../../core/format';
 
 const HOLD_FRAMES = 120;
-const fmt = (x: number) => (Number.isInteger(x) ? x.toLocaleString('en-US') : x.toFixed(2));
+const fmt = (x: number) => (Number.isInteger(x) ? count(x) : x.toFixed(2));
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
 export function exponent(points: [number, number][]): number {

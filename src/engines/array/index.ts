@@ -7,6 +7,7 @@ import { bool, num, str, type ParamDef, type PlateCode, type PlateContext, type 
 import type { Engine, KernelInfo } from '../types';
 import { apply, input, inversions, OP, SHAPE_LABELS, SHAPES, trace, type ArrayKernel, type Shape,
   type Trace } from './trace';
+import { count } from '../../core/format';
 
 const SCALING_N = [16, 32, 64, 128, 256, 512];
 /**
@@ -19,7 +20,7 @@ export const LAB_OPS_PER_FRAME = 24000;
 const scalingN = (kernel: ArrayKernel) => SCALING_N.filter((n) => n <= (kernel.maxN ?? MAX_N));
 const HOLD_FRAMES = 90;
 
-const fmt = (x: number) => x.toLocaleString('en-US');
+const fmt = count;
 const total = (t: Trace) => t.counts.compares + t.counts.writes + t.counts.auxWrites;
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
@@ -499,16 +500,22 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
         const g = str(ctx.params, 'group');
         return kernels.filter((k) => g === 'all' || k.info.group === g);
       };
-      /** Trace the next incoming kernel; true if one was traced. */
+      /**
+       * One step of building the next generation: trace the next incoming kernel, or, once every
+       * kernel is traced, show the new panes. The two never share a frame: the first draw of every
+       * new pane is as heavy as a trace (with 123 panes, a trace and that draw together took 33 ms).
+       * True if it did either.
+       */
       const buildOne = (): boolean => {
         if (!incoming) return false;
-        const k = incoming.list[incoming.built.length];
-        incoming.built.push({ ...k, r: new Replay(trace(k.kernel, incoming.data, incoming.half)), finished: 0 });
         if (incoming.built.length >= incoming.list.length) {
           panes = incoming.built;
           finishedCount = 0;
           incoming = null;
+          return true;
         }
+        const k = incoming.list[incoming.built.length];
+        incoming.built.push({ ...k, r: new Replay(trace(k.kernel, incoming.data, incoming.half)), finished: 0 });
         return true;
       };
       const build = (atOnce: boolean) => {

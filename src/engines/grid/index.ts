@@ -9,6 +9,7 @@ import { paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, type Chart, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { OP, seeded, Tally, Tracer, type GridKernel, type Instance, type Trace } from './trace';
+import { count } from '../../core/format';
 
 const HOLD_FRAMES = 120;
 const LAB_N = [4, 6, 8, 12, 16, 24, 32];
@@ -20,7 +21,7 @@ export const THUMBNAIL_EVENTS = 60_000;
 /** Frames the board stays framed after a solution is reached. */
 export const FLASH_FRAMES = 24;
 
-const fmt = (x: number) => x.toLocaleString('en-US');
+const fmt = count;
 const LAB_RANGE = `n = ${LAB_N[0]} to ${LAB_N[LAB_N.length - 1]}`;
 const WORK_LABEL = 'counted operations (visits, reads, lookups, writes, comparisons, moves)';
 

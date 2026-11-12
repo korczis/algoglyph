@@ -1,7 +1,14 @@
 // The array engine's lab traces its kernels one per frame and shows them together once all are
 // ready, so a lab of many kernels never traces them all inside one frame; a thumbnail is one
 // picture and traces them at once.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// every trace the engine takes, counted: a frame's heavy work is its traces
+const counter = vi.hoisted(() => ({ traces: 0 }));
+vi.mock('../src/engines/array/trace', async (load) => {
+  const real = await load<typeof import('../src/engines/array/trace')>();
+  return { ...real, trace: (...a: Parameters<typeof real.trace>) => { counter.traces++; return real.trace(...a); } };
+});
 import { CATALOGUE } from '../src/core/catalogue';
 import { palette as lookupPalette, GROUNDS } from '../src/core/palette';
 import type { Chart, Params, Plate, PlateContext, Stat } from '../src/core/plate';
@@ -25,6 +32,17 @@ function mount(plate: Plate, thumbnail: boolean) {
   const sim = plate.create(p5Stub(), ctx);
   sim.setup();
   return { sim, stats: () => stats, charts };
+}
+
+/** Per frame: how many kernels the lab traced, and how many panes it reported. */
+function tracesPerFrame(sim: { draw(): void }, frames: number, stats: () => Stat[]) {
+  const out: { traces: number; shown: number }[] = [];
+  for (let f = 0; f < frames; f++) {
+    const before = counter.traces;
+    sim.draw();
+    out.push({ traces: counter.traces - before, shown: stats().length });
+  }
+  return out;
 }
 
 const labs = CATALOGUE.labs.filter((l) => l.engine === 'array' && labRunnable(l.id));
@@ -60,6 +78,16 @@ describe('array lab: one kernel traced per frame', () => {
       for (const c of scaling) for (const s of c.series) for (const [x] of s.points) { points++; largest = Math.max(largest, x); }
       expect(points).toBeGreaterThan(0);
       expect(largest).toBeLessThanOrEqual(n.max);
+    });
+    it(`${l.id}: the frame that shows the new panes traces no kernel`, async () => {
+      // the first draw of every pane is as heavy as a trace: the two never share a frame
+      const plate = (await loadLab(l.id))!;
+      const { sim, stats } = mount(plate, false);
+      const calls = tracesPerFrame(sim, l.entries.length + 2, stats);
+      const shown = calls.findIndex((x) => x.shown > 0);
+      expect(shown).toBeGreaterThan(0);
+      expect(calls[shown].traces).toBe(0);
+      expect(calls[shown - 1].traces).toBe(1);
     });
     it(`${l.id}: a thumbnail traces every kernel at once`, async () => {
       const plate = (await loadLab(l.id))!;

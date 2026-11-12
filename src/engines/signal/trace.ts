@@ -4,6 +4,7 @@
 // butterfly or frame a kernel performs goes through a Meter, so the counts the plate shows are
 // the counts of the run itself. Nothing here draws.
 import type { Chart, ParamDef, Params, Stat } from '../../core/plate';
+import { count } from '../../core/format';
 
 /** Counts what a kernel performs; each view carries a snapshot taken when it was recorded. */
 export class Meter {
@@ -178,7 +179,7 @@ export function chartPoints(y: ArrayLike<number>, x: (i: number) => number, max 
   return out;
 }
 
-export const fmtInt = (x: number): string => Math.round(x).toLocaleString('en-US');
+export const fmtInt = (x: number): string => count(Math.round(x));
 export const fmtHz = (f: number): string => (Math.abs(f) >= 1000 ? `${(f / 1000).toFixed(3)} kHz`
   : `${f.toFixed(2)} Hz`);
 
