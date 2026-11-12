@@ -3,10 +3,11 @@
 // frame, and measures how each one's work grows with n (ADR 0004 §4-5).
 import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../core/palette';
-import { bool, num, str, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
+import { bool, num, str, type ParamDef, type Params, type PlateCode, type PlateContext, type RangeParam,
+  type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
-import { apply, input, inversions, OP, SHAPE_LABELS, SHAPES, trace, type ArrayKernel, type Shape,
-  type Trace } from './trace';
+import { apply, EVENT_CAP, input, inversions, OP, SHAPE_LABELS, SHAPES, trace, type ArrayKernel,
+  type OptionValues, type Shape, type Trace } from './trace';
 import { count } from '../../core/format';
 import { downFrom, fitSize, HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
@@ -60,6 +61,31 @@ const baseParams = (n: number, max = MAX_N): ParamDef[] => [
   { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
   paletteParam('spectral'),
 ];
+
+/**
+ * The controls of a kernel's options (ArrayKernel.options), one slider each, keyed by the option's
+ * name: a shared link carries it like any control (src/core/share.ts), and a change rebuilds the
+ * run, since it is another run. Whatever declares the options (a sidecar record, through the
+ * sorting adapter) is data; this engine names no kernel. An option whose name is already a control
+ * of the plate is refused rather than shadowed.
+ */
+export function optionParams(kernel: ArrayKernel, taken: readonly string[]): RangeParam[] {
+  return (kernel.options ?? []).map((o) => {
+    if (taken.includes(o.name)) throw new Error(`array engine: option ${o.name} is already a control of the plate`);
+    return {
+      kind: 'range', key: o.name, label: o.unit ? `${o.label}, ${o.unit}` : o.label,
+      min: o.min, max: o.max, step: o.step, value: o.default, rebuild: true,
+    };
+  });
+}
+
+/** The values of a kernel's options in a plate's params, by name (a missing one at its default). */
+export function optionValues(kernel: ArrayKernel, params: Params): OptionValues {
+  return Object.fromEntries((kernel.options ?? []).map((o) => {
+    const v = num(params, o.name);
+    return [o.name, Number.isFinite(v) ? v : o.default];
+  }));
+}
 
 /** One replayed run: its trace, the array as replayed so far, and where it stands. */
 export class Replay {
@@ -385,7 +411,8 @@ function run(kernel: ArrayKernel, ctx: PlateContext, generation: number): Trace 
   const params = ctx.params;
   const n = num(params, 'n');
   const k = kernel.goal === 'select' ? Math.min(n - 1, Math.floor((num(params, 'k') / 100) * (n - 1))) : 0;
-  return trace(kernel, input(str(params, 'shape') as Shape, n, ctx.seed + generation * 7919), k);
+  return trace(kernel, input(str(params, 'shape') as Shape, n, ctx.seed + generation * 7919), k, EVENT_CAP,
+    undefined, optionValues(kernel, params));
 }
 
 /**
@@ -406,6 +433,8 @@ function plate(info: KernelInfo, kernel: ArrayKernel): PlateCode {
   if (kernel.goal === 'select') {
     params.splice(2, 0, { kind: 'range', key: 'k', label: 'Rank k (percent of n)', min: 0, max: 100, step: 1, value: 50, rebuild: true });
   }
+  // the kernel's own constants, after the input and before the pace (ADR 0008's paceParam)
+  params.splice(params.findIndex((d) => d.key === 'pace'), 0, ...optionParams(kernel, params.map((d) => d.key)));
   return {
     id: info.id,
     mode: '2d',
