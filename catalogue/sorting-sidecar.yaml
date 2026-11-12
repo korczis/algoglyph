@@ -2321,7 +2321,7 @@ entries:
   - id: "balanced-multiway-merge"
     kernel: "balanced-multiway-merge-sort"
     atlas_id: "TA-08.02"
-    existing: false
+    existing: true
     engine: "custom"
     year: null
     authors: []
@@ -2573,7 +2573,7 @@ entries:
   - id: "replacement-selection"
     kernel: "replacement-selection-run-generation"
     atlas_id: "TA-08.14"
-    existing: false
+    existing: true
     engine: "tree"
     year: null
     authors: []
@@ -2637,7 +2637,7 @@ entries:
   - id: "topological-sort"
     kernel: "topological-sort"
     atlas_id: "TA-09.03"
-    existing: false
+    existing: true
     engine: "graph"
     year: 1962
     authors: ["A. B. Kahn"]
@@ -2740,7 +2740,7 @@ entries:
     aliases: ["bogo-bogo-sort"]
     family: "esoteric"
     broader: "bogosort"
-    custom_plate: "grows far faster than n!: no input of the array engine’s sizes finishes"
+    custom_plate: "at least n! − 1 expected shuffles even in the kernel’s simplified form: no input of the array engine’s sizes finishes"
   - id: "bozosort"
     kernel: "bozosort"
     atlas_id: "TA-10.03"

@@ -26,7 +26,7 @@ pub const MAX_N: usize = 1 << 20;
 pub const MAX_EDGES: usize = 4 * MAX_N;
 /// The layout of the C ABI (`ag_sort_abi`): op codes, the result array, the exports. A
 /// browser cache keys traces by it.
-pub const ABI_VERSION: u32 = 2;
+pub const ABI_VERSION: u32 = 3;
 
 pub fn find(id: &str) -> Option<&'static Entry> {
     REGISTRY.iter().find(|e| e.meta.id == id)

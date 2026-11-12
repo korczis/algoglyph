@@ -38,5 +38,10 @@ export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
     environment: 'node',
+    // Correctness tests are judged on their result, not on wall-clock time: speed is the budget
+    // gate's job (test/budget.test.ts, CPU time, calibrated). The default 5 s timeout failed a
+    // boids invariant test that takes under 2 s here on the shared runner while the other
+    // files ran beside it (Pages run 43128794427).
+    testTimeout: 120_000,
   },
 });
