@@ -708,7 +708,7 @@ Distribute the keys into buckets by value, about sixteen keys per bucket, and so
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/aks-sorting-network">106 · AKS sorting network</a></b><br>
 The network of Ajtai, Komlós and Szemerédi: depth on the order of log n and on the order of n log n comparators, both asymptotically optimal, built from approximate halvers applied over a tree of intervals.<br>
-<sub>Sorting networks · n log n in every case; extra space 1 · sorting, sorting network, oblivious, in-place, parallel, expander graphs</sub>
+<sub>Sorting networks · n log n comparators in log n depth (AKS); the plate's simplification n log² n comparators in log² n depth; extra space 1 · sorting, sorting network, oblivious, in-place, parallel, expander graphs</sub>
 </td>
 </tr>
 <tr>
@@ -763,7 +763,7 @@ A mergesort whose comparators are vector instructions: sort small blocks inside 
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/zig-zag-sort">115 · Zig-zag sort</a></b><br>
 Goodrich's deterministic, data-oblivious Shellsort variant: at each of log n levels the subarrays halve in size, and a zig pass left to right and a zag pass right to left apply a Reduce step to every pair of neighbouring subarrays.<br>
-<sub>Sorting networks · n log n in every case; extra space 1 · sorting, sorting network, oblivious, in-place, shellsort</sub>
+<sub>Sorting networks · n log n (Goodrich); the plate's simplification n log² n comparators in depth on the order of n; extra space 1 · sorting, sorting network, oblivious, in-place, shellsort</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/parallel-counting-sort">116 · Counting sort, parallel</a></b><br>

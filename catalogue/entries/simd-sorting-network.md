@@ -25,6 +25,31 @@ related:
   - batcher-merge-exchange
   - bitonic-sort
   - mergesort-top-down
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [bitonic-sort]
+  objectives:
+  - 'Read the Rounds readout at 512 keys: 4,005 vector instructions on every input, 160 in the in-register sorts of the 32 blocks of 16 keys and five for each of the 769 merges of two registers.'
+  - 'Read the Lanes readout: 4, one per lane of the modelled vector register.'
+  - 'Explain why one min and max instruction over two registers performs four comparators at once.'
+  misconceptions:
+  - 'Vectorising a sort reduces its comparisons; on Random permutation at 512 keys the plate''s network makes 10,506, more than twice n lg n = 4,608, and gains by running four of them in each instruction.'
+algorithm:
+  properties:
+    stable: false
+    in_place: false
+bounds:
+  model: 'comparisons (between real keys; a padded +∞ costs none), array writes (the real keys written back after every step, one per key that moved) and rounds (vector instructions: a min and max over four lanes, or one half-cleaner level inside a register)'
+  average: 'four lanes, and the same vector instructions on every input of n keys: 5N/16 + 5((k − 3)N/4 + 1) for N = 2^k ≥ 16, 4,005 at 512 keys'
+claims:
+  - id: vector-instructions
+    statement: >-
+      On Random permutation at 512 keys the SIMD network takes 4,005 vector instructions, 5N/16 + 5((k − 3)N/4 + 1) for N = 2^9: five for the in-register sort of each block of 16 keys and five for each merge of two registers.
+    readout: Rounds
+    expect: { value: 4005 }
+    setup:
+      params: { shape: random, n: 512, speed: 2000 }
 ---
 
 A mergesort whose comparators are vector instructions: sort small blocks inside registers with a fixed network of min and max operations, transpose them into sorted runs, and merge runs with a bitonic merge network executed register against register.
