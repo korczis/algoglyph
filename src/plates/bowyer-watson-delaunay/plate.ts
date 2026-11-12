@@ -6,10 +6,18 @@ import { circumcentre, Delaunay, LATTICE, minAngle, type Insertion } from './bow
 type Pt = [number, number];
 
 const BUCKETS = 40;
-const FADE = 45;
+export const FADE = 45;
 
 function rgba(c: RGB, a: number): string {
   return `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+}
+
+/**
+ * Opacity of the latest cavity, `age` frames after its insertion: a linear ramp that reaches
+ * exactly 0 at FADE, never an exponential decay that would creep through subnormal floats.
+ */
+export function highlight(age: number): number {
+  return age >= FADE ? 0 : 1 - age / FADE;
 }
 
 function degrees(rad: number): string {
@@ -183,10 +191,10 @@ export const bowyerWatsonDelaunay: PlateCode = {
         for (let k = 0; k < rate && next < queue.length; k++, next++) {
           if (insert(queue[next][0], queue[next][1])) inserted = true;
         }
-        if (!inserted) age++;
+        if (!inserted) age = Math.min(FADE, age + 1);
 
         // the canvas keeps its last frame: redraw only when something it shows has changed
-        const key = [mesh.vertices, next, age < FADE ? age : -1, ctx.theme, str(params, 'palette'),
+        const key = [mesh.vertices, next, age, ctx.theme, str(params, 'palette'),
           str(params, 'colour'), bool(params, 'voronoi'), bool(params, 'circles')].join('|');
         if (key === shown) {
           ctx.stats(rows);
@@ -287,7 +295,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
         }
 
         // the cavity of the latest insertions, its circumcircles and the new fan
-        const fade = Math.max(0, 1 - age / FADE);
+        const fade = highlight(age);
         if (fade > 0 && recent.length) {
           const hole = new Path2D();
           const rings = new Path2D();
@@ -359,7 +367,10 @@ export const bowyerWatsonDelaunay: PlateCode = {
             value: mesh.insertions ? (mesh.visited / mesh.insertions).toFixed(1) : '–',
           },
           { label: 'minimum angle', value: count ? degrees(smallest) : '–' },
-          { label: 'mean of triangle minimum angles', value: count ? degrees(angleSum / count) : '–' },
+          {
+            label: 'mean of triangle minimum angles',
+            value: count ? degrees(angleSum / count) : '–',
+          },
         ];
         ctx.stats(rows);
       },

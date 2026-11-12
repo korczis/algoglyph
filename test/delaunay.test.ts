@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32, shuffle } from '../src/core/random';
-import { Delaunay, LATTICE, inCircle, orient } from '../src/plates/bowyer-watson-delaunay/bowyer';
-import { scatter } from '../src/plates/bowyer-watson-delaunay/plate';
+import {
+  Delaunay, LATTICE, inCircle, minAngle, orient,
+} from '../src/plates/bowyer-watson-delaunay/bowyer';
+import { FADE, highlight, scatter } from '../src/plates/bowyer-watson-delaunay/plate';
 
 type Pt = [number, number];
 
@@ -336,5 +338,34 @@ describe('point distributions', () => {
     }
     // dart throwing rejects any point closer than its radius, which starts at 0.72·√(area/n)
     expect(closest).toBeGreaterThan(0.5 * Math.sqrt((960 * 600) / 300));
+  });
+});
+
+describe('no state decays into subnormal floats', () => {
+  const normal = (x: number) => x === 0 || Math.abs(x) >= 2.2250738585072014e-308;
+
+  it('the cavity highlight fades linearly to exactly 0 and stays there', () => {
+    expect(highlight(0)).toBe(1);
+    expect(highlight(FADE)).toBe(0);
+    // far past the fade: an exponential envelope would have reached subnormals by now
+    for (let age = 0; age < 2000; age++) {
+      const a = highlight(age);
+      expect(normal(a), `age ${age}`).toBe(true);
+      expect(a).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('the thinnest lattice triangle still has a normal minimum angle', () => {
+    // a sliver across the whole lattice with a one-unit offset: the smallest angle there is
+    const a = minAngle(0, 0, LATTICE - 1, 1, LATTICE - 2, 1);
+    expect(a).toBeGreaterThan(0);
+    expect(normal(a)).toBe(true);
+    const d = build(randomPoints(400, 61));
+    const t = d.triangles();
+    for (let i = 0; i < t.length; i += 3) {
+      const [p, q, r] = [t[i], t[i + 1], t[i + 2]];
+      const m = minAngle(d.xs[p], d.ys[p], d.xs[q], d.ys[q], d.xs[r], d.ys[r]);
+      expect(m > 0 && normal(m)).toBe(true);
+    }
   });
 });
