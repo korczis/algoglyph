@@ -13,9 +13,6 @@ tags:
 motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: "O(E) per round"
 interaction: "Tap a vertex to make it the seed."
-related:
-  - personalised-pagerank
-  - sir-cascade
 ---
 
 Relevance flows from a seed along weighted edges and fades, choosing what to look at.

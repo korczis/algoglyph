@@ -11,9 +11,6 @@ tags:
   - linear programming
   - simplex
 complexity: 'exponential in the worst case, usually a small multiple of the number of constraints'
-related:
-  - gaussian-elimination
-  - pareto-front
 ---
 
 Walk from vertex to vertex of the feasible polytope, always uphill.

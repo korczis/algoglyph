@@ -17,7 +17,6 @@ complexity: "O(E log E)"
 related:
   - path-compression
   - prim-mst
-  - boruvka-mst
 ---
 
 Take edges cheapest first, skipping any that would close a cycle.

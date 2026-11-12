@@ -17,7 +17,6 @@ complexity: "O(V³)"
 related:
   - transitive-closure
   - dijkstra
-  - bellman-ford
 ---
 
 All-pairs distances, improved through one intermediate vertex at a time.

@@ -239,6 +239,25 @@ export function discoverCode(root, errors = []) {
  * Load and validate the catalogue. Returns the derived model and every error found; a caller
  * that ships the model must refuse it while `errors` is not empty.
  */
+/** Pairs of entries that each declare the other (related or a typed relation; a prerequisite is
+ * reading order, not a link, and does not count). A link is declared once and its reverse derived,
+ * so such a pair is refused; scripts/relations-one-side.mjs collapses them by a stated rule.
+ * Input: [{ id, declared: [{ type, target }] }]. Output: sorted [a, b] pairs with a < b. */
+export function twoSidedPairs(entries) {
+  const out = new Map();
+  const links = new Map(entries.map((e) => [e.id,
+    new Set(e.declared.filter((d) => d.type !== 'requires').map((d) => d.target))]));
+  for (const [a, targets] of links) {
+    for (const b of targets) {
+      if (a !== b && links.get(b)?.has(a)) {
+        const [x, y] = a < b ? [a, b] : [b, a];
+        out.set(`${x}\u0000${y}`, [x, y]);
+      }
+    }
+  }
+  return [...out.values()].sort((p, q) => p[0].localeCompare(q[0]) || p[1].localeCompare(q[1]));
+}
+
 export function loadCatalogue(root, { code = true } = {}) {
   const errors = [];
   const dir = join(root, 'catalogue');
@@ -341,6 +360,9 @@ export function loadCatalogue(root, { code = true } = {}) {
     if (r.type === 'entry' && !known.has(r.value)) errors.push(`${r.rel}: ${r.path}: ${r.value} is not an entry`);
     if (r.type === 'relation' && !relTypes.has(r.value)) errors.push(`${r.rel}: ${r.path}: ${r.value} is not a relation type of relations.yaml`);
     if (r.type === 'entry' && r.value === r.from) errors.push(`${r.rel}: ${r.path}: an entry does not relate to itself`);
+  }
+  for (const [a, b] of twoSidedPairs(entries)) {
+    errors.push(`relations: ${a} and ${b} each declare the other; a link is declared once and its reverse derived (node scripts/relations-one-side.mjs)`);
   }
   // typed edges: declared once, the inverse derived from the relation table
   const edges = [];

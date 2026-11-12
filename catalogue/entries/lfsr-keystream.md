@@ -13,7 +13,6 @@ tags:
 motivation: A staple of the reverse-engineering literature.
 complexity: "O(1) per keystream bit; period 2^w − 1 for a primitive feedback polynomial"
 related:
-  - crc-division
   - linear-congruential
 schema: algoglyph.entry/v2
 pedagogy:

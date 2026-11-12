@@ -14,8 +14,6 @@ tags:
   - strings
   - alignment
 complexity: "Θ(mn) time and space for strings of lengths m and n"
-related:
-  - knapsack-dp
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

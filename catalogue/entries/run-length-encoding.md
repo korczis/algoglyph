@@ -12,7 +12,6 @@ tags:
   - runs
 complexity: "O(n) for n symbols"
 related:
-  - lzw-compression
   - huffman-coding
 schema: algoglyph.entry/v2
 pedagogy:

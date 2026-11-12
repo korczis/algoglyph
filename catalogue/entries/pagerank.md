@@ -16,8 +16,6 @@ motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(E) per round; the error shrinks by a factor d per round"
 related:
   - personalised-pagerank
-  - brandes-betweenness
-  - centrality-comparison
 ---
 
 Influence as the stationary distribution of a random surfer who sometimes teleports.

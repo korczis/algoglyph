@@ -14,8 +14,6 @@ tags:
   - partitions
 motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: merge O(size of state); state grows with tombstones
-related:
-  - anti-entropy
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

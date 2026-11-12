@@ -14,8 +14,6 @@ tags:
   - automaton
   - prefix function
 complexity: "O(n + m) comparisons: at most 2n in the search and 2m in the prefix function"
-related:
-  - brute-force-search
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

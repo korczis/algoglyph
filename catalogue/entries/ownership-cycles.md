@@ -14,7 +14,6 @@ motivation: Link analysis in investigations and due diligence leans on it.
 complexity: "O(V + E)"
 related:
   - tarjan-scc
-  - effective-ownership
   - topological-sort
 ---
 

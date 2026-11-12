@@ -14,9 +14,6 @@ tags:
   - open addressing
   - clustering
 complexity: expected ½(1 + 1/(1 − α)) probes per hit and ½(1 + 1/(1 − α)²) per miss
-related:
-  - double-hashing
-  - dynamic-hash-table
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

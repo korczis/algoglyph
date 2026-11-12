@@ -14,7 +14,6 @@ tags:
 complexity: "O(n) for n tokens: each operator is pushed and popped once"
 related:
   - postfix-evaluation
-  - recursive-descent-parser
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

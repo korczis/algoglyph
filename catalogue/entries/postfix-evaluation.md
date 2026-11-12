@@ -11,8 +11,6 @@ tags:
   - stack
   - expressions
 complexity: "O(n) for n tokens, one push or two pops and a push per token"
-related:
-  - infix-to-postfix
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

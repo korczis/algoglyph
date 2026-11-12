@@ -13,7 +13,6 @@ tags:
 motivation: Resolving one company or person across noisy public registries needs it.
 complexity: "O(m log m) to sort the m candidate pairs, then near-constant time per union"
 related:
-  - weighted-quick-union
   - connected-components
 schema: algoglyph.entry/v2
 pedagogy:

@@ -16,7 +16,6 @@ tags:
 complexity: amortised lg n per operation
 related:
   - bst-root-insertion
-  - randomized-bst
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

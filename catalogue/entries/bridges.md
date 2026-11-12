@@ -13,8 +13,6 @@ tags:
   - dfs
 complexity: "O(V + E)"
 interaction: "Tap a vertex to start from it."
-related:
-  - articulation-points
 ---
 
 The edges whose removal disconnects the graph, found from DFS low points.

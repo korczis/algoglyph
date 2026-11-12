@@ -12,7 +12,6 @@ tags:
   - negative cycles
 complexity: "O(VE) per cancelled cycle (Bellman–Ford); with integer costs the cycles are finite"
 related:
-  - ford-fulkerson
   - bellman-ford
 ---
 

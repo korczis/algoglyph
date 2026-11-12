@@ -17,7 +17,6 @@ complexity: "O(V + E)"
 interaction: "Tap a vertex to start from it."
 related:
   - topological-sort
-  - bellman-ford
 ---
 
 Relax edges in topological order: linear time, negative weights allowed.

@@ -12,8 +12,6 @@ tags:
   - concurrency
 motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: O(n) per event and per message for n workers
-related:
-  - lamport-clocks
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

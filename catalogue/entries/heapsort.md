@@ -15,8 +15,6 @@ tags:
   - priority queue
   - in-place
 complexity: 2 n lg n compares worst case, in place
-related:
-  - binary-heap
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

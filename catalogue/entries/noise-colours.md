@@ -14,6 +14,8 @@ complexity: 'O(n) to generate; O(n log M) for the Welch estimate'
 motivation: Acoustic measurement and synthesis use it every day.
 related:
   - biquad-filters
+relations:
+  - { type: uses, target: least-squares, reason: "The slopes are fitted by least squares to the Welch-averaged power." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

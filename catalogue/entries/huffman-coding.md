@@ -12,8 +12,8 @@ tags:
   - prefix codes
   - greedy
 complexity: n lg n for n symbols with a binary heap
-related:
-  - binary-heap
+relations:
+  - { type: uses, target: binary-heap, reason: "The queue of trees ordered by weight is a binary heap." }
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

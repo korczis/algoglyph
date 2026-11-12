@@ -16,7 +16,6 @@ tags:
 complexity: height at most 2 lg n; lg n per insert and search
 related:
   - two-three-four-tree
-  - avl-tree
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

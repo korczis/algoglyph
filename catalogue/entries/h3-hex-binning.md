@@ -12,8 +12,6 @@ tags:
   - aggregation
 motivation: Crisis maps and geospatial analysis are built from it.
 complexity: "O(1) per point"
-related:
-  - grid-method
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

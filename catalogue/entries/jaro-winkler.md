@@ -17,7 +17,6 @@ complexity: "O(|a| · |b|) comparisons in the worst case, O(|a| · window) as wr
 related:
   - levenshtein-matrix
   - trigram-similarity
-  - fellegi-sunter
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

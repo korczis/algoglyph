@@ -12,7 +12,6 @@ tags:
   - divide and conquer
 complexity: '7^lg n = n^2.807 multiplications, with more additions than the triple loop'
 related:
-  - karatsuba
   - gaussian-elimination
 ---
 

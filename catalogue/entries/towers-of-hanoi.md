@@ -11,8 +11,6 @@ tags:
   - recursion
   - divide and conquer
 complexity: '2ⁿ − 1 moves, recursion depth n'
-related:
-  - ruler-drawing
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

@@ -13,7 +13,6 @@ tags:
   - trees
 complexity: at most w + 1 nodes per search for w-bit keys, about lg n on random keys
 related:
-  - binary-trie
   - bst-search-insert
 schema: algoglyph.entry/v2
 pedagogy:

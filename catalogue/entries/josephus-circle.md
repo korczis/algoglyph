@@ -11,8 +11,6 @@ tags:
   - linked list
   - circular
 complexity: '(N − 1)(M − 1) link steps and N − 1 removals'
-related:
-  - circular-queue
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

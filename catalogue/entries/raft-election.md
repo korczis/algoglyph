@@ -14,8 +14,6 @@ tags:
   - elections
 motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: O(n) messages per election round for n nodes
-related:
-  - lease-fencing
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

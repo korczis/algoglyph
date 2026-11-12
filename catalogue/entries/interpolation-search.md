@@ -12,8 +12,6 @@ tags:
   - sorted array
   - interpolation
 complexity: 'about lg lg n probes on uniformly spread keys, O(n) in the worst case'
-related:
-  - binary-search
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate

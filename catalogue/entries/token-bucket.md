@@ -11,8 +11,6 @@ tags:
   - token bucket
 motivation: Coordinating many workers and machines without a shared clock depends on it.
 complexity: O(1) per request
-related:
-  - backoff-jitter
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: introductory

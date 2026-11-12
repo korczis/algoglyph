@@ -15,9 +15,6 @@ tags:
   - priority queue
 complexity: "O(E log V) with a binary heap"
 interaction: "Tap a vertex to start from it."
-related:
-  - dijkstra
-  - kruskal-mst
 ---
 
 Grow one tree, always adding the cheapest edge leaving it.

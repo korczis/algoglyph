@@ -15,8 +15,6 @@ tags:
   - root insertion
 complexity: about 1.39 lg n expected compares per search, whatever the input order
 related:
-  - bst-root-insertion
-  - bst-delete-join
   - splay-tree
 schema: algoglyph.entry/v2
 pedagogy:

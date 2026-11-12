@@ -15,7 +15,6 @@ complexity: "O(n²) flips in the worst case; O(n log n) expected with a randomis
 related:
   - voronoi-relax
   - euclidean-mst
-  - closest-pair
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: advanced

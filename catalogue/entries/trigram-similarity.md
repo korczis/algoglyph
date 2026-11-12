@@ -15,7 +15,6 @@ tags:
 motivation: Resolving one company or person across noisy public registries needs it.
 complexity: "O(|a| + |b|) trigrams and set lookups"
 related:
-  - jaro-winkler
   - levenshtein-matrix
   - minhash-lsh
 schema: algoglyph.entry/v2

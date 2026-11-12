@@ -12,8 +12,6 @@ tags:
   - orbits
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
 complexity: 'linear in the integration time'
-related:
-  - lyapunov-exponent
 ---
 
 Where a trajectory pierces a plane, turning a flow into a map.

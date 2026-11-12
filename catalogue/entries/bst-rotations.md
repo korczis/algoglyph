@@ -13,9 +13,7 @@ tags:
   - rebalancing
 complexity: one rotation changes two links in constant time and keeps the in-order
 related:
-  - avl-tree
   - red-black-tree
-  - bst-root-insertion
 schema: algoglyph.entry/v2
 pedagogy:
   difficulty: intermediate
