@@ -10,6 +10,24 @@ tags:
   - 3D
 complexity: RK4, O(tracers × trail)
 interaction: Drag to orbit, scroll to zoom.
+schema: algoglyph.entry/v2
+sources:
+  - { id: lorenz-1963, purpose: algorithm-reference }
+relations:
+  - { type: compares_with, target: double-pendulum, reason: "Both chaotic: one dissipative attractor, one conservative mechanical system." }
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - See sensitive dependence on initial conditions as a measured divergence, not a slogan.
+    - Find the change of behaviour as ρ crosses about 24.74.
+algorithm:
+  paradigm: numerical-integration
+  properties: { deterministic: true }
+  limitations:
+    - "A fixed RK4 step agrees with the exact flow only for a while: the chaos that separates the tracers also amplifies the integration error."
+experiments:
+  - { id: chaotic, title: Classic chaos, params: { sigma: 10, rho: 28, beta: 2.67 }, observe: "The swarm spreads over both wings within a few orbits." }
+  - { id: settles, title: Below the transition, params: { sigma: 10, rho: 12, beta: 2.67 }, observe: "The tracers spiral into one of the two fixed points and stop." }
 ---
 
 A swarm of tracers on the Lorenz system, released a hair apart, smearing across both wings of the strange attractor. Drag to orbit, scroll to zoom.

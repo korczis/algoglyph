@@ -1,0 +1,86 @@
+# The contract of a catalogue entry (ADR 0004, ADR 0005), validated by scripts/lib/schema.mjs.
+# Every key an entry may carry is here; an unknown key, a wrong type or a value outside its
+# enumeration is refused with its field path. Evidence (implemented, tested, verified,
+# deployed) has no key on purpose: it is derived from code, tests and runs, never authored.
+# `doc` is the field dictionary that docs/CATALOGUE-SCHEMA.md is generated from.
+version: 2
+fields:
+  schema: { type: enum, values: [algoglyph.entry/v1, algoglyph.entry/v2], doc: Contract version; absent means v1. }
+  id: { type: id, required: true, doc: Stable identity; equals the file name and the route. }
+  title: { type: string, required: true, min_length: 2, doc: The name a reader looks for. }
+  aliases: { type: list, unique: true, of: { type: string }, doc: Other names, searchable. }
+  taxonomy: { type: taxonomy, required: true, doc: One leaf of catalogue/taxonomy.yaml. }
+  status: { type: enum, required: true, values: [live, planned], doc: Lifecycle; live exactly when its code exists. }
+  engine: { type: enum, required: true, values: [custom, array, tree, hash, graph, geometry, string, numeric, signal, systems, stochastic, grid], doc: The engine that runs it, or custom for a bespoke plate. }
+  mode: { type: enum, values: ['2d', webgl, three], doc: Intended renderer of a planned entry. }
+  labs: { type: list, unique: true, of: { type: lab }, doc: Comparison labs it takes part in. }
+  sources:
+    type: list
+    doc: Cited works.
+    of:
+      type: map
+      fields:
+        id: { type: source, required: true }
+        ref: { type: string, doc: Part, chapter or section. }
+        purpose: { type: enum, values: [algorithm-reference, proof, history, implementation, data, further-reading] }
+  tags: { type: list, required: true, min_items: 1, unique: true, of: { type: string }, doc: Search terms. }
+  complexity: { type: string, doc: One line of cost, shown on cards. }
+  interaction: { type: string, doc: What the pointer does. }
+  motivation: { type: string, doc: Why it is in the collection, generic and public. }
+  order: { type: integer, doc: Position within its shelf. }
+  related: { type: list, unique: true, of: { type: entry }, doc: "v1 form of relations: each id reads as related_to." }
+  relations:
+    type: list
+    doc: Typed links to other entries; inverses are derived (catalogue/relations.yaml).
+    of:
+      type: map
+      fields:
+        type: { type: relation, required: true }
+        target: { type: entry, required: true }
+        reason: { type: string, doc: Why the link holds. }
+  pedagogy:
+    type: map
+    doc: What a learner takes away and needs first.
+    fields:
+      objectives: { type: list, of: { type: string, min_length: 8 } }
+      prerequisites: { type: list, unique: true, of: { type: entry }, doc: Entries to study first; the requires relation, acyclic. }
+      misconceptions: { type: list, of: { type: string, min_length: 8 } }
+      questions: { type: list, of: { type: string, min_length: 8 } }
+      difficulty: { type: enum, values: [introductory, intermediate, advanced] }
+  algorithm:
+    type: map
+    doc: Declared properties; the engine harness tests what it can (stability, comparisons).
+    fields:
+      paradigm: { type: enum, values: [divide-and-conquer, greedy, dynamic-programming, backtracking, incremental, randomized, iterative-refinement, numerical-integration, simulation, transform, search, union-find] }
+      properties:
+        type: map
+        fields:
+          stable: { type: boolean }
+          in_place: { type: boolean }
+          comparison_based: { type: boolean }
+          deterministic: { type: boolean }
+          adaptive: { type: boolean }
+          online: { type: boolean }
+      preconditions: { type: list, of: { type: string, min_length: 4 } }
+      postconditions: { type: list, of: { type: string, min_length: 4 } }
+      invariants: { type: list, of: { type: string, min_length: 4 } }
+      limitations: { type: list, of: { type: string, min_length: 4 } }
+  bounds:
+    type: map
+    doc: Asymptotic bounds, as analysis says; measured behaviour is a lab's job.
+    fields:
+      model: { type: string, doc: What is counted (comparisons, steps, evaluations). }
+      best: { type: string }
+      average: { type: string }
+      worst: { type: string }
+      space: { type: string }
+  experiments:
+    type: list
+    doc: Presets a reader can apply; each parameter must exist on the plate (checked by test/registry.test.ts).
+    of:
+      type: map
+      fields:
+        id: { type: id, required: true }
+        title: { type: string, required: true }
+        params: { type: any, doc: Parameter values by key. }
+        observe: { type: string, min_length: 8, doc: What to look for. }

@@ -37,6 +37,7 @@ export default defineConfig({
   },
   test: {
     include: ['test/**/*.test.ts'],
+    globalSetup: ['test/setup/wasm.ts'],
     environment: 'node',
     // Correctness tests are judged on their result, not on wall-clock time: speed is the budget
     // gate's job (test/budget.test.ts, CPU time, calibrated). The default 5 s timeout failed a

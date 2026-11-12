@@ -1,5 +1,5 @@
 //! A Rhai check runs on every commit, so it is bounded and sandboxed: a runaway script is
-//! refused fast with exit 2 at a limit of config/derived-facts.yaml, `import` resolves nothing,
+//! refused with exit 2 at a limit of config/derived-facts.yaml, `import` resolves nothing,
 //! print and debug never reach stdout (the --json report), and a checks directory that cannot be
 //! read is an error rather than no checks.
 
@@ -96,9 +96,16 @@ const RUNAWAYS: &[(&str, &str, &str)] = &[
     ),
 ];
 
+/// Long enough that only a hang reaches it. The claim under test is which limit refuses a
+/// runaway, not how fast a machine refuses it: a 1 s bound failed a deploy when the loaded x86
+/// runner took 2.4 s for the arrays-of-texts case (Pages run 43147327731), and on this Mac the
+/// slowest case takes about 0.12 s in the debug build. The limits themselves are sized in
+/// config/derived-facts.yaml so the slowest refusal stays far below this.
+const HANG_GUARD: Duration = Duration::from_secs(60);
+
 #[test]
-fn every_runaway_check_is_refused_within_a_second_at_its_limit() {
-    let mut slow = Vec::new();
+fn every_runaway_check_is_refused_at_its_limit() {
+    let mut hung = Vec::new();
     for (case, script, limit) in RUNAWAYS {
         let dir = setup(case, script);
         let (out, took) = facts(&dir, &dir.join("checks"));
@@ -108,11 +115,11 @@ fn every_runaway_check_is_refused_within_a_second_at_its_limit() {
             "{case}: expected {limit}: {}",
             stderr(&out)
         );
-        if took >= Duration::from_secs(1) {
-            slow.push(format!("{case} refused after {took:?}"));
+        if took >= HANG_GUARD {
+            hung.push(format!("{case} refused only after {took:?}"));
         }
     }
-    assert!(slow.is_empty(), "{slow:?}");
+    assert!(hung.is_empty(), "{hung:?}");
 }
 
 #[test]

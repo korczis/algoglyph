@@ -8,8 +8,9 @@
 //   - the seed must be a decimal integer in 1 … SEED_MAX, the range freshSeed() draws from, so
 //     two different links never alias to the same generator state.
 import type { ParamDef, Params, ParamValue, RangeParam } from './plate';
+import { SEED_MAX } from './random';
 
-export const SEED_MAX = 0x7fffffff;
+export { SEED_MAX };
 const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
 
 /** The seed of a query, or undefined when it is absent or not a plain integer in range. */
@@ -44,6 +45,8 @@ function fromText(d: ParamDef, text: string): ParamValue | undefined {
 
 function toText(d: ParamDef, v: ParamValue): string {
   if (d.kind === 'toggle') return v ? '1' : '0';
+  // a value set by code can carry float noise (1.4000000000000001): write it on the control's grid
+  if (d.kind === 'range') return String(snap(d, Number(v)));
   return String(v);
 }
 
@@ -53,7 +56,10 @@ export function serialise(defs: ParamDef[], params: Params, seed: number): strin
   q.set('seed', String(seed));
   for (const d of defs) {
     const v = params[d.key];
-    if (v === undefined || v === d.value) continue;
+    if (v === undefined) continue;
+    // compare on the control's grid, so float noise around a default is not a change
+    const same = d.kind === 'range' ? snap(d, Number(v)) === snap(d, d.value) : v === d.value;
+    if (same) continue;
     q.set(d.key, toText(d, v));
   }
   return q.toString();

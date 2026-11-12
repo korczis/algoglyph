@@ -8,6 +8,8 @@
 //   - every live entry's thumbnail renders on its wing page (dark, desktop; one wait per card)
 //   - every live plate and every runnable lab mounts a canvas of non-zero size and publishes a
 //     readout
+//   - no gallery thumbnail starts rendering behind the first plate opened after the wings
+//     (src/core/thumbs.ts; counted, not timed)
 // What exists is read from the catalogue (scripts/lib/catalogue.mjs), the source the site is
 // built from, never from a list kept here.
 //
@@ -166,6 +168,18 @@ try {
         reducedMotion: 'no-preference',
       });
       await context.addInitScript((t) => localStorage.setItem('color-theme', t), theme);
+      // every off-screen thumbnail render appends one host to <body> (src/core/stage.ts thumbnail)
+      await context.addInitScript(() => {
+        window.__thumbStarts = 0;
+        new MutationObserver((records) => {
+          for (const r of records) {
+            for (const n of r.addedNodes) {
+              if (n instanceof HTMLElement && n.parentElement === document.body
+                && n.style.left === '-10000px') window.__thumbStarts++;
+            }
+          }
+        }).observe(document, { childList: true, subtree: true });
+      });
       const p = await page(context, `${label} collection`);
       await p.goto(base, { waitUntil: 'load' });
       if (PREVIEWS && desktop) {
@@ -230,9 +244,16 @@ try {
       for (const [i, e] of only.entries()) {
         const where = `${label} plate ${e.id}`;
         log(where);
+        const thumbsBefore = await p.evaluate(() => window.__thumbStarts);
         const url = `${base}#/p/${e.id}?seed=4242`;
         await p.goto(url, { waitUntil: 'load' });
         await readout(p, where, url);
+        if (i === 0) {
+          // the wings queued their cards; none of them may start once a plate owns the page
+          await p.waitForTimeout(1500);
+          const behind = (await p.evaluate(() => window.__thumbStarts)) - thumbsBefore;
+          if (behind > 0) fail(where, `${behind} gallery thumbnail render(s) started behind the plate`);
+        }
         // previews let a plate develop for longer before its picture is taken
         await p.waitForTimeout(PREVIEWS && desktop ? 6000 : 600);
         await overflow(p, where);

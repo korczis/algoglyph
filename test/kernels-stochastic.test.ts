@@ -512,6 +512,9 @@ describe('stochastic engine budgets', () => {
   /** A piece of a run between two yields (ms): far above what a desktop takes, far below a
    * blocked frame. */
   const PIECE_MS = 25;
+  // CPU time of this process, not wall-clock: a stall of the machine is not the kernel's work
+  // (the instrument of test/budget.test.ts; a loaded runner stalled pages 50x, run 43133085956)
+  const cpuMs = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
   const maxParams = (k: StochasticKernel): Params => {
     const out: Params = {};
     for (const d of k.params ?? []) if (d.kind === 'range') out[d.key] = d.max;
@@ -525,16 +528,17 @@ describe('stochastic engine budgets', () => {
       // three runs: a garbage collection or a busy machine slows one run, not all three
       const times: number[][] = [];
       for (let rep = 0; rep < 3; rep++) {
-        const t0 = performance.now();
+        const t0 = cpuMs();
         const r = new Runner(k, maxParams(k), 5);
-        expect(performance.now() - t0).toBeLessThan(5);
+        // created without work: nothing drawn, and next to nothing computed
         expect(r.counts.draws).toBe(0);
+        expect(cpuMs() - t0).toBeLessThan(PIECE_MS);
         const t: number[] = [];
         const stop = performance.now() + 4000;
         while (!r.done && performance.now() < stop) {
-          const a = performance.now();
+          const a = cpuMs();
           r.step(0);
-          t.push(performance.now() - a);
+          t.push(cpuMs() - a);
         }
         times.push(t);
       }
