@@ -23,6 +23,25 @@ complexity: n log n best, n log n average, n² worst; extra space log n
 related:
   - proportion-extend-sort
   - quicksort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [dual-pivot-quicksort]
+  objectives:
+  - 'Classify a key with two comparisons, first against the middle pivot and then against an outer one, and name the part it joins.'
+  - 'Compare the comparisons and the Array writes with dual-pivot quicksort on Random permutation at 256 keys.'
+  - 'Explain why three pivots that are the three smallest keys of every subarray cost ⌊(n² − 1)/3⌋ comparisons.'
+  misconceptions:
+  - 'More pivots remove the quadratic worst case; with the three pivots the smallest keys of every subarray it costs ⌊(n² − 1)/3⌋ comparisons.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (an exchange is two writes)'
+  worst: 'quadratic: ⌊(n² − 1)/3⌋ comparisons from 4 keys on, when the three pivots are the three smallest keys of every subarray'
 ---
 
 Choose k pivots, sort them, and partition the subarray into k + 1 parts by which pair of pivots each key falls between; this plate runs the three-pivot version, which splits into four parts in a single pass.

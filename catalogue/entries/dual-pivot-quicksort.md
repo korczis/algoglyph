@@ -31,6 +31,27 @@ related:
   - multi-pivot-quicksort
   - quicksort
   - quicksort-three-way
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [quicksort, quicksort-three-way]
+  objectives:
+  - 'Name the three parts one scan produces, keys below p, between p and q and above q, and where both pivots land.'
+  - 'Below 17 keys count insertion sort alone: at n = 8 or 16 the Array writes are twice the inversions.'
+  - 'Explain why both pivots being the two smallest keys of every subarray make the comparisons quadratic.'
+  misconceptions:
+  - 'Two pivots remove the quadratic worst case; with both pivots the two smallest keys of every subarray it costs more than n²/4 comparisons.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (an exchange is two writes)'
+  best: 'linear: 2(n − 1) comparisons and 8 array writes when all keys are equal, from 17 keys on: one partition, its middle part skipped'
+  average: '~1.9 n ln n comparisons on random permutations for Yaroslavskiy''s partition (Wild and Nebel); below 17 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1'
+  worst: 'quadratic: more than n²/4 comparisons from 65 keys on, when both pivots are the two smallest keys of every subarray'
 ---
 
 Choose two pivots p ≤ q and partition in one scan into keys below p, keys between p and q, and keys above q; both pivots land in their final places and the three parts are sorted recursively.
