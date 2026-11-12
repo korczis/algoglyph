@@ -1,13 +1,15 @@
 // Burnt pancake sort: a stack of pancakes, each with a burnt side drawn dark, flipped by the
 // spatula until it is in order with every burnt side down. The flips of each stack are counted
 // and charted against the simple method's own bound, 3n, and the bounds on the best method that
-// Gates and Papadimitriou proved (the catalogue entry cites them).
+// Gates and Papadimitriou proved (the catalogue entry cites them). The `runs` control stops the
+// plate after k completed stacks (../_shared/settle/settle.ts).
 import type p5 from 'p5';
 import { paletteParam, ramp, scale, type RGB } from '../../core/palette';
 import { num, str, type PlateCode, type PlateContext } from '../../core/plate';
 import { caption, padding, type Box } from '../_shared/bars/bars';
 import { STEP_PACE, stepPaceParam, stepPacer } from '../_shared/kernel-mirror/controls';
 import { chartOf, fmt, Series } from '../_shared/live-chart/series';
+import { RunCounter, runsParam } from '../_shared/settle/settle';
 import { DISTINCT, input, isSorted, runSeed, shapeOf, shapeParam } from '../_shared/sort-input/input';
 import { countUp, isUp, pancakeRun, type Orientation, type PancakeRun } from './pancake';
 
@@ -31,6 +33,7 @@ const burntPancakeSort: PlateCode = {
         { value: 'down', label: 'All burnt side down' },
       ],
     },
+    runsParam(),
     stepPaceParam(),
     paletteParam('ember'),
   ],
@@ -44,9 +47,8 @@ const burntPancakeSort: PlateCode = {
     let k = 0;
     let run: PancakeRun;
     let hold = 0;
-    let stacks = 0;
     let flipsSum = 0;
-    let lastOk = true;
+    const completed = new RunCounter(params);
     const measured = new Series('flips per stack (counted)');
     const mean = new Series('mean flips per stack');
     const simple = new Series('3n: the simple method never needs more');
@@ -58,9 +60,11 @@ const burntPancakeSort: PlateCode = {
     };
 
     const finish = () => {
-      stacks++;
       flipsSum += run.state.flips;
-      lastOk = run.stepper.outcome === 'sorted' && isSorted(run.a.key) && countUp(run.a) === 0;
+      const ok = run.stepper.outcome === 'sorted' && isSorted(run.a.key) && countUp(run.a) === 0;
+      completed.complete(`${fmt(run.state.flips)} flips, `
+        + (ok ? 'in order, every burnt side down (checked)' : 'NOT sorted'));
+      const stacks = completed.count;
       measured.push(stacks, run.state.flips);
       mean.push(stacks, flipsSum / stacks);
       for (const [s, v] of [[simple, 3 * n], [gpUpper, 2 * n + 3], [gpLower, 1.5 * n - 1]] as const) {
@@ -71,7 +75,7 @@ const burntPancakeSort: PlateCode = {
     };
 
     return {
-      pace: () => pacer.report(false, params),
+      pace: () => pacer.report(completed.stopped, params),
       setup() {
         p.textFont('monospace');
         next();
@@ -83,11 +87,17 @@ const burntPancakeSort: PlateCode = {
             k++;
             next();
           }
+        } else if (run.stepper.done) {
+          // held on its k-th completed stack; a raised limit lets the next stack start
+          if (!completed.stopped) {
+            k++;
+            next();
+          }
         } else {
           run.stepper.advance(ctx.thumbnail ? 4 : pacer.take(params));
           if (run.stepper.done) {
             finish();
-            hold = ctx.thumbnail ? 1 : HOLD;
+            if (!completed.stopped) hold = ctx.thumbnail ? 1 : HOLD;
           }
         }
         render();
@@ -110,13 +120,13 @@ const burntPancakeSort: PlateCode = {
     function publish() {
       const t = run.stepper.t;
       const st = run.state;
+      const stacks = completed.count;
       ctx.stats([
         { label: 'flips, this stack', value: `${fmt(st.flips)} (the simple method's bound: 3n = ${fmt(3 * n)})` },
         { label: 'burnt sides up now / at the start', value: `${fmt(countUp(run.a))} / ${fmt(st.upAtStart)}` },
         { label: 'comparisons, swaps, turns', value: `${fmt(t.counts.cmp)}, ${fmt(t.counts.swap)}, ${fmt(t.counts.write)}` },
-        { label: 'stacks sorted', value: fmt(stacks) },
+        ...completed.rows(),
         { label: 'mean flips per stack', value: stacks ? fmt(flipsSum / stacks, 2) : '–' },
-        { label: 'last stack', value: stacks ? (lastOk ? 'in order, every burnt side down (checked)' : 'NOT sorted') : '–' },
         pacer.row(params),
       ]);
       ctx.chart(chartOf('Flips per stack against the bounds', { label: 'stacks sorted' }, { label: 'flips' },

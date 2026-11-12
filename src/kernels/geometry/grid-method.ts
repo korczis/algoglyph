@@ -1,20 +1,25 @@
 import { dots, rect, type Box, type GeometryKernel, type Mark } from '../../engines/geometry/trace';
 import { inBox, queryMarks, RANGE_PARAMS, type RangeResult } from './_range';
 
-// The field is cut into square cells sized so that each holds about two points on average, and
-// every point is dropped into its cell. A rectangle query visits only the cells it overlaps and
-// tests only their points; the cells wholly outside are never touched.
+// The field is cut into square cells sized so that each holds about `perCell` points on average
+// (two by default), and every point is dropped into its cell. A rectangle query visits only the
+// cells it overlaps and tests only their points; the cells wholly outside are never touched.
 export const kernel: GeometryKernel = {
   task: 'range',
   input: 'points',
   n: { min: 1, max: 1500, value: 200, step: 1 },
-  params: RANGE_PARAMS,
+  params: [
+    ...RANGE_PARAMS,
+    // at least 2, so no setting makes more (and smaller) cells than the default does
+    { kind: 'range', key: 'perCell', label: 'Points per cell (target)', min: 2, max: 32, step: 1, value: 2 },
+  ],
   counters: [['test', 'Points tested'], ['cell', 'Cells visited'], ['bucket', 'Points bucketed']],
   scaling: [64, 128, 256, 512, 1024, 2048, 4096],
   *run(g) {
     const pts = g.input.points;
     const B = g.input.box;
-    const side = Math.sqrt(((B.x1 - B.x0) * (B.y1 - B.y0) * 2) / Math.max(1, pts.length));
+    const perCell = Math.max(2, Number(g.params.perCell ?? 2));
+    const side = Math.sqrt(((B.x1 - B.x0) * (B.y1 - B.y0) * perCell) / Math.max(1, pts.length));
     const nx = Math.max(1, Math.ceil((B.x1 - B.x0) / side));
     const ny = Math.max(1, Math.ceil((B.y1 - B.y0) / side));
     const cells: number[][] = Array.from({ length: nx * ny }, () => []);

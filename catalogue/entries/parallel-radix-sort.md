@@ -55,6 +55,13 @@ claims:
     expect: { value: 6 }
     setup:
       params: { shape: random, n: 512 }
+  - id: rounds-in-base-2
+    statement: >-
+      In base b = 2 the keys of a permutation of 512 have nine binary digits, and every digit costs two rounds, a local histogram and a scatter: eighteen rounds.
+    readout: Rounds
+    expect: { value: 18 }
+    setup:
+      params: { shape: random, n: 512, base: 2 }
 ---
 
 LSD radix sort with every pass shared among p workers: each worker counts the digits of its share in a local histogram, one prefix sum over all histograms tells every worker where its elements with each digit go, and the elements are moved.

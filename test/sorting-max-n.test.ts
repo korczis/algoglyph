@@ -7,7 +7,11 @@
 //   ALGOGLYPH_MAX_N=<out.json> [ALGOGLYPH_MAX_N_MS=17] [ALGOGLYPH_MAX_N_WRITE=1] \
 //     npx vitest run test/sorting-max-n.test.ts
 //
-// and writes { kernel: { max_n, ms_at_512 } } for the kernels that need a bound. Times are CPU
+// and writes { kernel: { max_n, ms_at_512 } } for the kernels that need a bound. A kernel with
+// options (the sidecar's `options`) is measured at each of its option corners, the ones the budget
+// gate measures (every option at its maximum, then each in turn at its minimum) and its defaults,
+// and its bound is the worst: max_n holds at the option's costliest setting.
+// ALGOGLYPH_MAX_N_ONLY=<kernel,...> measures and rewrites only those records. Times are CPU
 // time scaled to the reference machine of config/budgets.yaml, the way test/budget/
 // scales its budgets, so the derived bounds do not depend on the machine that measured them.
 // With ALGOGLYPH_MAX_N_WRITE=1 it also writes them into catalogue/sorting-sidecar.yaml: each
@@ -24,11 +28,25 @@ import type { Params, PlateContext } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
 import { engine } from '../src/engines/array';
 import { SHAPES } from '../src/engines/array/trace';
+import type { ArrayKernel } from '../src/engines/array/trace';
 import { sidecarKernel } from '../src/kernels/sorting-wasm/_adapter';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 const OUT = process.env.ALGOGLYPH_MAX_N;
 const WRITE = process.env.ALGOGLYPH_MAX_N_WRITE === '1';
+const ONLY = process.env.ALGOGLYPH_MAX_N_ONLY ? new Set(process.env.ALGOGLYPH_MAX_N_ONLY.split(',')) : undefined;
+
+/**
+ * The option settings a kernel is measured at: its defaults, every option at its maximum, then
+ * each option in turn at its minimum (the corners test/support/budget.ts derives from controls).
+ * One empty setting for a kernel without options.
+ */
+export function optionCorners(kernel: Pick<ArrayKernel, 'options'>): Record<string, number>[] {
+  const o = kernel.options ?? [];
+  if (!o.length) return [{}];
+  const top = Object.fromEntries(o.map((x) => [x.name, x.max]));
+  return [Object.fromEntries(o.map((x) => [x.name, x.default])), top, ...o.map((x) => ({ ...top, [x.name]: x.min }))];
+}
 const SIDECAR = 'catalogue/sorting-sidecar.yaml';
 const MANIFEST = 'crates/algoglyph-kernels/src/sorting/kernels.json';
 
@@ -40,11 +58,15 @@ const MANIFEST = 'crates/algoglyph-kernels/src/sorting/kernels.json';
 export function withMaxN(text: string, kernels: Set<string>, bounds: Record<string, { max_n: number; source: string }>): string {
   const lines = text.split('\n');
   const out: string[] = [];
+  // the kernel of the record being read: a record of a kernel not measured keeps its bound
+  let current: string | undefined;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (/^ {4}max_n(_of)?: /.test(line)) continue;
+    if (/^ {2}- /.test(line)) current = undefined;
+    if (/^ {4}max_n(_of)?: /.test(line) && current !== undefined && kernels.has(current)) continue;
     out.push(line);
     const m = /^ {4}kernel: "?([a-z0-9-]+)"?\s*$/.exec(line);
+    if (m) current = m[1];
     if (m && kernels.has(m[1]) && bounds[m[1]]) {
       out.push(`    max_n: ${bounds[m[1]].max_n}`, `    max_n_of: "${bounds[m[1]].source}"`);
     }
@@ -98,7 +120,8 @@ describe.runIf(Boolean(OUT))('sorting rebuild cost per n', () => {
     const factor = Math.max(1, referenceCpuMs() / budgets.reference_cpu_ms);
     const records = (parse(readFileSync('catalogue/sorting-sidecar.yaml', 'utf8')) as {
       entries: { id: string; kernel: string; existing?: boolean }[];
-    }).entries.filter((r) => !r.existing && ENTRIES.find((e) => e.id === r.id)?.engine === 'array');
+    }).entries.filter((r) => !r.existing && ENTRIES.find((e) => e.id === r.id)?.engine === 'array'
+      && (!ONLY || ONLY.has(r.kernel)));
     const out: Record<string, { max_n: number; ms_at_512: number }> = {};
     for (const r of records) {
       // measured unbounded: the bound is what is being derived
@@ -106,10 +129,10 @@ describe.runIf(Boolean(OUT))('sorting rebuild cost per n', () => {
       const plate = engine.plate({ id: r.id, title: r.id, group: 'sorting' }, kernel);
       const points: [number, number][] = GRID.map((n) => {
         let worst = 0;
-        for (const shape of SHAPES) {
+        for (const [shape, corner] of SHAPES.flatMap((sh) => optionCorners(kernel).map((c) => [sh, c] as const))) {
           let best = Infinity;
           for (let rep = 0; rep < 3; rep++) {
-            const params: Params = { shape, n, pace: PACING.pace.max, loop: true, palette: 'spectral' };
+            const params: Params = { shape, n, pace: PACING.pace.max, loop: true, palette: 'spectral', ...corner };
             const seed = 4242 + 31 * rep + n;
             const ground = GROUNDS.dark;
             const ctx: PlateContext = {
@@ -146,6 +169,17 @@ describe('derived max_n', () => {
     const text = '  - id: "a"\n    kernel: "ka"\n    max_n: 64\n    max_n_of: "x"\n    year: 1\n  - id: "b"\n    kernel: "kb"\n';
     expect(withMaxN(text, new Set(['ka', 'kb']), { kb: { max_n: 312, source: 'f00' } }))
       .toBe('  - id: "a"\n    kernel: "ka"\n    year: 1\n  - id: "b"\n    kernel: "kb"\n    max_n: 312\n    max_n_of: "f00"\n');
+    // a record whose kernel was not measured (ALGOGLYPH_MAX_N_ONLY) keeps its bound
+    expect(withMaxN(text, new Set(['kb']), { kb: { max_n: 312, source: 'f00' } }))
+      .toBe('  - id: "a"\n    kernel: "ka"\n    max_n: 64\n    max_n_of: "x"\n    year: 1\n  - id: "b"\n    kernel: "kb"\n    max_n: 312\n    max_n_of: "f00"\n');
+  });
+
+  it("is measured at a kernel's defaults and at every corner of its options", () => {
+    expect(optionCorners({})).toEqual([{}]);
+    const o = (name: string, min: number, max: number, d: number) => ({ name, label: name, min, max, step: 1, default: d });
+    expect(optionCorners({ options: [o('k', 2, 16, 4), o('memory', 0, 64, 0)] })).toEqual([
+      { k: 4, memory: 0 }, { k: 16, memory: 64 }, { k: 2, memory: 64 }, { k: 16, memory: 0 },
+    ]);
   });
 
   it('is the largest step of n within the budget, interpolated on a power law', () => {

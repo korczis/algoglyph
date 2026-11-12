@@ -123,6 +123,17 @@ describe('the claims instrument', () => {
     expect(third.reason).toMatch(/has no number 9/);
   }, 120_000);
 
+  it('waits for the completed runs a plate that runs on is asked to stop after', async () => {
+    // a trial plate finishes several runs a frame, a scaling plate pauses between runs: both are
+    // read on their k-th completed run, never in a pause between two runs
+    for (const [id, k] of [['bogosort', 37], ['slowsort', 2]] as const) {
+      const c: Claim = { ...base, readout: 'completed runs', expect: { value: k }, setup: { params: { runs: k } } };
+      const r = await read(id, c);
+      expect(r.reason, id).toBeUndefined();
+      expect(r.value, id).toBe(k);
+    }
+  }, 120_000);
+
   it('reads the same value twice for the same seed', async () => {
     const a = await read('conformal-intervals', base);
     const b = await read('conformal-intervals', base);

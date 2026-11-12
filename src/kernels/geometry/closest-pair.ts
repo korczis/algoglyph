@@ -1,5 +1,8 @@
 import { dots, line, rect, type GeometryKernel } from '../../engines/geometry/trace';
 
+/** A range of at most this many points is solved by comparing every pair of it. */
+const LEAF = 3;
+
 // Sort by x once. Each half is solved recursively and returned sorted by y (a merge, as in
 // mergesort); then only the points within the best distance of the dividing line can do better,
 // and in y order each needs comparing only with the few that follow it within that distance.
@@ -7,11 +10,17 @@ export const kernel: GeometryKernel = {
   task: 'closest-pair',
   input: 'points',
   n: { min: 2, max: 2000, value: 160, step: 1 },
+  // the default is also the top: any larger leaf costs more distance computations at 2000 points
+  params: [{
+    kind: 'range', key: 'leaf', label: 'Brute-force leaf size', min: 2, max: LEAF, step: 1, value: LEAF,
+    hint: 'ranges of at most this many points compare every pair instead of splitting',
+  }],
   counters: [['dist', 'Distance computations'], ['compare', 'Comparisons']],
   scaling: [64, 128, 256, 512, 1024, 2048, 4096],
   *run(g) {
     const pts = g.input.points;
     const B = g.input.box;
+    const leaf = Math.max(2, Number(g.params.leaf ?? LEAF));
     g.base(dots(pts, { a: 150, r: 2 }));
     const idx = pts.map((_, i) => i).sort((a, b) => (g.less(pts[a].x, pts[b].x) ? -1 : g.less(pts[b].x, pts[a].x) ? 1 : pts[a].y - pts[b].y));
     let best = Infinity;
@@ -23,7 +32,7 @@ export const kernel: GeometryKernel = {
     const bestMarks = () => (pair[0] >= 0 ? [line(pts[pair[0]], pts[pair[1]], { c: 0.05, w: 3 }), ...dots([pts[pair[0]], pts[pair[1]]], { c: 0.05, r: 4.5 })] : []);
     // solve idx[lo, hi), returning those indices sorted by y
     const solve = function* (lo: number, hi: number): Generator<unknown, number[]> {
-      if (hi - lo <= 3) {
+      if (hi - lo <= leaf) {
         for (let i = lo; i < hi; i++) for (let j = i + 1; j < hi; j++) consider(idx[i], idx[j]);
         return idx.slice(lo, hi).sort((a, b) => pts[a].y - pts[b].y);
       }

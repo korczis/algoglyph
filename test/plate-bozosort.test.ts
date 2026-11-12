@@ -137,7 +137,7 @@ describe('bozosort plate', () => {
     // the old default speed: the calm default (ADR 0008) finishes a run every few seconds
     const h = headless(plate, { pace: steps(16) });
     h.frames(2400);
-    const runs = lead(h.stats()['finished runs']);
+    const runs = lead(h.stats()['completed runs']);
     expect(runs).toBeGreaterThan(5);
     const c = h.chart()!;
     const [m, e] = c.series;

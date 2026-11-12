@@ -151,11 +151,66 @@ export function readSidecars(root, errors = []) {
       }
       records.push({ id: r.id, kernel: r.kernel, engine: r.engine, existing: r.existing === true,
         inPlace: typeof r.in_place === 'boolean' ? r.in_place : undefined,
-        maxN: r.max_n, maxNOf: r.max_n_of,
+        maxN: r.max_n, maxNOf: r.max_n_of, options: r.options,
         meta: kernels.get(r.kernel), manifest, sidecar: file, adapter });
     }
   }
   return { files, records };
+}
+
+/** The keys of one sidecar option, all of them; any other key is refused. */
+export const OPTION_KEYS = ['name', 'label', 'min', 'max', 'step', 'default', 'unit'];
+/** An option's values are the u32 words the kernel reads (abi.rs ag_sort_options). */
+const U32_MAX = 2 ** 32 - 1;
+
+/**
+ * A record's `options`, validated: the constants of its kernel a plate may tune, each a slider
+ * `{ name, label, min, max, step, default, unit? }`. Every name is one the kernel's manifest
+ * says it reads (derived from its source by build.rs), every number a whole u32, the default on
+ * the slider's grid. Returns the options to ship (none when any is wrong) and pushes the errors.
+ */
+export function sidecarOptions(raw, reads, what, errors) {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) { errors.push(`${what}: options must be a list`); return []; }
+  const before = errors.length;
+  const out = [];
+  const seen = new Set();
+  for (const [i, o] of raw.entries()) {
+    const at = `${what}: option ${typeof o?.name === 'string' ? o.name : `#${i + 1}`}`;
+    if (!o || typeof o !== 'object' || Array.isArray(o)) { errors.push(`${at}: not a mapping`); continue; }
+    const unknown = Object.keys(o).filter((k) => !OPTION_KEYS.includes(k));
+    if (unknown.length) {
+      errors.push(`${at}: unknown key${unknown.length > 1 ? 's' : ''} ${unknown.join(', ')}; `
+        + `an option has only ${OPTION_KEYS.join(', ')}`);
+    }
+    if (typeof o.name !== 'string' || !o.name) { errors.push(`${at}: name required`); continue; }
+    if (seen.has(o.name)) errors.push(`${at}: declared twice`);
+    seen.add(o.name);
+    if (!reads.includes(o.name)) {
+      errors.push(`${at}: the kernel does not read it (its manifest lists `
+        + `${reads.length ? reads.join(', ') : 'no options'})`);
+    }
+    if (typeof o.label !== 'string' || !o.label.trim()) errors.push(`${at}: label required`);
+    if (o.unit !== undefined && (typeof o.unit !== 'string' || !o.unit.trim())) {
+      errors.push(`${at}: unit must be a non-empty string`);
+    }
+    const bad = ['min', 'max', 'step', 'default'].filter((k) => !Number.isInteger(o[k]) || o[k] < 0 || o[k] > U32_MAX);
+    if (bad.length) {
+      errors.push(`${at}: ${bad.join(', ')} must be whole numbers from 0 to ${U32_MAX} (the kernel reads a u32)`);
+      continue;
+    }
+    if (o.step < 1) errors.push(`${at}: step must be at least 1`);
+    else if (o.min >= o.max) errors.push(`${at}: min ${o.min} must be below max ${o.max}`);
+    else if ((o.max - o.min) % o.step) errors.push(`${at}: step ${o.step} does not divide the range ${o.min}..${o.max}`);
+    else if (o.default < o.min || o.default > o.max) {
+      errors.push(`${at}: default ${o.default} lies outside ${o.min}..${o.max}`);
+    } else if ((o.default - o.min) % o.step) {
+      errors.push(`${at}: default ${o.default} is off the slider's grid (${o.min} + a multiple of ${o.step})`);
+    }
+    out.push({ name: o.name, label: o.label, min: o.min, max: o.max, step: o.step, default: o.default,
+      ...(o.unit !== undefined ? { unit: o.unit } : {}) });
+  }
+  return errors.length > before ? [] : out;
 }
 
 /**
@@ -396,6 +451,13 @@ export function loadCatalogue(root, { code = true } = {}) {
             + 'npx vitest run test/sorting-max-n.test.ts');
         }
       }
+      // options: constants of the kernel the plate tunes; only a record whose kernel plays has them
+      const plays = !r.existing && SIDECAR_ENGINES.includes(r.engine);
+      if (r.options !== undefined && !plays) {
+        errors.push(`${what}: options on a record whose kernel does not play its entry `
+          + `(${r.existing ? "existing: its entry's own code plays" : `engine ${r.engine} has no adapter`})`);
+      }
+      r.opts = plays ? sidecarOptions(r.options, r.meta.options ?? [], what, errors) : [];
       if (r.inPlace !== undefined && r.inPlace !== r.meta.in_place) {
         errors.push(`${what}: in_place ${r.inPlace}, but the kernel declares in_place ${r.meta.in_place}`);
       }
@@ -434,7 +496,8 @@ export function loadCatalogue(root, { code = true } = {}) {
           + 'one implementation per entry');
       } else if (!prev) {
         backed.set(e.id, { sidecar: r.sidecar, adapter: r.adapter, kernel: r.kernel,
-          ...(Number.isInteger(r.maxN) ? { maxN: r.maxN } : {}) });
+          ...(Number.isInteger(r.maxN) ? { maxN: r.maxN } : {}),
+          ...(r.opts.length ? { options: r.opts } : {}) });
       }
     }
     for (const e of entries) {

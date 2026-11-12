@@ -35,6 +35,15 @@ algorithm:
   paradigm: divide-and-conquer
   properties:
     stable: false
+claims:
+  - id: comparisons-equal-the-recurrence
+    statement: >-
+      A completed run on 24 keys makes exactly 3,280 comparisons, C(24) of C(n) = 1 + 3·C(n −
+      ⌊n/3⌋), whatever the keys; read on the third completed run of Random permutations.
+    readout: last completed run
+    expect: { value: 3280 }
+    setup:
+      params: { n: 24, shape: random, runs: 3 }
 bounds:
   model: 'comparisons (one per call) and swaps, counted live'
   best: 'no swap on Already sorted'

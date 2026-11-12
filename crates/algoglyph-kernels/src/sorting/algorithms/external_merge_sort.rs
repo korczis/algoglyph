@@ -2,8 +2,8 @@
 //! 1988, "The input/output complexity of sorting and related problems", Communications of
 //! the ACM 31(9), 1116-1127).
 //!
-//! Simulation of a machine whose memory holds M items (M = ceil(sqrt n), at least 4); the
-//! array is the file on disk. Phase 1 (run generation) reads the file one memory load at a
+//! Simulation of a machine whose memory holds M items (M = `options.memory` when it is at
+//! least 2, otherwise ceil(sqrt n), at least 4); the array is the file on disk. Phase 1 (run generation) reads the file one memory load at a
 //! time, sorts the load in memory and writes it to disk as a sorted run. Phase 2 merges k
 //! runs at a time (k = `options.k` when it is at least 2, otherwise 4) in passes until one
 //! run is left; the last pass writes the file. `aux` shows the memory and the runs on disk
@@ -11,7 +11,12 @@
 //! No simplification beyond the head scan that replaces a selection tree in the merge.
 //!
 //! Passes (`t.round()`): a pass reads and writes every item once, run generation included;
-//! the closing copy into the array belongs to the last merge pass.
+//! the closing copy into the array belongs to the last merge pass. Run generation leaves
+//! ceil(n / M) runs and each merge pass divides their number by k, rounding up, so a run takes
+//! 1 + ceil(log_k ceil(n / M)) passes.
+//!
+//! The run's constants as options (the sidecar offers them as plate controls): the fan-in k
+//! (`options.k`) and the memory M (`options.memory`); 0 keeps the defaults above.
 use crate::sorting::prelude::*;
 
 pub const META: Meta = Meta {
@@ -26,7 +31,7 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     if n < 2 {
         return Outcome::Sorted;
     }
-    let m = memory_size(n);
+    let m = memory_size(n, opt);
     let k = ways(opt, 4);
     t.round();
     t.phase(&format!("phase 1: run generation, memory M = {m}"));
@@ -57,8 +62,12 @@ pub fn sort(t: &mut Tracer, v: &mut Vec<Item>, opt: &Options) -> Outcome {
     Outcome::Sorted
 }
 
-/// Memory size M of the simulation: ceil(sqrt n), at least 4 items.
-fn memory_size(n: usize) -> usize {
+/// Memory size M of the simulation: `options.memory` when it is at least 2, otherwise
+/// ceil(sqrt n), at least 4 items.
+fn memory_size(n: usize, opt: &Options) -> usize {
+    if opt.memory >= 2 {
+        return opt.memory as usize;
+    }
     let mut m = 4;
     while m * m < n {
         m += 1;
@@ -304,5 +313,61 @@ mod tests {
         let (out2, _, t2) = run(&input, &count_only());
         assert_eq!(out2, out);
         assert_eq!(t2.counts(), t.counts());
+    }
+
+    /// Smallest p with k^p >= r: ceil(log_k r), counted by multiplication, never by floats.
+    fn ceil_log(k: usize, r: usize) -> u64 {
+        let (mut p, mut reach) = (0, 1usize);
+        while reach < r {
+            reach *= k;
+            p += 1;
+        }
+        p
+    }
+
+    fn rounds(input: &[Item], opt: &Options) -> u64 {
+        let (out, outcome, t) = run(input, opt);
+        assert_eq!(outcome, Outcome::Sorted);
+        assert!(out.windows(2).all(|w| w[0].key <= w[1].key));
+        t.counts().rounds
+    }
+
+    #[test]
+    fn the_default_memory_is_ceil_sqrt_n_and_the_default_fan_in_four() {
+        // the options' defaults are the constants the kernel had: setting them changes nothing
+        let mut r = SplitMix64::new(5);
+        for &n in &[2usize, 9, 16, 17, 100, 512, 1000] {
+            let input = random(n, -50, 50, &mut r);
+            let mut m = 4;
+            while m * m < n {
+                m += 1;
+            }
+            let opt = Options { max_steps: 1_000_000, ..Options::default() };
+            let set = Options { memory: m as u32, k: 4, ..opt.clone() };
+            let (a, _, ta) = run(&input, &opt);
+            let (b, _, tb) = run(&input, &set);
+            assert_eq!(a, b);
+            assert_eq!(ta.counts(), tb.counts(), "n = {n}");
+            assert_eq!(ta.words(), tb.words(), "n = {n}");
+        }
+    }
+
+    #[test]
+    fn passes_are_one_plus_ceil_log_k_of_the_runs_across_k_and_m() {
+        let mut r = SplitMix64::new(17);
+        for &n in &[64usize, 200, 512] {
+            let input = random(n, 0, 1000, &mut r);
+            for k in 2..=16u32 {
+                for m in (4..=64u32).step_by(4) {
+                    let opt = Options { k, memory: m, ..count_only() };
+                    let runs = n.div_ceil(m as usize);
+                    assert_eq!(rounds(&input, &opt), 1 + ceil_log(k as usize, runs), "n {n} k {k} M {m}");
+                }
+            }
+        }
+        // the fewer runs a larger memory leaves, the fewer passes: n = 512, k = 2
+        let input = random(512, 0, 1000, &mut r);
+        let at = |m: u32| rounds(&input, &Options { k: 2, memory: m, ..count_only() });
+        assert_eq!((at(4), at(16), at(64)), (1 + 7, 1 + 5, 1 + 3));
     }
 }

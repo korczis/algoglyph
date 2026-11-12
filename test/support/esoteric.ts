@@ -19,6 +19,8 @@ export function kernelRun(id: string, keys: readonly number[], seed: number, max
 
 export interface Headless {
   sim: Sim;
+  /** The live parameters the plate reads each frame, as a control writes them. */
+  params: Params;
   stats: () => Record<string, string>;
   chart: () => Chart | undefined;
   frames(n: number): void;
@@ -41,6 +43,7 @@ export function headless(code: PlateCode, params: Params = {}, seed = 4242, widt
   sim.setup();
   return {
     sim,
+    params: all,
     stats: () => Object.fromEntries(rows.map((r) => [r.label, r.value])),
     chart: () => chart,
     frames(n: number) { for (let i = 0; i < n; i++) sim.draw(); },

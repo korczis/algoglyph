@@ -3,7 +3,8 @@
 // a bounded number of kernel steps per frame; every finished run adds its measured attempts to
 // a running mean that is drawn, live, next to the mean theory expects for the same inputs. Runs
 // follow one another (run k uses runSeed(seed, k) for its input and its generator), several in
-// one frame when they are short, so the mean converges while the reader watches.
+// one frame when they are short, so the mean converges while the reader watches. The `runs`
+// control stops them after k completed runs (../settle/settle.ts), so a claim reads k runs' mean.
 import type p5 from 'p5';
 import { paletteParam, ramp, type RGB } from '../../../core/palette';
 import { num, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../../core/plate';
@@ -11,6 +12,7 @@ import { caption, drawBars, padding, type Box } from '../bars/bars';
 import { STEP_PACE, stepPaceParam, stepPacer } from '../kernel-mirror/controls';
 import type { Stepper } from '../kernel-mirror/tracer';
 import { chartOf, fmt, Trials } from '../live-chart/series';
+import { RunCounter, runsParam } from '../settle/settle';
 import { input, runSeed, shapeOf, shapeParam, type Shape } from '../sort-input/input';
 
 /** One run of the algorithm on one input. */
@@ -59,6 +61,7 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
         value: spec.n.value, rebuild: true },
       shapeParam(spec.shapes, spec.shapes[0]),
       ...(spec.extra ?? []),
+      runsParam(),
       stepPaceParam(),
       paletteParam('spectral'),
     ],
@@ -68,6 +71,7 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
       const pacer = stepPacer();
       const theory = typeof spec.theory === 'string' ? spec.theory : spec.theory(params);
       const trials = new Trials(`mean ${spec.attempts} per run (measured)`, theory);
+      const completed = new RunCounter(params);
       let k = 0;
       let run: R;
       let frames = 0;
@@ -83,12 +87,14 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
 
       const finish = () => {
         trials.add(run.attempts(), run.expected);
-        doneSteps = { cmp: doneSteps.cmp + run.stepper.t.counts.cmp, swap: doneSteps.swap + run.stepper.t.counts.swap };
+        const c = run.stepper.t.counts;
+        doneSteps = { cmp: doneSteps.cmp + c.cmp, swap: doneSteps.swap + c.swap };
+        completed.complete(`${fmt(run.attempts())} ${spec.attempts}, ${fmt(c.cmp)} comparisons, ${fmt(c.swap)} swaps`);
         k++;
       };
 
       return {
-        pace: () => pacer.report(false, params),
+        pace: () => pacer.report(completed.stopped, params),
         setup() {
           p.textFont('monospace');
           next();
@@ -98,6 +104,9 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
           if (hold > 0) {
             hold--;
             if (hold === 0) next();
+          } else if (run.stepper.done) {
+            // held on its k-th completed run; a raised limit lets the next run start
+            if (!completed.stopped) next();
           } else {
             frames++;
             for (let r = 0; r < RUNS_PER_FRAME && budget > 0; r++) {
@@ -106,6 +115,7 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
               budget -= Math.max(1, run.stepper.t.steps - before);
               if (!run.stepper.done) break;
               finish();
+              if (completed.stopped) break;
               // a run the reader could watch stays on screen; a run over within a frame does not
               if (frames > 2 && !ctx.thumbnail) {
                 hold = HOLD;
@@ -149,7 +159,7 @@ export function trialPlate<R extends TrialRun>(spec: TrialSpec<R>): PlateCode {
           pacer.row(params),
           { label: 'this run', value: `${fmt(run.attempts())} ${spec.attempts}, ${fmt(t.counts.cmp)} comparisons, ${fmt(t.counts.swap)} swaps` },
           { label: 'expected on this input', value: `${fmt(run.expected, 1)} ${spec.attempts}` },
-          { label: 'finished runs', value: fmt(trials.count) },
+          ...completed.rows(),
           { label: `mean ${spec.attempts} per run`, value: trials.count
             ? `${fmt(trials.mean, 1)}${Number.isFinite(se) ? ` ± ${fmt(se, 1)}` : ''}` : '–' },
           { label: theory, value: trials.count ? fmt(trials.expected, 1) : '–' },
