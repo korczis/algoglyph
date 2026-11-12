@@ -7,6 +7,8 @@ export interface Fact {
   value: number;
   label: string;
   detail: string;
+  /** Where the card leads: every card is a way into what it counts. */
+  href: string;
 }
 
 export interface Facts {
@@ -35,17 +37,18 @@ export function facts(c: Pick<Catalogue, 'entries' | 'nodes' | 'labs' | 'sources
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 /** The KPI cards of the landing page, in display order. */
-export function factCards(f: Facts): Fact[] {
+export function factCards(f: Facts, firstLab = ''): Fact[] {
   const all = f.live + f.planned;
   return [
     { key: 'live', value: f.live, label: plural(f.live, 'Live plate', 'Live plates'),
-      detail: `${Math.round((100 * f.live) / Math.max(1, all))}% of ${all} catalogued` },
-    { key: 'planned', value: f.planned, label: 'Planned', detail: 'catalogued, not yet running' },
+      detail: `${Math.round((100 * f.live) / Math.max(1, all))}% of ${all} catalogued`, href: '#/?status=live' },
+    { key: 'planned', value: f.planned, label: 'Planned', detail: 'catalogued, not yet running',
+      href: '#/?status=planned' },
     { key: 'wings', value: f.wings, label: plural(f.wings, 'Wing', 'Wings'),
-      detail: `${f.shelves} shelves below them` },
+      detail: `${f.shelves} shelves below them`, href: '#/?status=all' },
     { key: 'labs', value: f.labs, label: plural(f.labs, 'Lab', 'Labs'),
-      detail: 'algorithms compared side by side' },
-    { key: 'tags', value: f.tags, label: 'Tags', detail: 'distinct, all searchable' },
+      detail: 'algorithms compared side by side', href: firstLab ? `#/lab/${firstLab}` : '#/?status=all' },
+    { key: 'tags', value: f.tags, label: 'Tags', detail: 'distinct, all searchable', href: '#/?status=all' },
   ];
 }
 
