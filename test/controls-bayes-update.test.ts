@@ -79,3 +79,92 @@ describe('bayes-update: grid cells', () => {
     }
   });
 });
+
+/** ln Γ(z) by the Stirling series after shifting z past 30. */
+function lgamma(z: number): number {
+  let shift = 0;
+  for (; z < 30; z++) shift += Math.log(z);
+  return (z - 0.5) * Math.log(z) - z + 0.5 * Math.log(2 * Math.PI) + 1 / (12 * z) - 1 / (360 * z ** 3) - shift;
+}
+
+/** The Beta(a, b) q-quantile, by bisection on an independent distribution function: Simpson's
+ * rule after the substitution x = sin²φ, whose integrand 2 sin^(2a−1)φ cos^(2b−1)φ / B(a, b) is
+ * finite for the shapes of at least ½ the plate builds (the kernel's betaCdf is a continued
+ * fraction, not used here). */
+function betaQuantile(q: number, a: number, b: number): number {
+  const norm = Math.exp(lgamma(a + b) - lgamma(a) - lgamma(b));
+  const f = (p: number) => 2 * norm * Math.sin(p) ** (2 * a - 1) * Math.cos(p) ** (2 * b - 1);
+  const cdf = (x: number) => {
+    const top = Math.asin(Math.sqrt(x));
+    const m = 2000;
+    const h = top / m;
+    let s = f(0) + f(top);
+    for (let i = 1; i < m; i++) s += (i % 2 ? 4 : 2) * f(i * h);
+    return (s * h) / 3;
+  };
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (cdf(mid) < q) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+
+describe('bayes-update: credible level', () => {
+  const KEY = 'credible';
+  const LEVELS = ['0.8', '0.9', '0.95', '0.99'];
+  const label = (l: string) => `${Math.round(Number(l) * 100)}% credible interval`;
+
+  it('is a select control with the old 90% as its default', async () => {
+    expect(defOf(KEY)).toMatchObject({ kind: 'select', label: 'Credible level', value: '0.9', rebuild: true });
+    expect(defOf(KEY)!.options.map((o) => o.value)).toEqual(LEVELS);
+    expect((await loadPlate(ID))!.params.find((x) => x.key === KEY)).toEqual(defOf(KEY));
+  });
+
+  it('round-trips through a shared link', async () => {
+    await roundTrips(KEY, ['0.8', '0.95', '0.99']);
+  });
+
+  it('names the interval by its level, the default keeping the old label', () => {
+    for (const l of LEVELS) {
+      const last = trace(k, { [KEY]: l, n: 50 }, 3).frames.at(-1)!;
+      expect(last.stats.map((s) => s.label), l).toContain(label(l));
+      expect(last.stats.map((s) => s.label)).toContain('Closed form lower end');
+      expect(last.stats.map((s) => s.label)).toContain('Closed form upper end');
+    }
+    expect(label('0.9')).toBe('90% credible interval');
+  });
+
+  it('drives the readouts: each end within one cell of the closed-form Beta quantile', async () => {
+    for (const l of LEVELS) {
+      for (const cells of ['100', '400']) {
+        const p = { [KEY]: l, cells };
+        const G = Number(cells);
+        const ci = await read(ID, claim(label(l), p));
+        const mean = await read(ID, claim('Closed form Beta mean', p));
+        expect(ci.reason, `${l} ${cells}`).toBeUndefined();
+        const [, A, B] = /Beta\(([\d.]+), ([\d.]+)\)/.exec(mean.text!)!.map(Number);
+        const tail = (1 - Number(l)) / 2;
+        const [lo, hi] = [betaQuantile(tail, A, B), betaQuantile(1 - tail, A, B)];
+        const ends = ci.text!.split(' – ').map((x) => Number.parseFloat(x));
+        // an end is the right edge of the cell where the grid's cumulative mass crosses: within a
+        // cell of the quantile, plus a tenth of a cell for the midpoint rule's error in that mass
+        // (h²/24 · |f′/f| for this posterior, under 0.03 of a cell at 100 cells)
+        expect(Math.abs(ends[0] - lo), `${l} ${cells} lower`).toBeLessThanOrEqual(1.1 / G);
+        expect(Math.abs(ends[1] - hi), `${l} ${cells} upper`).toBeLessThanOrEqual(1.1 / G);
+        // the plate's own closed-form ends are the same quantiles, to the four digits shown
+        const cl = await read(ID, claim('Closed form lower end', p));
+        const cu = await read(ID, claim('Closed form upper end', p));
+        expect(Math.abs(cl.value! - lo), `${l} closed lower`).toBeLessThanOrEqual(1e-4);
+        expect(Math.abs(cu.value! - hi), `${l} closed upper`).toBeLessThanOrEqual(1e-4);
+      }
+    }
+  });
+
+  it('runs the same at the default passed explicitly', () => {
+    for (const seed of [1, 4242]) {
+      const a = trace(k, { [KEY]: '0.9', n: 200 }, seed);
+      const b = trace(k, { n: 200 }, seed);
+      expect(a.frames).toEqual(b.frames);
+      expect(a.result).toEqual(b.result);
+    }
+  });
+});
