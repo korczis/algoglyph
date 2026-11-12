@@ -44,7 +44,7 @@ claims:
     readout: Comparisons
     expect: { value: 511 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 Find the ascending runs the input already has, and merge neighbouring runs until one is left.

@@ -52,7 +52,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 0 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 Mergesort without an auxiliary array, after Katajainen, Pasanen and Teuhola: the part of the input not yet sorted serves as the work area, and a merge writes its output into that area by exchanges, so the keys the area held move to where the runs were and nothing is lost.

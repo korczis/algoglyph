@@ -53,7 +53,7 @@ claims:
     readout: Comparisons
     expect: { value: 2816 }
     setup:
-      params: { shape: reversed, n: 512, speed: 2000 }
+      params: { shape: reversed, n: 512 }
 ---
 
 Top-down mergesort that peeks before it splits: instead of cutting the range exactly in half, it cuts at the run boundary nearest the middle, sorts both sides recursively and merges them, so a range that is already a single run is left alone.

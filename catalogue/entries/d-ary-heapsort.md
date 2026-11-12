@@ -26,6 +26,34 @@ related:
   - bottom-up-heapsort
   - heapsort
   - weak-heapsort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [heapsort]
+  objectives:
+  - 'Run Reversed: it is already a 3-ary max-heap, so the build phase costs n − 1 comparisons and no write, as for a binary heap.'
+  - 'Compare with heapsort on Random permutation at 512 keys: 7,495 comparisons against 7,604, but 5,832 array writes against 8,288.'
+  - 'Explain why a level costs up to d comparisons, d − 1 to find the largest child and one against the key, while the levels are only about log_d n.'
+  misconceptions:
+  - 'A wider heap saves comparisons in proportion to its fewer levels; at d = 3 the comparisons barely drop (7,495 against 7,604 at 512 keys), and the saving is in the exchanges.'
+algorithm:
+  paradigm: incremental
+  properties:
+    stable: false
+    in_place: true
+    comparison_based: true
+bounds:
+  model: 'comparisons and array writes (every write is half of an exchange), for the kernel''s d = 3'
+  average: 'Reversed builds its heap with n − 1 comparisons and no write; keys all equal (n − 1) + Σ_{m=1}^{n−1} min(3, m − 1) comparisons and 2(n − 1) array writes; on Random permutation at 512 keys fewer array writes than heapsort'
+  worst: 'of order d log_d n comparisons per removal, so n log n for any fixed d'
+claims:
+  - id: writes-below-heapsort
+    statement: >-
+      On Random permutation at 512 keys the 3-ary heapsort makes fewer than the 8,288 array writes heapsort makes on the same keys.
+    readout: Array writes
+    expect: { below: 8288 }
+    setup:
+      params: { shape: random, n: 512 }
 ---
 
 Heapsort on a heap in which every node has up to d children: node i's children sit at d·i + 1 to d·i + d, the heap is only about log n / log d levels deep, and the two phases are heapsort's own.

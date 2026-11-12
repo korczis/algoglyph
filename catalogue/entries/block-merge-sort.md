@@ -50,7 +50,7 @@ claims:
     readout: Auxiliary writes
     expect: { value: 0 }
     setup:
-      params: { shape: random, n: 512, speed: 2000 }
+      params: { shape: random, n: 512 }
 ---
 
 A stable mergesort with constant extra space: merge two neighbouring sorted runs A and B inside the array by cutting A into blocks, threading the blocks through B to roughly where they belong, and merging each block locally with the keys of B that follow it.

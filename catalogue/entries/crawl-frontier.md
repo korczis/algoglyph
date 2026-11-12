@@ -14,6 +14,30 @@ motivation: Link analysis in investigations and due diligence leans on it.
 complexity: O(p + l) for p pages and l links, plus O(h) per pick for h hosts
 related:
   - breadth-first-search
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Keep one first-in, first-out queue per host with the earliest time the host may be contacted again, and let a free crawler take the host that has been ready longest.
+    - Explain why queueing a page the first time any link to it is seen fetches each page once, while later links to it are counted and dropped.
+    - Tell the breadth-first order within one host from the interleaving across hosts that the politeness delay imposes.
+  prerequisites:
+    - breadth-first-search
+algorithm:
+  paradigm: search
+claims:
+  - id: each-page-fetched-once
+    statement: >-
+      A page is queued the first time any link to it is seen, so each page is fetched once: the
+      pages fetched equal the pages discovered, exactly.
+    readout: Pages fetched
+    expect: { against: Pages discovered, tolerance: 0 }
+  - id: the-frontier-drains
+    statement: >-
+      The crawl ends when every crawler is idle and no page is left in any host's queue: the
+      frontier is exactly empty.
+    readout: Frontier size
+    expect: { value: 0 }
 ---
 
 Breadth-first discovery of pages with a per-host rate, so no server is hammered.

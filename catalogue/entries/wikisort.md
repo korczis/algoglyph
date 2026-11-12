@@ -52,7 +52,7 @@ claims:
     readout: Comparisons
     expect: { value: 511 }
     setup:
-      params: { shape: sorted, n: 512, speed: 2000 }
+      params: { shape: sorted, n: 512 }
 ---
 
 A bottom-up block mergesort that is stable and uses O(1) extra memory, built on Kim and Kutzner's ratio-based stable in-place merge, with cheap checks that skip merges the data does not need.

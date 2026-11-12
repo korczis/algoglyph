@@ -578,16 +578,23 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
       };
       // a thumbnail is one picture: traced at once; a live lab traces one kernel per frame
       build(ctx.thumbnail);
+      let drawn = false;
       const color = (i: number): RGB => ramp(ctx.palette(), panes.length < 2 ? 0.5 : i / (panes.length - 1));
       return {
         setup() {
           if (ctx.thumbnail) for (const pane of panes) pane.r.advance(Math.floor(pane.r.t.length * 0.4));
         },
         draw() {
-          p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           // at most one trace per frame: an incoming pane, else one scaling point; a frame that
           // traced replays nothing, so the trace is its only heavy work
           const traced = !ctx.thumbnail && (buildOne() || measure());
+          // ...and it draws no pane either: no pane moved, and the canvas still holds the last
+          // picture (the stage never clears it), so redrawing every pane beside the trace was the
+          // frame's second heavy piece (lab sorting > rebuild sat at the budget in every gate)
+          // (its readouts and charts are still published: only the canvas is left as it was)
+          const still = traced && drawn && panes.length > 0;
+          drawn = true;
+          if (!still) p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail && !incoming && !traced) {
             const steps = panes.some((x) => !x.r.done) ? pacer.take(ctx.params) : 0;
             for (const pane of panes) {
@@ -613,8 +620,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
           const cw = (W - pad * (cols + 1)) / cols;
           const ch = (gridH - pad * (rows - 1)) / Math.max(1, rows);
           const fs = Math.max(9, Math.min(13, Math.round(ch * 0.11)));
-          p.textSize(fs);
-          panes.forEach((pane, i) => {
+          if (!still) p.textSize(fs);
+          if (!still) panes.forEach((pane, i) => {
             const x = pad + (i % cols) * (cw + pad);
             const y = pad + Math.floor(i / cols) * (ch + pad);
             const c = color(i);
@@ -630,7 +637,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: ArrayKernel }[]): 
           // the measured scaling curves, log-log
           const cx = pad * 4; const cy = H - chartH - pad; const cwid = W - pad * 5; const chh = chartH;
           const all = curves.flatMap((c) => c.pts.filter((q) => q[1] > 0 && Number.isFinite(q[1])));
-          if (all.length) {
+          if (all.length && !still) {
             const lx = (n: number) => Math.log(n);
             const xs = SCALING_N.map(lx);
             const ys = all.map((q) => Math.log(q[1]));

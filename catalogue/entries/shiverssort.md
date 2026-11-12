@@ -48,7 +48,7 @@ claims:
     readout: Comparisons
     expect: { value: 254 }
     setup:
-      params: { shape: organ-pipe, n: 128, speed: 2000 }
+      params: { shape: organ-pipe, n: 128 }
 ---
 
 A natural mergesort with a stack of runs and a rule on their logarithms: give each run of length r the level ⌊log₂ r⌋, and while the top run's level is at least that of the run below it, merge the two; otherwise push the next run.

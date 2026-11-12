@@ -16,6 +16,36 @@ motivation: Coordinating many workers and machines without a shared clock depend
 complexity: O(r + d) per session for r replicas and d missing writes
 related:
   - crdt-convergence
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Summarise everything a replica holds as one high-water mark per origin, the length of the gap-free prefix of that origin's writes it has.
+    - Explain why a pull session never delivers a write twice, since the peer answers with exactly the writes above the asker's marks and leaves out the asker's own.
+    - Show that lost messages and a partition only cost time, and that the replicas converge once writes stop and the partition heals.
+claims:
+  - id: no-write-received-twice
+    statement: >-
+      Under the default 5% message loss and the mid-run partition, no replica receives any write
+      twice: the peer answers with exactly the writes above the asker's marks, so the count is
+      exactly zero.
+    readout: Duplicates received
+    expect: { value: 0 }
+  - id: transfers-are-the-writes-each-replica-lacked
+    statement: >-
+      The writes transferred total exactly the writes times the replicas that lacked them,
+      (replicas − 1) × writes, the third number of the result line (its second is the 1 of
+      "replicas − 1"); an exact identity, so no tolerance.
+    readout: Writes transferred
+    expect: { against: Result, against_number: 3, tolerance: 0 }
+  - id: converges-after-the-partition-heals
+    statement: >-
+      The writes still missing fall to zero only after the partition heals: it cuts the replicas
+      from 3,000 to 6,000 ms (0.3 to 0.6 of the 10,000 ms run) while every replica keeps writing
+      until 4,000 ms at most 420 ms apart, so the two sides cannot agree before 6,000 ms, and they
+      converge before the run ends at 10,000 ms.
+    readout: Converged at
+    expect: { range: [6000, 10000] }
 ---
 
 Peers compare what they have and send only what the other lacks.

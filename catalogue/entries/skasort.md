@@ -23,6 +23,32 @@ related:
   - american-flag-sort
   - msd-radix-sort
   - spreadsort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [american-flag-sort]
+  objectives:
+  - 'Compare Already sorted with Random permutation at 512 keys: 2,046 array writes on both, and on every seed tested.'
+  - 'Count the passes at 512 keys: the bytes on which every key agrees are skipped, so one pass of 512 keys on the second-lowest byte and passes of 255 and 256 on the lowest, 1,023 exchanges.'
+  - 'Explain why the sweep exchanges every key of a pass once, even a key already in its place, where American flag sort leaves such a key alone.'
+  misconceptions:
+  - 'Skasort is cheaper on sorted input; at 512 keys Already sorted costs the same 2,046 array writes as Random permutation, where American flag sort writes nothing on Already sorted.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    stable: false
+    in_place: true
+bounds:
+  model: 'comparisons (only in the comparison sort of buckets of 16 keys or fewer) and array writes (each exchange two, the exchange of a key with itself included); no auxiliary write'
+  average: 'at least one exchange for every key of every byte pass, exactly that when no comparison is made; on a permutation of 1..n with n > 16 and no block of 256 keys holding 2 to 16 of them: n exchanges on the second-lowest byte once n ≥ 256, plus one per key of every block of more than 16, 1,023 at 512 keys in every order'
+claims:
+  - id: sorted-costs-as-much
+    statement: >-
+      On Already sorted at 512 keys skasort makes 2,046 array writes, as many as on Random permutation: the sweep exchanges every key of each byte pass into its slot, also a key that is already there.
+    readout: Array writes
+    expect: { value: 2046 }
+    setup:
+      params: { shape: sorted, n: 512 }
 ---
 
 An in-place MSD radix sort on bytes: count the 256 bucket sizes of the current byte, swap every key of each unfinished bucket straight into the next free slot of its own bucket until all buckets are complete, then recurse on the next byte, finishing small buckets with a comparison sort.

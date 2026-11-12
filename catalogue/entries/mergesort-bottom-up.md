@@ -45,7 +45,7 @@ claims:
     readout: Array writes
     expect: { value: 2336 }
     setup:
-      params: { shape: random, n: 264, speed: 2000 }
+      params: { shape: random, n: 264 }
 ---
 
 Merge runs of 1, then 2, 4, 8 and so on across the whole array, without recursion.

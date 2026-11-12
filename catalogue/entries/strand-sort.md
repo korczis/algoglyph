@@ -52,7 +52,7 @@ claims:
     readout: Comparisons
     expect: { value: 53955 }
     setup:
-      params: { shape: reversed, n: 328, speed: 2000 }
+      params: { shape: reversed, n: 328 }
 ---
 
 Pull an increasing strand out of the input, merge it into the result, and repeat until the input is empty: the strand starts with the first remaining key and takes every later key larger than its last one.

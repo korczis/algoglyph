@@ -24,6 +24,31 @@ related:
   - msd-radix-sort
   - multiway-trie
   - quicksort-three-way
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: advanced
+  prerequisites: [msd-radix-sort]
+  objectives:
+  - 'Read the Array writes: exactly n on every input, each key written once on the way out of the trie.'
+  - 'Run Few distinct keys at 512 keys: the containers of the lowest byte hold equal keys, so their insertion sorts make m − 1 comparisons each, n − 4 = 508 in all; Random permutation at 512 keys makes none.'
+  - 'Explain why up to 32 keys a single container holds the whole input and insertion sort does all the work, and why one key more makes the trie burst.'
+  misconceptions:
+  - 'Burstsort always ends in comparison sorts of its containers; on Random permutation at 512 keys the trie bursts down to the lowest byte, every container holds one key, and no comparison is made.'
+algorithm:
+  properties:
+    stable: false
+    in_place: false
+bounds:
+  model: 'comparisons (the insertion sorts of the containers) and array writes (one per key, the output of the trie); the auxiliary writes count the cells of the drawn container strip that change'
+  average: 'exactly n array writes on every input; up to 32 keys the comparisons of an exchange insertion sort of the whole input; past 32, for each block of 256 keys (keys agreeing on all but the lowest byte), m − its distinct keys when it holds m > 32 keys and an insertion sort of its keys otherwise: none on Random permutation at 512 keys, n − 4 = 508 on Few distinct keys'
+claims:
+  - id: equal-key-containers
+    statement: >-
+      On Few distinct keys at 512 keys burstsort makes n − 4 = 508 comparisons: the trie bursts down to the lowest byte, where the four containers hold equal keys and each insertion sort of m keys costs m − 1.
+    readout: Comparisons
+    expect: { value: 508 }
+    setup:
+      params: { shape: few-unique, n: 512 }
 ---
 
 Insert every key, character by character, into a trie whose leaves are small containers of keys; when a container grows past a threshold it bursts into a new trie node one character deeper. Finally walk the trie in character order, sorting each container on the way out.

@@ -191,10 +191,11 @@ const BEFORE: Record<string, string> = {
   'counting-sort 512': '84b498adcc949f561493e4bc5750a7747b7d3f507b5835f392c2f4e5b105c716',
   'quickselect 64': '90d3c12a8bbb15bdc55d28b257343de6cf6e7b41cf8ca6044004ed51e640ce15',
   'quickselect 512': 'fc66a9f1101a9470934886f630cd149a92d47e78371545621870662859b9aed9',
-  // re-recorded twice for intended lab changes, each checked by undoing it: 370dbba stopped a lab
-  // measuring past its own n slider (the scaling chart lost its n = 512 points), then the new
-  // panes were shown on a frame of their own, one frame after the last trace
-  lab: '9ce16119149cc0ba57232945e50ee496d1fe02da188d0ae3ae639aa0a02c76d0',
+  // re-recorded three times for intended lab changes, each checked by undoing it: 370dbba stopped
+  // a lab measuring past its own n slider (the scaling chart lost its n = 512 points), the new
+  // panes were shown on a frame of their own, and a frame that traces now draws nothing; then
+  // for the pace, with the plates above
+  lab: 'e81f5ed0549a7274afb3d740b364db32d5affe89767cd25ddfc5093d7616503c',
 };
 
 /**

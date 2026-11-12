@@ -21,6 +21,18 @@ sources:
     publisher: Addison-Wesley
     year: 1998
     kind: book
+  - id: zhang-zheng-1995-gac
+    title: 'GAC — the Criterion for Global Avalanche Characteristics of Cryptographic Functions (J.UCS 1(5), 320–337)'
+    author: Xian-Mo Zhang, Yuliang Zheng
+    year: 1995
+    kind: paper
+    url: https://www.jucs.org/jucs_1_5/gac_the_criterion_for/Zhang_X.pdf
+  - id: rfc-9923-fnv
+    title: 'The FNV Non-Cryptographic Hash Algorithm (RFC 9923, Informational)'
+    author: L. Noll, K. Vo, D. Eastlake 3rd, T. Hansen
+    year: 2026
+    kind: paper
+    url: https://www.rfc-editor.org/rfc/rfc9923.html
   - id: stam-stable-fluids
     title: Stable Fluids (SIGGRAPH 1999)
     author: Jos Stam

@@ -23,6 +23,31 @@ related:
   - counting-sort
   - flashsort
   - proxmap-sort
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites: [bucket-sort]
+  objectives:
+  - 'Run Random permutation at 512 keys: 2(n − 1) = 1,022 comparisons to find the minimum and the maximum, then one key per bucket and nothing more.'
+  - 'Run Few distinct keys at 512 keys: every bucket of equal keys finds its own minimum and maximum before it stops, 2(n − 1) + 2(n − 4) = 2,038 comparisons.'
+  - 'Read the Auxiliary writes: n, the buckets of the first interpolation drawn once.'
+  misconceptions:
+  - 'A distribution sort never compares keys; interpolation sort compares every key twice to find the minimum and maximum of each range it interpolates, 1,022 times on Random permutation at 512 keys.'
+algorithm:
+  paradigm: divide-and-conquer
+  properties:
+    in_place: false
+bounds:
+  model: 'comparisons (the minimum and maximum of every range that is interpolated), array writes (the result written back, one per key) and auxiliary writes (the first level''s buckets, one per key)'
+  average: 'n array writes on every input; when the keys span fewer than n values, as on every plate input, 2(n − 1) + 2(n − d) comparisons for d distinct keys and n auxiliary writes'
+claims:
+  - id: equal-buckets-cost-their-extremes
+    statement: >-
+      On Few distinct keys at 512 keys interpolation sort makes 2(n − 1) + 2(n − 4) = 2,038 comparisons: two per key for the extremes of the whole range, then two per key again in each of the four buckets of equal keys, which then stop.
+    readout: Comparisons
+    expect: { value: 2038 }
+    setup:
+      params: { shape: few-unique, n: 512 }
 ---
 
 Estimate each key's rank by linear interpolation between the minimum and the maximum, send it to the bucket of that estimate, and sort each bucket the same way until every bucket holds equal keys.
