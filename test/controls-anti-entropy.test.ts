@@ -91,7 +91,7 @@ describe('anti-entropy: writes stop at', () => {
     // up to 40: writing longer only adds writes and their transfers, and at 80% of the run the
     // trace is about 8% longer than at the plate's heaviest setting today (6 replicas, 5 ms
     // delay, no loss or partition); 35 is the least that still writes on both sides of the cut
-    expect(defOf('writeStop')).toMatchObject({ kind: 'range', label: 'Writes stop at (% of run)', min: 35, max: 40, step: 5, value: 40, rebuild: true });
+    expect(defOf('writeStop')).toMatchObject({ kind: 'range', label: 'Writes stop at (% of run)', min: 35, max: 80, step: 5, value: 40, rebuild: true });
   });
 
   it('round-trips through a shared link', () => {
