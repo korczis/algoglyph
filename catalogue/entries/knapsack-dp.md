@@ -15,6 +15,19 @@ tags:
 complexity: "Θ(nW) time and space for n items and capacity W (pseudo-polynomial)"
 related:
   - longest-common-subsequence
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Fill a capacity table item by item, each cell the better of leaving or taking the item.
+  - Recover the chosen items by tracing back from the corner.
+  - Understand why Θ(nW) is pseudo-polynomial and no contradiction of NP-hardness.
+algorithm:
+  paradigm: dynamic-programming
+bounds:
+  model: table cells computed
+  worst: Θ(nW) for n items and capacity W
+  space: Θ(nW)
 ---
 
 Fill a capacity table item by item; the best value for each capacity reuses smaller ones.

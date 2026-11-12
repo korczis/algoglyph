@@ -40,6 +40,19 @@ function readYaml(file, errors) {
 }
 
 /** Split `---\nYAML\n---\nbody` into its two halves. */
+/**
+ * What an entry lacks to be `documented`, the second maturity profile (ADR 0006 §4): reading
+ * notes, sources, and at least one of pedagogy, algorithm and bounds. The one definition: the
+ * maturity profile and the documented-wing gate both read it.
+ */
+export function documentedGaps(e) {
+  return [
+    !e.notes.length && 'reading notes',
+    !e.sources.length && 'sources',
+    !(e.pedagogy || e.algorithm || e.bounds) && 'one of pedagogy, algorithm, bounds',
+  ].filter(Boolean);
+}
+
 export function splitFrontMatter(text) {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(text);
   return m ? { head: m[1], body: m[2] } : null;
@@ -462,11 +475,26 @@ export function loadCatalogue(root, { code = true } = {}) {
       errors.push(`${e.file}: live, but no test names it (a describe('${e.id}'), an import of plates/${e.id}/ or kernels/${e.engine}/${e.id}, or the engine harness test/kernels-${e.engine}.test.ts)`);
     }
     // maturity: each profile needs the ones before it; the first one missing is the next gap
-    const documented = e.notes.length > 0 && e.sources.length > 0 && Boolean(e.pedagogy || e.algorithm || e.bounds);
+    const documented = documentedGaps(e).length === 0;
     const steps = [['catalogued', true], ['documented', documented], ['implemented', implemented], ['tested', Boolean(e.evidence.tested)]];
     const reached = [];
     for (const [name, ok] of steps) { if (!ok) break; reached.push(name); }
     e.maturity = { reached, next: steps.find(([, ok]) => !ok)?.[0] ?? null };
+  }
+
+  // a finished wing (catalogue/maturity.yaml, ADR 0006 §4): its article wave has landed, so every
+  // live entry in it is documented, and a new or edited one below that is refused here
+  const maturityDoc = existsSync(join(dir, 'maturity.yaml')) ? readYaml(join(dir, 'maturity.yaml'), errors) : {};
+  const wings = new Set([...byPath.entries()].filter(([, n]) => n.depth === 1).map(([k]) => k));
+  for (const w of maturityDoc.documented ?? []) {
+    if (!wings.has(w)) { errors.push(`catalogue/maturity.yaml: documented names ${w}, which is not a wing of taxonomy.yaml`); continue; }
+    for (const e of entries) {
+      if (e.path[0] !== w || e.status !== 'live') continue;
+      // the maturity profile's own rule (documentedGaps); the gate also runs without code, where
+      // the profile (which needs the implemented and tested evidence) is not derived
+      const missing = documentedGaps(e);
+      if (missing.length) errors.push(`${e.file}: live in ${w}, a documented wing (catalogue/maturity.yaml), but missing ${missing.join(', ')}`);
+    }
   }
 
   // the tree, with counts rolled up from the leaves

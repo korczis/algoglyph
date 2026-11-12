@@ -13,6 +13,21 @@ tags:
 complexity: '2ⁿ − 1 moves, recursion depth n'
 related:
   - ruler-drawing
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  prerequisites:
+  - ruler-drawing
+  objectives:
+  - Solve the puzzle by moving n − 1 discs aside, the largest once and the n − 1 back.
+  - Derive 2ⁿ − 1 moves from T(n) = 2T(n − 1) + 1, and why no solution uses fewer.
+algorithm:
+  paradigm: divide-and-conquer
+bounds:
+  model: disc moves
+  best: 2ⁿ − 1
+  worst: 2ⁿ − 1
+  space: recursion depth n
 ---
 
 Move n discs by moving n − 1 aside, the largest once, and the n − 1 back: 2ⁿ − 1 moves.

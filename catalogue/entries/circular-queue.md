@@ -14,6 +14,12 @@ complexity: 'O(1) per enqueue and dequeue, O(capacity) space'
 interaction: 'Click to enqueue an item by hand.'
 related:
   - josephus-circle
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Keep a first-in first-out queue in a fixed array with two indices advancing modulo the capacity.
+  - Tell a full ring from an empty one, where head and tail point at the same slot.
 ---
 
 A first-in first-out queue whose head and tail chase each other around a fixed array.

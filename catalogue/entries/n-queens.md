@@ -11,6 +11,14 @@ tags:
   - backtracking
   - constraint search
 complexity: "exponential in n; the 8 x 8 board has 92 solutions"
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Place queens row by row and back up the moment one is attacked.
+  - 'Count every solution, not just the first: 92 for eight queens.'
+algorithm:
+  paradigm: backtracking
 ---
 
 Place queens row by row, back up the moment one is attacked, and count the dead ends.

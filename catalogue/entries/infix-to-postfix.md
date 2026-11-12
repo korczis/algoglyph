@@ -15,6 +15,15 @@ complexity: "O(n) for n tokens: each operator is pushed and popped once"
 related:
   - postfix-evaluation
   - recursive-descent-parser
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Convert infix to postfix with an operator stack, respecting precedence and associativity.
+  - See how a parenthesis fences off the stack until its closing partner.
+bounds:
+  model: stack pushes and pops
+  worst: 'each operator and opening parenthesis is pushed once and popped once: O(n) for n tokens'
 ---
 
 Convert an infix expression to postfix with an operator stack.

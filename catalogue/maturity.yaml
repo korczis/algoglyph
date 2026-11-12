@@ -1,0 +1,6 @@
+# Wings whose article wave has landed (ADR 0006 §4). Every live entry in a wing listed here is
+# documented: reading notes, sources, and at least one of pedagogy, algorithm and bounds.
+# scripts/lib/catalogue.mjs refuses a live entry below that, so `npm run catalogue -- --check`
+# and `npm run verify` fail on it. A wing is added here in the commit that finishes its wave.
+documented:
+  - foundations
