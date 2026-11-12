@@ -13,6 +13,17 @@ tags:
 complexity: '2ⁿ − 1 marks; the recursive versions make 2ⁿ⁺¹ − 1 calls at depth at most n'
 related:
   - towers-of-hanoi
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Read the marks of a ruler as the call tree of a divide-and-conquer recursion.
+  - 'Compare when the mark is made: in order, mark first, or bottom-up without recursion.'
+algorithm:
+  paradigm: divide-and-conquer
+bounds:
+  model: recursive calls
+  worst: 2ⁿ⁺¹ − 1 calls for the recursive versions, stack depth at most n
 ---
 
 Mark the middle, then each half, recursively: the ticks of a ruler are the call tree.

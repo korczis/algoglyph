@@ -13,6 +13,15 @@ tags:
 complexity: 'n! permutations, one exchange each; amortised O(1) work per step for Heap''s method, O(n) for Johnson–Trotter as written'
 related:
   - n-queens
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Generate every permutation of n items, each from the last by one exchange.
+  - Compare Heap's method with Johnson–Trotter, whose exchanges are all between neighbours.
+bounds:
+  model: exchanges
+  worst: n! − 1 exchanges for the n! permutations
 ---
 
 Every permutation of n items, each from the last by one exchange.

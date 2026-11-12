@@ -15,6 +15,18 @@ tags:
 complexity: "Θ(n³) time, Θ(n²) space (Knuth's monotone-root bound gives Θ(n²))"
 related:
   - matrix-chain
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Build the search tree of least expected cost for known access frequencies.
+  - See why a root's cost is the range's total frequency plus its two subtrees.
+algorithm:
+  paradigm: dynamic-programming
+bounds:
+  model: cell reads
+  worst: Θ(n³) trying every root
+  space: Θ(n²) cells
 ---
 
 The search tree with least expected cost for known access frequencies, built from subtrees.

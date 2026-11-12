@@ -16,6 +16,18 @@ tags:
 complexity: "Θ(mn) time and space for strings of lengths m and n"
 related:
   - knapsack-dp
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+  - Fill a table over the prefixes of two strings from three neighbours per cell.
+  - Read one longest common subsequence back by a traceback from the corner.
+algorithm:
+  paradigm: dynamic-programming
+bounds:
+  model: table cells computed
+  worst: Θ(mn) for strings of lengths m and n
+  space: Θ(mn)
 ---
 
 The longest sequence both strings contain in order, read back from a filled table.

@@ -15,6 +15,19 @@ tags:
 complexity: O(m α(n)) array accesses for m operations
 relations:
   - { type: improves_on, target: weighted-quick-union, reason: "Flattening every path a find walks makes later finds almost constant." }
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  prerequisites:
+  - weighted-quick-union
+  objectives:
+  - Flatten every path a find walks, so later finds from those sites take one step.
+  - 'Read the amortised bound of weighting with compression: α(n), at most four in practice.'
+algorithm:
+  paradigm: union-find
+bounds:
+  model: array accesses
+  worst: O(m α(n)) for m operations, amortised
 ---
 
 Point every node a find passes straight at the root, making each operation almost constant time.

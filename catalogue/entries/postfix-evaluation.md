@@ -13,6 +13,12 @@ tags:
 complexity: "O(n) for n tokens, one push or two pops and a push per token"
 related:
   - infix-to-postfix
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: introductory
+  objectives:
+  - Evaluate a postfix expression with one value stack and no precedence rules.
+  - Watch the stack depth rise with operands, fall with operators and end at one value.
 ---
 
 Read an expression in postfix notation and evaluate it with one pushdown stack.
