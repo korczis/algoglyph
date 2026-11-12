@@ -493,10 +493,11 @@ export const KINDS: Record<InputKind, KindDef> = {
     size: { label: 'Tokens', min: 4, max: 48, step: 1, value: 14 },
     scale: [16, 32, 64, 128, 256, 512],
     shapes: [{ value: 'letters', label: 'Letters' }, { value: 'lines', label: 'Lines' }],
-    make(rnd, n, shape) {
+    make(rnd, n, shape, opts) {
       const tok = shape === 'lines' ? () => line(rnd) : () => pick(rnd, 'ABCDEF');
       const a = Array.from({ length: n }, tok);
-      return { a, b: edits(rnd, a, Math.max(1, Math.round(n / 5)), tok) };
+      // one edit per `every` tokens, myers-diff's control (5: the old constant, the same division)
+      return { a, b: edits(rnd, a, Math.max(1, Math.round(n / Number(opts.every ?? 5))), tok) };
     },
   },
   merge: {

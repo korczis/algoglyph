@@ -26,6 +26,40 @@ pedagogy:
 bounds:
   model: paths extended and token comparisons
   worst: 'd + 1 paths extended in round d, at most (D + 1)(D + 2)/2 in all; O((N + M) D) token comparisons'
+claims:
+  - id: every-12-distance-identity
+    statement: >-
+      At one edit per 12 of n = 48 tokens the new version has M = 45 and an independent dynamic
+      programme finds a longest common subsequence of 44, so D = N + M − 2·LCS = 48 + 45 − 88 =
+      5, exactly.
+    readout: Edit distance D
+    expect: { value: 5 }
+    setup:
+      params: { n: 48, every: 12 }
+  - id: every-12-lcs-identity
+    statement: >-
+      The plate's longest common subsequence there, (N + M − D)/2, is the dynamic programme's 44,
+      exactly, and at most min(N, M) = 45.
+    readout: Longest common subsequence
+    expect: { value: 44 }
+    setup:
+      params: { n: 48, every: 12 }
+  - id: every-8-distance-bound
+    statement: >-
+      At one edit per 8 of 48 tokens the input makes k = round(48 / 8) = 6 edits, each deleting or
+      inserting at most two tokens or replacing one (two edit steps), so D is at most 2k = 12.
+    readout: Edit distance D
+    expect: { range: [0, 12] }
+    setup:
+      params: { n: 48, every: 8 }
+  - id: every-8-lines-distance-identity
+    statement: >-
+      On lines at one edit per 8 of 48 the versions have N = M = 48 and the dynamic programme's
+      LCS is 43, so D = 96 − 86 = 10, exactly.
+    readout: Edit distance D
+    expect: { value: 10 }
+    setup:
+      params: { shape: lines, n: 48, every: 8 }
 ---
 
 The shortest edit script found as the furthest-reaching paths along the diagonals of the edit graph.
