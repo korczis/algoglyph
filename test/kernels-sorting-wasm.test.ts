@@ -208,7 +208,7 @@ describe('sorting trace cache', () => {
 
   it('evicts the least recently used past its byte bound', () => {
     const c = new TraceCache<string>('test', (v) => v.length,
-      { memoryBytes: 10, persistBytes: 0, persistCount: 0, prefetchCount: 0 });
+      { memoryBytes: 10, persistBytes: 0, persistTotal: 0, prefetchBytes: 0 });
     c.put('a', 'xxxx');
     c.put('b', 'yyyy');
     c.get('a');
