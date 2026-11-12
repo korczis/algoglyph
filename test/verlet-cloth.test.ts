@@ -214,7 +214,7 @@ describe('verlet-cloth: cloth.ts reproduces the pre-refactor plate bit for bit',
         }
       }
       expect(sameBits(c.pos, old.state().pos)).toBe(true);
-    }, 60000);
+    });
   }
 });
 
@@ -309,7 +309,7 @@ describe('verlet-cloth: position Verlet with distance constraints', () => {
       for (const [k, p] of fixed) {
         expect([c.pos[k * 3], c.pos[k * 3 + 1], c.pos[k * 3 + 2]]).toEqual(p);
       }
-    }, 60000);
+    });
   }
 
   for (const scene of ['drape', 'curtain', 'corners'] as Scene[]) {
@@ -320,6 +320,6 @@ describe('verlet-cloth: position Verlet with distance constraints', () => {
       expect(c.pos.every(Number.isFinite)).toBe(true);
       expect(c.prev.every(Number.isFinite)).toBe(true);
       expect(Number.isFinite(c.strain)).toBe(true);
-    }, 60000);
+    });
   }
 });

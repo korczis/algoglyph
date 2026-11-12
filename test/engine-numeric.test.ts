@@ -54,6 +54,6 @@ describe('numeric engine rebuilds', () => {
       expect(step, `${id}: a new run started`).toMatch(/^1 of \d+$/);
       // the hold is 150 frames once the run is done; a rebuild done in one frame adds none
       expect(held, `${id}: frames the finished run stayed`).toBeGreaterThan(151);
-    }, 120000);
+    });
   }
 });

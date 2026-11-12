@@ -542,7 +542,7 @@ describe('stochastic engine budgets', () => {
       let worst = 0;
       for (let i = 0; i < n; i++) worst = Math.max(worst, Math.min(...times.map((t) => t[i])));
       expect(worst, `${e.id}: longest piece`).toBeLessThan(PIECE_MS);
-    }, 60000);
+    });
   }
 
   it('a live frame resumes a counted number of pieces, however long its wall-clock slice', () => {

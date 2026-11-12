@@ -193,7 +193,7 @@ describe('ripple-tank: wave.ts reproduces the pre-refactor plate bit for bit', (
       expect(t.w).toBe(old.state().w);
       expect(t.h).toBe(old.state().h);
       expect(sameBits(t.u, old.state().u)).toBe(true);
-    }, 60000);
+    });
   }
 });
 
@@ -246,7 +246,7 @@ describe('ripple-tank: flushing tiny values to zero', () => {
     expect(run({ flush: false })).toBeGreaterThan(0);
     expect(run({})).toBe(0);
     expect(TINY).toBeGreaterThan(MIN_NORMAL);
-  }, 60000);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -334,8 +334,7 @@ describe('ripple-tank: the wave equation integrated', () => {
     expect(e0).toBeGreaterThan(0);
     expect(worst).toBeLessThan(1e-3);
     expect(peak).toBeLessThan(3);
-  }, 60000);
-
+  });
   it('the same check fails above the limit (C2 = 0.55 grows without bound)', () => {
     const t = tank(120, 90, 'free', 0, { sponge: 0, c2: 0.55 });
     drop(t, 60, 45);
@@ -377,7 +376,7 @@ describe('ripple-tank: the wave equation integrated', () => {
       expect(Math.abs(measured - lambda) / lambda).toBeLessThan(0.05);
       // at six cells per wavelength the dispersion is visible: closer to λ_num than to λ
       if (lambda === 6) expect(Math.abs(measured - lambda) / lambda).toBeGreaterThan(0.03);
-    }, 60000);
+    });
   }
 
   it("the double slit's time-averaged intensity peaks where sin θ = mλ/d", () => {
@@ -417,8 +416,7 @@ describe('ripple-tank: the wave equation integrated', () => {
       const dark = at(angle(((m + 0.5) * lambda) / d));
       expect(dark).toBeLessThan(0.35 * Math.min(maxima[m + 2], maxima[m + 3]));
     }
-  }, 60000);
-
+  });
   it('keeps every wall cell at zero, pebbles dropped on the barrier included', () => {
     const t = tank(240, 150, 'double', 34);
     let walls = 0;

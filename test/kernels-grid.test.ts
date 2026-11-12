@@ -463,6 +463,20 @@ describe('grid kernels against known growth', () => {
     expect(last.every((x) => /growth n\^\d/.test(x.value))).toBe(true);
   });
 
+  it('a kernel whose events walk a deep recursion records fewer of them per frame', () => {
+    // each event of the naive recursion resumes its whole yield* chain; the engine divides the
+    // frame's event share by the kernel's declared cost (fibonacci-memo sat at the frame budget
+    // with a flat share)
+    const k = kernelOf('fibonacci-memo');
+    const cost = k.eventCost ?? 1;
+    expect(cost).toBeGreaterThan(1);
+    const budget = 4000;
+    const plate = gridEngine(budget).plate({ id: 'fibonacci-memo', title: 'F', group: 'g' }, k);
+    const run = drive(plate, { ...defaultsOf(plate), n: 24, speed: 2000, loop: true }, 60);
+    // a step finishes the kernel's work up to its next yield: a visit and the writes before it
+    expect(Math.max(...run.perFrame)).toBeLessThanOrEqual(Math.floor(budget / cost) + 4);
+  });
+
   it('while a new input is traced, the readouts are of nothing yet, not of the last run', () => {
     for (const e of live) {
       const k = kernelOf(e.id);

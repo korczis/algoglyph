@@ -892,7 +892,7 @@ describe('graph kernels at their maximum size', () => {
           expect(t.events.length).toBe(5 * t.length);
         }
       }
-    }, 120000);
+    });
   }
 });
 

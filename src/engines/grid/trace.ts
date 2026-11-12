@@ -106,6 +106,12 @@ export interface GridKernel<D = unknown, R = unknown> {
   colour: 'linear' | 'log';
   /** Join marked cells into a path (a traceback) rather than leaving them as separate cells. */
   path?: boolean;
+  /**
+   * What recording one event costs relative to a flat kernel's, when the kernel's events resume
+   * a deep recursion: each resume walks its whole `yield*` chain, so an event at depth d costs
+   * about d. A frame records `BUILD_EVENTS_PER_FRAME / eventCost` events. Default 1.
+   */
+  eventCost?: number;
   readouts: Measure[];
   chart: ChartSpec;
   instance(n: number, seed: number): Instance<D, R>;

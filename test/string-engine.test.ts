@@ -51,7 +51,7 @@ describe('string engine: recording off create()', () => {
       for (let g = 0; g < 400 && !/^0%|^\d%/.test(progress()); g++) sim.draw();
       expect(runs, 'one run per new input').toBe(2);
       expect(progress()).not.toMatch(/^100%/);
-    }, 120000);
+    });
   }
 
   it(`every kernel pauses at least every ${STEP_EVENTS} recorded events, at its largest inputs`, () => {
@@ -114,5 +114,5 @@ describe('string engine: recording off create()', () => {
         expect(pauses, `${e.id} pauses inside its run`).toBeGreaterThan(1);
       }
     }
-  }, 120000);
+  });
 });
