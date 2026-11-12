@@ -14,7 +14,6 @@ export const kernel: GraphKernel<WavesResult> = {
   names: { frontier: 'In the current wave', done: 'Removed', groups: 'Waves' },
   readouts: ['scans', 'rounds', 'frontier', 'maxFrontier', 'done'],
   chart: { title: 'Wave sizes', x: 'rounds', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 2,
   *steps(ops) {
     const g = ops.g;
     const indeg = new Array<number>(g.n).fill(0);

@@ -14,7 +14,6 @@ export const kernel: GraphKernel<BridgesResult> = {
   names: { frontier: 'On the stack', done: 'Finished', tree: 'DFS tree edges', value: 'Low point' },
   readouts: ['scans', 'done', 'tree'],
   chart: { title: 'Depth of the stack', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 3,
   *steps(ops, { s }) {
     const g = ops.g;
     const bridge = new Array<boolean>(g.m).fill(false);

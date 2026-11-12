@@ -9,8 +9,10 @@ import type { Engine, KernelInfo } from '../types';
 import { layout, Painter } from './draw';
 import { labSignal } from './input';
 import { fmtInt, Meter, MUL, Recording, type Panel, type SignalKernel, type View } from './trace';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
-const HOLD_FRAMES = 120;
+/** The most views a frame steps, at the pace control's top: the old speed slider's maximum. */
+const MAX_VIEWS_PER_FRAME = 1;
 /** Milliseconds of recording resumed per live frame, and per thumbnail frame (run 15 at a time). */
 export const SLICE_MS = 6;
 export const THUMB_SLICE_MS = 1.5;
@@ -40,10 +42,9 @@ function countRows(v: View): Stat[] {
 function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
   const own = kernel.params ?? [];
   const keys = own.filter((d) => !d.rebuild).map((d) => d.key);
-  const rate = kernel.rate ?? 8;
   const params: ParamDef[] = [
     ...own,
-    { kind: 'range', key: 'speed', label: 'Replay speed (views per second)', min: 0.5, max: 60, step: 0.1, value: rate },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New signal when done', value: true },
     paletteParam('spectral'),
   ];
@@ -53,8 +54,12 @@ function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
     aspect: kernel.aspect ?? 16 / 9,
     thumbnailFrames: THUMB_FRAMES,
     params,
+    pace: { kind: 'views', unit: 'views' },
     create(p, ctx) {
       let generation = 0;
+      // replayed as it is recorded: at the ceiling until the recording ends, then derived from
+      // its length
+      const pacer = new Pacer('views', 'views', MAX_VIEWS_PER_FRAME);
       let sig = signature(ctx.params, keys);
       const record = () => new Recording(kernel.run({ ...ctx.params }, ctx.seed + generation * 7919, new Meter()));
       /** The run on screen, and a re-record for new parameters finishing in the background. */
@@ -84,17 +89,20 @@ function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
               next = null;
               at = keep ? live.views.length - 1 : Math.min(at, live.views.length - 1);
               hold = 0;
+              pacer.start();
             }
           } else if (!live.done) live.pump(slice, steps);
           const last = Math.max(0, live.views.length - 1);
+          if (pacer.length === null && live.done) pacer.known(last, Math.floor(at));
           if (ctx.thumbnail) at = last;
-          else if (at < last) at = Math.min(last, at + num(ctx.params, 'speed') / 60);
+          else if (at < last) at = Math.min(last, at + pacer.take(ctx.params));
           else if (live.done && !next && settle === 0 && bool(ctx.params, 'loop') && live.views.length > 1
             && ++hold > HOLD_FRAMES) {
             hold = 0;
             generation++;
             live = record();
             at = 0;
+            pacer.start();
           }
           shown = live.views[Math.floor(at)] ?? shown;
           // a thumbnail is drawn many times per frame: paint it once, when its run has finished
@@ -112,9 +120,11 @@ function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
           const total = live.done ? String(live.views.length) : `${live.views.length} recorded so far`;
           ctx.stats([...v.stats, ...countRows(v),
             { label: 'Recorded view', value: live.views.length ? `${Math.floor(at) + 1} of ${total}` : 'recording' },
-            ...(next || settle ? [{ label: 'New settings', value: `recording, ${next?.views.length ?? 0} views so far` }] : [])]);
+            ...(next || settle ? [{ label: 'New settings', value: `recording, ${next?.views.length ?? 0} views so far` }] : []),
+            pacer.row(ctx.params)]);
           if (v.chart) ctx.chart(v.chart);
         },
+        pace: () => pacer.report(live.done && !next && at >= Math.max(0, live.views.length - 1), ctx.params),
       };
     },
   };
@@ -139,6 +149,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: SignalKernel }[]):
         options: LAB_N.map((n) => ({ value: String(n), label: `${n} samples` })) },
       paletteParam('spectral'),
     ],
+    pace: { kind: 'still', why: 'every kernel is drawn once, on the same input: the lab compares the pictures and their measured work, it replays no run' },
     create(p, ctx) {
       const n = num(ctx.params, 'n');
       const x = labSignal(n, LAB_FS, ctx.seed);

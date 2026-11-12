@@ -17,7 +17,6 @@ export const kernel: GraphKernel<MstResult> = {
   chart: { title: 'Tree and queue', y: 'vertices', series: ['done', 'frontier'] },
   pick: 's',
   endpoints: 's',
-  speed: 3,
   *steps(ops, { s }) {
     const g = ops.g;
     const inTree = new Array<boolean>(g.n).fill(false);

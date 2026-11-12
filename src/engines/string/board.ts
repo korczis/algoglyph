@@ -26,9 +26,18 @@ interface Part {
   dirty: number[] | null;
 }
 
-/** Events that cost a step of the plate's speed budget; marks, links and readouts are free. */
+/**
+ * What a replay counts as one step: a costed event (`cost`), a counter tick only (`tick`, a lab's
+ * fair unit), or a note (`note`: the kernel's narrative steps, for a run whose costed events are
+ * too many to watch one at a time).
+ */
+export type StepUnit = 'cost' | 'tick' | 'note';
+
+/** Events that cost a step of the plate's pace; marks, links and readouts are free. */
 const COST = new Set<number>([OP.tick, OP.note, OP.offset, OP.push, OP.pop, OP.splice, OP.swap,
   OP.swapRows, OP.set]);
+
+const counts = (unit: StepUnit, o: number) => (unit === 'tick' ? o === OP.tick : unit === 'note' ? o === OP.note : COST.has(o));
 
 export class Board {
   parts: Part[] = [];
@@ -49,20 +58,31 @@ export class Board {
     this.every = Math.max(1, Math.floor(t.events.length / 120));
   }
   get done(): boolean { return this.at >= this.t.events.length; }
+  /** Steps of `unit` in the whole run: the length the plate paces. */
+  steps(unit: StepUnit = 'cost'): number {
+    const ev = this.t.events;
+    const e: Ev = { o: 0, p: 0, i: 0, j: 0, v: 0 };
+    let n = 0;
+    for (let k = 0; k < ev.length; k++) {
+      ev.get(k, e);
+      if (counts(unit, e.o)) n++;
+    }
+    return n;
+  }
   /** The replay's read cursor into the event log. */
   private cur: Ev = { o: 0, p: 0, i: 0, j: 0, v: 0 };
   /**
-   * Replay events until `budget` costed events have passed (ticks only when ticksOnly), and at
-   * most `cap` events in all: marks and readouts cost no step of the speed, but they are work.
+   * Replay events until `budget` steps of `unit` have passed, and at most `cap` events in all:
+   * marks and readouts cost no step of the pace, but they are work.
    */
-  advance(budget: number, ticksOnly = false, cap = Infinity): void {
+  advance(budget: number, unit: StepUnit = 'cost', cap = Infinity): void {
     const ev = this.t.events;
     let left = budget;
     const end = Math.min(ev.length, this.at + cap);
     while (this.at < end && left > 0) {
       const e = ev.get(this.at++, this.cur);
       this.apply(e);
-      if (ticksOnly ? e.o === OP.tick : COST.has(e.o)) left--;
+      if (counts(unit, e.o)) left--;
       if (this.at % this.every === 0 || this.at === ev.length) this.history.push([this.at, ...this.counts]);
     }
   }

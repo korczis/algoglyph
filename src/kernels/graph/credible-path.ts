@@ -25,7 +25,6 @@ export const kernel: GraphKernel<CredibleResult> = {
   names: { frontier: 'In the queue', done: 'Settled', tree: 'Best links so far', value: 'Cost' },
   readouts: ['scans', 'relaxations', 'done', 'frontier'],
   chart: { title: 'Settled vertices and the queue', y: 'vertices', series: ['done', 'frontier'] },
-  speed: 3,
   *steps(ops, { s, t, p }) {
     const g = ops.g;
     const rule = String(p.cost);

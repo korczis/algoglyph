@@ -64,7 +64,6 @@ function siPi(): number {
 // Harmonics added one at a time: the partial sum converges everywhere except at the jump, where
 // the first ripple keeps about nine per cent of the jump however many harmonics are added.
 export const kernel: SignalKernel = {
-  rate: 6,
   params: [
     { kind: 'select', key: 'shape', label: 'Waveform', value: 'square', options: [
       { value: 'square', label: 'Square' }, { value: 'saw', label: 'Sawtooth' }, { value: 'triangle', label: 'Triangle (no jump)' }] },

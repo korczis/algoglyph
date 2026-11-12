@@ -39,7 +39,6 @@ export const kernel: GraphKernel<HamiltonResult> = {
   names: { frontier: 'On the path', tree: 'Path edges', marked: 'Hamilton path' },
   readouts: ['scans', 'frontier', 'discovers', 'rounds'],
   chart: { title: 'Length of the path being tried', y: 'vertices', series: ['frontier'] },
-  speed: 2,
   *steps(ops) {
     const g = ops.g;
     const on = new Array<boolean>(g.n).fill(false);

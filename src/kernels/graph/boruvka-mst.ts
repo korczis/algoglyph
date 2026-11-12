@@ -12,7 +12,6 @@ export const kernel: GraphKernel<MstResult> = {
   ...MST_VIEW,
   readouts: ['scans', 'tree', 'treeWeight', 'groups', 'rounds'],
   chart: { title: 'Fragments, round by round', x: 'rounds', y: 'count', series: ['groups', 'tree'] },
-  speed: 6,
   *steps(ops) {
     const g = ops.g;
     const uf = new UnionFind(g.n);

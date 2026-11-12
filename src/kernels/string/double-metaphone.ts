@@ -13,7 +13,6 @@ export const kernel: StringKernel<'names', PhoneticKeys[]> = {
   input: 'names',
   shape: 'spellings',
   counters: { letter: 'Letters coded', rule: 'Metaphone rules applied' },
-  speed: 3,
   run(ops, { names, entity }) {
     ops.list('keys', [], { label: 'Keys', lines: 4 });
     const out: PhoneticKeys[] = [];

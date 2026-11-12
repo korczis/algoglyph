@@ -11,8 +11,10 @@ import { apply, DELETED, EMPTY, KIND, OP, STRIDE, Table, trace, tracer, type Has
   type Trace } from './table';
 import { scalingWorkload, STREAM_LABELS, STREAMS, workload, type Stream } from './workload';
 import { count } from '../../core/format';
+import { fits, HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
-const HOLD_FRAMES = 90;
+/** The per-frame maximum the old events slider allowed: the pace never asks more. */
+const MAX_EVENTS_PER_FRAME = 2000;
 export const SCALING_N = [16, 32, 64, 128, 256, 512];
 /** Trace events a lab's scaling measurement may record in one frame. */
 export const FRAME_EVENTS = 40_000;
@@ -88,6 +90,24 @@ export class Replay {
     this.every = Math.max(1, Math.floor(n / 160));
   }
   get done(): boolean { return this.at >= this.t.length; }
+  /** Key operations (insert, search, delete) in the run: the unit a long run is paced in. */
+  operations(): number {
+    let n = 0;
+    for (let i = 0; i < this.t.length; i++) if (this.t.events[STRIDE * i] === OP.end) n++;
+    return n;
+  }
+  /** Replay `ops` whole key operations, but at most `cap` events this frame. */
+  advanceOps(ops: number, cap: number): void {
+    const ev = this.t.events;
+    const limit = Math.min(this.t.length, this.at + cap);
+    let end = this.at;
+    let left = ops;
+    while (end < limit && left > 0) {
+      if (ev[STRIDE * end] === OP.end) left--;
+      end++;
+    }
+    this.advance(end - this.at);
+  }
   advance(steps: number): void {
     const ev = this.t.events;
     const end = Math.min(this.t.length, this.at + steps);
@@ -364,7 +384,7 @@ function params(kernels: HashKernel[], n: number, nMax: number): ParamDef[] {
   }
   out.push(
     { kind: 'range', key: 'deletes', label: 'Keys deleted at the end (percent)', min: 0, max: 90, step: 5, value: 50, rebuild: true },
-    { kind: 'range', key: 'speed', label: 'Trace events per frame', min: 1, max: 2000, step: 1, value: 12 },
+    paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New keys when done', value: true },
     paletteParam('ember'),
   );
@@ -509,6 +529,23 @@ export class Rebuild {
   traces(): Trace[] { return this.jobs.map((j) => j.run.result()); }
 }
 
+/**
+ * A run's pace: its trace events when they fit the calm window, else its key operations, each
+ * one key's insert, search or delete with every probe it made (config/pacing.yaml). A lab paces
+ * every pane alike, from the longest run; the workload is the same, so are the operations.
+ */
+function paced(pacer: Pacer, rs: Replay[]): void {
+  const events = Math.max(0, ...rs.map((r) => r.t.length));
+  const byOps = !fits('replay', events);
+  pacer.unit = byOps ? 'operations' : 'events';
+  pacer.start(byOps ? Math.max(0, ...rs.map((r) => r.operations())) : events);
+}
+
+function step(pacer: Pacer, r: Replay, k: number): void {
+  if (pacer.unit === 'operations') r.advanceOps(k, MAX_EVENTS_PER_FRAME);
+  else r.advance(k);
+}
+
 function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
   return {
     id: info.id,
@@ -516,12 +553,15 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
     aspect: 16 / 9,
     thumbnailFrames: 2,
     params: params([kernel], 96, 512),
+    pace: { kind: 'replay', unit: 'events, or key operations for a long run' },
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
       let next: { rebuild: Rebuild; n: number } | null = null;
       const n0 = num(ctx.params, 'n');
       let r = new Replay(trace(kernel, steps(ctx, n0, ctx.seed), sizeOf(ctx, n0)), kernel.layout, n0);
+      const pacer = new Pacer('replay', 'events', MAX_EVENTS_PER_FRAME);
+      paced(pacer, [r]);
       return {
         setup() {
           if (ctx.thumbnail) r.advance(Math.floor(r.t.length * 0.55));
@@ -529,8 +569,10 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
         draw() {
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
-            if (!r.done) r.advance(num(ctx.params, 'speed'));
-            else if (bool(ctx.params, 'loop')) {
+            if (!r.done) {
+              const k = pacer.take(ctx.params);
+              if (k) step(pacer, r, k);
+            } else if (bool(ctx.params, 'loop')) {
               // trace the next run across the hold frames; show it once it is complete
               if (!next) {
                 const n = num(ctx.params, 'n');
@@ -540,6 +582,7 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
               if (!next.rebuild.ready) next.rebuild.step();
               if (++hold > HOLD_FRAMES && next.rebuild.ready) {
                 r = new Replay(next.rebuild.traces()[0], kernel.layout, next.n);
+                paced(pacer, [r]);
                 next = null;
                 hold = 0;
               }
@@ -548,8 +591,9 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
           const pad = Math.round(Math.min(ctx.width, ctx.height) * 0.04);
           drawTable(p, ctx, r, [pad, pad, ctx.width - 2 * pad, ctx.height - 2 * pad]);
           ctx.chart(kernel.layout === 'pages' ? growthChart(r, kernel) : probeChart(r, kernel));
-          ctx.stats(stats(r, kernel));
+          ctx.stats([...stats(r, kernel), pacer.row(ctx.params)]);
         },
+        pace: () => pacer.report(r.done, ctx.params),
       };
     },
   };
@@ -605,8 +649,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
     aspect: 4 / 3,
     thumbnailFrames: 2,
     params: params(kernels.map((k) => k.kernel), 64, 256),
+    pace: { kind: 'replay', unit: 'events, or key operations for a long run' },
     create(p, ctx) {
       let generation = 0;
+      const pacer = new Pacer('replay', 'events', MAX_EVENTS_PER_FRAME);
       let hold = 0;
       let finishedCount = 0;
       let panes: { info: KernelInfo; kernel: HashKernel; r: Replay; finished: number }[] = [];
@@ -617,6 +663,7 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
       const show = (traces: Trace[], n: number) => {
         finishedCount = 0;
         panes = kernels.map((k, i) => ({ ...k, r: new Replay(traces[i], k.kernel.layout, n), finished: 0 }));
+        paced(pacer, panes.map((x) => x.r));
       };
       const start = () => {
         const n = num(ctx.params, 'n');
@@ -643,10 +690,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
           p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
           if (!ctx.thumbnail) {
             measure();
-            const speed = num(ctx.params, 'speed');
+            const k = panes.some((x) => !x.r.done) ? pacer.take(ctx.params) : 0;
             for (const pane of panes) {
-              if (pane.r.done) continue;
-              pane.r.advance(speed);
+              if (pane.r.done || !k) continue;
+              step(pacer, pane.r, k);
               if (pane.r.done) pane.finished = ++finishedCount;
             }
             if (panes.every((x) => x.r.done) && bool(ctx.params, 'loop')) {
@@ -694,8 +741,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: HashKernel }[]): P
               label: pane.info.title,
               value: `${dec(a.hits ? a.hit / a.hits : NaN)} ${unit}/hit · ${dec(a.misses ? a.miss / a.misses : NaN)} ${unit}/miss · growth n^${dec(slope)}${pane.finished ? ` · finished #${pane.finished}` : ''}`,
             };
-          }));
+          }).concat([pacer.row(ctx.params)]));
         },
+        pace: () => pacer.report(panes.length > 0 && panes.every((x) => x.r.done), ctx.params),
       };
     },
   };

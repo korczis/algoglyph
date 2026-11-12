@@ -414,7 +414,7 @@ describe('hash engine bounds', () => {
   it('labels its controls as what they drive', () => {
     for (const { id, kernel } of modulesById) {
       const code = engine.plate({ id, title: id, group: 'g' }, kernel);
-      expect(code.params.find((d) => d.key === 'speed')?.label).toBe('Trace events per frame');
+      expect(code.params.find((d) => d.key === 'pace')?.label).toBe('Pace (× calm)');
     }
   });
 });
@@ -429,7 +429,11 @@ describe('hash plates loop without a heavy frame', () => {
   const ctxOf = (params: Params, sink: { progress: string }): PlateContext => ({
     width: 400, height: 225, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
     bg: [0, 0, 0], fg: [255, 255, 255], thumbnail: false, palette: () => PALETTES[0],
-    stats(rows) { sink.progress = rows.find((r) => r.label === 'Progress')?.value ?? rows.map((r) => r.value).join('|'); },
+    stats(rows) {
+      // the pace row is the lab's, not a pane's
+      const panes = rows.filter((r) => r.label !== 'Pace');
+      sink.progress = rows.find((r) => r.label === 'Progress')?.value ?? panes.map((r) => r.value).join('|');
+    },
     chart() {},
   });
 

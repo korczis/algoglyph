@@ -11,7 +11,6 @@ const width = (limit: number) => (limit < 200 ? 10 : limit < 1000 ? 20 : 40);
 // smaller prime. Composites with several small prime factors are crossed more than once.
 export const kernel: GridKernel<{ limit: number }, SieveResult> = {
   size: { label: 'Up to N', min: 30, max: 600, step: 10, value: 200 },
-  speed: 2,
   colour: 'linear',
   readouts: [
     { name: 'Crossings', of: (t) => t.count(OP.cross) },

@@ -84,7 +84,6 @@ const energy = (x: ArrayLike<number>) => { let s = 0; for (let i = 0; i < x.leng
 // Split octave by octave into details and a coarser approximation; then keep only the largest
 // coefficients and rebuild, which is wavelet compression.
 export const kernel: SignalKernel = {
-  rate: 1.2,
   params: [
     { kind: 'select', key: 'wavelet', label: 'Wavelet', value: 'db2', options: Object.entries(FILTERS).map(([value, f]) => ({ value, label: f.label })) },
     { kind: 'range', key: 'levels', label: 'Levels', min: 1, max: 6, step: 1, value: 5 },

@@ -2,6 +2,7 @@
 // slices across frames while the held run stays on screen, so a rebuild never freezes a frame
 // for a whole kernel run (rule project.viz-component-layer: heavy work is spread over frames).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HOLD_FRAMES } from '../src/core/pace';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Params, Plate, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
@@ -52,8 +53,8 @@ describe('numeric engine rebuilds', () => {
       let held = 0;
       while (step === last && held < 20000) { sim.draw(); held++; }
       expect(step, `${id}: a new run started`).toMatch(/^1 of \d+$/);
-      // the hold is 150 frames once the run is done; a rebuild done in one frame adds none
-      expect(held, `${id}: frames the finished run stayed`).toBeGreaterThan(151);
+      // the hold (config/pacing.yaml) once the run is done; a rebuild done in one frame adds none
+      expect(held, `${id}: frames the finished run stayed`).toBeGreaterThan(HOLD_FRAMES + 1);
     });
   }
 });

@@ -50,7 +50,6 @@ export const kernel: NumericKernel = {
     { kind: 'select', key: 'spacing', label: 'Nodes', value: 'equal', rebuild: true,
       options: [{ value: 'equal', label: 'Equally spaced' }, { value: 'chebyshev', label: 'Chebyshev' }] },
   ],
-  rate: 1.5,
   thumb: 0.5,
   run({ params }) {
     const t = target(params.target);

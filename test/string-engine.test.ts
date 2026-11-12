@@ -3,6 +3,7 @@
 // is recorded, a looped plate records its next input while the finished board is held, and a
 // trace recorded in steps is the trace recorded in one go.
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { ENTRIES } from '../src/core/catalogue';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Params, PlateContext, Stat } from '../src/core/plate';
@@ -37,7 +38,7 @@ describe('string engine: recording off create()', () => {
       const k: K = { ...kernel, run(ops, x, params) { runs++; return kernel.run(ops, x, params); } };
       const code = engine.plate({ id: e.id, title: e.title, group: '' }, k);
       const params: Params = Object.fromEntries(code.params.map((d) => [d.key, d.value]));
-      params.speed = 2000;
+      params.pace = PACING.pace.max;
       const rows = { stats: [] as Stat[] };
       const sim = code.create(p5Stub(), context(code.aspect, params, rows));
       sim.setup();

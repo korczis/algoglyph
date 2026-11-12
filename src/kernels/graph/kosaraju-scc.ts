@@ -13,7 +13,6 @@ export const kernel: GraphKernel<SccResult> = {
   names: { frontier: 'On the stack', done: 'Finished', groups: 'Strong components' },
   readouts: ['scans', 'done', 'groups', 'rounds'],
   chart: { title: 'Two passes over the vertices', y: 'vertices', series: ['done', 'frontier'] },
-  speed: 4,
   *steps(ops) {
     const g = ops.g;
     const seen = new Array<boolean>(g.n).fill(false);

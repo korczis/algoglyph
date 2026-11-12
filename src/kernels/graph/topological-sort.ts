@@ -12,7 +12,6 @@ export const kernel: GraphKernel<TopoResult> = {
   names: { frontier: 'On the stack', done: 'Placed', value: 'Position' },
   readouts: ['scans', 'frontier', 'done'],
   chart: { title: 'Vertices placed', y: 'vertices', series: ['done', 'frontier'] },
-  speed: 2,
   *steps(ops) {
     const g = ops.g;
     const seen = new Array<boolean>(g.n).fill(false);

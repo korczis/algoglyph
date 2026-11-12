@@ -21,7 +21,6 @@ export const kernel: GraphKernel<ActivationResult> = {
   names: { frontier: 'Firing', done: 'Activated', value: 'Activation' },
   readouts: ['rounds', 'scans', 'frontier', 'done', 'change'],
   chart: { title: 'Vertices firing, round by round', x: 'rounds', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 4,
   *steps(ops, { s, p }) {
     const g = ops.g;
     const d = Number(p.decay);

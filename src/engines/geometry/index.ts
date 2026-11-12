@@ -12,8 +12,10 @@ import { buildNow, Scaling, SLICE_MS, startBuild, type Build, type Request } fro
 import { record, type Box, type GeometryKernel } from './trace';
 import type { Track } from './track';
 import { count } from '../../core/format';
+import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
-const HOLD_FRAMES = 120;
+/** The per-frame maximum the old steps slider allowed: the pace never asks more. */
+const MAX_STEPS_PER_FRAME = 40;
 const fmt = (x: number) => (Number.isInteger(x) ? count(x) : x.toFixed(2));
 
 /** Least-squares slope of log(work) against log(n): the measured growth exponent. */
@@ -52,7 +54,7 @@ function controls(kernel: GeometryKernel, shapes: string[]): ParamDef[] {
 }
 
 const tail = (): ParamDef[] => [
-  { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 2 },
+  paceParam(),
   { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
   paletteParam('spectral'),
 ];
@@ -83,11 +85,15 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
     aspect: 16 / 10,
     thumbnailFrames: 2,
     params: [...controls(kernel, shapes), ...tail()],
+    pace: { kind: 'replay', unit: 'steps' },
     create(p, ctx) {
       let generation = 0;
+      // a run builds before it replays: its recorded steps are known when the replay starts
+      const pacer = new Pacer('replay', 'steps', MAX_STEPS_PER_FRAME);
       const seedOf = () => ctx.seed + generation * 7919;
       // the first run is sliced like every other (a thumbnail builds it at once)
       let t: Track | null = ctx.thumbnail ? buildNow(request(info, kernel, ctx.params, seedOf(), shapes)) : null;
+      if (t) pacer.start(t.length - 1);
       let pending: Build | null = t ? null : startBuild(request(info, kernel, ctx.params, seedOf(), shapes), false);
       let at = 0;
       let hold = 0;
@@ -107,11 +113,14 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
             const deadline = performance.now() + SLICE_MS;
             if (pending) {
               pending.pump(deadline);
-              if (pending.track) { t = pending.track; stride = pending.stride; pending = null; at = 0; hold = 0; }
+              if (pending.track) {
+                t = pending.track; stride = pending.stride; pending = null; at = 0; hold = 0;
+                pacer.start(t.length - 1);
+              }
             }
             if (t && !pending) {
               const last = t.length - 1;
-              if (at < last) at = Math.min(last, at + num(ctx.params, 'speed'));
+              if (at < last) at = Math.min(last, at + pacer.take(ctx.params));
               else if (bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
                 // the next input builds in the background (a worker when there is one, slices
                 // otherwise); the held frame stays on screen until it is ready
@@ -139,6 +148,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
           rows.push({ label: 'Progress', value: `${Math.round((100 * shown) / Math.max(1, t.length - 1))}% of ${fmt(t.length)} recorded steps` });
           if (done) rows.push(...t.rows);
           if (pending) rows.push({ label: 'Next input', value: 'building' });
+          rows.push(pacer.row(ctx.params));
           ctx.stats(rows);
           let chart: Chart | undefined = t.chart;
           if (!chart && sizes.length) {
@@ -152,6 +162,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
           }
           if (chart) ctx.chart(chart);
         },
+        pace: () => pacer.report(t !== null && !pending && at >= t.length - 1, ctx.params),
       };
     },
   };
@@ -171,12 +182,18 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
     thumbnailFrames: 2,
     params: [
       ...controls({ ...first, params: [], n: { ...n, max: nMax } }, shapes),
-      { kind: 'range', key: 'budget', label: 'Work per frame (× n)', min: 1, max: 20, step: 1, value: 2 },
+      paceParam(),
       { kind: 'toggle', key: 'loop', label: 'New input when done', value: true },
       paletteParam('spectral'),
     ],
+    pace: { kind: 'replay', unit: 'steps' },
     create(p, ctx) {
       let generation = 0;
+      // paced by the run that does the most work, step by recorded step; every other pane is
+      // shown at the same amount of work, so the race stays fair
+      const pacer = new Pacer('replay', 'steps', MAX_STEPS_PER_FRAME);
+      let leader: Pane | null = null;
+      let leaderAt = 0;
       type Pane = { info: KernelInfo; kernel: GeometryKernel; t: Track; at: number; finished: number };
       let panes: Pane[] = [];
       let builds: Build[] | null = null;
@@ -192,10 +209,13 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
         spent = 0;
         finishedCount = 0;
         hold = 0;
+        leader = panes.reduce((a, b) => ((b.t.final[key(b.kernel)] ?? 0) > (a.t.final[key(a.kernel)] ?? 0) ? b : a));
+        leaderAt = 0;
+        pacer.start(leader.t.length - 1);
       };
       if (ctx.thumbnail) start(kernels.map((k) => buildNow(req(k))));
       else builds = kernels.map((k) => startBuild(req(k), false));
-      const key = (k: GeometryKernel) => k.counters[0][0];
+      function key(k: GeometryKernel) { return k.counters[0][0]; }
       const advance = () => {
         for (const pane of panes) {
           const tr = pane.t;
@@ -220,7 +240,10 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
               if (builds.every((b) => b.track)) { strides = builds.map((b) => b.stride); start(builds.map((b) => b.track as Track)); builds = null; }
             }
             if (panes.length && !builds) {
-              spent += num(ctx.params, 'budget') * Math.max(1, num(ctx.params, 'n'));
+              if (leader) {
+                leaderAt = Math.min(leader.t.length - 1, leaderAt + pacer.take(ctx.params));
+                spent = leaderAt >= leader.t.length - 1 ? Infinity : leader.t.counts(leaderAt)[key(leader.kernel)] ?? 0;
+              }
               advance();
               if (panes.every((x) => x.finished) && bool(ctx.params, 'loop') && ++hold > HOLD_FRAMES) {
                 generation++;
@@ -273,8 +296,9 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]
               label: pane.info.title,
               value: `${fmt(w)} ${first.counters[0][1].toLowerCase()} · growth n^${Number.isFinite(slope) ? slope.toFixed(2) : '?'}${pane.finished ? ` · finished #${pane.finished}` : ''}${builds ? ' · next input building' : ''}`,
             };
-          }));
+          }).concat([pacer.row(ctx.params)]));
         },
+        pace: () => pacer.report(panes.length > 0 && !builds && panes.every((x) => x.finished), ctx.params),
       };
     },
   };

@@ -10,8 +10,7 @@ export interface QueensResult {
 // (its column and both diagonals are kept as flags), and is taken back when the rows below it
 // are exhausted. Every solution is recorded, so the search runs to the end of the tree.
 export const kernel: GridKernel<{ n: number }, QueensResult> = {
-  size: { label: 'Board size', min: 4, max: 10, step: 1, value: 8 },
-  speed: 6,
+  size: { label: 'Board size', min: 4, max: 10, step: 1, value: 6 },
   colour: 'linear',
   readouts: [
     { name: 'Positions tried', of: (t) => t.count(OP.visit) },

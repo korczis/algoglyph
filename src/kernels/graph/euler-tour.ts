@@ -15,7 +15,6 @@ export const kernel: GraphKernel<EulerResult> = {
   names: { frontier: 'On the stack', done: 'Exhausted', tree: 'Walked, not yet in the tour', marked: 'In the tour' },
   readouts: ['scans', 'tree', 'frontier', 'done'],
   chart: { title: 'Edges walked and edges in the tour', y: 'edges', series: ['tree'] },
-  speed: 2,
   *steps(ops, { s }) {
     const g = ops.g;
     const used = new Array<boolean>(g.m).fill(false);

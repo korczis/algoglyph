@@ -4,6 +4,7 @@
 // entry the sidecar maps is tested under its own id without a line of test code.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { PACING } from '../src/core/pace';
 import { parse } from 'yaml';
 import { ENTRIES, type Entry } from '../src/core/catalogue';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
@@ -143,7 +144,7 @@ function finalReadouts(e: Entry, kernel: ArrayKernel): Stat[] {
   const plate = engine.plate({ id: e.id, title: e.title, group: 'g' }, kernel);
   const params: Params = {};
   for (const d of plate.params) params[d.key] = d.value;
-  Object.assign(params, { n: 64, shape: 'random', speed: 2000, loop: false });
+  Object.assign(params, { n: 64, shape: 'random', pace: PACING.pace.max, loop: false });
   let rows: Stat[] = [];
   const ctx: PlateContext = {
     width: 1440, height: 810, params, seed: 77, rnd: mulberry32(77), theme: 'dark', bg: GROUNDS.dark.bg,

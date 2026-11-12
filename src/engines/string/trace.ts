@@ -135,8 +135,6 @@ export interface StringKernel<K extends InputKind = InputKind, R = unknown> {
   shape?: string;
   /** Default input size (the input kind's size parameter). */
   size?: number;
-  /** Default replay speed: counted operations and notes per frame. */
-  speed?: number;
   aspect?: number;
   chart?: { title: string; x: string; y: string; xlog?: boolean; ylog?: boolean };
   /**

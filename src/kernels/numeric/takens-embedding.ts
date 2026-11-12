@@ -67,7 +67,6 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
 export const kernel: NumericKernel = {
   params: [{ kind: 'select', key: 'signal', label: 'Observed signal', value: 'lorenz', rebuild: true,
     options: [{ value: 'lorenz', label: 'x(t) of the Lorenz flow' }, { value: 'sine', label: 'Two incommensurate sines' }, { value: 'noise', label: 'Gaussian white noise' }] }],
-  rate: 12,
   aspect: 2.2,
   build,
   run: (inp) => drain(build(inp)),

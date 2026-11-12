@@ -18,7 +18,6 @@ export interface ChainResult {
 // plus the cost of multiplying their results. Chains are filled by length, diagonal by diagonal.
 export const kernel: GridKernel<ChainData, ChainResult> = {
   size: { label: 'Matrices', min: 2, max: 12, step: 1, value: 7 },
-  speed: 4,
   colour: 'log',
   readouts: DP_READOUTS,
   chart: { kind: 'scaling', ns: [2, 4, 6, 8, 12, 16, 24, 32], x: 'matrices n', y: 'operations',

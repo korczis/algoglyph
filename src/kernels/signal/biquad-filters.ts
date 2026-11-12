@@ -59,7 +59,6 @@ const dB = (v: number) => 20 * Math.log10(Math.max(1e-9, v));
 // Five classic sections; the poles and zeros are the roots of the denominator and numerator,
 // and the response measured from the impulse response follows them across the z-plane.
 export const kernel: SignalKernel = {
-  rate: 10,
   params: [
     { kind: 'select', key: 'type', label: 'Filter', value: 'lowpass', options: [
       { value: 'lowpass', label: 'Low-pass' }, { value: 'highpass', label: 'High-pass' }, { value: 'bandpass', label: 'Band-pass' },

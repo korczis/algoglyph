@@ -15,7 +15,6 @@ export const kernel: GraphKernel<BfsResult> = {
   names: { frontier: 'On the queue', done: 'Dequeued', tree: 'BFS tree edges', value: 'Distance' },
   readouts: ['scans', 'done', 'frontier', 'maxFrontier', 'rounds'],
   chart: { title: 'The frontier, level by level', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 3,
   *steps(ops, { s }) {
     const g = ops.g;
     const dist = new Array<number>(g.n).fill(-1);

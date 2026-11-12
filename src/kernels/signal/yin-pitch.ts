@@ -65,7 +65,6 @@ const cents = (a: number, b: number) => 1200 * Math.log2(a / b);
 // the detector off those multiples (an octave or more too low). The controls keep the glide and
 // vibrato inside the periods the detector searches (test/kernels-signal.test.ts).
 export const kernel: SignalKernel = {
-  rate: 14,
   params: [
     { kind: 'range', key: 'f0', label: 'Starting pitch (Hz)', min: 100, max: 600, step: 1, value: 196 },
     { kind: 'range', key: 'glide', label: 'Glide (semitones)', min: -12, max: 12, step: 1, value: 7 },

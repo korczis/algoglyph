@@ -99,7 +99,6 @@ const axes = { x: { label: 'nodes n' }, y: { label: 'max |f - s|', log: true } }
 
 export const kernel: NumericKernel = {
   params: [targetParam()],
-  rate: 1.5,
   thumb: 0.3,
   run({ params }) {
     const t = target(params.target);

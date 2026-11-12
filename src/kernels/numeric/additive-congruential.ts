@@ -35,7 +35,6 @@ export function seedTable(seed: number): number[] {
 const TOTAL = 4096;
 
 export const kernel: NumericKernel = {
-  rate: 6,
   palette: 'spectral',
   run({ seed }) {
     const init = seedTable(seed);

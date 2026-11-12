@@ -14,7 +14,6 @@ const MAX_KEY = 16;
 export const kernel: StringKernel<'cipher', { ciphertext: string; length: number; key: string }> = {
   input: 'cipher',
   counters: { shift: 'Letter shifts', count: 'Letters tallied' },
-  speed: 6,
   chart: { title: 'Index of coincidence by key length', x: 'candidate key length', y: 'mean index of coincidence' },
   *run(ops, { plaintext, key }) {
     const n = plaintext.length; const L0 = key.length;

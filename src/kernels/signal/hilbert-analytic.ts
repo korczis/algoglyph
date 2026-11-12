@@ -38,7 +38,6 @@ export function instFreq(re: Float64Array, im: Float64Array, fs: number, meter?:
 // An amplitude- and frequency-modulated carrier; the analytic signal recovers both modulations,
 // and its phase portrait is the carrier's rotating phasor.
 export const kernel: SignalKernel = {
-  rate: 10,
   params: [
     { kind: 'range', key: 'fc', label: 'Carrier (Hz)', min: 400, max: 2400, step: 10, value: 600 },
     { kind: 'range', key: 'depth', label: 'AM depth', min: 0, max: 0.95, step: 0.05, value: 0.6 },

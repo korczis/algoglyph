@@ -20,7 +20,6 @@ export const kernel: GraphKernel<SirResult> = {
   names: { frontier: 'Spreading (I)', done: 'Recovered (R)', tree: 'Transmissions' },
   readouts: ['frontier', 'done', 'maxFrontier', 'rounds', 'scans'],
   chart: { title: 'Susceptible, spreading, recovered', x: 'rounds', y: 'vertices', series: ['unseen', 'frontier', 'done'] },
-  speed: 12,
   *steps(ops, { s, p }) {
     const g = ops.g;
     const beta = Number(p.beta); const gamma = Number(p.gamma);

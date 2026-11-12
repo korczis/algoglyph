@@ -141,8 +141,6 @@ export interface SignalKernel {
   /** Parameters of this kernel; the engine re-runs it when any of them changes. */
   params?: ParamDef[];
   aspect?: number;
-  /** Default replay speed, in recorded views per second. */
-  rate?: number;
   /**
    * Record a run on a signal seeded by `seed`. The engine resumes it for a few milliseconds per
    * frame, so a kernel yields each view as soon as it is recorded and yields `null` inside any

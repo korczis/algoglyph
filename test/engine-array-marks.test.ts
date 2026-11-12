@@ -3,11 +3,12 @@
 // name, the lane of every cell and the round number, and drawn as a lane row and a timeline of
 // round boundaries. A kernel that records none draws exactly as it did before they existed.
 import { describe, expect, it } from 'vitest';
+import { calm, PACING } from '../src/core/pace';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Chart, Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
 import { engine, Replay, roundsApart } from '../src/engines/array';
-import { OP, trace, type ArrayKernel, type ArrayOps } from '../src/engines/array/trace';
+import { input, OP, trace, type ArrayKernel, type ArrayOps } from '../src/engines/array/trace';
 import { drawHash, drawRecorder } from './support/draw-recorder';
 
 const ts = import.meta.glob<ArrayKernel>('../src/kernels/array/[!_]*.ts', { import: 'kernel', eager: true });
@@ -117,7 +118,7 @@ describe('array engine: the plate of a kernel with rounds', () => {
   const plate = engine.plate({ id: 'odd-even-network', title: 'net', group: 'g' }, network(true));
 
   it('reads out its rounds, lanes and phase as counted, in the unit the kernel names', () => {
-    const m = mount(plate, { n: 64, speed: 2000, shape: 'reversed' });
+    const m = mount(plate, { n: 64, pace: PACING.pace.max, shape: 'reversed' });
     m.sim.draw();
     expect(m.value('Layers')).toMatch(/^\d+ of 64$/);
     for (let f = 0; f < 5; f++) m.sim.draw();
@@ -127,7 +128,7 @@ describe('array engine: the plate of a kernel with rounds', () => {
   });
 
   it('draws the lane row with numbers and stripes, and the round boundaries, through the plate', () => {
-    const m = mount(plate, { n: 16, speed: 30 });
+    const m = mount(plate, { n: 16, pace: PACING.pace.max });
     m.sim.draw();
     // lane numbers are drawn as text, inside push/pop so the plate's own text style survives
     expect(m.calls.some((c) => /^text\(0,/.test(c))).toBe(true);
@@ -136,7 +137,7 @@ describe('array engine: the plate of a kernel with rounds', () => {
 
   it('puts rounds on a chart of their own when the work is a decade larger, else on the work chart', () => {
     // n layers of n/2 comparators: the compares outgrow the rounds by n/2
-    const m = mount(plate, { n: 64, speed: 2000 });
+    const m = mount(plate, { n: 64, pace: PACING.pace.max });
     for (let f = 0; f < 5; f++) m.sim.draw();
     expect(roundsApart(trace(network(true), Array.from({ length: 64 }, (_, i) => 64 - i)))).toBe(true);
     const titles = m.charts.map((c) => c.title);
@@ -148,7 +149,7 @@ describe('array engine: the plate of a kernel with rounds', () => {
     expect(own.series[0].points.at(-1)![1]).toBe(64);
     // a round per comparison: one magnitude, one chart
     const dense: ArrayKernel = { run(a: ArrayOps) { for (let i = 0; i + 1 < a.n; i++) { a.round(); a.exch(i, i + 1); } } };
-    const d = mount(engine.plate({ id: 'dense', title: 'dense', group: 'g' }, dense), { n: 64, speed: 2000 });
+    const d = mount(engine.plate({ id: 'dense', title: 'dense', group: 'g' }, dense), { n: 64, pace: PACING.pace.max });
     d.sim.draw();
     expect(new Set(d.charts.map((c) => c.title))).toEqual(new Set(['Work so far']));
     expect(d.charts[0].series.map((s) => s.name)).toContain('Rounds');
@@ -159,7 +160,7 @@ describe('array engine: the plate of a kernel with rounds', () => {
       { info: { id: 'net', title: 'Network', group: 'g' }, kernel: network(true) },
       { info: { id: 'quicksort', title: 'Quicksort', group: 'g' }, kernel: tsKernel('quicksort') },
     ]);
-    const m = mount(lab, { group: 'all', n: 32, speed: 2000 });
+    const m = mount(lab, { group: 'all', n: 32, pace: PACING.pace.max });
     for (let f = 0; f < 20; f++) m.sim.draw();
     const last = m.charts.filter((c) => c.title === 'Measured rounds as n grows').at(-1)!;
     expect(last.series.map((s) => s.name)).toEqual(['Network (layers)']);
@@ -173,36 +174,52 @@ describe('array engine: the plate of a kernel with rounds', () => {
 // Every draw call, readout and chart of these plates and of a lab of TypeScript kernels, recorded
 // with test/support/draw-recorder.ts on the engine as it was before phases, lanes and rounds
 // (commit 0c0759f): the feature leaves a kernel that records none exactly as it was.
+// Re-recorded for the pace (ADR 0008), checked by undoing it: at exactly the old 40 operations a
+// frame (paceFor), with the Pace readout left out and the old 90-frame hold, every hash but one
+// came out as recorded at 0c0759f; the one, quickselect at n = 64, loops within the 300 frames,
+// and its second run is paced from its own length, as every run now is.
 const BEFORE: Record<string, string> = {
-  'quicksort 64': 'ee38977c97ea9f962e5752ed0d0228f28ae970102bcaf8e30a89c8fb144744f0',
-  'quicksort 512': '046d59be57f9c78d951518065a258c5a28178b2f17392715f0a0858ab9442087',
-  'mergesort-bottom-up 64': '78396c3ba8194eb88e335c1c7aef08265854803086b2ad91c165b220816f0cf6',
-  'mergesort-bottom-up 512': '78c2169c95265d7637cf4679ec9e924fefd4626afdeaf78dc9451a5746783f69',
-  'heapsort 64': '9dcf65e80f6a2ce5e58cc71f89d5635a1c6dd47aae1bce8a746fc54ad0417bf8',
-  'heapsort 512': '2de5f86e438050b7797ebb020916b207193308578146ca474860199a68bae799',
-  'batcher-merge-exchange 64': '468f5f3d113287507a439eabd7b6f69178b6cf9a2f40d778e17ac59a8125e6fe',
-  'batcher-merge-exchange 512': '01367fde2c0fe0beded50a14e4cd65c8b8d75b934375d764ed20d6f37a0344f2',
-  'counting-sort 64': '1b96579b491fc55a8e493e5b9f4ce3e0f3271588dd57b4c65ce573eb42171bda',
-  'counting-sort 512': 'dba1a1b70198034da8fa552962a1ecce1e7d6e7155a17cf940dec33435bf02c2',
-  'quickselect 64': '0cb0b65d0712abd07eb7c6c309db80c6540175c9d36b2b45c910c7c1165d824b',
-  'quickselect 512': 'ffc89f7e61d896966aa73203ce412de44fd8d6299a7233495edd6b6c3c48ffe7',
+  'quicksort 64': 'b2a0f28a46137bd7b705b201629134c742cfded32b4e059b3c795bf349e659da',
+  'quicksort 512': '360703999b930cab98cfdd751ee007bff16b74fa089678842bfa920e7dd82dc6',
+  'mergesort-bottom-up 64': 'd15986f036361be7ed1cf0c32ceb5a4b581ff2d62b9afda52e0df8c6f9c6f49f',
+  'mergesort-bottom-up 512': '5939579056e8e27ccf7d8dbd4e7490265aa5e69c5dcd6120b03641c3ec8347ae',
+  'heapsort 64': '6673137a34035e2d155a191ed55b93b0d71cec9fe706264bdcdf6289530bd60b',
+  'heapsort 512': '0bfb558a27964d41c08548259734aed8383f6efd133e328ca4af1be2a2d46f23',
+  'batcher-merge-exchange 64': 'a45b8cf9fabe7aeab7f040233c4f1f9367ed5504627f4b487559f4aba883f781',
+  'batcher-merge-exchange 512': 'cba4f7fe97b3cb9518ebcf630212bc5a3f72d812660c77868439722af1a1c015',
+  'counting-sort 64': '2246795533adacb402736635a77cc2dc1626c15d30455aa7597eac4188c9c885',
+  'counting-sort 512': '84b498adcc949f561493e4bc5750a7747b7d3f507b5835f392c2f4e5b105c716',
+  'quickselect 64': '90d3c12a8bbb15bdc55d28b257343de6cf6e7b41cf8ca6044004ed51e640ce15',
+  'quickselect 512': 'fc66a9f1101a9470934886f630cd149a92d47e78371545621870662859b9aed9',
   // re-recorded twice for intended lab changes, each checked by undoing it: 370dbba stopped a lab
   // measuring past its own n slider (the scaling chart lost its n = 512 points), then the new
   // panes were shown on a frame of their own, one frame after the last trace
-  lab: 'b405ad1829aae267026e2de7972caf304132af0b6b901952bc084ac54d199ccc',
+  lab: '9ce16119149cc0ba57232945e50ee496d1fe02da188d0ae3ae639aa0a02c76d0',
 };
+
+/**
+ * The pace that replays exactly `perFrame` operations a frame on the run drawHash draws (seed
+ * 4242, a random input): the old fixed speed of 40, expressed in multiples of the calm rate.
+ */
+function paceFor(perFrame: number, kernels: ArrayKernel[], n: number, select = false): number {
+  const length = Math.max(...kernels.map((k) => trace(k, input('random', n, 4242),
+    select ? Math.min(n - 1, Math.floor(0.5 * (n - 1))) : Math.floor(n / 2)).length));
+  return perFrame / calm('replay', length);
+}
 
 describe('array engine: a TypeScript kernel draws exactly as before phases, lanes and rounds', () => {
   for (const key of Object.keys(BEFORE).filter((k) => k !== 'lab')) {
     const [id, n] = key.split(' ');
     it(`${id} at n = ${n}: the same draw calls, readouts and charts`, () => {
       const plate = engine.plate({ id, title: id, group: 'g' }, tsKernel(id));
-      expect(drawHash(plate, { n: Number(n), speed: 40 }, 300)).toBe(BEFORE[key]);
+      const pace = paceFor(40, [tsKernel(id)], Number(n), id === 'quickselect');
+      expect(drawHash(plate, { n: Number(n), pace }, 300)).toBe(BEFORE[key]);
     });
   }
   it('a lab of them: the same draw calls, readouts and charts', () => {
     const lab = engine.lab('t', ['quicksort', 'mergesort-bottom-up', 'batcher-merge-exchange', 'counting-sort']
       .map((id, i) => ({ info: { id, title: id, group: i % 2 ? 'a' : 'b' }, kernel: tsKernel(id) })));
-    expect(drawHash(lab, { group: 'all', n: 64, speed: 40 }, 300)).toBe(BEFORE.lab);
+    const pace = paceFor(40, ['quicksort', 'mergesort-bottom-up', 'batcher-merge-exchange', 'counting-sort'].map(tsKernel), 64);
+    expect(drawHash(lab, { group: 'all', n: 64, pace }, 300)).toBe(BEFORE.lab);
   });
 });

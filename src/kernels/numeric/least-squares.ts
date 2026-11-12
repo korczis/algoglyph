@@ -13,7 +13,6 @@ export const kernel: NumericKernel = {
     { kind: 'range', key: 'samples', label: 'Training samples', min: 12, max: 80, step: 1, value: 24, rebuild: true },
     { kind: 'range', key: 'noise', label: 'Noise σ', min: 0, max: 0.3, step: 0.01, value: 0.08, rebuild: true },
   ],
-  rate: 1.2,
   thumb: 0.3,
   run({ seed, params }) {
     const t = target(params.target);

@@ -15,7 +15,6 @@ export const kernel: GraphKernel<DagSpResult> = {
   names: { frontier: 'Ordered, not relaxed', done: 'Relaxed', tree: 'Shortest-path tree', value: 'Distance' },
   readouts: ['scans', 'relaxations', 'done', 'rounds'],
   chart: { title: 'Ordering, then one relaxation pass', y: 'vertices', series: ['frontier', 'done'] },
-  speed: 3,
   *steps(ops, { s }) {
     const g = ops.g;
     const indeg = new Array<number>(g.n).fill(0);

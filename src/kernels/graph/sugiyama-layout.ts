@@ -46,7 +46,6 @@ export const kernel: GraphKernel<LayeredResult> = {
   view: { colour: 'group' },
   names: { groups: 'Layers', done: 'Layered' },
   readouts: ['rounds', 'places', 'groups', 'scans'],
-  speed: 6,
   *steps(ops, { p }) {
     const g = ops.g;
     const n = g.n;

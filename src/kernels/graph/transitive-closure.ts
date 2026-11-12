@@ -12,7 +12,6 @@ export const kernel: GraphKernel<ClosureResult> = {
   names: { frontier: 'Intermediate vertex', done: 'Used as intermediate' },
   readouts: ['cells', 'rounds', 'done'],
   chart: { title: 'Pairs known to be reachable', x: 'rounds', y: 'pairs', series: ['cells'] },
-  speed: 4,
   *steps(ops) {
     const g = ops.g;
     const n = g.n;

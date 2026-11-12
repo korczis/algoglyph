@@ -13,7 +13,6 @@ export const kernel: GraphKernel<Sssp> = {
   names: { frontier: 'In the queue', done: 'Settled', tree: 'Shortest-path tree', value: 'Distance' },
   readouts: ['scans', 'relaxations', 'done', 'frontier', 'maxFrontier'],
   chart: { title: 'Settled vertices and the queue', y: 'vertices', series: ['done', 'frontier'] },
-  speed: 3,
   *steps(ops, { s }) {
     return yield* dijkstra(ops, s, (e) => ops.g.w[e]);
   },
