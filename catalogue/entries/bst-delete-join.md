@@ -23,10 +23,35 @@ pedagogy:
   objectives:
   - Delete a node by joining its two subtrees under the smallest key of the right one, rotated up.
   - See why always replacing from the right makes deletion asymmetric, and what that does to the shape.
+claims:
+  - id: no-deletes-keeps-every-key
+    statement: >-
+      With a share deleted of 0 the tree keeps all 31 keys inserted, exactly: ⌊0 · 31⌋ = 0 keys
+      are deleted, so the run is the 31 inserts and the ⌊31 / 2⌋ = 15 searches alone.
+    readout: Keys held
+    expect: { value: 31 }
+    setup:
+      params: { deletes: 0 }
+  - id: quarter-deleted-keeps-the-rest
+    statement: >-
+      With a share deleted of 0.25 the tree keeps 31 − ⌊0.25 · 31⌋ = 31 − 7 = 24 keys, exactly:
+      each of the 7 deletions removes one present key and joins its two subtrees.
+    readout: Keys held
+    expect: { value: 24 }
+    setup:
+      params: { deletes: 0.25 }
+  - id: tenth-deleted-operation-count
+    statement: >-
+      With a share deleted of 0.1 the run is exactly 31 + 15 + ⌊0.1 · 31⌋ = 31 + 15 + 3 = 49
+      operations: the inserts, the ⌊n / 2⌋ searches and the deletions.
+    readout: Operation
+    expect: { value: 49 }
+    setup:
+      params: { deletes: 0.1 }
 ---
 
 Delete a key by joining its two subtrees, and see what repeated deletion does to the shape.
 
 Deleting a node with two subtrees needs a new root for them. This kernel joins them: the smallest key of the right subtree is rotated up to the top of that subtree, where it has no left child, and the left subtree is hung there. The rotations are counted and drawn.
 
-The plate inserts the keys, runs the searches, then deletes half of the keys one at a time. Because the replacement always comes from the right, the deletion is asymmetric, and long mixes of random insertions and such deletions are known to leave trees less balanced than random insertion alone.
+The plate inserts the keys, runs the searches, then deletes half of the keys by default, one at a time (Share deleted sets the share). Because the replacement always comes from the right, the deletion is asymmetric, and long mixes of random insertions and such deletions are known to leave trees less balanced than random insertion alone.

@@ -488,6 +488,12 @@ function randomWord(rnd: () => number, letters: string, prefix = ''): string {
   return s;
 }
 
+/** Keys a kernel that deletes removes: ⌊f n⌋ for the share f, half by default (the deleting
+ * trees' control, src/kernels/tree/_bst.ts). f · n is nudged up by far less than one key, so a
+ * share like 0.35, stored a hair below its decimal, still deletes ⌊0.35 n⌋. */
+const deleted = (f: number | undefined, n: number): number =>
+  (f === undefined ? Math.floor(n / 2) : Math.floor(f * n + 1e-9));
+
 /** A seeded workload of n items of the kernel's input kind. */
 export function workload(kind: InputKind, shape: string, n: number, seed: number,
   opts: Record<string, number> = {}): Workload {
@@ -532,7 +538,7 @@ export function workload(kind: InputKind, shape: string, n: number, seed: number
     const hits = sample(chosen, Math.ceil(m / 2), rnd);
     const miss = missesOf(inSet, Math.floor(m / 2));
     w.searches = order([...hits, ...miss], 'random', rnd);
-    w.deletes = sample(chosen, Math.floor(n / 2), rnd);
+    w.deletes = sample(chosen, deleted(opts.deletes, n), rnd);
   } else if (kind === 'words') {
     // alphabet size: the word tries' control (src/kernels/tree/_digital.ts)
     const letters = wordLetters(opts.letters);
@@ -553,7 +559,7 @@ export function workload(kind: InputKind, shape: string, n: number, seed: number
       if (!set.has(x) && !misses.includes(x)) misses.push(x);
     }
     w.searches = sample([...sample(words, Math.ceil(n / 4), rnd), ...misses], n, rnd);
-    w.deletes = sample(words, Math.floor(n / 2), rnd);
+    w.deletes = sample(words, deleted(opts.deletes, n), rnd);
   } else if (kind === 'pairs') {
     w.sites = n;
     // connections per site: the union-find kernels' control (src/kernels/tree/_union-find.ts)

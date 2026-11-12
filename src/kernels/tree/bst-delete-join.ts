@@ -1,5 +1,5 @@
 import { NIL, type Key, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
-import { insert, insertAll, L, R, rotR, searchAll } from './_bst';
+import { deleteShareParams, insert, insertAll, L, R, rotR, searchAll } from './_bst';
 
 /** Rotate the smallest key of h's subtree up to its root. */
 function minToRoot(t: TreeOps, h: number): number {
@@ -36,6 +36,7 @@ export const kernel: TreeKernel = {
   input: 'keys',
   structure: 'bst',
   deletes: true,
+  params: deleteShareParams(),
   run(t) {
     insertAll(t, (h, k) => insert(t, h, k));
     searchAll(t);

@@ -1,6 +1,15 @@
 // Binary search tree moves shared by the binary-tree kernels. A node is make([key], 2): child 0
 // is the left link, child 1 the right; `info` holds the subtree size where a kernel keeps it.
+import type { ParamDef } from '../../core/plate';
 import { NIL, type Key, type TreeOps } from '../../engines/tree/trace';
+
+/** The control the deleting trees share, so they stay in step: after the searches they delete
+ * ⌊f n⌋ of the n keys, half by default (src/engines/tree/trace.ts); the hash plates' "Keys deleted
+ * at the end" is the same idea in percent. */
+export const deleteShareParams = (): ParamDef[] => [{
+  kind: 'range', key: 'deletes', label: 'Share deleted', min: 0, max: 0.5, step: 0.05, value: 0.5,
+  rebuild: true, hint: 'Keys deleted after the searches: ⌊f n⌋ of the n keys.',
+}];
 
 export const L = 0;
 export const R = 1;
