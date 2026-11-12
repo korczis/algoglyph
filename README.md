@@ -654,19 +654,19 @@ Map every key to a subarray of the output with a monotone function, count the hi
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/blitsort">097 · Blitsort</a></b><br>
-Fluxsort without the big buffer: a stable quicksort and mergesort hybrid that makes do with a small fixed buffer and solves everything that does not fit with rotations of adjacent blocks.<br>
+Fluxsort without the big buffer: a stable quicksort that makes do with a small fixed buffer and solves everything that does not fit with rotations of adjacent blocks.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space log n · sorting, hybrid, stable, in-place, adaptive, rotations</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/crumsort">098 · Crumsort</a></b><br>
-The in-place, unstable sibling of Fluxsort: the same analyser, the same pivot selection and the same hand-off of small or presorted ranges to quadsort, but partitioning in place with what its author calls a fulcrum partition.<br>
+The in-place, unstable sibling of Fluxsort: the same pivot selection and the same treatment of keys equal to the pivot, but partitioning in place with what its author calls a fulcrum partition.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space log n · sorting, hybrid, in-place, adaptive, branchless</sub>
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/fluxsort">099 · Fluxsort</a></b><br>
-A stable quicksort: partition top-down around a pivot, copying keys not larger than the pivot to the front of the array and larger keys to an auxiliary array, both in their original order; small or presorted ranges go to the quadsort mergesort.<br>
+A stable quicksort: partition top-down around a pivot, copying the keys smaller than the pivot to the front of the array and the others to an auxiliary buffer, both in their original order, then copying the buffer back behind them; small ranges are finished by binary insertion.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space n · sorting, hybrid, stable, adaptive, stable quicksort, branchless</sub>
 </td>
 <td width="50%" valign="top">
@@ -683,7 +683,7 @@ Pair the keys and compare within each pair, sort the larger keys recursively int
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/octosort">102 · Octosort</a></b><br>
-WikiSort's block merge sort with faster parts: the same skeleton of stable merging through a small internal buffer, with several building blocks replaced by quicker ones.<br>
+A stable bottom-up merge sort in constant extra memory: binary insertion sorts runs of 32 keys, then neighbouring runs are merged in pairs through a 32-key buffer when the shorter one fits it, and split by a binary search and a rotation when neither does; two runs already in order cost one comparison.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space 1 · sorting, hybrid, stable, in-place, adaptive, block merge</sub>
 </td>
 </tr>
@@ -695,14 +695,14 @@ Partition as in quicksort, sort one side with a method X that normally needs ext
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/weavesort">104 · Weave merge sort</a></b><br>
-A mergesort whose merge is replaced: sort both halves recursively, interleave them like the teeth of two combs so that keys of the left and right halves alternate, and let insertion sort tidy the nearly sorted result.<br>
-<sub>Hybrid sorts · n² in every case; extra space log n · sorting, hybrid, quadratic, in-place, interleaving</sub>
+A mergesort whose merge is replaced: sort both halves recursively and, unless they are already in order, interleave them like the teeth of two combs so that keys of the left and right halves alternate, and let insertion sort tidy the nearly sorted result.<br>
+<sub>Hybrid sorts · n best, n² worst; extra space log n · sorting, hybrid, quadratic, in-place, interleaving</sub>
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/wolfsort">105 · Wolfsort</a></b><br>
-Distribute the keys into buckets by value, about eight keys per bucket, sort each bucket with Fluxsort, and merge the buckets with the keys that overflowed them; presorted stretches go straight to quadsort.<br>
+Distribute the keys into buckets by value, about sixteen keys per bucket, and sort each bucket with Fluxsort; small inputs, and inputs whose keys all fall into one bucket, go to Fluxsort directly.<br>
 <sub>Hybrid sorts · n best, n log n average and worst; extra space n · sorting, hybrid, stable, adaptive, buckets</sub>
 </td>
 <td width="50%" valign="top">
