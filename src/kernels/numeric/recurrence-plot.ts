@@ -140,10 +140,11 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   for (let i = 0; i < R.length; i++) values[i] = 0.3 * R[i];
   yield;
   const lo = Math.min(...s); const hi = Math.max(...s);
+  const lmin = Number(params.lmin ?? 2);
   const ticks = Array.from({ length: 60 }, (_, i) => Math.max(8, Math.round(((i + 1) * n) / 60)));
   const steps: NumericRun['steps'] = [];
   for (const k of ticks) {
-    const q = rqa(R, n, k);
+    const q = rqa(R, n, k, lmin);
     const layers: Layer[] = [
       { kind: 'grid', rows: n, cols: n, values, lo: 0, hi: 1, clear: 0, rowsShown: k },
       { kind: 'segments', segs: [[0, n - k, k, n - k], [k, n - k, k, n]], alpha: 0.5 },
@@ -155,8 +156,8 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
       stats: [
         { label: 'States', value: `${int(k)} of ${int(n)} (m ${m}, τ ${tau}, ε ${fmt(eps)})` },
         { label: 'Recurrence rate', value: `${fmt(100 * q.rr, 3)}%` },
-        { label: 'Determinism (diagonal lines ≥ 2)', value: `${fmt(100 * q.det, 3)}%` },
-        { label: 'Laminarity (vertical lines ≥ 2)', value: `${fmt(100 * q.lam, 3)}%` },
+        { label: 'Determinism', value: `${fmt(100 * q.det, 3)}% (diagonal lines ≥ ${int(lmin)})` },
+        { label: 'Laminarity', value: `${fmt(100 * q.lam, 3)}% (vertical lines ≥ ${int(lmin)})` },
         { label: 'Diagonal lines', value: `mean ${fmt(q.meanDiag, 3)}, longest ${int(q.maxDiag)}, entropy ${fmt(q.entropy, 3)}` },
         { label: 'Longest diagonal line', value: `${int(q.maxDiag)} points` },
       ],
@@ -183,6 +184,8 @@ export const kernel: NumericKernel = {
         { value: 'logistic', label: 'Logistic map, r = 4' }, { value: 'lorenz', label: 'x(t) of the Lorenz flow' }, { value: 'noise', label: 'Gaussian white noise' }] },
     { kind: 'range', key: 'rate', label: 'Recurrence rate target (%)', min: 2, max: 20, step: 1, value: 8, rebuild: true },
     { kind: 'range', key: 'length', label: 'Length', min: 100, max: 400, step: 20, value: 300, rebuild: true },
+    // a line holds at most length − 1 points, 399 at the longest length: a larger minimum counts none
+    { kind: 'range', key: 'lmin', label: 'Shortest line counted', min: 2, max: 399, step: 1, value: 2, rebuild: true },
   ],
   aspect: 1.5,
   palette: 'ember',

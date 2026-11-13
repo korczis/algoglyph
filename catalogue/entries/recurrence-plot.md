@@ -24,7 +24,7 @@ pedagogy:
   objectives:
     - Read a recurrence plot's texture, where periodic motion draws long diagonal lines, chaos short broken ones and noise isolated points.
     - See ε set so that the chosen share of pairs recur, and the texture change where the logistic series switches from period 4 to chaos.
-    - Measure determinism, the share of recurrent points on diagonal lines of length two or more, and laminarity, the share on vertical lines.
+    - Measure determinism, the share of recurrent points on diagonal lines of at least the shortest length counted, and laminarity, the share on vertical lines.
 bounds:
   model: squared state distances computed (every pair for the threshold, then every pair and the main diagonal for the matrix)
   best: N²
@@ -85,10 +85,28 @@ claims:
     expect: { value: 277 }
     setup:
       params: { series: sine }
+  - id: sine-period-lines-at-lmin-23
+    statement: >-
+      Counting only lines of 23 points or more on the sine keeps exactly the full lines at offsets
+      23j, of 300 − 23j points for j up to 12 (offset 299 holds a single point): 1,806 of the 3,588
+      recurrent pairs, since every other line breaks within 23 points. Determinism is 1,806 / 3,588
+      = 50.33%, 50.3 within 0.05 to the readout's three digits.
+    readout: Determinism
+    expect: { value: 50.3, tolerance: 0.05 }
+    setup:
+      params: { series: sine, lmin: 23 }
+  - id: no-line-beyond-the-longest
+    statement: >-
+      The sine's longest line has 277 points, so counting only lines of 278 points or more counts
+      none: determinism is exactly 0.
+    readout: Determinism
+    expect: { value: 0 }
+    setup:
+      params: { series: sine, lmin: 278 }
 ---
 
 When the trajectory returns near where it has been, drawn as a matrix whose texture changes with regime.
 
 The series is delay-embedded and every pair of states compared; ε is set so that the chosen share of pairs recur: it is the distance of the pair at that rank, so pairs tied with it recur as well, and on the regime series, whose periodic half repeats states exactly, the rate can read a little above the target. Periodic motion draws long diagonal lines, chaos short broken ones, noise isolated points; the logistic series that switches from period 4 to chaos halfway changes texture where the regime does.
 
-Recurrence quantification is computed on the block revealed so far, with the main diagonal excluded: determinism is the share of recurrent points on diagonal lines of length two or more, laminarity the share on vertical lines. The chart is the histogram of diagonal line lengths.
+Recurrence quantification is computed on the block revealed so far, with the main diagonal excluded: determinism is the share of recurrent points on diagonal lines of length two or more (the shortest line counted is a control), laminarity the share on vertical lines. The chart is the histogram of diagonal line lengths.
