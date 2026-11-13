@@ -40,10 +40,27 @@ claims:
     expect: { value: 441 }
     setup:
       params: { degree: 9 }
+  - id: horner-degree-9-takes-9-additions
+    statement: >-
+      The other half of the cost: each nesting step adds one coefficient, so at degree 9 the meter
+      counts exactly 9 additions for the evaluation at the last point, the n additions Horner's
+      rule states, an exact count with no margin.
+    readout: Additions this evaluation
+    expect: { value: 9 }
+    setup:
+      params: { degree: 9 }
+  - id: horner-degree-16-takes-16-additions
+    statement: >-
+      At degree 16 one evaluation still costs exactly n = 16 additions, so Horner's rule spends n
+      multiplications and n additions and nothing else.
+    readout: Additions this evaluation
+    expect: { value: 16 }
+    setup:
+      params: { degree: 16 }
 ---
 
 Evaluate a polynomial with n multiplications by nesting it from the highest coefficient.
 
 The polynomial is evaluated left to right across the panel. At each point the bars on the right are the nested values b_n, b_{n−1}, …, b_0 = p(x), each one the previous times x plus the next coefficient.
 
-The meter counts every multiplication: n for Horner's rule, 2n − 1 when powers are carried along, n(n + 1)/2 when every power is computed from scratch. The readout also tracks the largest difference between Horner's value and the naive sum, which is rounding only.
+The meter counts every multiplication: n for Horner's rule, 2n − 1 when powers are carried along, n(n + 1)/2 when every power is computed from scratch. It counts the additions too, n for each of the three. The readout also tracks the largest difference between Horner's value and the naive sum, which is rounding only.
