@@ -12,6 +12,7 @@ import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import type { GraphKernel } from '../src/engines/graph/trace';
 import { kernel as edmondsKarp } from '../src/kernels/graph/edmonds-karp';
 import { kernel as fordFulkerson } from '../src/kernels/graph/ford-fulkerson';
+import { kernel as preflowPush } from '../src/kernels/graph/preflow-push';
 import { dinic } from './support/graph-oracles';
 
 interface Entry { id: string; claims: Claim[] }
@@ -67,6 +68,27 @@ const edmondsKarpBound: Check = (c, g) => {
   expect(c.expect.range, c.id).toEqual([1, g.m * Math.floor(g.n / 2)]);
 };
 
+/**
+ * preflow-push's height writes are at most V + (V − 2)(2V − 1), from the push-relabel height bound
+ * (an active vertex is never above 2V − 1), derived here for this plate's variant: it writes every
+ * vertex's height once at the start (V writes, s at V and the rest at 0) and once per relabel,
+ * and only a vertex other than s and t is ever relabelled (activate() admits neither).
+ * (1) Heights stay valid, h(u) ≤ h(v) + 1 on every residual arc u → v: s's edges are saturated at
+ * the start, so s has no residual arc out (the flow input turns every edge at s outward); a push
+ * along an admissible arc (h(u) = h(v) + 1) can only add v → u, which goes down; and a relabel
+ * sets h(u) one above its lowest residual neighbour. (2) A relabel raises h(u) by at least 1: the
+ * discharge scans every residual arc of u and pushes along each admissible one, so the arcs left
+ * when excess remains are not admissible and by (1) lead no lower than h(u), and the new height
+ * is their lowest plus 1. (3) A vertex with excess has a residual path back to s (its excess
+ * came along a path of positive flow, which runs the other way in the residual network), at
+ * most V − 1 arcs long, and by (1) each arc drops at most 1, so h(u) ≤ h(s) + V − 1 = 2V − 1 when
+ * it is relabelled. From 0, by steps of at least 1, to at most 2V − 1: at most 2V − 1 relabels for
+ * each of the V − 2 vertices. The claim's range is [V, V + (V − 2)(2V − 1)].
+ */
+const heightWritesBound: Check = (c, g) => {
+  expect(c.expect.range, c.id).toEqual([g.n, g.n + (g.n - 2) * (2 * g.n - 1)]);
+};
+
 interface Plate { id: string; kernel: GraphKernel; checks: Record<string, Check>; needs: string[] }
 
 const PLATES: Plate[] = [
@@ -87,6 +109,15 @@ const PLATES: Plate[] = [
       Rounds: edmondsKarpBound,
     },
     needs: ['Flow value', 'Cut capacity', 'Rounds'],
+  },
+  {
+    id: 'preflow-push', kernel: preflowPush as GraphKernel,
+    checks: {
+      'Flow value': flowValue,
+      'Cut capacity': exactAgainst('Flow value'),
+      'Height writes': heightWritesBound,
+    },
+    needs: ['Flow value', 'Cut capacity', 'Height writes'],
   },
 ];
 
