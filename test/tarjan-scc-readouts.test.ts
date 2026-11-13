@@ -8,7 +8,9 @@ import { DEFAULT_SEED } from '../src/core/claims';
 import { makeGraph } from '../src/engines/graph/graph';
 import { trace } from '../src/engines/graph/trace';
 import { kernel, type SccResult } from '../src/kernels/graph/tarjan-scc';
-import { repeatedLabels, settledRows } from './support/digraph-oracles';
+import {
+  claimGraph, entryClaims, mutualClasses, repeatedLabels, settledRows,
+} from './support/digraph-oracles';
 import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
@@ -56,5 +58,25 @@ describe('tarjan-scc counts the edges into a later-popped component (G3)', () =>
     const reversed = { comp: comp.map((c) => k - 1 - c) };
     const rows = kernel.report?.(reversed, g, { s: g.s, t: g.t, p: {} }) ?? [];
     expect(rows.find((r) => r.label === LATER)?.value).toBe(String(between));
+  });
+});
+
+// The entry's claims, from the plate's readouts; their literals are computed here independently:
+// the strong components as the classes of mutual reachability, by a breadth-first search from
+// every vertex (never the depth-first search the plate runs).
+describe('tarjan-scc claims, from an independent computation', () => {
+  it('states the classes of mutual reachability at each setting it claims', () => {
+    let checked = 0;
+    for (const c of entryClaims('tarjan-scc')) {
+      if (c.expect.value === undefined || c.readout === LATER) continue;
+      const sizes = new Map<number, number>();
+      for (const k of mutualClasses(claimGraph(kernel, c))) sizes.set(k, (sizes.get(k) ?? 0) + 1);
+      const want: Record<string, number> = {
+        'Strong components': sizes.size, Largest: Math.max(...sizes.values()),
+      };
+      expect(c.expect.value, c.id).toBe(want[c.readout]);
+      checked++;
+    }
+    expect(checked).toBeGreaterThanOrEqual(4);
   });
 });
