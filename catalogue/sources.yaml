@@ -1273,3 +1273,21 @@ sources:
     publisher: Oxford University Press
     year: 1999
     kind: book
+  - id: taylor-wheeler-1992
+    title: Spacetime Physics (second edition)
+    author: Edwin F. Taylor, John Archibald Wheeler
+    publisher: W. H. Freeman
+    year: 1992
+    kind: book
+  - id: jackson-1999
+    title: Classical Electrodynamics (third edition)
+    author: John David Jackson
+    publisher: Wiley
+    year: 1999
+    kind: book
+  - id: rindler-2006
+    title: 'Relativity: Special, General, and Cosmological (second edition)'
+    author: Wolfgang Rindler
+    publisher: Oxford University Press
+    year: 2006
+    kind: book
