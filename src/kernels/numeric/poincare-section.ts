@@ -59,7 +59,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const rnd = mulberry32(seed);
   const E = Number(params.energy ?? 0.125);
   const K = Number(params.orbits ?? 16);
-  const lam = 1;
+  const lam = Number(params.lambda ?? 1);
   const crossings = 160;
   const orbits: Orbit[] = [];
   for (let k = 0; orbits.length < K && k < 50 * K; k++) {
@@ -91,6 +91,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
       layers,
       stats: [
         { label: 'Energy', value: fmt(E) },
+        { label: 'Escape energy 1/(6λ²)', value: lam > 0 ? fmt(1 / (6 * lam * lam)) : '∞ (uncoupled, no escape)' },
         { label: 'Section points', value: `${int(upto)} (orbit ${which + 1} of ${orbits.length})` },
         { label: 'Largest relative energy drift', value: fmt(drift) },
         { label: 'Integrator', value: 'leapfrog (velocity Verlet), h 0.01' },
@@ -110,7 +111,11 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
 
 export const kernel: NumericKernel = {
   params: [
-    { kind: 'range', key: 'energy', label: 'Energy E (escape at 1/6)', min: 0.04, max: 0.165, step: 0.005, value: 0.125, rebuild: true },
+    { kind: 'range', key: 'energy', label: 'Energy E (escape at 1/(6λ²), 1/6 at λ 1)', min: 0.04, max: 0.165, step: 0.005, value: 0.125, rebuild: true },
+    // H(λ) is H(1)/λ² under x = X/λ, so the escape energy is 1/(6λ²): λ ends at 1, where it is
+    // 1/6, still above the energy control's top of 0.165, so every orbit stays bound and crosses
+    // the section; beyond 1 orbits at the top energies escape and the section empties
+    { kind: 'range', key: 'lambda', label: 'Coupling λ', min: 0, max: 1, step: 0.05, value: 1, rebuild: true },
     { kind: 'range', key: 'orbits', label: 'Orbits', min: 4, max: 30, step: 1, value: 16, rebuild: true },
   ],
   aspect: 16 / 9,

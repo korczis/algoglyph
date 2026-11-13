@@ -1,11 +1,15 @@
-// poincare-section (wave 6): its hand-written kick-drift-kick step moves onto the one integrator
+// poincare-section (wave 6). Defect D3: its hand-written kick-drift-kick step moves onto the one integrator
 // library (src/plates/_shared/ode), the same arithmetic in the same order, so every orbit is the
 // same bit for bit; the old step is kept here verbatim and run beside the library in this run (no
-// hash recorded on one CPU).
+// hash recorded on one CPU). Then the coupling λ, fixed at 1, becomes a control.
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import type { Params } from '../src/core/plate';
+import { parse, serialise } from '../src/core/share';
 import { leapfrog } from '../src/plates/_shared/ode/ode';
 import * as poincare from '../src/kernels/numeric/poincare-section';
+import { loadPlate } from '../src/registry';
+import { read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
@@ -112,5 +116,51 @@ describe('poincare-section: the largest drift is taken over every step', () => {
       expect(worst).toBeGreaterThan(sampled); // the sampling missed the peak on every start here
       expect(o.drift).toBe(worst);
     }
+  });
+});
+
+// The coupling λ of x²y − y³/3, fixed at 1, becomes the control `lambda`. Scaling x = X/λ turns
+// H(λ) into H(1)/λ², so the escape energy is 1/(6λ²), and λ ≤ 1 keeps it above the energy
+// control's top, 0.165: every orbit stays bound. At λ = 0 the system is two uncoupled unit
+// oscillators, which the leapfrog integrates with a conserved modified energy
+// H̃ = H − (h²/8)(x² + y²), so the relative energy error stays within (h²/4)/(1 − h²/4).
+const ID = 'poincare-section';
+const KEY = 'lambda';
+const probe = (readout: string, params: Params): Claim =>
+  ({ id: 'probe', statement: 'a control test reading', readout, expect: { range: [-1e12, 1e12] }, setup: { params: params as Record<string, number> } });
+async function at(readout: string, params: Params): Promise<number> {
+  const r = await read(ID, probe(readout, params));
+  expect(r.reason).toBeUndefined();
+  return r.value as number;
+}
+
+describe('poincare-section: lambda, "Coupling λ"', () => {
+  it('is a range 0 … 1 by 0.05, 1 (the old constant) by default, and rebuilds', () => {
+    expect(poincare.kernel.params?.find((d) => d.key === KEY)).toMatchObject({
+      kind: 'range', label: 'Coupling λ', min: 0, max: 1, step: 0.05, value: 1, rebuild: true,
+    });
+  });
+
+  it('round-trips through a shared link', async () => {
+    const defs = (await loadPlate(ID))!.params;
+    const d: Params = Object.fromEntries(defs.map((x) => [x.key, x.value]));
+    for (const v of [0, 0.35, 0.8]) {
+      expect(parse(defs, serialise(defs, { ...d, [KEY]: v }, 7))).toEqual({ seed: 7, params: { [KEY]: v } });
+    }
+  });
+
+  it('at 0 the orbits are uncoupled oscillators: every one crosses 160 times, the drift within h²/4', async () => {
+    const h = 0.01;
+    const bound = (h * h) / 4 / (1 - (h * h) / 4); // 2.50006e-5
+    expect(await at('Section points', { [KEY]: 0, energy: 0.165 })).toBe(16 * 160);
+    expect(await at('Largest relative energy drift', { [KEY]: 0, energy: 0.165 })).toBeLessThanOrEqual(2.5e-5);
+    // the readout prints three digits; the orbit itself is within the bound
+    const s = poincare.start(0.2, 0.1, 0.165, 0)!;
+    expect(poincare.orbit(s, 0, 160).drift).toBeLessThanOrEqual(bound);
+    expect(await at('Escape energy 1/(6λ²)', { [KEY]: 0.5 })).toBeCloseTo(2 / 3, 4);
+  });
+
+  it('at 0.5 the energy 0.165 is a quarter of the way to escape in the scaled system: every orbit crosses 160 times', async () => {
+    expect(await at('Section points', { [KEY]: 0.5, energy: 0.165 })).toBe(16 * 160);
   });
 });
