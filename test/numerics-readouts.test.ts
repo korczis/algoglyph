@@ -171,3 +171,18 @@ describe('cubic-splines publishes its measured convergence order', () => {
     }, 120_000);
   }
 });
+
+describe('collatz-coral counts the steps from a chosen start', () => {
+  /** Steps of 3n + 1 down to 1, in BigInt so no orbit can overflow. */
+  const steps = (start: number) => {
+    let n = BigInt(start); let k = 0;
+    while (n !== 1n) { n = n % 2n === 0n ? n / 2n : 3n * n + 1n; k++; }
+    return k;
+  };
+  for (const start of [1, 27, 97, 871, 77031]) {
+    it(`counts ${start}'s orbit as an independent loop does`, async () => {
+      const r = await reading('collatz-coral', 'steps from the chosen start', { start });
+      expect(r.value, r.text).toBe(steps(start));
+    }, 120_000);
+  }
+});
