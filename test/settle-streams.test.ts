@@ -283,3 +283,19 @@ describe('boids-3d stops at a flock step', () => {
     });
   }
 });
+
+describe('gray-scott stops at a reaction-diffusion step', () => {
+  common('gray-scott', 'steps', 100_000, 40);
+
+  it('settles at step 1000 when a frame steps 11, and reads that field', async () => {
+    // at 800 px the cell budget lets 11 of the 14 asked a frame: 1000 / 11 is not whole; the
+    // field after 1000 steps does not depend on how frames group them, so 100 frames of 10 is it
+    const free = await after('gray-scott', { speed: 10 }, 100);
+    expect(free.steps).toBe('1,000');
+    const p = { [RUNS_KEY]: 1000 };
+    expect(await settled('gray-scott', 'steps', p)).toBe('1,000');
+    expect(await settled('gray-scott', 'mean V', p)).toBe(free['mean V']);
+    expect(await settled('gray-scott', 'steps this frame', p)).toBe('0, held at the stop');
+    expect(await settled('gray-scott', COMPLETED_RUNS, p)).toBe('1,000 of 1,000, stopped');
+  });
+});

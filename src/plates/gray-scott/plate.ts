@@ -2,6 +2,7 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { bounded, cellWithin, stepsWithin } from '../../core/budget';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import { field, PRESETS, seed, step, type Field } from './grayscott';
 
 /** Cells in the grid at most, and cell updates (cells × steps) per frame (src/core/budget.ts). */
@@ -25,6 +26,9 @@ export const grayScott: PlateCode = {
     { kind: 'range', key: 'res', label: 'Cell size (px)', min: 2, max: 6, step: 1, value: 3,
       rebuild: true },
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 14 },
+    // a stop costs nothing, so its top is not a budget's: past 100 000 steps a reader lets it
+    // run on (0)
+    runsParam({ unit: 'steps', max: 100_000 }),
     paletteParam('abyss'),
   ],
   pace: { kind: 'stream', emergent: 'a reaction-diffusion integrator: its steps per frame set simulated time per frame' },
@@ -34,6 +38,8 @@ export const grayScott: PlateCode = {
     let raster: Raster;
     let res = 3;
     let steps = 0;
+    // a run is one reaction-diffusion step (src/plates/_shared/settle)
+    const stop = new StreamStop(params, 1);
 
     const fk = () => {
       const preset = PRESETS[str(params, 'preset')] ?? PRESETS.coral;
@@ -56,14 +62,19 @@ export const grayScott: PlateCode = {
           seed(fl, Math.floor(ctx.rnd() * w), Math.floor(ctx.rnd() * h), 2 + Math.floor(ctx.rnd() * 5));
         }
         steps = 0;
+        stop.reset();
       },
       pressed: (x, y) => paint(x, y),
       dragged: (x, y) => paint(x, y),
       draw() {
         const [f, k] = fk();
-        const n = ctx.thumbnail ? 40 : stepsWithin(num(params, 'speed'), fl.v.length, CELL_STEPS_PER_FRAME);
+        const room = ctx.thumbnail ? 40
+          : stepsWithin(num(params, 'speed'), fl.v.length, CELL_STEPS_PER_FRAME);
+        // clamped to the stop: the frame that reaches it steps only the steps left
+        const n = stop.allow(room);
         for (let s = 0; s < n; s++) step(fl, f, k);
         steps += n;
+        stop.advance(n);
 
         const pal = ctx.palette();
         let sum = 0;
@@ -80,8 +91,10 @@ export const grayScott: PlateCode = {
           { label: 'regime', value: `f ${f.toFixed(4)}, k ${k.toFixed(4)}` },
           { label: 'steps', value: steps.toLocaleString('en') },
           { label: 'mean V', value: (sum / fl.v.length).toFixed(4) },
-          { label: 'steps this frame', value: bounded(n, ctx.thumbnail ? n : num(params, 'speed')) },
+          { label: 'steps this frame', value: stop.stopped ? `${n}, held at the stop`
+            : bounded(n, ctx.thumbnail ? n : num(params, 'speed')) },
           { label: 'grid', value: `${fl.w}×${fl.h} (torus), cells ${bounded(res, num(params, 'res'), ' px')}` },
+          ...stop.rows(),
         ]);
       },
     };
