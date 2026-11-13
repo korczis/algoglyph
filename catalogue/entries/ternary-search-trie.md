@@ -20,6 +20,33 @@ pedagogy:
   objectives:
   - Follow the less and greater links at the same key position and the equal link to the next one.
   - See why three links per node replace one per letter of the alphabet.
+claims:
+  - id: three-letters-every-word-held
+    statement: >-
+      Over an alphabet of R = 3 letters the trie holds exactly the 20 words drawn: three letters
+      spell 363 words of 1 to 5 letters (3 + 9 + 27 + 81 + 243), so the draw reaches 20 distinct
+      words, and each one ends at its own marked node.
+    readout: Keys held
+    expect: { value: 20 }
+    setup:
+      params: { letters: 3 }
+  - id: three-letters-height-bound
+    statement: >-
+      Over R = 3 letters the trie is at most 15 levels high, a hard bound: at each of a word's at
+      most 5 positions a path crosses a search tree of the distinct letters there, at most R = 3
+      nodes, before its equal link moves on, so at most R · 5 = 15 levels.
+    readout: Height
+    expect: { below: 16 }
+    setup:
+      params: { letters: 3 }
+  - id: ten-letters-every-word-held
+    statement: >-
+      Over R = 10 letters the trie still holds exactly the 20 words drawn, one marked node each: a
+      larger alphabet only widens the search tree at each position.
+    readout: Keys held
+    expect: { value: 20 }
+    setup:
+      params: { letters: 10 }
 ---
 
 One character per node with less, equal and greater links: a trie as compact as a search tree.

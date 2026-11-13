@@ -26,6 +26,25 @@ algorithm:
 bounds:
   model: probes
   average: 'expected ½(1 + 1/(1 − α)) per hit and ½(1 + 1/(1 − α)²) per miss (Knuth, uniform keys)'
+claims:
+  - id: six-shared-bits-one-cluster
+    statement: >-
+      With adversarial keys sharing 6 leading hash bits and no deletions, the 96 keys at load 0.75
+      have 128 slots and their homes, the hash's leading 7 bits, fall in 2^(7 − 6) = 2 adjacent
+      slots; every cluster holding a key holds its home, so one cluster holds all 96, exactly.
+    readout: Longest cluster
+    expect: { value: 96 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 6 }
+  - id: three-shared-bits-cluster-bound
+    statement: >-
+      With 3 shared bits the homes fall in 2^(7 − 3) = 16 adjacent slots; two clusters are parted
+      by an empty slot, so at most 8 clusters meet those 16 slots and the longest holds at least
+      ⌈96 / 8⌉ = 12 keys, a hard bound.
+    readout: Longest cluster
+    expect: { above: 11 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 3 }
 ---
 
 On a collision try the next slot; watch clusters form and slow everything down.

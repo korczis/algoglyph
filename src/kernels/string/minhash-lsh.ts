@@ -3,7 +3,7 @@ import { fnv1a, jaccard, mix32, shingles } from './_normalise';
 
 export interface MinhashResult { sig: number[][]; candidates: [number, number][]; shingles: number[][]; bands: number; rows: number }
 
-// Each document is its set of word 3-shingles, hashed to 32 bits. For each of b·r seeded
+// Each document is its set of word k-shingles (k = 3 by default), hashed to 32 bits. For each of b·r seeded
 // mixing functions the signature keeps the minimum over the set; two signatures agree in a
 // position with probability equal to the sets' Jaccard similarity. The signature is cut into b
 // bands of r rows, and documents whose band is identical land in the same bucket: a pair of
@@ -15,13 +15,15 @@ export const kernel: StringKernel<'documents', MinhashResult> = {
   params: [
     { kind: 'range', key: 'bands', label: 'Bands b', min: 2, max: 16, step: 1, value: 8, rebuild: true },
     { kind: 'range', key: 'rows', label: 'Rows per band r', min: 1, max: 6, step: 1, value: 4, rebuild: true },
+    { kind: 'range', key: 'shingle', label: 'Shingle length (words)', min: 1, max: 5, step: 1, value: 3, rebuild: true },
   ],
   // a generator: one hash function of one document, one band or one row of pairs per step
   *run(ops, { docs }, params) {
     const bands = Number(params.bands ?? 8) || 8; const rows = Number(params.rows ?? 4) || 4;
     const k = bands * rows;
+    const w = Math.max(1, Number(params.shingle ?? 3) || 3);
     // a cell's colour is a function of its minimum, so equal minima show as equal colours
-    const sets = docs.map((d) => [...new Set(shingles(d.text, 3).map(fnv1a))]);
+    const sets = docs.map((d) => [...new Set(shingles(d.text, w).map(fnv1a))]);
     ops.table('sig', docs.length, k, { label: 'Signatures', rowHead: docs.map((d) => `${d.id} ${d.outlet}`) });
     const sig = docs.map(() => new Array<number>(k).fill(0));
     for (const [r, set] of sets.entries()) {

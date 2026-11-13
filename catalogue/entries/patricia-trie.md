@@ -29,6 +29,25 @@ bounds:
   model: comparisons and bit tests
   worst: exactly one key comparison per search, after at most w bit tests for w-bit keys
   space: n nodes for n keys
+claims:
+  - id: six-extra-bits-height-bound
+    statement: >-
+      With 6 extra key bits the 24 keys are w = max(4, ⌈lg 96⌉) + 6 = 13 bits wide and the trie is
+      at most w + 1 = 14 levels high, a hard bound: bit indices strictly increase down the tree
+      from the header's −1 through 0 to w − 1, so a path is the header and at most w nodes.
+    readout: Height
+    expect: { below: 15 }
+    setup:
+      params: { spare: 6 }
+  - id: six-extra-bits-one-key-per-node
+    statement: >-
+      On the clustered input with 6 extra key bits the trie still holds exactly the 24 keys, one per
+      node, an exact count: a wider key lengthens the shared prefixes, and Patricia skips them
+      rather than spending a node on each one-way branch.
+    readout: Keys held
+    expect: { value: 24 }
+    setup:
+      params: { shape: clustered, spare: 6 }
 ---
 
 A trie that skips the bits where nothing branches, with exactly one node per key.

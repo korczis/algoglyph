@@ -60,14 +60,15 @@ describe('string engine: recording off create()', () => {
     for (const e of live) {
       const kernel = modules[`../src/kernels/string/${e.id}.ts`];
       const def = KINDS[kernel.input];
-      const sizes = [def.size.max, ...((e.labs ?? []).length ? [Math.max(...def.scale)] : [])];
+      const sizes = [kernel.sizeMax ?? def.size.max, ...((e.labs ?? []).length ? [Math.max(...def.scale)] : [])];
       const own: ParamDef[] = kernel.params ?? [];
       const top: Params = Object.fromEntries(own.map((d) => [d.key, d.kind === 'range' ? d.max : d.value]));
       const variants = [top, ...own.flatMap((d) => (d.kind === 'select' ? d.options.map((o) => ({ ...top, [d.key]: o.value })) : []))];
       for (const n of sizes) {
         for (const shape of def.shapes.length ? def.shapes.map((sh) => sh.value) : ['']) {
           for (const params of variants) {
-            const steps = traceSteps(kernel, input(kernel.input, n, shape, 77) as never, params);
+            // the kernel's params shape its input too (a pattern's length, a text's runs)
+            const steps = traceSteps(kernel, input(kernel.input, n, shape, 77, params) as never, params);
             let last = 0; let worst = 0;
             for (let r = steps.next(); ; r = steps.next()) {
               const at = r.done ? r.value.events.length : r.value;

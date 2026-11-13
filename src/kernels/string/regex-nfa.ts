@@ -33,6 +33,8 @@ export const kernel: StringKernel<'regex', number[]> = {
   input: 'regex',
   counters: { trans: 'States examined', eps: 'Epsilon edges followed' },
   chart: { title: 'Active states along the text', x: 'text position', y: 'states in the set' },
+  // the seeded pattern's tree depth (src/engines/string/inputs.ts): 4 would about triple m
+  params: [{ kind: 'range', key: 'depth', label: 'Pattern nesting', min: 1, max: 3, step: 1, value: 3, rebuild: true }],
   run(ops: StringOps, { pattern, text }) {
     const re = `(${pattern})`;
     const m = re.length;

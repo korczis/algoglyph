@@ -143,6 +143,9 @@ export interface StringKernel<K extends InputKind = InputKind, R = unknown> {
   shape?: string;
   /** Default input size (the input kind's size parameter). */
   size?: number;
+  /** The largest input size its plate offers, above the input kind's (LZW's text, long enough
+   * to fill its dictionary). */
+  sizeMax?: number;
   aspect?: number;
   chart?: { title: string; x: string; y: string; xlog?: boolean; ylog?: boolean };
   /**

@@ -1,5 +1,5 @@
 import type { StringKernel } from '../../engines/string/trace';
-import { align, board, compare, everywhere, found, SEARCH_CHART, SEARCH_COUNTERS } from './_search';
+import { align, board, compare, everywhere, found, SEARCH_CHART, SEARCH_COUNTERS, searchParams } from './_search';
 
 // Try every alignment; compare left to right until a mismatch or the whole pattern matches. A
 // generator: on Repetitive input its work grows as n², so it pauses at every alignment.
@@ -7,6 +7,7 @@ export const kernel: StringKernel<'search', number[]> = {
   input: 'search',
   counters: SEARCH_COUNTERS,
   chart: SEARCH_CHART,
+  params: searchParams(),
   *run(ops, { text, pattern }) {
     const n = text.length; const m = pattern.length;
     const out: number[] = [];

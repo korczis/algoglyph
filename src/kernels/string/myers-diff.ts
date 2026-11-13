@@ -10,6 +10,9 @@ export const kernel: StringKernel<'versions', { d: number; script: Edit[] }> = {
   input: 'versions',
   counters: { compare: 'Token comparisons', reach: 'Paths extended' },
   chart: { title: 'Furthest reach per round', x: 'edits d', y: 'tokens of the old version consumed' },
+  // one edit of the new version per `every` tokens (src/engines/string/inputs.ts); the range ends
+  // where the main-thread budget does (test/budget/strings.test.ts measures its minimum)
+  params: [{ kind: 'range', key: 'every', label: 'Tokens per edit', min: 2, max: 12, step: 1, value: 5, rebuild: true }],
   run(ops, { a, b }) {
     const N = a.length; const M = b.length;
     const cut = (s: string) => (s.length > 6 ? s.slice(0, 6) : s);

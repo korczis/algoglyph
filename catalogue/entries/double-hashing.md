@@ -29,6 +29,26 @@ algorithm:
 bounds:
   model: probes
   average: 'close to uniform probing: expected (1/α) ln(1/(1 − α)) per hit and 1/(1 − α) per miss'
+claims:
+  - id: six-shared-bits-hits-off-home
+    statement: >-
+      With adversarial keys sharing 6 leading hash bits and no deletions, the 96 keys get a table
+      of 131 slots (the prime after ⌈96 / 0.75⌉ = 128), and their homes fall in at most
+      ⌈131 / 64⌉ + 1 = 4 slots; at most 4 of the 48 keys a batch searches for sit at home, so the
+      hits take at least (4 + 2 · 44) / 48 ≈ 1.92 probes on average, a hard bound.
+    readout: Probes per search
+    expect: { above: 1.91 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 6 }
+  - id: three-shared-bits-hits-off-home
+    statement: >-
+      With 3 shared bits the homes fall in at most ⌈131 / 8⌉ + 1 = 18 slots, so at most 18 of the
+      48 searched keys sit at home and the hits take at least (18 + 2 · 30) / 48 = 1.625 probes on
+      average, a hard bound.
+    readout: Probes per search
+    expect: { above: 1.62 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 3 }
 ---
 
 Probe with a step from a second hash, which breaks up the clusters of linear probing.

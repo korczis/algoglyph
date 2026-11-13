@@ -1,5 +1,5 @@
 import { NIL, type Key, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
-import { fix, insertAll, L, leaf, R, rotL, rotR, searchAll, size } from './_bst';
+import { deleteShareParams, fix, insertAll, L, leaf, R, rotL, rotR, searchAll, size } from './_bst';
 
 function insertRoot(t: TreeOps, h: number, k: Key): number {
   if (h === NIL) return leaf(t, k, true);
@@ -66,6 +66,7 @@ export const kernel: TreeKernel = {
   input: 'keys',
   structure: 'bst',
   deletes: true,
+  params: deleteShareParams(),
   infoLabel: 'size',
   run(t) {
     insertAll(t, (h, k) => insert(t, h, k));

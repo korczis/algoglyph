@@ -324,17 +324,20 @@ export function drawBoard(p: p5, ctx: PlateContext, b: Board, x: number, y: numb
     } else {
       const chh = u * 0.86;
       p.textSize(Math.max(7, u * 0.52));
-      const widths = q.cells.map((s) => Math.min(avail, p.textWidth(s) + u * 0.6));
+      // measured from the newest item back, only as far as the visible lines reach: a long run's
+      // list holds thousands of items (LZW's codes of a 16384-character text)
+      const widths: number[] = [];
+      const width = (i: number) => (widths[i] ??= Math.min(avail, p.textWidth(q.cells[i]) + u * 0.6));
       // fill lines from the newest item backwards, so the latest items are always visible
       const lines: number[][] = [];
       let cur: number[] = []; let cw = 0;
       for (let i = q.cells.length - 1; i >= 0; i--) {
-        if (cur.length && cw + widths[i] > avail) {
+        if (cur.length && cw + width(i) > avail) {
           lines.unshift(cur.reverse());
           cur = []; cw = 0;
           if (lines.length >= q.lines) break;
         }
-        cur.push(i); cw += widths[i] + 3;
+        cur.push(i); cw += width(i) + 3;
       }
       if (cur.length && lines.length < q.lines) lines.unshift(cur.reverse());
       lines.forEach((ln, li) => {

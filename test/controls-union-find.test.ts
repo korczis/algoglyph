@@ -150,7 +150,9 @@ describe('the tree engine at the defaults is what it was before the control', ()
   }, 120_000);
 
   it('every tree plate and the union-find lab offer the same controls, the new one aside', async () => {
-    const defs = live.map((e) => [e.id, plateOf(e.id).params.filter((d) => d.key !== KEY)]);
+    // the controls added to other tree plates since (S2): each has its own test of its defaults
+    const later = ['spare', 'letters', 'deletes'];
+    const defs = live.map((e) => [e.id, plateOf(e.id).params.filter((d) => d.key !== KEY && !later.includes(d.key))]);
     const lab = await loadLab('union-find');
     expect(lab, 'the union-find lab').toBeDefined();
     expect(hash([defs, lab!.params])).toBe(PARAMS);

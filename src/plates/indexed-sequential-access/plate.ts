@@ -21,6 +21,10 @@ export const indexedSequentialAccess: PlateCode = {
     { kind: 'range', key: 'inserts', label: 'Share of operations that insert', min: 0, max: 1, step: 0.05,
       value: 0.4 },
     { kind: 'toggle', key: 'hot', label: 'Inserts crowd into one key range', value: true },
+    // the crowded range starts at 0.4 of the key span and is this wide; it steers the running
+    // plate, so only the inserts after a change use it
+    { kind: 'range', key: 'band', label: 'Hot range width', min: 0.01, max: 0.5, step: 0.01,
+      value: 0.05, hint: 'Share of the key span the crowded inserts fall in, from 0.4 of it up.' },
     paceParam(),
     paletteParam('abyss'),
   ],
@@ -46,7 +50,8 @@ export const indexedSequentialAccess: PlateCode = {
       const insert = ctx.rnd() < num(params, 'inserts') && isam.size < loaded * 3;
       let key: number;
       if (insert) {
-        key = bool(params, 'hot') ? Math.floor(top * (0.4 + 0.05 * ctx.rnd())) : Math.floor(ctx.rnd() * top);
+        key = bool(params, 'hot') ? Math.floor(top * (0.4 + num(params, 'band') * ctx.rnd()))
+          : Math.floor(ctx.rnd() * top);
         const ok = isam.insert(key);
         if (ok) stored.push(key);
         last = { insert, key, look: isam.search(key), ok };

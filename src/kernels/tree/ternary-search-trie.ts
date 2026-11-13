@@ -1,5 +1,5 @@
 import { NIL, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
-import { drive } from './_digital';
+import { alphabetParams, drive } from './_digital';
 
 const LO = 0;
 const EQ = 1;
@@ -37,6 +37,7 @@ export const kernel: TreeKernel = {
   input: 'words',
   structure: 'tst',
   colour: 'terminal',
+  params: alphabetParams(),
   run(t) {
     drive(t, (k) => t.setRoot(0, insert(t, t.root(), k as string, 0)), (k) => search(t, k as string));
   },

@@ -16,6 +16,8 @@ export function checkDigit(digits: number[]): number {
 export const kernel: StringKernel<'ico', boolean[]> = {
   input: 'ico',
   counters: { mul: 'Digits weighted', check: 'Numbers checked' },
+  // the share of seeded numbers corrupted (src/engines/string/inputs.ts)
+  params: [{ kind: 'range', key: 'corrupt', label: 'Share corrupted', min: 0, max: 1, step: 0.05, value: 0.4, rebuild: true }],
   run(ops, { numbers, corrupted }) {
     ops.list('done', [], { label: 'Checked', lines: 3 });
     const out: boolean[] = [];

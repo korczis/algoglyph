@@ -29,6 +29,24 @@ bounds:
   model: key comparisons
   average: about 1 + α/2 per hit and α per miss (uniform keys)
   worst: 'a miss compares every key of its chain; a hit, the keys up to its own'
+claims:
+  - id: six-shared-bits-two-chains
+    statement: >-
+      With adversarial keys sharing 6 leading hash bits and no deletions, the 96 keys at load 0.75
+      get 128 chains, and a chain is picked by the hash's leading 7 bits: the 6 the keys share
+      leave them 2^(7 − 6) = 2 chains, so by pigeonhole the longest holds at least 96 / 2 = 48.
+    readout: Longest chain
+    expect: { above: 47 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 6 }
+  - id: three-shared-bits-sixteen-chains
+    statement: >-
+      With 3 shared bits the keys reach 2^(7 − 3) = 16 of the 128 chains, so the longest holds at
+      least ⌈96 / 16⌉ = 6 keys, a pigeonhole bound eight times below the 6-bit one.
+    readout: Longest chain
+    expect: { above: 5 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 3 }
 ---
 
 Each table slot holds a list of the keys that hash there.

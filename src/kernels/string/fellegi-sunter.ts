@@ -2,12 +2,16 @@ import { S, type StringKernel } from '../../engines/string/trace';
 import { foldMarks } from './_normalise';
 
 const FIELDS = ['given', 'surname', 'year', 'town'] as const;
+/** The fields each setting of the control compares, all four by default. */
+const SETS: Record<string, readonly (typeof FIELDS)[number][]> = {
+  all: FIELDS, name: ['given', 'surname'], nameyear: ['given', 'surname', 'year'],
+};
 const clamp = (x: number) => Math.min(1 - 1e-6, Math.max(1e-6, x));
 
 export interface FsResult { m: number[]; u: number[]; p: number; loglik: number[]; scores: number[]; pairs: [number, number][]; threshold: number }
 
-// Every pair of records becomes an agreement vector over the fields (folded, case-blind
-// equality). Under conditional independence the vectors are a mixture of matches, which agree
+// Every pair of records becomes an agreement vector over the fields compared (all four by
+// default; folded, case-blind equality). Under conditional independence the vectors are a mixture of matches, which agree
 // on field k with probability m_k, and non-matches, with u_k; EM estimates m, u and the match
 // share p from the unlabelled vectors. A field then adds log2(m/u) when it agrees and
 // log2((1 − m)/(1 − u)) when it does not, and a pair is a match when its total weight exceeds
@@ -16,32 +20,38 @@ export const kernel: StringKernel<'records', FsResult> = {
   input: 'records',
   counters: { compare: 'Field comparisons', em: 'EM pair updates' },
   chart: { title: 'Match weights of all pairs', x: 'total weight (bits)', y: 'pairs' },
+  params: [{
+    kind: 'select', key: 'fields', label: 'Fields compared', value: 'all', rebuild: true,
+    options: [{ value: 'all', label: 'All four' }, { value: 'name', label: 'Given name and surname' },
+      { value: 'nameyear', label: 'Given name, surname and year' }],
+  }],
   // a generator: a record's row of pairs, or 256 pairs of an EM pass, per step
-  *run(ops, { records }) {
+  *run(ops, { records }, params) {
+    const fields = SETS[String(params.fields ?? 'all')] ?? SETS.all;
     const n = records.length;
     // every field folded once per record, not once per comparison
-    const vals = records.map((r) => FIELDS.map((f) => foldMarks(String(r[f])).toLowerCase()));
+    const vals = records.map((r) => fields.map((f) => foldMarks(String(r[f])).toLowerCase()));
     const pairs: [number, number][] = [];
     const gamma: number[][] = [];
-    ops.table('w', FIELDS.length, 4, { label: 'Fields', rowHead: [...FIELDS], colHead: ['m', 'u', 'agree', 'disagree'] });
+    ops.table('w', fields.length, 4, { label: 'Fields', rowHead: [...fields], colHead: ['m', 'u', 'agree', 'disagree'] });
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         pairs.push([i, j]);
-        gamma.push(FIELDS.map((_, k) => (ops.eq('compare', vals[i][k], vals[j][k]) ? 1 : 0)));
+        gamma.push(fields.map((_, k) => (ops.eq('compare', vals[i][k], vals[j][k]) ? 1 : 0)));
       }
       yield null;
     }
-    ops.note(`${pairs.length} pairs compared on ${FIELDS.length} fields`);
-    let m = FIELDS.map(() => 0.9); let u = FIELDS.map(() => 0.1); let p = 0.1;
+    ops.note(`${pairs.length} pairs compared on ${fields.length} fields`);
+    let m = fields.map(() => 0.9); let u = fields.map(() => 0.1); let p = 0.1;
     const loglik: number[] = [];
-    const show = () => FIELDS.forEach((_, k) => {
+    const show = () => fields.forEach((_, k) => {
       ops.put('w', k, 0, m[k].toFixed(2)); ops.put('w', k, 1, u[k].toFixed(3));
       ops.put('w', k, 2, Math.log2(m[k] / u[k]).toFixed(1), S.hit);
       ops.put('w', k, 3, Math.log2((1 - m[k]) / (1 - u[k])).toFixed(1), S.miss);
     });
     show();
     for (let it = 0; it < 60; it++) {
-      let sg = 0; const sm = FIELDS.map(() => 0); const su = FIELDS.map(() => 0); let ll = 0;
+      let sg = 0; const sm = fields.map(() => 0); const su = fields.map(() => 0); let ll = 0;
       for (const [q, g] of gamma.entries()) {
         if (q % 256 === 255) yield null;
         ops.tick('em');

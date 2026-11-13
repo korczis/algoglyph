@@ -1,6 +1,7 @@
 // Seeded key streams and the workload every hash kernel runs: insert the keys, measuring searches
 // at checkpoints along the way, then delete some of them, measuring again. The workload knows
 // which keys are present from its own bookkeeping, never from a kernel.
+import type { ParamDef } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
 import { GOLDEN, inverse32, KIND, type Step } from './table';
 
@@ -14,15 +15,28 @@ export const STREAM_LABELS: Record<Stream, string> = {
 
 const KEY_LIMIT = 2 ** 31;
 const RUN = 16;
-/** Leading hash bits every adversarial key shares. */
+/** Leading hash bits every adversarial key shares, by default. */
 export const ADVERSARIAL_BITS = 6;
+
+/**
+ * The control every hash plate shares, so they stay in step: the adversarial keys' h1 values
+ * share their leading b bits, a band of 2^(32 − b) hash values. Past 6 the chained table at its
+ * top load crowds every key into one chain and extendible hashing meets its depth cap; the range
+ * ends where the main-thread budget does (test/budget/searching.test.ts measures its maximum).
+ */
+export const adversarialParam = (): ParamDef => ({
+  kind: 'range', key: 'band', label: 'Adversarial shared bits', min: 1, max: 12,
+  step: 1, value: ADVERSARIAL_BITS, rebuild: true, when: { key: 'stream', values: ['adversarial'] },
+  hint: 'Every adversarial key hashes into one band of 2^(32 − b) values: 1/2^b of the table.',
+});
 const INVERSE = inverse32(GOLDEN);
 
 /**
  * 2·count distinct keys in [0, 2^31): the first half is inserted, the second half is the pool
  * of keys searched for and not found. Both halves follow the same distribution.
  */
-export function keys(stream: Stream, count: number, seed: number): { inserted: number[]; absent: number[] } {
+export function keys(stream: Stream, count: number, seed: number, bits = ADVERSARIAL_BITS):
+  { inserted: number[]; absent: number[] } {
   const rnd = mulberry32(seed);
   const seen = new Set<number>();
   const out: number[] = [];
@@ -49,8 +63,8 @@ export function keys(stream: Stream, count: number, seed: number): { inserted: n
     return { inserted: ins, absent: abs };
   }
   // adversarial: keys whose h1 values all share their leading bits, built by inverting h1
-  const band = Math.floor(rnd() * 2 ** ADVERSARIAL_BITS) * 2 ** (32 - ADVERSARIAL_BITS);
-  const width = 2 ** (32 - ADVERSARIAL_BITS);
+  const band = Math.floor(rnd() * 2 ** bits) * 2 ** (32 - bits);
+  const width = 2 ** (32 - bits);
   while (out.length < 2 * count) {
     const h = (band + Math.floor(rnd() * width)) >>> 0;
     add(Math.imul(h, INVERSE) >>> 0);
@@ -63,9 +77,10 @@ const DELETE_CHECKPOINTS = 3;
 const SAMPLE = 48;
 
 /** The steps of one run: inserts, measured searches at checkpoints, deletes, searches again. */
-export function workload(stream: Stream, n: number, deletePercent: number, seed: number): Step[] {
+export function workload(stream: Stream, n: number, deletePercent: number, seed: number,
+  bits = ADVERSARIAL_BITS): Step[] {
   const rnd = mulberry32(seed ^ 0x5bd1e995);
-  const { inserted, absent } = keys(stream, n, seed);
+  const { inserted, absent } = keys(stream, n, seed, bits);
   const present: number[] = [];
   const steps: Step[] = [];
   let missAt = 0;

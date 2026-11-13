@@ -24,6 +24,34 @@ pedagogy:
 bounds:
   model: states examined
   worst: 'at most m + 2 per text character for a pattern of m characters (m + 2 states with its two parentheses, besides the accept state): O(m n)'
+claims:
+  - id: depth-1-every-end
+    statement: >-
+      At nesting 1 the seeded pattern is (a|.), and '.' matches any one character, so a match
+      ends at every one of the 36 positions; JavaScript's RegExp, tried over every start and end
+      of the text, finds the same 36.
+    readout: Match ends
+    expect: { value: 36 }
+    setup:
+      params: { depth: 1 }
+  - id: depth-2-ends-regexp
+    statement: >-
+      At nesting 2 the seeded pattern is b(b|c): JavaScript's RegExp, an independent engine tried
+      over every start and end of the text, finds a match ending at 13 positions, and so does the
+      automaton.
+    readout: Match ends
+    expect: { value: 13 }
+    setup:
+      params: { depth: 2 }
+  - id: depth-2-states-bound
+    statement: >-
+      At nesting 2 the pattern b(b|c) has m = 6 characters, so each of the n = 36 text characters
+      examines at least the start state and at most the m + 2 states besides the accept state:
+      between 36 and 8 × 36 = 288 states examined.
+    readout: States examined
+    expect: { range: [36, 288] }
+    setup:
+      params: { depth: 2 }
 ---
 
 Compile a pattern to a nondeterministic automaton and run every state set at once.

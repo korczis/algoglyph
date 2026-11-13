@@ -3,8 +3,8 @@ import { foldMarks } from './_normalise';
 
 export interface Candidates { pairs: [number, number][]; method: string; window: number; order: number[] }
 
-// Every record gets a key built from its folded name: the first three letters of the surname
-// and the first letter of the given name. Standard blocking compares only records with the same
+// Every record gets a key built from its folded name: the first letters of the surname (three
+// by default) and the first letter of the given name. Standard blocking compares only records with the same
 // key. Sorted neighbourhood sorts by the longer key surname + given name and compares each
 // record with the next w − 1 in that order, so a typo late in a name still lands nearby.
 export const kernel: StringKernel<'records', Candidates> = {
@@ -14,14 +14,17 @@ export const kernel: StringKernel<'records', Candidates> = {
     { kind: 'select', key: 'method', label: 'Method', value: 'sorted', rebuild: true,
       options: [{ value: 'sorted', label: 'Sorted neighbourhood' }, { value: 'blocking', label: 'Standard blocking' }] },
     { kind: 'range', key: 'window', label: 'Window w', min: 2, max: 12, step: 1, value: 4, rebuild: true },
+    { kind: 'range', key: 'prefix', label: 'Surname letters in the key', min: 1, max: 6, step: 1, value: 3, rebuild: true,
+      when: { key: 'method', values: ['blocking'] } },
   ],
   run(ops, { records }, params) {
     const method = String(params.method ?? 'sorted') === 'blocking' ? 'blocking' : 'sorted';
     const w = Math.max(2, Number(params.window ?? 4) || 4);
+    const prefix = Math.max(1, Number(params.prefix ?? 3) || 3);
     const n = records.length;
     const up = (s: string) => foldMarks(s).toUpperCase().replace(/[^A-Z]/g, '');
     const keys = records.map((r) => (method === 'blocking'
-      ? `${up(r.surname).slice(0, 3)}${up(r.given).slice(0, 1)}`
+      ? `${up(r.surname).slice(0, prefix)}${up(r.given).slice(0, 1)}`
       : `${up(r.surname)} ${up(r.given)}`));
     const order = records.map((_, i) => i);
     order.sort((x, y) => { ops.tick('compare'); return keys[x] < keys[y] ? -1 : keys[x] > keys[y] ? 1 : x - y; });

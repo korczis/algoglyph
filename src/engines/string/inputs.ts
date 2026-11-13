@@ -33,8 +33,12 @@ interface KindDef {
   /** Sizes a lab measures the growth of work over. */
   scale: number[];
   shapes: { value: string; label: string }[];
-  make(rnd: () => number, n: number, shape: string): unknown;
+  /** opts: the kernel's own params, its defaults filled in; an absent key is the old constant. */
+  make(rnd: () => number, n: number, shape: string, opts: InputOpts): unknown;
 }
+
+/** A kernel's params that shape its input (src/engines/string/index.ts optsOf). */
+export type InputOpts = Readonly<Record<string, string | number | boolean>>;
 
 type Rnd = () => number;
 const pick = <T>(rnd: Rnd, a: ArrayLike<T>): T => a[Math.floor(rnd() * a.length)];
@@ -196,17 +200,19 @@ export const KINDS: Record<InputKind, KindDef> = {
     scale: [64, 128, 256, 512, 1024, 2048],
     shapes: [{ value: 'words', label: 'English words' }, { value: 'dna', label: 'DNA (ACGT)' },
       { value: 'repetitive', label: 'Repetitive (aaa…ab, pattern grows with n)' }],
-    make(rnd, n, shape) {
+    make(rnd, n, shape, opts) {
+      // the search kernels' pattern length (src/kernels/string/_search.ts): 'auto' draws it
+      const fixed = Number(opts.m) > 0 ? Number(opts.m) : 0;
       if (shape === 'repetitive') {
         // the worst case of the naive search: a pattern a…ab of length n/16 over runs of a whose
         // lone b's lie one to three pattern lengths apart, the last at the end of the text
-        const m = Math.max(6, Math.floor(n / 16));
+        const m = fixed ? Math.min(fixed, n) : Math.max(6, Math.floor(n / 16));
         const cells = new Array<string>(n).fill('a');
         for (let at = n - 1; at >= m - 1; at -= m + Math.floor(rnd() * 2 * m)) cells[at] = 'b';
         return { text: cells.join(''), pattern: `${'a'.repeat(m - 1)}b` };
       }
       const text = shape === 'dna' ? Array.from({ length: n }, () => pick(rnd, 'ACGT')).join('') : prose(rnd, n);
-      const m = Math.min(text.length, shape === 'dna' ? 6 : int(rnd, 4, 7));
+      const m = Math.min(text.length, fixed || (shape === 'dna' ? 6 : int(rnd, 4, 7)));
       const at = int(rnd, 0, text.length - m);
       return { text, pattern: text.slice(at, at + m) };
     },
@@ -241,9 +247,11 @@ export const KINDS: Record<InputKind, KindDef> = {
     size: { label: 'Text length', min: 8, max: 200, step: 4, value: 36 },
     scale: [16, 32, 64, 128, 256, 512],
     shapes: [],
-    make(rnd, n) {
-      let re = regex(rnd, 3);
-      for (let t = 0; t < 50 && (new RegExp(`^(?:${re.s})$`).test('') || re.s.length < 4); t++) re = regex(rnd, 3);
+    make(rnd, n, _shape, opts) {
+      // the pattern's tree depth, regex-nfa's Pattern nesting
+      const depth = Number(opts.depth ?? 3);
+      let re = regex(rnd, depth);
+      for (let t = 0; t < 50 && (new RegExp(`^(?:${re.s})$`).test('') || re.s.length < 4); t++) re = regex(rnd, depth);
       const chars = Array.from({ length: n }, () => pick(rnd, 'abc'));
       for (let k = 0; k < 2; k++) {
         const s = re.sample(rnd).slice(0, n);
@@ -258,10 +266,12 @@ export const KINDS: Record<InputKind, KindDef> = {
     scale: [64, 128, 256, 512, 1024, 2048],
     shapes: [{ value: 'prose', label: 'English prose' }, { value: 'repetitive', label: 'Repeated phrases' },
       { value: 'runs', label: 'Scanline runs' }],
-    make(rnd, n, shape) {
+    make(rnd, n, shape, opts) {
       if (shape === 'runs') {
+        // runs of 1 + ⌊Exp⌋ symbols, the exponential's mean run-length encoding's control
+        const mean = Number(opts.meanRun ?? 6);
         let s = '';
-        while (s.length < n) s += pick(rnd, '.#').repeat(1 + Math.floor(-Math.log(1 - rnd()) * 6));
+        while (s.length < n) s += pick(rnd, '.#').repeat(1 + Math.floor(-Math.log(1 - rnd()) * mean));
         return { text: s.slice(0, n) };
       }
       if (shape === 'repetitive') {
@@ -325,13 +335,15 @@ export const KINDS: Record<InputKind, KindDef> = {
     size: { label: 'Numbers', min: 4, max: 48, step: 1, value: 12 },
     scale: [8, 16, 32, 64, 128, 256],
     shapes: [],
-    make(rnd, n) {
+    make(rnd, n, _shape, opts) {
+      // the share of numbers corrupted, ico-check-digit's control: one draw per number at any rate
+      const rate = Number(opts.corrupt ?? 0.4);
       const numbers: string[] = []; const corrupted: boolean[] = [];
       for (let k = 0; k < n; k++) {
         const d = Array.from({ length: 7 }, () => int(rnd, 0, 9));
         d.push(icoCheck(d));
         let bad = false;
-        if (rnd() < 0.4) {
+        if (rnd() < rate) {
           if (rnd() < 0.5) {
             const i = int(rnd, 0, 7);
             d[i] = (d[i] + int(rnd, 1, 9)) % 10;
@@ -481,29 +493,33 @@ export const KINDS: Record<InputKind, KindDef> = {
     size: { label: 'Tokens', min: 4, max: 48, step: 1, value: 14 },
     scale: [16, 32, 64, 128, 256, 512],
     shapes: [{ value: 'letters', label: 'Letters' }, { value: 'lines', label: 'Lines' }],
-    make(rnd, n, shape) {
+    make(rnd, n, shape, opts) {
       const tok = shape === 'lines' ? () => line(rnd) : () => pick(rnd, 'ABCDEF');
       const a = Array.from({ length: n }, tok);
-      return { a, b: edits(rnd, a, Math.max(1, Math.round(n / 5)), tok) };
+      // one edit per `every` tokens, myers-diff's control (5: the old constant, the same division)
+      return { a, b: edits(rnd, a, Math.max(1, Math.round(n / Number(opts.every ?? 5))), tok) };
     },
   },
   merge: {
     size: { label: 'Lines', min: 4, max: 40, step: 1, value: 12 },
     scale: [8, 16, 32, 64, 128, 256],
     shapes: [],
-    make(rnd, n) {
+    make(rnd, n, _shape, opts) {
       const base = Array.from({ length: n }, () => line(rnd));
       const tok = () => line(rnd);
-      const ours = edits(rnd, base, Math.max(1, Math.round(n / 6)), tok);
-      const theirs = edits(rnd, base, Math.max(1, Math.round(n / 6)), tok);
+      // one edit per `every` lines on each side, diff3-merge's control (6: the old constant)
+      const k = Math.max(1, Math.round(n / Number(opts.every ?? 6)));
+      const ours = edits(rnd, base, k, tok);
+      const theirs = edits(rnd, base, k, tok);
       return { base, ours, theirs };
     },
   },
 };
 
-/** The seeded input of a kind. */
-export function input<K extends InputKind>(kind: K, n: number, shape: string, seed: number): Inputs[K] {
+/** The seeded input of a kind, shaped by the kernel's params (none: every old constant). */
+export function input<K extends InputKind>(kind: K, n: number, shape: string, seed: number,
+  opts: InputOpts = {}): Inputs[K] {
   const def = KINDS[kind];
   const s = def.shapes.some((x) => x.value === shape) ? shape : def.shapes[0]?.value ?? '';
-  return def.make(mulberry32(seed), n, s) as Inputs[K];
+  return def.make(mulberry32(seed), n, s, opts) as Inputs[K];
 }

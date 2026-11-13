@@ -1,9 +1,7 @@
 import { S, type StringKernel } from '../../engines/string/trace';
-import { align, board, compare, everywhere, found, SEARCH_CHART } from './_search';
+import { align, board, compare, everywhere, found, SEARCH_CHART, searchParams } from './_search';
 
-const R = 256;
-
-// The hash of a window is its characters read as a base-256 number modulo a prime q. Sliding
+// The hash of a window is its characters read as a base-R number modulo a prime q. Sliding
 // one position removes the leading character and appends the next in constant time; only when
 // the window's hash equals the pattern's are the characters compared (so no false match is
 // reported, and a small q shows the spurious hits it causes).
@@ -14,9 +12,13 @@ export const kernel: StringKernel<'search', number[]> = {
   params: [{
     kind: 'select', key: 'q', label: 'Modulus q', value: '1000003', rebuild: true,
     options: [{ value: '1000003', label: '1 000 003' }, { value: '997', label: '997' }, { value: '13', label: '13 (collisions)' }],
-  }],
+  }, {
+    kind: 'select', key: 'R', label: 'Radix', value: '256', rebuild: true,
+    options: [{ value: '256', label: '256' }, { value: '31', label: '31' }, { value: '2', label: '2' }],
+  }, ...searchParams()],
   *run(ops, { text, pattern: p }, params) {
     const q = Number(params.q ?? 1000003) || 1000003;
+    const R = Number(params.R ?? 256) || 256;
     const n = text.length; const m = p.length;
     const out: number[] = [];
     board(ops, text, p);

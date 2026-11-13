@@ -9,7 +9,8 @@ import type { Engine, KernelInfo } from '../types';
 import { apply, DELETED, EMPTY, KIND, OP, STRIDE, Table, trace, tracer, type HashKernel, type Size,
   type Step, type Tracer,
   type Trace } from './table';
-import { scalingWorkload, STREAM_LABELS, STREAMS, workload, type Stream } from './workload';
+import { ADVERSARIAL_BITS, adversarialParam, scalingWorkload, STREAM_LABELS, STREAMS, workload,
+  type Stream } from './workload';
 import { count } from '../../core/format';
 import { fits, HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
@@ -364,13 +365,16 @@ export function drawTable(p: p5, ctx: PlateContext, r: Replay, box: Box): void {
 
 // ---- parameters and runs ---------------------------------------------------------------------
 
-function params(kernels: HashKernel[], n: number, nMax: number): ParamDef[] {
+/** A plate's controls; a lab's (`plate` false) keep the adversarial band at its default. */
+function params(kernels: HashKernel[], n: number, nMax: number, plate = false): ParamDef[] {
+  const own = plate ? kernels.flatMap((k) => k.params ?? []) : [];
   const loads = kernels.map((k) => k.maxLoad).filter((x): x is number => x !== undefined);
   const out: ParamDef[] = [
     {
       kind: 'select', key: 'stream', label: 'Keys', value: 'uniform', rebuild: true,
       options: STREAMS.map((s) => ({ value: s, label: STREAM_LABELS[s] })),
     },
+    ...(plate ? [adversarialParam()] : []),
     { kind: 'range', key: 'n', label: 'Keys inserted', min: 8, max: nMax, step: 8, value: n, rebuild: true },
   ];
   if (loads.length) {
@@ -384,6 +388,7 @@ function params(kernels: HashKernel[], n: number, nMax: number): ParamDef[] {
   }
   out.push(
     { kind: 'range', key: 'deletes', label: 'Keys deleted at the end (percent)', min: 0, max: 90, step: 5, value: 50, rebuild: true },
+    ...own,
     paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New keys when done', value: true },
     paletteParam('ember'),
@@ -391,14 +396,20 @@ function params(kernels: HashKernel[], n: number, nMax: number): ParamDef[] {
   return out;
 }
 
-function sizeOf(ctx: PlateContext, n: number): Size {
+/** The table a run starts with; a plate's kernel also gets its own parameters' values. */
+function sizeOf(ctx: PlateContext, n: number, kernel?: HashKernel): Size {
   const ld = ctx.params.load === undefined ? 100 : num(ctx.params, 'load');
   const page = ctx.params.page === undefined ? 4 : num(ctx.params, 'page');
-  return { n, m: Math.max(1, Math.ceil(n / (ld / 100))), pageSize: page };
+  const size: Size = { n, m: Math.max(1, Math.ceil(n / (ld / 100))), pageSize: page };
+  if (kernel?.params?.length) {
+    size.opts = Object.fromEntries(kernel.params.map((d) => [d.key, ctx.params[d.key] ?? d.value]));
+  }
+  return size;
 }
 
 function steps(ctx: PlateContext, n: number, seed: number) {
-  return workload(str(ctx.params, 'stream') as Stream, n, num(ctx.params, 'deletes'), seed);
+  const bits = ctx.params.band === undefined ? ADVERSARIAL_BITS : num(ctx.params, 'band');
+  return workload(str(ctx.params, 'stream') as Stream, n, num(ctx.params, 'deletes'), seed, bits);
 }
 
 function opText(r: Replay): string {
@@ -552,14 +563,14 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
     mode: '2d',
     aspect: 16 / 9,
     thumbnailFrames: 2,
-    params: params([kernel], 96, 512),
+    params: params([kernel], 96, 512, true),
     pace: { kind: 'replay', unit: 'events, or key operations for a long run' },
     create(p, ctx) {
       let generation = 0;
       let hold = 0;
       let next: { rebuild: Rebuild; n: number } | null = null;
       const n0 = num(ctx.params, 'n');
-      let r = new Replay(trace(kernel, steps(ctx, n0, ctx.seed), sizeOf(ctx, n0)), kernel.layout, n0);
+      let r = new Replay(trace(kernel, steps(ctx, n0, ctx.seed), sizeOf(ctx, n0, kernel)), kernel.layout, n0);
       const pacer = new Pacer('replay', 'events', MAX_EVENTS_PER_FRAME);
       paced(pacer, [r]);
       return {
@@ -577,7 +588,7 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
               if (!next) {
                 const n = num(ctx.params, 'n');
                 generation++;
-                next = { rebuild: new Rebuild([kernel], steps(ctx, n, ctx.seed + generation * 7919), sizeOf(ctx, n)), n };
+                next = { rebuild: new Rebuild([kernel], steps(ctx, n, ctx.seed + generation * 7919), sizeOf(ctx, n, kernel)), n };
               }
               if (!next.rebuild.ready) next.rebuild.step();
               if (++hold > HOLD_FRAMES && next.rebuild.ready) {

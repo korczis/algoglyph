@@ -2,7 +2,7 @@ import { S, type StringKernel } from '../../engines/string/trace';
 
 const f = (c: number) => (c > 0 ? c * Math.log2(c) : 0);
 
-// A window of w bytes slides over the file in steps of w/8. A 256-bin histogram is kept up to
+// A window of w bytes slides over the file in steps of s = w/8 (or w/4, w/2, w). A 256-bin histogram is kept up to
 // date byte by byte (one decrement leaving, one increment entering), and with it the sum
 // S = Σ c·log2 c, so that the window's Shannon entropy H = log2 w − S/w costs no pass over
 // the bins. Padding reads near 0 bits per byte, text and code in between, and random or
@@ -15,10 +15,15 @@ export const kernel: StringKernel<'binary', { offsets: number[]; entropy: number
   params: [{
     kind: 'select', key: 'window', label: 'Window', value: '128', rebuild: true,
     options: ['64', '128', '256'].map((v) => ({ value: v, label: `${v} bytes` })),
+  }, {
+    kind: 'select', key: 'stride', label: 'Step', value: '8', rebuild: true,
+    options: [{ value: '8', label: 'w/8' }, { value: '4', label: 'w/4' }, { value: '2', label: 'w/2' }, { value: '1', label: 'w' }],
   }],
   *run(ops, { bytes, sections }, params) {
     const w = Math.min(bytes.length, Number(params.window ?? 128) || 128);
-    const step = Math.max(1, w / 8);
+    // the window divided by the setting: w + 2s(nWin − 1) ≤ 2n histogram updates at any step
+    const div = [1, 2, 4, 8].includes(Number(params.stride)) ? Number(params.stride) : 8;
+    const step = Math.max(1, w / div);
     const nWin = Math.floor((bytes.length - w) / step) + 1;
     ops.row('bytes', bytes.map(() => ''), { label: 'Bytes' }, true);
     for (let i = 0; i < bytes.length; i++) {

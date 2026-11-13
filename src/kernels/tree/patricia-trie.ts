@@ -1,5 +1,5 @@
 import { NIL, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
-import { drive } from './_digital';
+import { drive, keyBitsParams } from './_digital';
 
 // Every node holds one key and, in info, the index of the bit it branches on. The root (the
 // header) holds the first key and bit -1 and uses only its left link. A link that does not lead
@@ -55,6 +55,7 @@ function search(t: TreeOps, k: number): boolean {
 // higher bit index, and ends with a single full comparison against the key it lands on.
 export const kernel: TreeKernel = {
   input: 'bits',
+  params: keyBitsParams(),
   structure: 'patricia',
   layout: 'tidy',
   infoLabel: 'bit',

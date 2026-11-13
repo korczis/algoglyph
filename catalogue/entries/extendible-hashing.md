@@ -29,6 +29,24 @@ bounds:
   model: key comparisons
   worst: 'at most b (the page capacity), after one directory read and one page read'
   space: about n/(b ln 2) pages and (e/(b ln 2)) n^(1 + 1/b) directory entries for uniform keys
+claims:
+  - id: six-shared-bits-depth-bound
+    statement: >-
+      With adversarial keys sharing 6 leading hash bits, the 96 keys of the default run need
+      ⌈96 / 4⌉ = 24 pages, and at global depth g only the 2^(g − 6) directory entries under their
+      shared bits can lead to them, so 2^(g − 6) ≥ 24 and g ≥ 6 + ⌈lg 24⌉ = 11, a hard bound.
+    readout: Global depth
+    expect: { above: 10 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 6 }
+  - id: one-shared-bit-depth-bound
+    statement: >-
+      With a single shared bit the same count gives g ≥ 1 + ⌈lg 24⌉ = 6: each bit the keys share
+      is one more directory doubling before any split can separate them.
+    readout: Global depth
+    expect: { above: 5 }
+    setup:
+      params: { stream: adversarial, deletes: 0, band: 1 }
 ---
 
 A directory indexed by the leading hash bits that doubles when a page splits.

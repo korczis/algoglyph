@@ -1,5 +1,5 @@
 import { NIL, type TreeKernel, type TreeOps } from '../../engines/tree/trace';
-import { drive } from './_digital';
+import { drive, keyBitsParams } from './_digital';
 
 function insert(t: TreeOps, k: number): void {
   let x = t.root();
@@ -28,6 +28,7 @@ function search(t: TreeOps, k: number): boolean {
 // the search key rather than by a comparison, so no path is longer than the key's width.
 export const kernel: TreeKernel = {
   input: 'bits',
+  params: keyBitsParams(),
   structure: 'dst',
   layout: 'tidy',
   run(t) { drive(t, (k) => insert(t, k as number), (k) => search(t, k as number)); },
