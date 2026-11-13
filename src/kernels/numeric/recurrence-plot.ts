@@ -13,14 +13,18 @@ export function recurrence(states: number[][], eps: number): Uint8Array {
   return drain(recurrenceSteps(states, eps));
 }
 
-/** recurrence(), resumable: it yields after every 64 rows. */
-export function* recurrenceSteps(states: number[][], eps: number): Generator<void, Uint8Array, void> {
+/**
+ * recurrence(), resumable: it yields after every 64 rows. A pair recurs when its squared
+ * distance is at most eps2, eps² unless given: the plate passes the selected squared distance
+ * itself, since squaring a square root rounds below it and would drop the pairs tied with it.
+ */
+export function* recurrenceSteps(states: number[][], eps: number, eps2 = eps * eps): Generator<void, Uint8Array, void> {
   const n = states.length;
   const R = new Uint8Array(n * n);
   for (let i = 0; i < n; i++) for (let j = i; j < n; j++) {
     let d = 0;
     for (let c = 0; c < states[i].length; c++) d += (states[i][c] - states[j][c]) ** 2;
-    if (d <= eps * eps) { R[i * n + j] = 1; R[j * n + i] = 1; }
+    if (d <= eps2) { R[i * n + j] = 1; R[j * n + i] = 1; }
     if (j === n - 1 && (i & 63) === 63) yield;
   }
   return R;
@@ -47,15 +51,25 @@ export function thresholdFor(states: number[][], rate: number): number {
   return drain(thresholdSteps(states, rate));
 }
 
-/** thresholdFor(), resumable: it yields after every 64 rows of distances. */
+/** thresholdFor(), resumable: the square root of thresholdSquaredSteps(), the same value as
+ * selecting among the distances themselves, since the square root keeps their order. */
 export function* thresholdSteps(states: number[][], rate: number): Generator<void, number, void> {
+  return Math.sqrt(yield* thresholdSquaredSteps(states, rate));
+}
+
+/**
+ * The k-th smallest squared pair distance, k = floor(rate·M) of the M off-diagonal pairs, so that
+ * comparing squared distances with it keeps at least k pairs, ties included; resumable, it yields
+ * after every 64 rows of distances.
+ */
+export function* thresholdSquaredSteps(states: number[][], rate: number): Generator<void, number, void> {
   const n = states.length;
   const d = new Float64Array((n * (n - 1)) / 2);
   let at = 0;
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     let s = 0;
     for (let c = 0; c < states[i].length; c++) s += (states[i][c] - states[j][c]) ** 2;
-    d[at++] = Math.sqrt(s);
+    d[at++] = s;
     if (j === n - 1 && (i & 63) === 63) yield;
   }
   const k = Math.min(d.length - 1, Math.max(0, Math.floor(rate * d.length) - 1));
@@ -115,9 +129,11 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const { s, m, tau } = series(String(params.series ?? 'regime'), len + 4 * 3, seed);
   const states = embed(s, m, tau).slice(0, len);
   const n = states.length;
-  const eps = yield* thresholdSteps(states, Number(params.rate ?? 8) / 100);
+  // squared distances against the selected squared distance, so ties with it recur; ε for display
+  const eps2 = yield* thresholdSquaredSteps(states, Number(params.rate ?? 8) / 100);
+  const eps = Math.sqrt(eps2);
   yield;
-  const R = yield* recurrenceSteps(states, eps);
+  const R = yield* recurrenceSteps(states, eps, eps2);
   yield;
   // recurrent states in a mid tone of the palette, which reads on both grounds
   const values = new Float64Array(R.length);
