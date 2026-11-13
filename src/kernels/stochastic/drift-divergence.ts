@@ -42,7 +42,6 @@ export function js(p: number[], q: number[]): number {
 const STEPS = 80;
 const LO = -4;
 const HI = 7;
-const BINS = 22;
 
 // A reference window from N(0, 1) against windows from a distribution that moves and widens
 // step by step; all three divergences are read from the same binned proportions.
@@ -52,21 +51,25 @@ export const kernel: StochasticKernel<DriftResult> = {
     { kind: 'range', key: 'n', label: 'Samples per window', min: 200, max: 20000, step: 100, value: 2000, rebuild: true },
     { kind: 'range', key: 'drift', label: 'Final mean shift', min: 0, max: 3, step: 0.1, value: 1.5, rebuild: true },
     { kind: 'range', key: 'widen', label: 'Final extra spread', min: 0, max: 1.5, step: 0.1, value: 0.4, rebuild: true },
+    // more bins than the smallest window's 200 samples would leave most bins to the half count
+    // that keeps the logarithms defined, which would then outweigh the data
+    { kind: 'range', key: 'bins', label: 'Bins', min: 2, max: 200, step: 1, value: 22, rebuild: true },
   ],
   chart: { title: 'Divergence as the distribution drifts', x: { label: 'mean shift' }, y: { label: 'divergence' } },
   *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
+    const bins = num(cfg, 'bins');
     const ref = Array.from({ length: n }, () => s.normal());
     yield;
-    const pc = histogram(ref, LO, HI, BINS);
+    const pc = histogram(ref, LO, HI, bins);
     const p = proportions(pc);
     const steps: DriftStep[] = [];
     for (let k = 0; k <= STEPS; k++) {
       const shift = (num(cfg, 'drift') * k) / STEPS;
       const scale = 1 + (num(cfg, 'widen') * k) / STEPS;
       const cur = Array.from({ length: n }, () => s.normal(shift, scale));
-      const qc = histogram(cur, LO, HI, BINS);
+      const qc = histogram(cur, LO, HI, bins);
       const q = proportions(qc);
       ops.count(3);
       const step = { shift, scale, p, q, psi: psi(p, q), kl: kl(q, p), klBack: kl(p, q), js: js(p, q) };
@@ -98,6 +101,6 @@ export const kernel: StochasticKernel<DriftResult> = {
       ]);
       yield;
     }
-    return { steps, bins: BINS, lo: LO, hi: HI };
+    return { steps, bins, lo: LO, hi: HI };
   },
 };
