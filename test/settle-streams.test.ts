@@ -14,6 +14,7 @@ import { parse, serialise } from '../src/core/share';
 import {
   rk4 as pendulumStep, type Pendulum, type State,
 } from '../src/plates/double-pendulum/dynamics';
+import { rk4Lorenz } from '../src/plates/lorenz-attractor/plate';
 import {
   COMPLETED_RUNS, LAST_COMPLETED_RUN, RUNS_KEY, RunCounter, runsParam, StreamStop,
 } from '../src/plates/_shared/settle/settle';
@@ -219,5 +220,40 @@ describe('double-pendulum stops at a simulated second', () => {
     expect(exact).not.toBe(fanSpread(2, 1e-4, 120, [[6667, 0.0015]]));
     expect(await settled('double-pendulum', 'lower-arm spread', p)).toBe(exact);
     expect(await settled('double-pendulum', 'simulated time', p)).toBe('10.00 s');
+  });
+});
+
+/** The Lorenz swarm's spread after `steps` steps, replayed from the seed's draws. */
+function swarmSpread(tracers: number, steps: number): string {
+  const rnd = mulberry32(DEFAULT_SEED);
+  let heads = Array.from({ length: tracers }, (): [number, number, number] => [
+    1 + (rnd() - 0.5) * 1e-4, 1 + (rnd() - 0.5) * 1e-4, 20 + (rnd() - 0.5) * 1e-4,
+  ]);
+  for (let s = 0; s < steps; s++) heads = heads.map((h) => rk4Lorenz(h, 0.006, 10, 28, 2.67));
+  let spread = 0;
+  for (const h of heads) {
+    const [x, y, z] = heads[0];
+    spread = Math.max(spread, Math.hypot(h[0] - x, h[1] - y, h[2] - z));
+  }
+  return spread < 0.01 ? spread.toExponential(2) : spread.toFixed(2);
+}
+
+describe('lorenz-attractor stops at a block of 0.6 time (100 steps)', () => {
+  common('lorenz-attractor', 'blocks of 0.6 time', 1000, 120);
+
+  it('settles at time 108 and 54 with 7 steps a frame, which divide neither', async () => {
+    // 18000 / 7 is not whole: unclamped, the last frame would run on to step 18004
+    const p = { tracers: 2, speed: 7 };
+    expect(swarmSpread(2, 18000)).not.toBe(swarmSpread(2, 18004));
+    expect(await settled('lorenz-attractor', 'simulated time', { ...p, [RUNS_KEY]: 180 }))
+      .toBe('108.00');
+    expect(await settled('lorenz-attractor', COMPLETED_RUNS, { ...p, [RUNS_KEY]: 180 }))
+      .toBe('180 of 180, stopped');
+    expect(await settled('lorenz-attractor', 'swarm spread', { ...p, [RUNS_KEY]: 180 }))
+      .toBe(swarmSpread(2, 18000));
+    expect(await settled('lorenz-attractor', 'simulated time', { ...p, [RUNS_KEY]: 90 }))
+      .toBe('54.00');
+    expect(await settled('lorenz-attractor', 'swarm spread', { ...p, [RUNS_KEY]: 90 }))
+      .toBe(swarmSpread(2, 9000));
   });
 });
