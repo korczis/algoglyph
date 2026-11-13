@@ -1,4 +1,5 @@
-// Incremental Delaunay triangulation (Bowyer–Watson) on an integer lattice.
+// Incremental Delaunay triangulation (Bowyer–Watson) on an integer lattice: the site's one
+// triangulation, drawn by the bowyer-watson-delaunay plate and used by euclidean-mst's kernel.
 //
 // Robustness: every vertex lies on the lattice [0, side)², side at most LATTICE, so coordinate
 // differences stay below 2^12. The orientation determinant is then below 2^25 and every term of
