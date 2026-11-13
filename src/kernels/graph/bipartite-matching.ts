@@ -1,3 +1,4 @@
+import type { Graph } from '../../engines/graph/graph';
 import { E, V, type GraphKernel } from '../../engines/graph/trace';
 
 export interface MatchingResult { mate: number[] }
@@ -64,6 +65,35 @@ export const kernel: GraphKernel<MatchingResult> = {
   },
   report(r, g) {
     const size = r.mate.filter((m, v) => m >= 0 && g.truth[v] === 0).length;
-    return [{ label: 'Maximum matching', value: `${size} pairs` }];
+    const cover = konigCover(g, r.mate);
+    let touched = 0;
+    for (let e = 0; e < g.m; e++) if (cover[g.eu[e]] || cover[g.ev[e]]) touched++;
+    return [
+      { label: 'Maximum matching', value: `${size} pairs` },
+      { label: 'König vertex cover', value: `${cover.filter(Boolean).length} vertices (${touched} of ${g.m} edges covered)` },
+    ];
   },
 };
+
+/**
+ * König's vertex cover, built from a maximum matching: Z is every vertex reachable from a free
+ * left vertex by an alternating path (an unmatched edge to the right, the matched edge back), and
+ * the cover is the left vertices outside Z with the right vertices in Z. It touches every edge
+ * and has one vertex per matched pair, the certificate that no larger matching exists.
+ */
+export function konigCover(g: Graph, mate: number[]): boolean[] {
+  const z = new Array<boolean>(g.n).fill(false);
+  const queue: number[] = [];
+  for (let v = 0; v < g.n; v++) if (g.truth[v] === 0 && mate[v] < 0) { z[v] = true; queue.push(v); }
+  while (queue.length) {
+    const l = queue.shift() as number;
+    for (const e of g.out[l]) {
+      const r = g.eu[e] === l ? g.ev[e] : g.eu[e];
+      if (z[r] || mate[l] === r) continue;
+      z[r] = true;
+      const back = mate[r];
+      if (back >= 0 && !z[back]) { z[back] = true; queue.push(back); }
+    }
+  }
+  return Array.from({ length: g.n }, (_, v) => (g.truth[v] === 0 ? !z[v] : z[v]));
+}
