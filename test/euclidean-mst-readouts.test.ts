@@ -154,3 +154,47 @@ describe('euclidean-mst triangulation keeps every hull edge (D1)', () => {
   });
 });
 
+// The entry's claims, from the plate's readouts; their literals are computed here independently.
+// The tree weight is the sum of graph.ts's integer edge weights (rounded lengths) over the tree:
+// the all-pairs Prim tree on true lengths is a minimum spanning tree, and the kernel's tree is
+// that very tree (checked above), so its integer weight is the claim's value, read off a
+// different algorithm over every pair, never off the plate. The edges examined lie in
+// [n − 1, 3n − 6]: Kruskal stops at the (n − 1)-th tree edge and each tree edge is a scan, and it
+// scans only the triangulation's edges, of which a triangulation of n ≥ 3 points has
+// 3n − 3 − h ≤ 3n − 6 (Euler's formula, as above, with h ≥ 3; all on one line, n − 1). That the
+// Euclidean MST lies inside the Delaunay triangulation (every EMST edge has an empty diametral
+// circle, so it is a Gabriel edge, and every Gabriel edge is a Delaunay edge) is why the tree
+// found there is the true one.
+interface EntryClaim {
+  id: string; readout: string; expect: { value?: number };
+  setup?: { params?: Record<string, unknown>; seed?: number };
+}
+interface Entry { id: string; claims: EntryClaim[] }
+
+describe('euclidean-mst claims, from an independent computation', () => {
+  it('states the all-pairs Prim tree weight at each setting it claims', async () => {
+    // @ts-expect-error -- plain ESM shared with the node tooling
+    const { loadCatalogue } = await import('../scripts/lib/catalogue.mjs');
+    const { model } = loadCatalogue(process.cwd()) as { model: { entries: Entry[] } };
+    const entry = model.entries.find((e) => e.id === 'euclidean-mst') as Entry;
+    const weights = entry.claims.filter((c) => c.readout === 'Weight of the tree edges');
+    expect(weights.length).toBeGreaterThanOrEqual(3);
+    for (const c of weights) {
+      const n = Number(c.setup?.params?.n ?? 70);
+      const g = points(n, c.setup?.seed ?? DEFAULT_SEED);
+      const at = new Map<string, number>();
+      for (let e = 0; e < g.m; e++) at.set(`${g.eu[e]}-${g.ev[e]}`, g.w[e]);
+      const w = primTree(g.x, g.y).reduce((s, k) => s + (at.get(k) as number), 0);
+      expect(c.expect.value, c.id).toBe(w);
+    }
+  });
+
+  it('examines between n − 1 and 3n − 6 edges across the sweep', () => {
+    const wrong: string[] = [];
+    for (const n of SIZES) for (const seed of SEEDS) {
+      const scans = run(points(n, seed)).counts.scans;
+      if (scans < n - 1 || scans > 3 * n - 6) wrong.push(`n ${n} seed ${seed}: ${scans}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+});
