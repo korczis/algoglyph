@@ -34,9 +34,11 @@ export const kernel: GraphKernel<DagSpResult> = {
     dist[s] = 0;
     ops.value(s, 0);
     for (const u of order) {
+      // its predecessors are final, so an infinite distance is final too: the source cannot reach
+      // u, its out-edges are skipped and it is never relaxed (it stays ordered, not relaxed)
+      if (!Number.isFinite(dist[u])) continue;
       ops.settle(u);
       yield;
-      if (!Number.isFinite(dist[u])) continue;
       for (const e of g.out[u]) {
         ops.scan(e);
         const v = g.ev[e];
