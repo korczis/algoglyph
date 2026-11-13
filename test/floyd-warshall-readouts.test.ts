@@ -2,8 +2,10 @@
 // nothing about the distances themselves, so no claim could check the matrix. It now gives the
 // longest finite distance and the sum of the finite distances, and both are checked here against
 // Dijkstra from every vertex, written in this file over the edge list with a plain linear scan for
-// the nearest vertex (no heap, no Floyd–Warshall).
+// the nearest vertex (no heap, no Floyd–Warshall). The entry's claim literals are checked against
+// these oracles and an independent closure, claim by claim.
 import { describe, expect, it } from 'vitest';
+import { ENTRIES } from '../src/core/catalogue';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import { read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
@@ -59,6 +61,19 @@ function distanceRows(g: Graph): { longest: number; sum: number; finite: number 
   return { longest, sum, finite };
 }
 
+/** Pairs (i, j) with j reachable from i, i itself included: breadth-first search from every i. */
+function closure(g: Graph): number {
+  const adj = arcs(g);
+  let pairs = 0;
+  for (let s = 0; s < g.n; s++) {
+    const seen = new Array<boolean>(g.n).fill(false);
+    const q = [s]; seen[s] = true;
+    for (let h = 0; h < q.length; h++) for (const [v] of adj[q[h]]) if (!seen[v]) { seen[v] = true; q.push(v); }
+    pairs += seen.filter(Boolean).length;
+  }
+  return pairs;
+}
+
 const graphAt = (shape: Shape, n: number, seed: number) => makeGraph(shape, n, seed, ASPECT);
 
 describe('floyd-warshall: the distance rows (G6)', () => {
@@ -76,3 +91,60 @@ describe('floyd-warshall: the distance rows (G6)', () => {
     }
   }
 });
+
+describe('floyd-warshall: every claim literal is what the independent oracles give', () => {
+  const entry = ENTRIES.find((e) => e.id === ID)!;
+  it('has claims', () => expect(entry.claims.length).toBeGreaterThan(0));
+  for (const c of entry.claims) {
+    it(c.id, () => {
+      const p = (c.setup?.params ?? {}) as Record<string, number | string>;
+      const shape = String(p.shape ?? 'digraph') as Shape;
+      const n = Number(p.n ?? N);
+      const seed = c.setup?.seed ?? SEED;
+      const g = graphAt(shape, n, seed);
+      const x = c.expect;
+      if (c.readout === 'Rounds') {
+        // one round for the edges, one per intermediate vertex: n + 1, against the Graph row's n
+        expect(x).toEqual({ against: 'Graph', offset: 1, tolerance: 0 });
+      } else if (c.readout === 'Matrix writes') {
+        // each finite entry is written at least once: writes − finite pairs ≥ 0
+        expect(x).toEqual({ against: 'Finite distances', above: -1 });
+      } else if (c.readout === 'Finite distances') {
+        expect(x.value).toBe(closure(g));
+      } else if (shape === 'signed') {
+        // the signed graph is the digraph re-weighted by a potential: same arcs, and every cycle
+        // keeps its weight, so w_signed(u, v) − w_digraph(u, v) = p(u) − p(v) for some p; with every
+        // pair reachable the distance shifts p(i) − p(j) cancel over all pairs
+        expect(c.readout).toBe('Sum of finite distances');
+        const d = graphAt('digraph', n, seed);
+        expect([g.eu, g.ev]).toEqual([d.eu, d.ev]);
+        expect(closure(g)).toBe(n * n);
+        const pot = potentialOf(g, d);
+        for (let e = 0; e < g.m; e++) expect(g.w[e] - d.w[e]).toBe(pot[g.eu[e]] - pot[g.ev[e]]);
+        expect(x.value).toBe(distanceRows(d).sum);
+      } else if (c.readout === 'Longest finite distance' || c.readout === 'Sum of finite distances') {
+        expect(NONNEGATIVE).toContain(shape);
+        const want = distanceRows(g);
+        expect(x.value).toBe(c.readout === 'Longest finite distance' ? want.longest : want.sum);
+      } else {
+        throw new Error(`no oracle for readout ${c.readout}`);
+      }
+    });
+  }
+});
+
+/** A potential p with w_a(e) − w_b(e) = p(u) − p(v) on every edge, by a search over the edges
+ * (either way) from vertex 0; a vertex the search misses keeps 0 and fails the check above. */
+function potentialOf(a: Graph, b: Graph): number[] {
+  const p = new Array<number>(a.n).fill(NaN);
+  p[0] = 0;
+  for (let changed = true; changed;) {
+    changed = false;
+    for (let e = 0; e < a.m; e++) {
+      const [u, v, dw] = [a.eu[e], a.ev[e], a.w[e] - b.w[e]];
+      if (Number.isNaN(p[v]) && !Number.isNaN(p[u])) { p[v] = p[u] - dw; changed = true; }
+      if (Number.isNaN(p[u]) && !Number.isNaN(p[v])) { p[u] = p[v] + dw; changed = true; }
+    }
+  }
+  return p.map((x) => (Number.isNaN(x) ? 0 : x));
+}
