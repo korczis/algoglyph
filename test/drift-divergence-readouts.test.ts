@@ -104,11 +104,13 @@ describe('drift-divergence: the claims\' margins', () => {
     expect(Math.max(...runs.map((r) => r.kl))).toBeLessThan(claimById('no-drift-kl-is-small')!.expect.below as number);
   });
 
-  // The JS estimator at n 20000, measured once over all of SD_SEEDS (1..400, disjoint from the
-  // claim's seed): too slow to repeat on every run (over the 120 s limit on a hosted x86 runner),
-  // so the table records it and each run re-checks it on the first 40 of those seeds, whose sd
-  // estimate lies within 40% of the table's (an sd from 40 draws has a relative error of 1/√78,
-  // about 11%, so 40% is nearly four of its standard errors).
+  // The JS estimator at n 20000, measured on 2026-11-13 over all of SD_SEEDS (1..400, disjoint
+  // from the claim's seed) by this test's loop with `SD_SEEDS` in place of its subsample: too slow
+  // to repeat on every run (over the 120 s limit on a hosted x86 runner). Each run re-checks it on
+  // the first 40 of those seeds, each band from that subsample's own standard error: its sd within
+  // 40% of the table's (an sd from n = 40 draws has a relative standard error of 1/√(2(n − 1)),
+  // 11%, so 40% is nearly four of them) and its mean within four of its own standard errors,
+  // s/√40, of the table's.
   const JS_AT_20000 = { seeds: '1..400', mean: 0.247737, sd: 0.003394 };
 
   it('at n 20000 the JS claim is the exact binned divergence ± at least 4 sd over the other seeds', () => {
@@ -122,6 +124,6 @@ describe('drift-divergence: the claims\' margins', () => {
     const [mean, sd] = meanSd(SD_SEEDS.slice(0, 40).map((s) => trace(k, { n: 20000 }, s).result!.steps[80].js));
     expect(sd / JS_AT_20000.sd, `sd ${sd} over 40 seeds`).toBeGreaterThan(0.6);
     expect(sd / JS_AT_20000.sd, `sd ${sd} over 40 seeds`).toBeLessThan(1.4);
-    expect(Math.abs(mean - exact), `mean ${mean}`).toBeLessThan(JS_AT_20000.sd);
+    expect(Math.abs(mean - JS_AT_20000.mean), `mean ${mean}`).toBeLessThanOrEqual((4 * sd) / Math.sqrt(40));
   });
 });

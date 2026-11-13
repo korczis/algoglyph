@@ -122,9 +122,12 @@ const lockedByTheory = (n: number, g: number, K: number) =>
 // 4242, the deviation r̄ − √(1 − K_c/K) has the bias and sd below, measured once over all 200
 // seeds (too slow to repeat each run: over the 120 s limit on a hosted x86 runner), and the
 // tolerance is 4 sd + |bias| rounded up at the display's third decimal, plus 0.001 for the two
-// printed numbers' rounding. Each run re-measures on the first 30 of those seeds: the sd within
-// 40% of the table's (an sd from 30 draws has a relative error of about 1/√58, 13%) and the bias
-// within four standard errors of that subsample's mean.
+// printed numbers' rounding. The table was measured on 2026-11-13 over all 200 seeds by the loop
+// in this test's re-measure with `SPREAD_SEEDS` in place of its subsample. Each run re-measures on
+// the first 30 of those seeds, each band from that subsample's own standard error: its sd within
+// 40% of the table's (an sd from n = 30 draws has a relative standard error of 1/√(2(n − 1)),
+// 13%, so 40% is three of them) and its mean within four of its own standard errors, s/√30, of
+// the table's bias.
 const CLAIM_SEED = 4242;
 const SPREAD_SEEDS = Array.from({ length: 200 }, (_, i) => i + 1);
 /** γ, K, measured bias and sd of r̄ − √(1 − K_c/K) over SPREAD_SEEDS, and the tolerance. */
@@ -161,7 +164,7 @@ describe('kuramoto: the spread of r̄ against the theory, on seeds disjoint from
       const v = Math.sqrt(d.reduce((x, y) => x + (y - m) ** 2, 0) / (d.length - 1));
       expect(v / sd, `γ ${g}, K ${K}: sd ${v}`).toBeGreaterThan(0.6);
       expect(v / sd, `γ ${g}, K ${K}: sd ${v}`).toBeLessThan(1.4);
-      expect(Math.abs(m - bias), `γ ${g}, K ${K}: bias ${m}`).toBeLessThanOrEqual((4 * sd) / Math.sqrt(seeds.length));
+      expect(Math.abs(m - bias), `γ ${g}, K ${K}: bias ${m}`).toBeLessThanOrEqual((4 * v) / Math.sqrt(seeds.length));
     }
   });
 
