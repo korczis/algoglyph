@@ -68,6 +68,7 @@ export const kernel: GraphKernel<MinCostResult> = {
   // the flow value is the engine's own readout (the flow the replay has drawn): a second row of
   // that label would hide behind the first, so the report gives the cost alone
   report(r) {
-    return [{ label: 'Minimum cost', value: `${r.cost} after cancelling ${r.cancelled} cycles` }];
+    const cycles = r.cancelled === 1 ? 'cycle' : 'cycles';
+    return [{ label: 'Minimum cost', value: `${r.cost} after cancelling ${r.cancelled} ${cycles}` }];
   },
 };

@@ -12,8 +12,9 @@ import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import type { GraphKernel } from '../src/engines/graph/trace';
 import { kernel as edmondsKarp } from '../src/kernels/graph/edmonds-karp';
 import { kernel as fordFulkerson } from '../src/kernels/graph/ford-fulkerson';
+import { kernel as minCostFlow } from '../src/kernels/graph/min-cost-flow';
 import { kernel as preflowPush } from '../src/kernels/graph/preflow-push';
-import { dinic } from './support/graph-oracles';
+import { dinic, successiveShortestPaths } from './support/graph-oracles';
 
 interface Entry { id: string; claims: Claim[] }
 const { model } = loadCatalogue(process.cwd()) as { model: { entries: Entry[] } };
@@ -89,6 +90,13 @@ const heightWritesBound: Check = (c, g) => {
   expect(c.expect.range, c.id).toEqual([g.n, g.n + (g.n - 2) * (2 * g.n - 1)]);
 };
 
+/** A literal claim on the minimum cost: successive shortest paths' cost for a maximum flow. */
+const minimumCost: Check = (c, g) => {
+  const ref = successiveShortestPaths(g, g.s, g.t);
+  expect(ref.value, `${c.id}: successive shortest paths reach the maximum flow`).toBe(dinic(g, g.s, g.t));
+  expect(c.expect.value, c.id).toBe(ref.cost);
+};
+
 interface Plate { id: string; kernel: GraphKernel; checks: Record<string, Check>; needs: string[] }
 
 const PLATES: Plate[] = [
@@ -118,6 +126,11 @@ const PLATES: Plate[] = [
       'Height writes': heightWritesBound,
     },
     needs: ['Flow value', 'Cut capacity', 'Height writes'],
+  },
+  {
+    id: 'min-cost-flow', kernel: minCostFlow as GraphKernel,
+    checks: { 'Flow value': flowValue, 'Minimum cost': minimumCost },
+    needs: ['Flow value', 'Minimum cost'],
   },
 ];
 
