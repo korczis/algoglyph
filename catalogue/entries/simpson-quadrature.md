@@ -29,8 +29,9 @@ claims:
       On sin x over [0, π] at 1,024 panels Simpson's error is the h⁴ estimate
       h⁴ (f‴(π) − f‴(0)) / 180 = h⁴/90 = 9.8437e−13 with h = π/1,024; the same sum in 50-digit
       decimal arithmetic gives 9.8437e−13 too, so the estimate's own h⁶ term is a millionth of it.
-      The tolerance is the worst-case rounding of the plate's sum of 1,025 terms, (n + 1)·u·∫|f| =
-      2.28e−13.
+      The tolerance is a conservative rounding bound, the worst case for the plate's sum of 1,025
+      terms, (n + 1)·u·∫|f| = 2.28e−13; it is not the error scale: the reading differs from the
+      estimate by 1.6e−15.
     readout: Simpson error
     expect: { value: 9.8437e-13, tolerance: 2.28e-13 }
     setup:
