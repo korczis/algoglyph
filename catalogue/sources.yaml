@@ -1255,6 +1255,60 @@ sources:
     year: 2018
     kind: "software"
     url: "https://github.com/gustavo-depaula/stalin-sort"
+  - id: yang-1952
+    title: The Spontaneous Magnetization of a Two-Dimensional Ising Model (Physical Review 85, 808–816)
+    author: C. N. Yang
+    year: 1952
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.85.808
+  - id: onsager-1944
+    title: 'Crystal Statistics. I. A Two-Dimensional Model with an Order-Disorder Transition (Physical Review 65, 117–149)'
+    author: Lars Onsager
+    year: 1944
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.65.117
+  - id: newman-barkema-1999
+    title: Monte Carlo Methods in Statistical Physics
+    author: M. E. J. Newman, G. T. Barkema
+    publisher: Oxford University Press
+    year: 1999
+    kind: book
+  - id: taylor-wheeler-1992
+    title: Spacetime Physics (second edition)
+    author: Edwin F. Taylor, John Archibald Wheeler
+    publisher: W. H. Freeman
+    year: 1992
+    kind: book
+  - id: jackson-1999
+    title: Classical Electrodynamics (third edition)
+    author: John David Jackson
+    publisher: Wiley
+    year: 1999
+    kind: book
+  - id: rindler-2006
+    title: 'Relativity: Special, General, and Cosmological (second edition)'
+    author: Wolfgang Rindler
+    publisher: Oxford University Press
+    year: 2006
+    kind: book
+  - id: goldstein-classical-mechanics
+    title: Classical Mechanics (third edition)
+    author: Herbert Goldstein, Charles P. Poole, John L. Safko
+    publisher: Addison-Wesley
+    year: 2002
+    kind: book
+  - id: rutherford-1911
+    title: The Scattering of α and β Particles by Matter and the Structure of the Atom (Philosophical Magazine 21, 669)
+    author: Ernest Rutherford
+    year: 1911
+    kind: paper
+    url: https://doi.org/10.1080/14786440508637080
+  - id: hairer-lubich-wanner
+    title: Geometric Numerical Integration (second edition)
+    author: Ernst Hairer, Christian Lubich, Gerhard Wanner
+    publisher: Springer
+    year: 2006
+    kind: book
   - id: ho-ruehli-brennan-1975
     title: The Modified Nodal Approach to Network Analysis (IEEE Transactions on Circuits and Systems 22, 504)
     author: Chung-Wen Ho, Albert E. Ruehli, Pierce A. Brennan
