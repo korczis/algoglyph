@@ -6,13 +6,52 @@ status: live
 engine: numeric
 sources:
   - id: practice-decisions
+  - id: henon-heiles-1964
+    purpose: algorithm-reference
 tags:
   - poincare
   - maps
   - orbits
 motivation: Decisions made under uncertainty, and checked afterwards, rest on it.
 complexity: 'linear in the integration time'
+schema: algoglyph.entry/v2
+pedagogy:
+  difficulty: intermediate
+  objectives:
+    - Turn a flow into a map by keeping each upward crossing of x = 0, located by linear interpolation between steps, as a point (y, py).
+    - Tell regular orbits, which lie on invariant tori and pierce the plane along closed curves, from chaotic ones that fill a region of their own.
+    - Raise the energy towards the escape value and watch the islands dissolve into the chaotic sea.
+    - Read the energy error of the symplectic leapfrog, which stays bounded instead of drifting.
+  misconceptions:
+    - A symplectic integrator does not conserve the energy exactly; its error stays bounded instead of drifting, which the readout measures.
+algorithm:
+  paradigm: numerical-integration
 claims:
+  - id: every-bound-orbit-crosses-at-the-top-energy
+    statement: >-
+      At energy 0.165, below the escape energy 1/6, every orbit stays inside the bounded part of
+      the potential and keeps crossing the plane, so each of the 16 orbits makes all 160
+      crossings: exactly 16 × 160 = 2,560 section points.
+    readout: Section points
+    expect: { value: 2560 }
+    setup:
+      params: { energy: 0.165 }
+  - id: drift-within-the-leapfrog-error
+    statement: >-
+      The leapfrog's energy error on an oscillation of frequency ω stays within about h²ω²/4 of
+      the energy; the potential's curvature 1 ± 2λρ reaches at most 3 inside the bounded region
+      (ρ ≤ 1/λ, the saddles), so with h = 0.01 the largest relative drift stays below
+      0.0001 × 3/4 = 7.5e-5 at energy 0.165.
+    readout: Largest relative energy drift
+    expect: { below: 7.5e-5 }
+    setup:
+      params: { energy: 0.165 }
+  - id: drift-within-the-leapfrog-error-at-the-default
+    statement: >-
+      The same bound, h²ω²/4 with ω² ≤ 3, holds at the default energy 0.125: the largest
+      relative drift over every step of the 16 orbits stays below 7.5e-5.
+    readout: Largest relative energy drift
+    expect: { below: 7.5e-5 }
   - id: uncoupled-orbits-all-cross
     statement: >-
       With the coupling λ at 0 the system is two uncoupled unit oscillators: x is a harmonic
@@ -54,6 +93,6 @@ claims:
 
 Where a trajectory pierces a plane, turning a flow into a map.
 
-Orbits of the Hénon–Heiles system, all with the same energy, are integrated with the leapfrog scheme, which is symplectic: the energy error stays bounded instead of drifting, and the readout measures it. Each upward crossing of x = 0 is located by linear interpolation between steps.
+Orbits of the Hénon–Heiles system, all with the same energy, are integrated with the leapfrog scheme of the shared integrator library, which is symplectic: the energy error stays bounded instead of drifting, and the readout measures it. Each upward crossing of x = 0 is located by linear interpolation between steps.
 
 Regular orbits lie on invariant tori and pierce the plane along closed curves, the islands; chaotic orbits fill a region of their own. Raising the energy towards the escape value, 1/(6λ²) for the coupling λ and so 1/6 at the default λ = 1, dissolves the islands into the chaotic sea; at λ = 0 the two oscillators are uncoupled and every orbit is regular. The outer curve is where the section meets the energy surface.
