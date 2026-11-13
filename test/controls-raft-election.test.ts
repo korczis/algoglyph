@@ -86,7 +86,7 @@ describe('raft-election: election timeout up to', () => {
   it('is a range control of the plate, the old constant its default', () => {
     // from 300: a shorter top means more elections, each n² messages, and a heavier trace than
     // the plate's heaviest setting today; a longer one only means fewer elections
-    expect(defOf('timeoutMax')).toMatchObject({ kind: 'range', label: 'Election timeout up to (ms)', min: 300, max: 900, step: 10, value: 300, rebuild: true });
+    expect(defOf('timeoutMax')).toMatchObject({ kind: 'range', label: 'Election timeout up to (ms)', min: 160, max: 900, step: 10, value: 300, rebuild: true });
   });
 
   it('round-trips through a shared link', () => {

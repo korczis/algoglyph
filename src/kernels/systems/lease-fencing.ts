@@ -17,9 +17,8 @@ export const kernel: SystemsKernel<LeaseResult> = {
     { kind: 'range', key: 'workers', label: 'Workers', min: 2, max: 5, step: 1, value: 3, rebuild: true },
     { kind: 'range', key: 'pause', label: 'Chance of a long pause per write (%)', min: 0, max: 50, step: 1, value: 15, rebuild: true },
     { kind: 'toggle', key: 'fencing', label: 'Storage checks fencing tokens', value: true, rebuild: true },
-    // from 500: a shorter lease means more grants (about 2.5 times as many at 200 ms), a heavier
-    // run than any setting before the control; a longer one means fewer
-    { kind: 'range', key: 'ttl', label: 'Lease time to live (ms)', min: 500, max: 1500, step: 50, value: 500, rebuild: true },
+    // a shorter lease means more grants (about 2.5 times as many at 200 ms); the range ends where the main-thread budget does (test/budget/systems.test.ts measures it)
+    { kind: 'range', key: 'ttl', label: 'Lease time to live (ms)', min: 200, max: 1500, step: 50, value: 500, rebuild: true },
   ],
   setup: (p) => {
     const w = num(p, 'workers');

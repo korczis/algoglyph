@@ -25,9 +25,9 @@ export const kernel: SystemsKernel<RaftResult> = {
   network: true,
   params: [
     { kind: 'range', key: 'nodes', label: 'Nodes', min: 3, max: 7, step: 1, value: 5, rebuild: true },
-    // from 300: a shorter top means more elections at n² messages each, a heavier run than any
-    // setting before the control; a longer top only means fewer elections
-    { kind: 'range', key: 'timeoutMax', label: 'Election timeout up to (ms)', min: 300, max: 900, step: 10, value: 300, rebuild: true },
+    // above the 150 ms floor of the window; a shorter top means more elections at n² messages
+    // each, and the range ends where the main-thread budget does (test/budget/systems.test.ts measures it)
+    { kind: 'range', key: 'timeoutMax', label: 'Election timeout up to (ms)', min: 160, max: 900, step: 10, value: 300, rebuild: true },
   ],
   setup: (p) => ({
     lanes: Array.from({ length: num(p, 'nodes') }, (_, i) => `node ${i + 1}`),

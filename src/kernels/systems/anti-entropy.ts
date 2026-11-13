@@ -23,9 +23,9 @@ export const kernel: SystemsKernel<AntiEntropyResult> = {
   network: true,
   params: [
     { kind: 'range', key: 'replicas', label: 'Replicas', min: 2, max: 6, step: 1, value: 4, rebuild: true },
-    // at most 40: writing longer only adds writes and transfers, and the run was already at its
-    // heaviest; at least 35, so that both sides still write inside the partition from 30%
-    { kind: 'range', key: 'writeStop', label: 'Writes stop at (% of run)', min: 35, max: 40, step: 5, value: 40, rebuild: true },
+    // at least 35, so that both sides still write inside the partition from 30% (a meaning
+    // reason); writing longer only adds writes and transfers, and the range ends where the main-thread budget does (test/budget/systems.test.ts measures it)
+    { kind: 'range', key: 'writeStop', label: 'Writes stop at (% of run)', min: 35, max: 80, step: 5, value: 40, rebuild: true },
   ],
   setup: (p) => ({
     lanes: Array.from({ length: num(p, 'replicas') }, (_, i) => `replica ${String.fromCharCode(65 + i)}`),

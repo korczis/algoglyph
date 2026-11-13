@@ -35,7 +35,7 @@ describe('lease-fencing: lease time to live', () => {
   it('is a range control of the plate, the old constant its default', () => {
     // from 500: a shorter lease means more grants (about 2.5 times as many at 200 ms) and a
     // heavier run than any setting before the control; a longer one means fewer
-    expect(defOf('ttl')).toMatchObject({ kind: 'range', label: 'Lease time to live (ms)', min: 500, max: 1500, step: 50, value: 500, rebuild: true });
+    expect(defOf('ttl')).toMatchObject({ kind: 'range', label: 'Lease time to live (ms)', min: 200, max: 1500, step: 50, value: 500, rebuild: true });
   });
 
   it('round-trips through a shared link', () => {
