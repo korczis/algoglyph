@@ -9,6 +9,7 @@ import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import type { Claim } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import type { GraphKernel } from '../src/engines/graph/trace';
+import { kernel as boruvka } from '../src/kernels/graph/boruvka-mst';
 import { kernel as kruskal } from '../src/kernels/graph/kruskal-mst';
 import { kernel as prim } from '../src/kernels/graph/prim-mst';
 import { densePrim } from './support/graph-oracles';
@@ -61,6 +62,22 @@ const primScans: Check = (c, g) => {
   expect(c.expect.value, c.id).toBe(2 * g.m);
 };
 
+/**
+ * Borůvka's rounds are at most ⌊log₂ V⌋, derived for this plate's variant: a round counts only
+ * when some fragment has an edge to another (the pass that finds none ends the run uncounted).
+ * Every such fragment picks its lightest edge out under one total order, weight then edge index,
+ * so the picks close no cycle, and all of them join: each fragment that can merge merges with at
+ * least one other, and a component's f fragments become at most ⌊f/2⌋. A component of c vertices
+ * starts with c fragments, so after r rounds it has at most c/2^r, fewer than 2 once r =
+ * ⌊log₂ c⌋; the components shrink side by side, so the rounds are at most ⌊log₂ c⌋ for the
+ * largest component, at most ⌊log₂ V⌋. A graph with an edge between two vertices takes at least
+ * one round. The claim's range is [1, ⌊log₂ V⌋].
+ */
+const boruvkaRounds: Check = (c, g) => {
+  expect(g.m, `${c.id}: the graph has an edge`).toBeGreaterThan(0);
+  expect(c.expect.range, c.id).toEqual([1, Math.floor(Math.log2(g.n))]);
+};
+
 interface Plate { id: string; kernel: GraphKernel; checks: Record<string, Check>; needs: string[] }
 
 const PLATES: Plate[] = [
@@ -73,6 +90,11 @@ const PLATES: Plate[] = [
     id: 'prim-mst', kernel: prim as GraphKernel,
     checks: { [WEIGHT]: weight, 'Tree edges': treeEdges, 'Edges examined': primScans },
     needs: [WEIGHT, 'Tree edges', 'Edges examined'],
+  },
+  {
+    id: 'boruvka-mst', kernel: boruvka as GraphKernel,
+    checks: { [WEIGHT]: weight, 'Tree edges': treeEdges, Rounds: boruvkaRounds },
+    needs: [WEIGHT, 'Tree edges', 'Rounds'],
   },
 ];
 
