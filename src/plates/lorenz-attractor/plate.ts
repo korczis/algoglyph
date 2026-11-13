@@ -124,9 +124,19 @@ export const lorenzAttractor: PlateCode = {
         for (const h of heads) {
           spread = Math.max(spread, Math.hypot(h[0] - heads[0][0], h[1] - heads[0][1], h[2] - heads[0][2]));
         }
+        // the fixed points C± = (±c, ±c, ρ − 1), c = √(β(ρ − 1)): stable below the Hopf value
+        // σ(σ + β + 3)/(σ − β − 1), where each tracer ends on one, whichever the seed picks
+        const c = Math.sqrt(beta * (rho - 1));
+        let near = 0;
+        for (const [x, y, z] of heads) {
+          near = Math.max(near, Math.min(Math.hypot(x - c, y - c, z - rho + 1),
+            Math.hypot(x + c, y + c, z - rho + 1)));
+        }
         ctx.stats([
           { label: 'simulated time', value: (steps * dt).toFixed(2) },
           { label: 'swarm spread', value: spread < 0.01 ? spread.toExponential(2) : spread.toFixed(2) },
+          { label: 'largest distance to the nearer of C±',
+            value: near < 0.01 ? near.toExponential(2) : near.toFixed(2) },
           { label: 'tracers', value: String(heads.length) },
           { label: 'integrator', value: `RK4, dt ${dt}` },
           ...stop.rows(),
