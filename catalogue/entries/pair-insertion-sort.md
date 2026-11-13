@@ -45,6 +45,14 @@ bounds:
   model: 'comparisons and array writes (a shift is one write)'
   best: '3⌊(n − 1)/2⌋ comparisons, one more when n is even, and 2⌊(n − 1)/2⌋ array writes (Already sorted)'
   worst: 'O(n²) comparisons and array writes'
+claims:
+  - id: sorted-three-per-pair
+    statement: >-
+      On Already sorted at 128 keys pair insertion sort makes 3⌊(n − 1)/2⌋ + 1 = 190 comparisons: three for each of the 63 pairs it inserts, and one more because n is even.
+    readout: Comparisons
+    expect: { value: 190 }
+    setup:
+      params: { shape: sorted, n: 128 }
 ---
 
 Insertion sort that takes the unsorted keys two at a time: order the pair, insert the larger one by shifting the run two places at once, then continue leftwards with the smaller one, shifting one place.

@@ -45,6 +45,14 @@ bounds:
   best: '2 rounds, n − 1 comparisons and no writes (Already sorted)'
   average: 'on every input, array writes = 2 × inversions'
   worst: 'the last exchange within the first n rounds, and at most 2⌈n/2⌉ + 2 rounds before the run stops'
+claims:
+  - id: sorted-two-rounds
+    statement: >-
+      On Already sorted at 128 keys odd-even transposition sort stops after 2 rounds, an odd and an even phase that exchange nothing, with n − 1 = 127 comparisons.
+    readout: Rounds
+    expect: { value: 2 }
+    setup:
+      params: { shape: sorted, n: 128 }
 ---
 
 Alternate two kinds of round over neighbouring pairs: counting positions from 0, the odd round compares (1, 2), (3, 4), …, the even round (0, 1), (2, 3), …, and every pair out of order is exchanged; the run begins with an odd round.

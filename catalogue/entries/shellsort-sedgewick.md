@@ -31,6 +31,14 @@ bounds:
   model: 'comparisons and array writes (a shift is one write)'
   best: 'Σ (n − h) comparisons over the increments h < n, and no writes (Already sorted)'
   worst: 'O(n^(4/3)) comparisons'
+claims:
+  - id: sorted-one-comparison-per-key-and-pass
+    statement: >-
+      On Already sorted at 128 keys Shellsort with Sedgewick's increments writes nothing and makes Σ (n − h) = 403 comparisons over h = 77, 23, 8, 1.
+    readout: Comparisons
+    expect: { value: 403 }
+    setup:
+      params: { shape: sorted, n: 128 }
 ---
 
 Shellsort with the increments 1, 8, 23, 77, 281, … = 4^k + 3·2^(k−1) + 1.

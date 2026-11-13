@@ -44,6 +44,14 @@ bounds:
   model: 'comparisons, array writes (an exchange is two writes) and auxiliary writes (the recorded offsets)'
   average: 'up to 16 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1; no auxiliary write up to 257 keys'
   worst: 'quadratic: more than n²/4 comparisons from 49 keys on, on the input an adversary builds against the median-of-three rule'
+claims:
+  - id: no-block-buffered-at-256-keys
+    statement: >-
+      On Reversed at 256 keys BlockQuicksort makes no auxiliary write: a partition buffers block offsets only while more than two blocks of 128 keys remain, which needs more than 257 keys.
+    readout: Auxiliary writes
+    expect: { value: 0 }
+    setup:
+      params: { shape: reversed, n: 256 }
 ---
 
 Hoare partitioning done in blocks: scan a block of keys on each side, record without branching the offsets of the keys that sit on the wrong side, then exchange the recorded keys in pairs.

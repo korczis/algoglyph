@@ -42,6 +42,14 @@ algorithm:
 bounds:
   model: 'comparisons, array writes and auxiliary writes (a shift on the shelf is one auxiliary write), and rebalancing phases (the Phase readout)'
   average: 'on every input, exactly n array writes and ⌊lg(n − 1)⌋ + 1 rebalancing phases'
+claims:
+  - id: n-writes-the-copy-back
+    statement: >-
+      On Random permutation at 128 keys library sort makes exactly n = 128 array writes, as on every input of that size: the keys reach the array only in the copy back from its gapped auxiliary array.
+    readout: Array writes
+    expect: { value: 128 }
+    setup:
+      params: { shape: random, n: 128 }
 ---
 
 Gapped insertion sort: keep the sorted keys in an array about (1 + ε) n long with empty slots scattered between them, find each new key's place by binary search, and shift only as far as the nearest gap.

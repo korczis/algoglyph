@@ -45,6 +45,14 @@ bounds:
   best: 'n − 1 comparisons and no writes (Already sorted, or all keys equal)'
   average: 'O(n log n) comparisons, and an expected O(n log k) for k distinct values (the authors'' stated guarantees); up to 20 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1'
   worst: 'O(n log n) comparisons, heapsort once the introsort depth limit runs out (the authors'' stated guarantee)'
+claims:
+  - id: reversed-is-one-run
+    statement: >-
+      On Reversed at 512 keys ipnsort makes n − 1 = 511 comparisons: the run search finds one strictly descending run and reverses it with 2⌊n/2⌋ = 512 array writes.
+    readout: Comparisons
+    expect: { value: 511 }
+    setup:
+      params: { shape: reversed, n: 512 }
 ---
 
 The unstable sort of Rust's standard library: detect a single existing run, otherwise quicksort with an introsort depth limit, a sampled pivot, a filter for keys equal to the ancestor pivot, insertion sort for short inputs and heapsort when the limit runs out.
