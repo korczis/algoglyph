@@ -76,9 +76,8 @@ export const kernel: GraphKernel<SccResult> = {
   report(r) {
     const sizes = new Map<number, number>();
     for (const c of r.comp) sizes.set(c, (sizes.get(c) ?? 0) + 1);
-    return [
-      { label: 'Strong components', value: String(sizes.size) },
-      { label: 'Largest', value: `${Math.max(...sizes.values())} vertices` },
-    ];
+    // the count is the engine's groups readout (names.groups); a second row of that label
+    // would hide from a claim behind the first
+    return [{ label: 'Largest', value: `${Math.max(...sizes.values())} vertices` }];
   },
 };
