@@ -10,6 +10,7 @@ import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import type { Claim } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import type { GraphKernel } from '../src/engines/graph/trace';
+import { kernel as edmondsKarp } from '../src/kernels/graph/edmonds-karp';
 import { kernel as fordFulkerson } from '../src/kernels/graph/ford-fulkerson';
 import { dinic } from './support/graph-oracles';
 
@@ -44,6 +45,28 @@ const roundsAtMostFlow: Check = (c) => {
   expect(c.expect, c.id).toEqual({ against: 'Flow value', below: 1 });
 };
 
+/**
+ * Edmonds–Karp's augmentations are at most E·⌊V/2⌋ ≤ VE/2 (the Edmonds–Karp theorem), derived
+ * here for this plate's variant: each search is breadth-first and stops once t is seen, so every
+ * augmenting path is a shortest s–t path of the residual network, and antiparallel edges are
+ * separate edges, each with its own forward arc (room cap − f) and backward arc (room f).
+ * (1) Shortest distances from s, δ, and to t, γ, never decrease from one augmentation to the
+ * next: the arcs a shortest-path augmentation creates are reverses of arcs on it, which go one
+ * level back and shorten no path. (2) Every augmentation saturates or drains at least one arc,
+ * its bottleneck, and that edge e = (u, v) is then critical. (3) After e is critical forward
+ * (u → v, so δ(v) = δ(u) + 1 and γ(u) = γ(v) + 1 then), it is next on a path backward, v → u,
+ * whose length δ'(v) + 1 + γ'(u) ≥ δ(v) + 1 + γ(u) = (δ(u) + 1 + γ(v)) + 2: two more than the
+ * path it was critical on; the same holds with the directions swapped. (4) A path has 1 to V − 1
+ * edges, so one edge is critical at most ⌊(V − 2)/2⌋ + 1 = ⌊V/2⌋ times, and with at least one
+ * critical edge per augmentation there are at most E·⌊V/2⌋ of them. Each augmentation adds at
+ * least one unit, so a positive flow needs at least 1. The claim's range is [1, E·⌊V/2⌋].
+ */
+const edmondsKarpBound: Check = (c, g) => {
+  if (c.expect.against !== undefined) return roundsAtMostFlow(c, g);
+  expect(dinic(g, g.s, g.t), `${c.id}: a positive flow needs an augmentation`).toBeGreaterThan(0);
+  expect(c.expect.range, c.id).toEqual([1, g.m * Math.floor(g.n / 2)]);
+};
+
 interface Plate { id: string; kernel: GraphKernel; checks: Record<string, Check>; needs: string[] }
 
 const PLATES: Plate[] = [
@@ -53,6 +76,15 @@ const PLATES: Plate[] = [
       'Flow value': flowValue,
       'Cut capacity': exactAgainst('Flow value'),
       Rounds: roundsAtMostFlow,
+    },
+    needs: ['Flow value', 'Cut capacity', 'Rounds'],
+  },
+  {
+    id: 'edmonds-karp', kernel: edmondsKarp as GraphKernel,
+    checks: {
+      'Flow value': flowValue,
+      'Cut capacity': exactAgainst('Flow value'),
+      Rounds: edmondsKarpBound,
     },
     needs: ['Flow value', 'Cut capacity', 'Rounds'],
   },
