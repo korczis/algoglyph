@@ -1,12 +1,16 @@
 // Independent references for the digraph plates' claims (wave 7a: kosaraju-scc, tarjan-scc,
-// topological-sort, transitive-closure), written over the Graph's edge lists alone: a breadth-first
-// search from every vertex, never a depth-first search or Warshall's rounds as the plates run.
-// And the settled readouts of a plate, as test/support/claims.ts runs it.
+// topological-sort, transitive-closure), written over the Graph's edge lists alone: a
+// breadth-first search from every vertex, never a depth-first search or Warshall's rounds as the
+// plates run. And the settled readouts of a plate, as test/support/claims.ts runs it.
 import { expect } from 'vitest';
 import { GROUNDS, palette as lookupPalette } from '../../src/core/palette';
 import { defaults, type Params, type PlateContext, type Stat } from '../../src/core/plate';
+import { DEFAULT_SEED } from '../../src/core/claims';
 import { mulberry32 } from '../../src/core/random';
-import type { Graph } from '../../src/engines/graph/graph';
+import { makeGraph, type Graph, type Shape } from '../../src/engines/graph/graph';
+import type { GraphKernel } from '../../src/engines/graph/trace';
+// @ts-expect-error -- plain ESM shared with the node tooling
+import { loadCatalogue } from '../../scripts/lib/catalogue.mjs';
 import { loadPlate } from '../../src/registry';
 import { MAX_FRAMES, SETTLE_FRAMES } from './claims';
 import { p5Stub } from './p5-stub';
@@ -73,4 +77,27 @@ export async function settledRows(id: string, set: Params, seed: number): Promis
 export function repeatedLabels(rows: Stat[]): string[] {
   const labels = rows.map((r) => r.label);
   return labels.filter((l, i) => labels.indexOf(l) !== i);
+}
+
+export interface EntryClaim {
+  id: string; readout: string;
+  expect: { value?: number; range?: number[]; against?: string; offset?: number };
+  setup?: { params?: Record<string, unknown>; seed?: number };
+}
+
+/** The claims catalogue/entries/<id>.md authors, as the catalogue loads them. */
+export function entryClaims(id: string): EntryClaim[] {
+  const { model } = loadCatalogue(process.cwd()) as {
+    model: { entries: { id: string; claims: EntryClaim[] }[] };
+  };
+  return model.entries.find((e) => e.id === id)?.claims ?? [];
+}
+
+/** The graph a claim's run starts on: the plate's first input, as src/engines/graph/index.ts
+ * builds it (its shape and size controls, the claim's seed, 1:1 for a matrix kernel). */
+export function claimGraph(kernel: GraphKernel, c: EntryClaim): Graph {
+  const p = c.setup?.params ?? {};
+  const shape = (p.shape ?? kernel.inputs[0]) as Shape;
+  const n = Number(p.n ?? kernel.n?.value);
+  return makeGraph(shape, n, c.setup?.seed ?? DEFAULT_SEED, kernel.view?.matrix ? 1 : 16 / 9);
 }
