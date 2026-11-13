@@ -17,6 +17,8 @@ export const INTEGRANDS: Record<string, Integrand> = {
   peak: { label: '1 / (x² + 0.01) on [-1, 1]', f: (x) => 1 / (x * x + 0.01), a: -1, b: 1, exact: 20 * Math.atan(10) },
   sqrt: { label: '√x on [0, 1]', f: (x) => Math.sqrt(Math.max(0, x)), a: 0, b: 1, exact: 2 / 3 },
   wave: { label: 'x sin 7x on [0, π]', f: (x) => x * Math.sin(7 * x), a: 0, b: Math.PI, exact: Math.PI / 7 },
+  // a cubic, which Simpson's parabolas integrate exactly; 81/4 − 27 + 9 + 3 is a double exactly
+  cubic: { label: 'x³ − 3x² + 2x + 1 on [0, 3]', f: (x) => x ** 3 - 3 * x * x + 2 * x + 1, a: 0, b: 3, exact: 5.25 },
 };
 
 export const integrandParam = (): SelectParam => ({

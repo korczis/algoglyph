@@ -39,6 +39,12 @@ export function convergence(key: unknown): { trap: XY[]; simp: XY[] } {
 
 const axes = { x: { label: 'function evaluations', log: true }, y: { label: '|error|', log: true } };
 
+/** The fitted order of an error series, or a note when no nonzero error is left to fit. */
+function order(pts: XY[]): string {
+  const p = logSlope(pts);
+  return Number.isFinite(p) ? `n^${fmt(p, 3)}` : 'no error to fit';
+}
+
 export const kernel: NumericKernel = {
   params: [integrandParam()],
   thumb: 0.3,
@@ -76,6 +82,7 @@ export const kernel: NumericKernel = {
       layers.push({ kind: 'points', panel: 1, pts: xs.map((x, i) => [x, ys[i]] as XY), size: n > 128 ? 1.5 : 4 });
       const t = trapezoid(g.f, g.a, g.b, n);
       const s = simpson(g.f, g.a, g.b, n);
+      const simpErr = Math.abs(s - g.exact);
       const chart: Chart = {
         title: 'Error against evaluations', ...axes,
         series: [{ name: 'Trapezoid', points: trap.slice(0, k + 1) }, { name: 'Simpson', points: simp.slice(0, k + 1) }],
@@ -88,7 +95,9 @@ export const kernel: NumericKernel = {
           { label: 'Exact integral', value: fmt(g.exact, 10) },
           { label: 'Trapezoid', value: `${fmt(t, 10)} (error ${fmt(Math.abs(t - g.exact))}, ${int(trap[k][0])} evaluations)` },
           { label: 'Simpson', value: `${fmt(s, 10)} (error ${fmt(Math.abs(s - g.exact))}, ${int(simp[k][0])} evaluations)` },
-          { label: 'Measured order so far', value: k ? `trapezoid n^${fmt(logSlope(trap.slice(0, k + 1)), 3)}, Simpson n^${fmt(logSlope(simp.slice(0, k + 1)), 3)}` : 'after two sizes' },
+          { label: 'Measured order so far', value: k ? `trapezoid ${order(trap.slice(0, k + 1))}, Simpson ${order(simp.slice(0, k + 1))}` : 'after two sizes' },
+          // the error alone, as a first number, with four significant digits
+          { label: 'Simpson error', value: `${simpErr === 0 ? '0' : simpErr.toExponential(3)} on ${int(n)} panels` },
         ],
       };
     });

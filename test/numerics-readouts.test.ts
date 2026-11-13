@@ -75,3 +75,36 @@ describe('pca-svd publishes the rank-2 reconstruction error', () => {
     }, 120_000);
   }
 });
+
+describe('simpson-quadrature: a cubic integrand and Simpson’s error on its own', () => {
+  const u = 2 ** -53;
+  /** Composite Simpson with Neumaier's compensated sum: rounding near u·|result|. */
+  function simpsonCompensated(f: (x: number) => number, a: number, b: number, n: number): number {
+    let s = 0; let c = 0;
+    const add = (v: number) => { const t = s + v; c += Math.abs(s) >= Math.abs(v) ? (s - t) + v : (v - t) + s; s = t; };
+    for (let i = 0; i <= n; i++) add((i === 0 || i === n ? 1 : i % 2 ? 4 : 2) * f(a + ((b - a) * i) / n));
+    return ((s + c) * (b - a)) / (3 * n);
+  }
+
+  it('is exact on a cubic to the rounding of a sum of n + 1 terms', async () => {
+    const panels = (await reading('simpson-quadrature', 'Panels n', { integrand: 'cubic' })).value;
+    const r = await reading('simpson-quadrature', 'Simpson error', { integrand: 'cubic' });
+    // x³ − 3x² + 2x + 1 stays positive on [0, 3], so ∫|f| = ∫f = 81/4 − 27 + 9 + 3
+    const absIntegral = 81 / 4 - 27 + 9 + 3;
+    expect(r.value).toBeLessThanOrEqual((panels + 1) * u * absIntegral);
+  }, 120_000);
+
+  it('on sine matches the h⁴ estimate and an independent compensated sum', async () => {
+    const n = (await reading('simpson-quadrature', 'Panels n', { integrand: 'sine' })).value;
+    const r = await reading('simpson-quadrature', 'Simpson error', { integrand: 'sine' });
+    const h = Math.PI / n;
+    // Euler–Maclaurin: E ≈ h⁴ (f‴(b) − f‴(a)) / 180, and f‴ = −cos, so h⁴ · 2 / 180
+    const estimate = (h ** 4 * 2) / 180;
+    const independent = simpsonCompensated(Math.sin, 0, Math.PI, n) - 2;
+    const bound = (n + 1) * u * 2;
+    expect(Math.abs(r.value - independent), `${r.text} against ${independent}`).toBeLessThanOrEqual(bound);
+    expect(Math.abs(r.value - estimate), `${r.text} against ${estimate}`).toBeLessThanOrEqual(bound);
+    // the compensated sum leaves only the rule's own error: the estimate holds to its h⁶ term
+    expect(Math.abs(independent - estimate) / estimate).toBeLessThan(1e-3);
+  }, 120_000);
+});
