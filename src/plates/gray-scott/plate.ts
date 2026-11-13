@@ -9,6 +9,12 @@ import { field, PRESETS, seed, step, type Field } from './grayscott';
 export const MAX_CELLS = 90_000;
 export const CELL_STEPS_PER_FRAME = 500_000;
 
+/** The mean of V as shown: four decimals, or four significant digits below 1e-4 (not 0), where
+ * a decaying perturbation or a dying pattern lives; a seeded dish starts above 5e-4 at any seed. */
+function meanV(m: number): string {
+  return m === 0 || m >= 1e-4 ? m.toFixed(4) : m.toExponential(3);
+}
+
 export const grayScott: PlateCode = {
   id: 'gray-scott',
   mode: '2d',
@@ -28,6 +34,11 @@ export const grayScott: PlateCode = {
     // off, the dish is the uniform state (u, v) = (1, 0) the patterns grow from; the drops'
     // random numbers are still drawn, so every later draw is the same
     { kind: 'toggle', key: 'drops', label: 'Seed drops', value: true, rebuild: true },
+    // a uniform V added to every cell: about (1, 0) it decays as (1 − (f + k))^steps. Up to
+    // 0.01, where the quadratic u·v² is still under 1/6 of the removal (f + k)·v at the slowest
+    // preset's f + k (0.077): past that the run no longer shows the linear decay it is for
+    { kind: 'range', key: 'dv', label: 'Uniform V perturbation', min: 0, max: 0.01, step: 0.0001,
+      value: 0, rebuild: true },
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 14 },
     // a stop costs nothing, so its top is not a budget's: past 100 000 steps a reader lets it
     // run on (0)
@@ -68,6 +79,8 @@ export const grayScott: PlateCode = {
           const r = 2 + Math.floor(ctx.rnd() * 5);
           if (seeded) seed(fl, x, y, r);
         }
+        const dv = num(params, 'dv');
+        if (dv > 0) for (let i = 0; i < fl.v.length; i++) fl.v[i] += dv;
         steps = 0;
         stop.reset();
       },
@@ -97,7 +110,8 @@ export const grayScott: PlateCode = {
         ctx.stats([
           { label: 'regime', value: `f ${f.toFixed(4)}, k ${k.toFixed(4)}` },
           { label: 'steps', value: steps.toLocaleString('en') },
-          { label: 'mean V', value: (sum / fl.v.length).toFixed(4) },
+          // four significant digits below 1e-4, where a decaying perturbation lives
+          { label: 'mean V', value: meanV(sum / fl.v.length) },
           { label: 'steps this frame', value: stop.stopped ? `${n}, held at the stop`
             : bounded(n, ctx.thumbnail ? n : num(params, 'speed')) },
           { label: 'grid', value: `${fl.w}×${fl.h} (torus), cells ${bounded(res, num(params, 'res'), ' px')}` },
