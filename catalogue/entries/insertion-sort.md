@@ -35,6 +35,14 @@ bounds:
   best: 'n − 1 comparisons and no writes (Already sorted)'
   average: 'on every input, array writes = inversions + keys that move, and inversions ≤ comparisons ≤ inversions + n − 1'
   worst: 'n(n − 1)/2 comparisons and n(n − 1)/2 + n − 1 array writes (Reversed)'
+claims:
+  - id: sorted-is-linear
+    statement: >-
+      On Already sorted at 128 keys insertion sort makes n − 1 = 127 comparisons and no write: each key is compared once with its left neighbour and stays where it is.
+    readout: Comparisons
+    expect: { value: 127 }
+    setup:
+      params: { shape: sorted, n: 128 }
 ---
 
 Take each key in turn and slide it left into the sorted prefix.

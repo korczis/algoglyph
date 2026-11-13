@@ -45,6 +45,14 @@ bounds:
   best: 'n(n − 1)/2 comparisons and no writes (Already sorted)'
   average: 'on every input, array writes = keys not at their sorted position, and comparisons ≥ n(n − 1)/2'
   worst: 'at most n array writes'
+claims:
+  - id: reversed-writes-every-key-once
+    statement: >-
+      On Reversed at 128 keys every key is out of place, and cycle sort writes each of them exactly once: n = 128 array writes, the most it makes on any input of that size.
+    readout: Array writes
+    expect: { value: 128 }
+    setup:
+      params: { shape: reversed, n: 128 }
 ---
 
 Follow the cycles of the permutation: take a key, count how many keys are smaller to find its final position, write it there, pick up the key it displaces, and continue until the cycle returns to its start.

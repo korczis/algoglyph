@@ -44,6 +44,14 @@ bounds:
   model: 'comparisons and array writes (an exchange is two writes)'
   best: '⌊n²/4⌋ comparisons (Reversed)'
   worst: '2⌊n²/4⌋ comparisons (Already sorted), and at most 4⌊n/2⌋ array writes on any input'
+claims:
+  - id: reversed-at-the-lower-bound
+    statement: >-
+      On Reversed at 128 keys double selection sort makes ⌊n²/4⌋ = 4,096 comparisons, its lower bound and half of the 8,192 it makes on Already sorted.
+    readout: Comparisons
+    expect: { value: 4096 }
+    setup:
+      params: { shape: reversed, n: 128 }
 ---
 
 Selection sort from both ends: each pass finds the smallest and the largest key of the unsorted middle, puts the minimum at its left edge and the maximum at its right edge, and the middle shrinks by two.

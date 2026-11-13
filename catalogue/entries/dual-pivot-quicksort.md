@@ -52,6 +52,14 @@ bounds:
   best: 'linear: 2(n − 1) comparisons and 8 array writes when all keys are equal, from 17 keys on: one partition, its middle part skipped'
   average: '~1.9 n ln n comparisons on random permutations for Yaroslavskiy''s partition (Wild and Nebel); below 17 keys insertion sort alone, with array writes = 2 × inversions and inversions ≤ comparisons ≤ inversions + n − 1'
   worst: 'quadratic: more than n²/4 comparisons from 65 keys on, when both pivots are the two smallest keys of every subarray'
+claims:
+  - id: insertion-up-to-16-keys
+    statement: >-
+      At 16 keys dual-pivot quicksort never partitions: on Reversed its insertion by exchanges makes 2 × inversions = n(n − 1) = 240 array writes.
+    readout: Array writes
+    expect: { value: 240 }
+    setup:
+      params: { shape: reversed, n: 16 }
 ---
 
 Choose two pivots p ≤ q and partition in one scan into keys below p, keys between p and q, and keys above q; both pivots land in their final places and the three parts are sorted recursively.

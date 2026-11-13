@@ -39,6 +39,14 @@ bounds:
   best: 'n − 1 comparisons and no writes (Already sorted)'
   average: 'on every input, array writes = 2 × inversions'
   worst: 'n(n − 1)/2 comparisons and n(n − 1) array writes (Reversed)'
+claims:
+  - id: sorted-one-pass
+    statement: >-
+      On Already sorted at 128 keys cocktail shaker sort makes n − 1 = 127 comparisons and no write: the first pass exchanges nothing and ends the sort.
+    readout: Comparisons
+    expect: { value: 127 }
+    setup:
+      params: { shape: sorted, n: 128 }
 ---
 
 Bubble sort that alternates direction, so small keys travel left as fast as large keys travel right.

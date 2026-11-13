@@ -42,6 +42,14 @@ algorithm:
 bounds:
   model: 'comparisons and array writes (an exchange is two writes)'
   worst: 'quadratic: ⌊(n² − 1)/3⌋ comparisons from 4 keys on, when the three pivots are the three smallest keys of every subarray'
+claims:
+  - id: no-auxiliary-write
+    statement: >-
+      On Reversed at 128 keys three-pivot quicksort makes no auxiliary write: every key moves by exchanges inside the array.
+    readout: Auxiliary writes
+    expect: { value: 0 }
+    setup:
+      params: { shape: reversed, n: 128 }
 ---
 
 Choose k pivots, sort them, and partition the subarray into k + 1 parts by which pair of pivots each key falls between; this plate runs the three-pivot version, which splits into four parts in a single pass.

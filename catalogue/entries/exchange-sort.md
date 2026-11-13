@@ -41,6 +41,14 @@ bounds:
   best: 'n(n − 1)/2 comparisons and no writes (Already sorted)'
   average: 'on every input, n(n − 1)/2 comparisons and at most 2 × inversions array writes'
   worst: 'n(n − 1)/2 comparisons and n(n − 1) array writes (Reversed)'
+claims:
+  - id: quadratic-on-every-input
+    statement: >-
+      On Random permutation at 128 keys exchange sort makes n(n − 1)/2 = 8,128 comparisons, as on every input of that size: it compares every pair of positions once.
+    readout: Comparisons
+    expect: { value: 8128 }
+    setup:
+      params: { shape: random, n: 128 }
 ---
 
 For each position i, compare the key there with every key to its right and exchange the two whenever the right one is smaller; after the inner loop, position i holds the minimum of the rest.

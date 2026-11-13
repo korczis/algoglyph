@@ -41,6 +41,14 @@ bounds:
   best: 'no array writes on Already sorted, and never fewer than Σ_{i=1}^{n−1} ⌊lg i⌋ comparisons'
   average: 'on every input, array writes = inversions + keys that move'
   worst: 'Σ_{i=1}^{n−1} (⌊lg i⌋ + 1) comparisons and n(n − 1)/2 + n − 1 array writes, both on Reversed'
+claims:
+  - id: reversed-takes-the-top
+    statement: >-
+      On Reversed at 128 keys binary insertion sort makes Σ (⌊lg i⌋ + 1) = 769 comparisons over i = 1 … 127, the top of its range: every binary search runs its full length.
+    readout: Comparisons
+    expect: { value: 769 }
+    setup:
+      params: { shape: reversed, n: 128 }
 ---
 
 Insertion sort that finds each insertion point by binary search.

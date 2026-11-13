@@ -42,6 +42,14 @@ bounds:
   best: 'n auxiliary writes (Already sorted, Reversed), and never fewer than Σ_{i=1}^{n−1} ⌊lg i⌋ comparisons'
   average: 'on every input, exactly n array writes'
   worst: 'Σ_{i=1}^{n−1} (⌊lg i⌋ + 1) comparisons (Reversed), and O(n²) auxiliary writes'
+claims:
+  - id: reversed-takes-the-top
+    statement: >-
+      On Reversed at 128 keys two-way insertion sort makes Σ (⌊lg i⌋ + 1) = 769 comparisons over i = 1 … 127, the top of its range: every binary search runs its full length.
+    readout: Comparisons
+    expect: { value: 769 }
+    setup:
+      params: { shape: reversed, n: 128 }
 ---
 
 Insertion sort into an output area about twice the size of the input: the first key goes in the middle, and the sorted run grows in both directions, each new key opening its slot by shifting whichever side of the run is shorter.
