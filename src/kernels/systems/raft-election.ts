@@ -2,9 +2,10 @@ import { num } from '../../core/plate';
 import type { SystemsKernel } from '../../engines/systems/sim';
 
 // Raft's leader election with the log check that makes it safe. A follower that hears no
-// leader within a randomised timeout becomes a candidate: it starts a new term, votes for
-// itself and asks every node for a vote. A node grants at most one vote per term, and only to
-// a candidate whose log is at least as up to date as its own. A majority makes a leader, which
+// leader within a randomised timeout (150 ms up to the timeoutMax control's top) becomes a
+// candidate: it starts a new term, votes for itself and asks every node for a vote. A node
+// grants at most one vote per term, and only to a candidate whose log is at least as up to
+// date as its own. A majority makes a leader, which
 // appends a no-op entry for its term and sends heartbeats (AppendEntries) that keep the others
 // followers and repair their logs. Any message with a newer term turns its receiver into a
 // follower of that term. Leaders crash now and then and come back as followers.
@@ -16,12 +17,18 @@ export interface Vote { term: number; voter: number; candidate: number; t: numbe
 export interface Leader { term: number; node: number; t: number; votes: number[] }
 export interface RaftResult { leaders: Leader[]; votes: Vote[]; n: number }
 
-const ELECTION: [number, number] = [150, 300];
+/** The election timeout's least value; its top is the timeoutMax control (default 300). */
+const ELECTION_MIN = 150;
 const HEARTBEAT = 50;
 
 export const kernel: SystemsKernel<RaftResult> = {
   network: true,
-  params: [{ kind: 'range', key: 'nodes', label: 'Nodes', min: 3, max: 7, step: 1, value: 5, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'nodes', label: 'Nodes', min: 3, max: 7, step: 1, value: 5, rebuild: true },
+    // above the 150 ms floor of the window; a shorter top means more elections at n² messages
+    // each, and the range ends where the main-thread budget does (test/budget/systems.test.ts measures it)
+    { kind: 'range', key: 'timeoutMax', label: 'Election timeout up to (ms)', min: 160, max: 900, step: 10, value: 300, rebuild: true },
+  ],
   setup: (p) => ({
     lanes: Array.from({ length: num(p, 'nodes') }, (_, i) => `node ${i + 1}`),
     horizon: 6000,
@@ -30,6 +37,7 @@ export const kernel: SystemsKernel<RaftResult> = {
   machine: { states: ['follower', 'candidate', 'leader', 'down'] },
   install(net, p) {
     const n = num(p, 'nodes');
+    const timeoutMax = Number(p.timeoutMax ?? 300);
     const majority = Math.floor(n / 2) + 1;
     const res: RaftResult = { leaders: [], votes: [], n };
     const term = new Array<number>(n).fill(0);
@@ -70,7 +78,7 @@ export const kernel: SystemsKernel<RaftResult> = {
     };
     const resetTimer = (i: number) => {
       net.cancel(timer[i]);
-      timer[i] = net.after(net.uniform(ELECTION[0], ELECTION[1]), () => timeout(i));
+      timer[i] = net.after(net.uniform(ELECTION_MIN, timeoutMax), () => timeout(i));
     };
     const newTerm = (i: number, t: number) => {
       if (t <= term[i]) return;

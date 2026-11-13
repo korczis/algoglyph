@@ -13,7 +13,6 @@ export interface Hold { worker: number; ticket?: number; asked: number; granted:
 export interface LockResult { lock: Hold[]; slots: Hold[]; k: number; grants: number[] }
 
 const MEMORY = 1.5; // ms for one access to the shared counters
-const POLL = 6;
 
 /** The largest number of holds overlapping at one instant (a release before a grant at a tie). */
 export function maxOverlap(holds: Hold[]): number {
@@ -33,13 +32,14 @@ export const kernel: SystemsKernel<LockResult> = {
   params: [
     { kind: 'range', key: 'workers', label: 'Workers', min: 2, max: 8, step: 1, value: 5, rebuild: true },
     { kind: 'range', key: 'slots', label: 'Heavy-work slots (semaphore count)', min: 1, max: 4, step: 1, value: 2, rebuild: true },
+    { kind: 'range', key: 'poll', label: 'Spin poll interval (ms)', min: 6, max: 30, step: 1, value: 6, rebuild: true },
   ],
   setup: (p) => {
     const w = num(p, 'workers');
     return { lanes: [...Array.from({ length: w }, (_, i) => `worker ${i + 1}`), 'ticket lock', 'slots'], horizon: 6000, net: { delay: [MEMORY, MEMORY] } };
   },
   install(net, p) {
-    const W = num(p, 'workers'); const k = num(p, 'slots');
+    const W = num(p, 'workers'); const k = num(p, 'slots'); const poll = num(p, 'poll');
     const LOCK = W; const SEM = W + 1;
     const res: LockResult = { lock: [], slots: [], k, grants: [] };
     let next = 0; let serving = 0;
@@ -86,7 +86,7 @@ export const kernel: SystemsKernel<LockResult> = {
             return;
           }
           net.count('spins');
-          net.after(POLL + MEMORY, spin);
+          net.after(poll + MEMORY, spin);
         };
         spin();
       }, { reliable: true });

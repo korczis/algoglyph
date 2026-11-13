@@ -15,20 +15,23 @@ export function tailRisk(sorted: ArrayLike<number>, level: number): { var: numbe
 /** Fewest losses a batch's tail must hold before the batches' spread is shown as an error. */
 const MIN_BATCH_TAIL = 10;
 
-const SCENARIOS: Record<string, { label: string; draw(s: Sampler): number }> = {
+/** The scenarios' own constants, from the controls. */
+interface Shape { jumpP: number; nu: number }
+
+const SCENARIOS: Record<string, { label: string; draw(s: Sampler, x: Shape): number }> = {
   portfolio: {
     label: 'Five positions, heavy tails, one common factor',
-    draw(s) {
-      // a common Student-t factor and five idiosyncratic ones, nu = 4
-      const common = s.studentT(4);
+    draw(s, x) {
+      // a common Student-t factor and five idiosyncratic ones, nu = 4 by default
+      const common = s.studentT(x.nu);
       let loss = 0;
-      for (let i = 0; i < 5; i++) loss += 0.2 * (0.6 * common + 0.8 * s.studentT(4));
+      for (let i = 0; i < 5; i++) loss += 0.2 * (0.6 * common + 0.8 * s.studentT(x.nu));
       return loss;
     },
   },
   jumps: {
     label: 'Normal losses with rare jumps',
-    draw: (s) => s.normal(0, 1) + (s.bernoulli(0.02) ? 4 + s.exponential(0.5) : 0),
+    draw: (s, x) => s.normal(0, 1) + (s.bernoulli(x.jumpP) ? 4 + s.exponential(0.5) : 0),
   },
   normal: { label: 'Normal N(0, 1)', draw: (s) => s.normal(0, 1) },
 };
@@ -54,6 +57,15 @@ export const kernel: StochasticKernel<RiskResult> = {
       options: ['0.9', '0.95', '0.99', '0.995'].map((v) => ({ value: v, label: `${fmt(Number(v) * 100, 1)}%` })),
     },
     { kind: 'range', key: 'n', label: 'Simulated losses', min: 1000, max: 50000, step: 1000, value: 20000, rebuild: true },
+    {
+      kind: 'range', key: 'jumpP', label: 'Jump probability', min: 0.005, max: 0.1, step: 0.005, value: 0.02, rebuild: true,
+      when: { key: 'scenario', values: ['jumps'] },
+    },
+    {
+      kind: 'select', key: 'nu', label: 'Degrees of freedom', value: '4', rebuild: true,
+      options: ['3', '4', '6', '10', '30'].map((v) => ({ value: v, label: `ν = ${v}` })),
+      when: { key: 'scenario', values: ['portfolio'] },
+    },
   ],
   chart: { title: 'Tail estimates as runs accumulate', x: { label: 'simulated losses', log: true }, y: { label: 'loss' } },
   *run(ops, cfg) {
@@ -62,6 +74,7 @@ export const kernel: StochasticKernel<RiskResult> = {
     const sc = SCENARIOS[id];
     const level = Number(str(cfg, 'level'));
     const n = num(cfg, 'n');
+    const shape: Shape = { jumpP: num(cfg, 'jumpP'), nu: Number(str(cfg, 'nu')) };
     const lo = -4;
     const hi = id === 'jumps' ? 12 : 6;
     // all losses, and each of the batches (run i goes to batch i mod BATCHES), kept sorted as
@@ -79,7 +92,7 @@ export const kernel: StochasticKernel<RiskResult> = {
       const fresh: number[] = [];
       const perBatch: number[][] = Array.from({ length: BATCHES }, () => []);
       for (; done < end; done++) {
-        const x = ops.evaluate(sc.draw, s);
+        const x = ops.evaluate(sc.draw, s, shape);
         fresh.push(x);
         perBatch[done % BATCHES].push(x);
         if (done % 2000 === 1999) yield;

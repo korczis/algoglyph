@@ -47,6 +47,48 @@ claims:
     expect: { range: [1, 6] }
     setup:
       params: { shape: correlated }
+  - id: no-spread-correlated-front-is-one
+    statement: >-
+      With no spread across the diagonal every correlated option lies on x = y, so the best of them
+      dominates all the others: the front is exactly 1 option of 160.
+    readout: Front
+    expect: { value: 1, tolerance: 0 }
+    setup:
+      params: { shape: correlated, spread: 0 }
+  - id: no-spread-correlated-layers-are-n
+    statement: >-
+      On the diagonal each peeled front is the best remaining option alone, so the 160 correlated
+      options form exactly 160 layers.
+    readout: Layers (non-dominated sorting)
+    expect: { value: 160, tolerance: 0 }
+    setup:
+      params: { shape: correlated, spread: 0 }
+  - id: no-spread-anti-front-is-everything
+    statement: >-
+      With no spread every anti-correlated option lies on x + y = 1, where a gain on one criterion
+      is a loss on the other and no option dominates another: the front is exactly all 160 options.
+    readout: Front
+    expect: { value: 160, tolerance: 0 }
+    setup:
+      params: { shape: anti, spread: 0 }
+  - id: full-spread-correlated-front-is-records
+    statement: >-
+      At spread 1 the criteria u + v and u − v of two standard normals are independent normals, so
+      the front counts the records of a random permutation: mean H₁₆₀ = 5.656, variance
+      H₁₆₀ − H₁₆₀⁽²⁾ = 5.656 − 1.639 = 4.017 (standard deviation 2.004). It lies between 1 and 11,
+      the mean plus three standard deviations (11.67) rounded down to a whole option.
+    readout: Front
+    expect: { range: [1, 11] }
+    setup:
+      params: { shape: correlated, spread: 1 }
+  - id: full-spread-anti-front-is-records
+    statement: >-
+      At spread 1 the anti-correlated criteria u + v and v − u are independent normals as well, so
+      the same records bound holds: between 1 and 11 options, H₁₆₀ plus three standard deviations.
+    readout: Front
+    expect: { range: [1, 11] }
+    setup:
+      params: { shape: anti, spread: 1 }
 ---
 
 The options no other option beats on every criterion.

@@ -1,6 +1,6 @@
 import { num } from '../../core/plate';
 import type { SystemsKernel } from '../../engines/systems/sim';
-import { history, workers, type ClockRule, type HEvent } from './_history';
+import { history, localShareParam, workers, type ClockRule, type HEvent } from './_history';
 
 // One counter per worker: a worker advances its own entry, and on receipt takes the entrywise
 // maximum first. Event a happened before b exactly when a's vector is <= b's and differs.
@@ -29,7 +29,10 @@ export function compare(a: number[], b: number[]): Relation {
 export interface VectorResult { events: HEvent<number[]>[] }
 
 export const kernel: SystemsKernel<VectorResult> = {
-  params: [{ kind: 'range', key: 'procs', label: 'Workers', min: 2, max: 6, step: 1, value: 4, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'procs', label: 'Workers', min: 2, max: 6, step: 1, value: 4, rebuild: true },
+    localShareParam(),
+  ],
   setup: (p) => ({ lanes: workers(num(p, 'procs')), horizon: 3000, net: { delay: [20, 260] } }),
   install(net, p) {
     const events = history(net, num(p, 'procs'), VECTOR, (e, all) => {
@@ -38,7 +41,7 @@ export const kernel: SystemsKernel<VectorResult> = {
       net.count('pairs.concurrent', conc);
       net.count('pairs.ordered', e.id - conc);
       net.sample(`worker ${e.proc + 1}`, e.clock.reduce((s, x) => s + x, 0));
-    });
+    }, num(p, 'localShare') / 100);
     return { events };
   },
   readouts: [

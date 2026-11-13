@@ -41,6 +41,75 @@ claims:
     expect: { range: [88.9, 92.7] }
     setup:
       params: { degree: 1 }
+  - id: covers-at-the-guaranteed-rate-at-50
+    statement: >-
+      Shown at the 50% level, the split conformal interval covers between 50% and
+      50% + 1/61 ≈ 51.6% of test cases over 150 experiments with 60 calibration cases, give or take
+      three standard errors (about 1.8 points): the coverage given one calibration draw is
+      Beta(31, 31), k = ⌈61 · 0.5⌉ = 31, its variance 31 · 30/(61² · 62) plus the binomial
+      variance of each experiment's test cases, over 150 experiments.
+    readout: 50% intervals covering
+    expect: { range: [48.2, 53.5] }
+    setup:
+      params: { level: "0.5" }
+  - id: covers-at-the-guaranteed-rate-at-80
+    statement: >-
+      Shown at the 80% level, the split conformal interval covers between 80% and 81.6% of test
+      cases over 150 experiments with 60 calibration cases, give or take three standard errors
+      (about 1.4 points), from the Beta(49, 13) coverage of one calibration draw,
+      k = ⌈61 · 0.8⌉ = 49, and the binomial spread of each experiment's test cases.
+    readout: 80% intervals covering
+    expect: { range: [78.5, 83.1] }
+    setup:
+      params: { level: "0.8" }
+  - id: covers-at-the-guaranteed-rate-at-95
+    statement: >-
+      Shown at the 95% level, the split conformal interval covers between 95% and 96.6% of test
+      cases over 150 experiments with 60 calibration cases, give or take three standard errors
+      (about 0.8 points), from the Beta(58, 4) coverage of one calibration draw,
+      k = ⌈61 · 0.95⌉ = 58, and the binomial spread of each experiment's test cases.
+    readout: 95% intervals covering
+    expect: { range: [94.2, 97.5] }
+    setup:
+      params: { level: "0.95" }
+  - id: fewest-calibration-cases-still-cover-at-95
+    statement: >-
+      With the fewest calibration cases, 19, the 95% radius is the largest of them,
+      k = ⌈20 · 0.95⌉ = 19, and covers exactly 19/20 = 95% of new cases on average, give or take
+      three standard errors of 150 experiments (1.22 points, held to 1.3) from the Beta(19, 1)
+      coverage of one calibration draw and the binomial spread of each experiment's test cases.
+    readout: 95% intervals covering
+    expect: { value: 95, tolerance: 1.3 }
+    setup:
+      params: { level: "0.95", ncal: 19 }
+  - id: fewest-training-cases-cover-at-the-guaranteed-rate
+    statement: >-
+      Fitted on only 10 training cases, the 90% split conformal interval still covers between 90%
+      and 91.6% of test cases over 150 experiments with 60 calibration cases, give or take the
+      same three standard errors (about 1.1 points): the guarantee needs only exchangeable
+      calibration and test cases, so the training size changes the width, never the coverage.
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
+    setup:
+      params: { ntrain: 10 }
+  - id: overfitted-model-covers-at-the-guaranteed-rate
+    statement: >-
+      A degree-7 polynomial fitted on 10 training cases, nearly interpolating them, still gives a
+      90% split conformal interval covering between 90% and 91.6% of test cases over 150
+      experiments, give or take the same three standard errors (about 1.1 points).
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
+    setup:
+      params: { ntrain: 10, degree: 7 }
+  - id: most-training-cases-cover-at-the-guaranteed-rate
+    statement: >-
+      Fitted on 400 training cases, the 90% split conformal interval covers between 90% and 91.6%
+      of test cases over 150 experiments, give or take the same three standard errors (about 1.1
+      points): the training size moves the width, never the coverage.
+    readout: 90% intervals covering
+    expect: { range: [88.9, 92.7] }
+    setup:
+      params: { ntrain: 400 }
 ---
 
 Intervals from held-out residuals that cover the truth at the stated rate.

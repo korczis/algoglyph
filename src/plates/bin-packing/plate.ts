@@ -3,8 +3,8 @@
 import type p5 from 'p5';
 import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type Chart, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
-import { ALGORITHM_LABELS, ALGORITHMS, CAPACITY, EXACT_MAX, items, lowerBound, optimum, pack,
-  SHAPE_LABELS, SHAPES, type Algorithm, type Packing, type Shape } from './packing';
+import { ALGORITHM_LABELS, ALGORITHMS, CAPACITY, CRUMB_MAX, EXACT_MAX, items, lowerBound, optimum,
+  pack, SHAPE_LABELS, SHAPES, type Algorithm, type Packing, type Shape } from './packing';
 import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 const fmt = (x: number) => x.toLocaleString('en-US');
@@ -31,8 +31,8 @@ interface Run {
   binsMax: number;
 }
 
-export function build(shape: Shape, n: number, seed: number): Run {
-  const sizes = items(shape, n, seed);
+export function build(shape: Shape, n: number, seed: number, crumb = CRUMB_MAX): Run {
+  const sizes = items(shape, n, seed, crumb);
   const lanes = ALGORITHMS.map((algorithm): Lane => ({
     algorithm, packing: pack(algorithm, sizes), at: 0, loads: [], stacks: [], tests: 0, curve: [[0, 0]],
   }));
@@ -156,6 +156,11 @@ export const binPacking: PlateCode = {
       options: SHAPES.map((s) => ({ value: s, label: SHAPE_LABELS[s] })),
     },
     { kind: 'range', key: 'n', label: 'Items to pack', min: 8, max: 256, step: 4, value: 48, rebuild: true },
+    {
+      // a half and a crumb fit one bin at every setting; two halves never do
+      kind: 'range', key: 'crumb', label: 'Largest crumb (halves)', min: 1, max: 49, step: 1,
+      value: CRUMB_MAX, rebuild: true, when: { key: 'shape', values: ['halves'] },
+    },
     paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New items when done', value: true },
     paletteParam('ember'),
@@ -164,7 +169,8 @@ export const binPacking: PlateCode = {
   create(p, ctx) {
     let generation = 0;
     let hold = 0;
-    const make = () => build(str(ctx.params, 'shape') as Shape, num(ctx.params, 'n'), ctx.seed + generation * 7919);
+    const make = () => build(str(ctx.params, 'shape') as Shape, num(ctx.params, 'n'),
+      ctx.seed + generation * 7919, num(ctx.params, 'crumb'));
     let run = make();
     // every lane places alike; the run lasts as long as its longest packing
     const pacer = new Pacer('replay', 'placements', 32);

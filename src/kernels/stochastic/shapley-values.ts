@@ -11,18 +11,24 @@ export interface ShapleyResult {
   estimate: number[];
   se: number[];
   permutations: number;
+  /** The model's main effects and interaction terms [i, j, β], the instance and the baseline. */
+  a: number[];
+  terms: [number, number, number][];
+  x: number[];
+  base: number[];
 }
 
-/** A synthetic model with main effects and two pairwise interactions. */
-function model(s: Sampler, d: number) {
+/** A synthetic model with main effects and `count` pairwise interactions (two by default). */
+function model(s: Sampler, d: number, count: number) {
   const a = Array.from({ length: d }, () => s.uniform(-1, 2));
   const pairs: [number, number, number][] = [];
-  for (let k = 0; k < 2; k++) {
+  for (let k = 0; k < count; k++) {
     const i = s.int(d);
     const j = (i + 1 + s.int(d - 1)) % d;
     pairs.push([i, j, s.uniform(-3, 3)]);
   }
-  return (x: number[]) => a.reduce((t, ai, i) => t + ai * x[i], 0) + pairs.reduce((t, [i, j, b]) => t + b * x[i] * x[j], 0);
+  const f = (x: number[]) => a.reduce((t, ai, i) => t + ai * x[i], 0) + pairs.reduce((t, [i, j, b]) => t + b * x[i] * x[j], 0);
+  return { a, pairs, f };
 }
 
 /** Every ordering of 0..d-1. */
@@ -42,13 +48,17 @@ export const kernel: StochasticKernel<ShapleyResult> = {
   params: [
     { kind: 'range', key: 'd', label: 'Inputs', min: 2, max: 6, step: 1, value: 5, rebuild: true },
     { kind: 'range', key: 'm', label: 'Sampled orderings', min: 20, max: 4000, step: 20, value: 600, rebuild: true },
+    // 0 is the additive model; four terms already touch most of the default five inputs (two
+    // each), so more would only repeat the same even split of credit. The cost does not depend
+    // on the count: one model evaluation a coalition
+    { kind: 'range', key: 'pairs', label: 'Pairwise interactions', min: 0, max: 4, step: 1, value: 2, rebuild: true },
   ],
   chart: { title: 'Error of the sampled values', x: { label: 'orderings sampled', log: true }, y: { label: 'largest |estimate − exact|', log: true } },
   *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const d = num(cfg, 'd');
     const m = num(cfg, 'm');
-    const f = model(s, d);
+    const { a, pairs, f } = model(s, d, num(cfg, 'pairs'));
     const x = Array.from({ length: d }, () => s.uniform());
     const base = Array.from({ length: d }, () => s.uniform());
     const v = (mask: number) => f(x.map((xi, i) => (mask & (1 << i) ? xi : base[i])));
@@ -112,6 +122,6 @@ export const kernel: StochasticKernel<ShapleyResult> = {
       ]);
       yield;
     }
-    return { d, values, exact, estimate: est(), se: ses(), permutations: done };
+    return { d, values, exact, estimate: est(), se: ses(), permutations: done, a, terms: pairs, x, base };
   },
 };

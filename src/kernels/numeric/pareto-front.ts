@@ -51,19 +51,20 @@ export function* layerSteps(pts: XY[]): Generator<void, number[], void> {
   return rank;
 }
 
-export function options(kind: string, n: number, seed: number): XY[] {
+/** n options of a shape; `spread` scales the second normal across the diagonal (0: on it). */
+export function options(kind: string, n: number, seed: number, spread = 0.35): XY[] {
   const rnd = mulberry32(seed);
   return Array.from({ length: n }, () => {
     const u = gaussian(rnd); const v = gaussian(rnd);
-    if (kind === 'correlated') return [0.5 + 0.15 * (u + 0.35 * v), 0.5 + 0.15 * (u - 0.35 * v)] as XY;
-    if (kind === 'anti') return [0.5 + 0.15 * (u + 0.35 * v), 0.5 - 0.15 * (u - 0.35 * v)] as XY;
+    if (kind === 'correlated') return [0.5 + 0.15 * (u + spread * v), 0.5 + 0.15 * (u - spread * v)] as XY;
+    if (kind === 'anti') return [0.5 + 0.15 * (u + spread * v), 0.5 - 0.15 * (u - spread * v)] as XY;
     return [rnd(), rnd()] as XY;
   });
 }
 
 function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const n = Number(params.options ?? 160);
-  const pts = options(String(params.shape ?? 'anti'), n, seed);
+  const pts = options(String(params.shape ?? 'anti'), n, seed, Number(params.spread ?? 0.35));
   const m = new Meter();
   const visits: { i: number; kept: boolean; best: number }[] = [];
   const front = front2(pts, undefined, m, (i, kept, best) => visits.push({ i, kept, best }));
@@ -143,6 +144,10 @@ export const kernel: NumericKernel = {
     { kind: 'range', key: 'options', label: 'Options', min: 10, max: 600, step: 10, value: 160, rebuild: true },
     { kind: 'select', key: 'shape', label: 'Criteria', value: 'anti', rebuild: true,
       options: [{ value: 'independent', label: 'Independent' }, { value: 'correlated', label: 'Correlated' }, { value: 'anti', label: 'Anti-correlated (a trade-off)' }] },
+    // 0 puts every option on the diagonal (one front option, or all of them); at 1 the two
+    // criteria are independent normals, and past it the trade-off turns the other way round
+    { kind: 'range', key: 'spread', label: 'Spread across the diagonal', min: 0, max: 1, step: 0.05, value: 0.35, rebuild: true,
+      when: { key: 'shape', values: ['correlated', 'anti'] } },
   ],
   thumb: 1,
   build,

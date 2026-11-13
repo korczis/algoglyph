@@ -1,6 +1,6 @@
 import { num, str } from '../../core/plate';
 import { fmt, Sampler } from '../../engines/stochastic/sample';
-import { scoredSet } from '../../engines/stochastic/scenarios';
+import { OVER_SLOPE, scoredSet } from '../../engines/stochastic/scenarios';
 import type { Panel, StochasticKernel } from '../../engines/stochastic/trace';
 
 interface Block { sum: number; w: number; from: number; to: number }
@@ -75,13 +75,24 @@ export const kernel: StochasticKernel<IsotonicResult> = {
       ],
     },
     { kind: 'range', key: 'n', label: 'Training cases', min: 100, max: 5000, step: 100, value: 1200, rebuild: true },
+    // the overconfident truth is 0.5 + slope · (x − 0.5). From 0, a truth that ignores the score:
+    // below it the truth falls as the score rises and no non-decreasing fit can follow it. To
+    // 0.7, not 1, for what the plate shows, not its cost: nearer 1 the scores are so nearly
+    // calibrated that the held-out error is mostly the fit's own label noise and calibrating
+    // stops lowering it (at 1200 cases it fell in 79 of 80 seeds at 0.7, 69 at 0.8, 22 of 40 at 0.9)
+    {
+      kind: 'range', key: 'slope', label: 'True-probability slope', min: 0, max: 0.7, step: 0.05,
+      value: OVER_SLOPE, rebuild: true, when: { key: 'distortion', values: ['over'] },
+      hint: 'How steeply the true probability rises with the score; 1 would be calibrated.',
+    },
   ],
   chart: { title: 'Reliability on held-out cases', x: { label: 'predicted probability' }, y: { label: 'observed frequency' } },
   *run(ops, cfg) {
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
-    const train = yield* scoredSet(s, n, str(cfg, 'distortion'));
-    const test = yield* scoredSet(s, n, str(cfg, 'distortion'));
+    const slope = num(cfg, 'slope');
+    const train = yield* scoredSet(s, n, str(cfg, 'distortion'), slope);
+    const test = yield* scoredSet(s, n, str(cfg, 'distortion'), slope);
     const order = train.score.map((_, i) => i).sort((a, b) => train.score[a] - train.score[b]);
     const score = order.map((i) => train.score[i]);
     const label = order.map((i) => train.label[i]);

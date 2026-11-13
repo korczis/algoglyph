@@ -1,6 +1,6 @@
 // TOPSIS: normalise each criterion by its Euclidean norm, weight it, find the ideal and the
 // anti-ideal option, and rank every option by its relative closeness D− / (D+ + D−). The
-// sensitivity chart repeats the whole computation as the first weight moves.
+// sensitivity chart repeats the whole computation as the chosen criterion's weight moves.
 import { mulberry32 } from '../../core/random';
 import { fmt, type Layer, type NumericKernel, type XY } from '../../engines/numeric/trace';
 import type { Mat } from './_linalg';
@@ -27,30 +27,35 @@ export const CRITERIA = ['Quality', 'Coverage', 'Cost', 'Risk'];
 export const BENEFIT = [true, true, false, false];
 const NAMES = 'ABCDEFGHIJKLMNOP';
 
-export function weightsFor(w1: number): number[] {
+/** Weight w1 on criterion `swept` (the first by default), (1 - w1) / 3 on each of the others. */
+export function weightsFor(w1: number, swept = 0): number[] {
   const rest = (1 - w1) / 3;
-  return [w1, rest, rest, rest];
+  return CRITERIA.map((_, j) => (j === swept ? w1 : rest));
 }
 
 export const kernel: NumericKernel = {
   params: [
     { kind: 'range', key: 'options', label: 'Options', min: 4, max: 12, step: 1, value: 7, rebuild: true },
-    { kind: 'range', key: 'w1', label: 'Weight of Quality', min: 0.05, max: 0.85, step: 0.05, value: 0.4, rebuild: true },
+    { kind: 'select', key: 'swept', label: 'Criterion to weigh', value: 'quality', rebuild: true,
+      options: CRITERIA.map((c) => ({ value: c.toLowerCase(), label: c })) },
+    { kind: 'range', key: 'w1', label: 'Weight of the chosen criterion', min: 0.05, max: 0.85, step: 0.05, value: 0.4, rebuild: true },
   ],
   aspect: 16 / 9,
   run({ seed, params }) {
     const rnd = mulberry32(seed);
     const n = Number(params.options ?? 7);
     const w1 = Number(params.w1 ?? 0.4);
+    const chosen = Math.max(0, CRITERIA.findIndex((c) => c.toLowerCase() === String(params.swept ?? 'quality')));
+    const name = CRITERIA[chosen];
     const X: Mat = Array.from({ length: n }, () => [1 + 9 * rnd(), 1 + 9 * rnd(), 10 + 90 * rnd(), 1 + 4 * rnd()]);
-    const w = weightsFor(w1);
+    const w = weightsFor(w1, chosen);
     const t = topsis(X, w, BENEFIT);
     const order = t.closeness.map((_, i) => i).sort((a, b) => t.closeness[b] - t.closeness[a]);
     const sens = Array.from({ length: n }, (_, i) => ({
       name: `Option ${NAMES[i]}`,
-      points: Array.from({ length: 19 }, (_, s) => { const v = 0.05 + 0.05 * s; return [v, topsis(X, weightsFor(v), BENEFIT).closeness[i]] as XY; }),
+      points: Array.from({ length: 19 }, (_, s) => { const v = 0.05 + 0.05 * s; return [v, topsis(X, weightsFor(v, chosen), BENEFIT).closeness[i]] as XY; }),
     }));
-    const chart = { title: 'Closeness as the weight of Quality moves', x: { label: 'weight of Quality' }, y: { label: 'closeness to the ideal' }, series: sens };
+    const chart = { title: `Closeness as the weight of ${name} moves`, x: { label: `weight of ${name}` }, y: { label: 'closeness to the ideal' }, series: sens };
     const colNorm = (M: Mat) => {
       const lo = Array.from({ length: 4 }, (_, j) => Math.min(...M.map((r) => r[j])));
       const hi = Array.from({ length: 4 }, (_, j) => Math.max(...M.map((r) => r[j])));

@@ -23,6 +23,35 @@ pedagogy:
     - Find the items a verdict rests on from how much more often it flips when they fail, and see why one strong but unreliable item makes it fragile.
 algorithm:
   paradigm: simulation
+claims:
+  - id: fully-reliable-noiseless-evidence-never-flips
+    statement: >-
+      When the least item reliability is 1 every item's reliability is min(1, 1 + 0.4u) = 1, so
+      every item holds up in every run, and with no strength noise every run adds up to the verdict
+      as given: stability is exactly 100%.
+    readout: Stability
+    expect: { value: 100, tolerance: 0 }
+    setup:
+      params: { minRel: 1, noise: 0 }
+  - id: sampled-stability-matches-enumeration-unreliable
+    statement: >-
+      With no strength noise the plate also enumerates every subset of the items that hold up and
+      sums its chance, the exact stability; with reliabilities from 0.05 the 5,000 sampled runs
+      stay within 3 percentage points of it, four binomial standard errors at the widest,
+      4 × √(0.25 / 5000) = 2.83, plus the 0.05 rounding of each displayed percentage.
+    readout: Stability
+    expect: { against: Exact stability (no strength noise), tolerance: 3 }
+    setup:
+      params: { minRel: 0.05, noise: 0 }
+  - id: sampled-stability-matches-enumeration-moderate
+    statement: >-
+      The same comparison with reliabilities from 0.3: the 5,000 sampled runs stay within
+      3 percentage points of the enumerated stability, 4 × √(0.25 / 5000) = 2.83 plus the 0.05
+      rounding of each displayed percentage.
+    readout: Stability
+    expect: { against: Exact stability (no strength noise), tolerance: 3 }
+    setup:
+      params: { minRel: 0.3, noise: 0 }
 ---
 
 Perturb the evidence many times and count how often the verdict survives.

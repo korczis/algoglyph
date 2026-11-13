@@ -1,3 +1,4 @@
+import { FAN_IN } from '../../engines/graph/graph';
 import { E, V, type GraphKernel } from '../../engines/graph/trace';
 
 export interface SupportResult { support: number[]; evidence: number[]; lines: number; paths: number[][] }
@@ -12,6 +13,17 @@ export const kernel: GraphKernel<SupportResult> = {
   goal: 'support',
   inputs: ['reasoning'],
   n: { min: 4, max: 160, value: 40 },
+  // the engine gives the conclusion max(1, round(fanIn × claims below)) draws (graph.ts
+  // GraphInput). From 0.05, where it rests on a single claim and so on one line; to 1, a draw per
+  // claim below: past it the draws outnumber the claims, and the claims below, not this control,
+  // bound the lines
+  params: [
+    {
+      kind: 'range', key: 'fanIn', label: 'Conclusion’s draws per claim below', min: 0.05, max: 1,
+      step: 0.05, value: FAN_IN, rebuild: true,
+      hint: 'How many claims the conclusion draws its support from, per claim in the row below it.',
+    },
+  ],
   pick: 't',
   endpoints: 't',
   names: { frontier: 'Found under the conclusion', done: 'Searched', tree: 'Edges drawn thick', marked: 'Evidence on a line' },

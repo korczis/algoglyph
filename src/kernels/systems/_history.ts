@@ -1,6 +1,7 @@
 // A generic message-passing workload for logical clocks: each worker performs local events and
 // sends to random peers at random intervals; every receipt is an event too. The clock rule is
 // pluggable, so Lamport and vector clocks run on the very same history for one seed.
+import type { ParamDef } from '../../core/plate';
 import type { Net } from '../../engines/systems/sim';
 
 export interface HEvent<C> {
@@ -26,11 +27,19 @@ export interface ClockRule<C> {
 
 const TONE = { local: 0.45, send: 0.72, recv: 0.95 } as const;
 
+/** The share of a worker's steps that are local events, the rest being sends, as a percentage.
+ * Both clock kernels declare it from here, so they stay in step; its default 30 is the old
+ * fixed 0.3, and 30 / 100 === 0.3, so the default run draws the same numbers. */
+export const localShareParam = (): ParamDef => ({
+  kind: 'range', key: 'localShare', label: 'Local steps (%)', min: 30, max: 100, step: 10, value: 30, rebuild: true,
+});
+
 export const workers = (n: number) => Array.from({ length: n }, (_, i) => `worker ${i + 1}`);
 
-/** Install the workload on `net`; `onEvent` sees each event as it happens. */
+/** Install the workload on `net`; `onEvent` sees each event as it happens. A step is a local
+ * event with probability `local` (0..1) and a send to a random peer otherwise. */
 export function history<C>(net: Net, n: number, rule: ClockRule<C>,
-  onEvent: (e: HEvent<C>, all: HEvent<C>[]) => void = () => {}): HEvent<C>[] {
+  onEvent: (e: HEvent<C>, all: HEvent<C>[]) => void = () => {}, local = 0.3): HEvent<C>[] {
   const clocks = Array.from({ length: n }, () => rule.zero(n));
   const events: HEvent<C>[] = [];
   const mean = 160;
@@ -46,7 +55,7 @@ export function history<C>(net: Net, n: number, rule: ClockRule<C>,
   const act = (i: number) => {
     if (net.now > net.horizon * 0.9) return;
     clocks[i] = rule.tick(clocks[i], i);
-    if (n < 2 || net.rnd() < 0.3) add(i, 'local', clocks[i]);
+    if (n < 2 || net.rnd() < local) add(i, 'local', clocks[i]);
     else {
       let j = Math.floor(net.rnd() * (n - 1));
       if (j >= i) j++;

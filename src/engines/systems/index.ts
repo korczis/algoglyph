@@ -442,7 +442,8 @@ function lab(id: string, kernels: { info: KernelInfo; kernel: SystemsKernel }[])
       const build = () => {
         panes = kernels.map(({ info, kernel }) => {
           // every kernel runs on the same network controls and seed, with its own defaults
-          const shared: Params = { delay: ctx.params.delay, loss: ctx.params.loss, partition: ctx.params.partition };
+          const shared: Params = { delay: ctx.params.delay, loss: ctx.params.loss, partition: ctx.params.partition,
+            heal: ctx.params.heal };
           const run = simulate(kernel, defaultParams(kernel, shared), ctx.seed + generation * 7919);
           const r = new Replay(run, kernel);
           const step = run.span / 120;

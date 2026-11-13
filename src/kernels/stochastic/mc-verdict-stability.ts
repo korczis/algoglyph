@@ -1,6 +1,8 @@
 import { num } from '../../core/plate';
 import { fmt, pct, Sampler } from '../../engines/stochastic/sample';
-import { evidenceSet, type EvidenceItem } from '../../engines/stochastic/scenarios';
+import {
+  evidenceSet, MIN_RELIABILITY, type EvidenceItem,
+} from '../../engines/stochastic/scenarios';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
 
 export interface VerdictResult {
@@ -16,6 +18,23 @@ export interface VerdictResult {
 }
 
 const FRAMES = 140;
+/** The readout of the enumerated stability, shown only with no strength noise. */
+const EXACT = 'Exact stability (no strength noise)';
+
+/** The share of runs that keep the verdict when strengths do not wobble: the sum, over every
+ * subset of items that hold up, of its chance, where the subset's verdict is the baseline's. */
+function exactStability(items: EvidenceItem[], prior: number, baseline: boolean): number {
+  let out = 0;
+  for (let set = 0; set < 1 << items.length; set++) {
+    let p = 1;
+    let lo = prior;
+    items.forEach((e, i) => {
+      if (set & (1 << i)) { p *= e.reliability; lo += e.llr; } else p *= 1 - e.reliability;
+    });
+    if (lo > 0 === baseline) out += p;
+  }
+  return out;
+}
 const LO = -8;
 const HI = 8;
 
@@ -30,6 +49,12 @@ export const kernel: StochasticKernel<VerdictResult> = {
     { kind: 'range', key: 'prior', label: 'Prior log-odds', min: -4, max: 4, step: 0.1, value: -1, rebuild: true },
     { kind: 'range', key: 'noise', label: 'Strength noise (× each item’s sd)', min: 0, max: 3, step: 0.1, value: 1, rebuild: true },
     { kind: 'range', key: 'n', label: 'Perturbed runs', min: 200, max: 40000, step: 200, value: 5000, rebuild: true },
+    // from 0.05, not 0: an item that may never hold up (reliability 0) is not evidence
+    {
+      kind: 'range', key: 'minRel', label: 'Least item reliability', min: 0.05, max: 1, step: 0.05,
+      value: MIN_RELIABILITY, rebuild: true,
+      hint: 'Each item holds up with a reliability from this value to 0.4 above it, at most 1.',
+    },
   ],
   chart: { title: 'Verdict stability as runs accumulate', x: { label: 'runs', log: true }, y: { label: 'share of runs agreeing' } },
   *run(ops, cfg) {
@@ -38,9 +63,12 @@ export const kernel: StochasticKernel<VerdictResult> = {
     const prior = num(cfg, 'prior');
     const noise = num(cfg, 'noise');
     const n = num(cfg, 'n');
-    const items = evidenceSet(s, k);
+    const items = evidenceSet(s, k, num(cfg, 'minRel'));
     const total = prior + items.reduce((t, e) => t + e.llr, 0);
     const baseline = total > 0;
+    // with no strength noise a run is decided by which items hold up: the exact stability sums
+    // the chance of every such subset (2^k ≤ 4096 of them), with no draws
+    const exact = noise ? null : exactStability(items, prior, baseline);
     // the histogram of posterior log-odds grows with the runs instead of being rebuilt
     const bins = new Array<number>(48).fill(0);
     let agree = 0;
@@ -93,6 +121,7 @@ export const kernel: StochasticKernel<VerdictResult> = {
         { label: 'Stability', value: `${pct(st)} ± ${pct(se)}` },
         { label: 'Runs', value: `${fmt(done)}; ${fmt(done - agree)} flipped` },
         { label: `Most influential: ${items[top].label}`, value: `flips ${fmt(100 * influence[top], 1)} percentage points more often when it fails` },
+        ...(exact === null ? [] : [{ label: EXACT, value: pct(exact) }]),
       ]);
       yield;
     }

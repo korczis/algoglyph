@@ -1,3 +1,4 @@
+import { MAX_DURATION } from '../../engines/graph/graph';
 import { E, V, type GraphKernel } from '../../engines/graph/trace';
 
 export interface CpmResult { es: number[]; lf: number[]; slack: number[]; length: number; order: number[] }
@@ -11,6 +12,13 @@ export const kernel: GraphKernel<CpmResult> = {
   goal: 'cpm',
   inputs: ['dag'],
   n: { min: 3, max: 300, value: 40 },
+  // the engine draws each task's duration as 1 + ⌊u · maxDuration⌋ (graph.ts GraphInput)
+  params: [
+    {
+      kind: 'range', key: 'maxDuration', label: 'Longest task duration', min: 1, max: 20, step: 1,
+      value: MAX_DURATION, rebuild: true,
+    },
+  ],
   view: { colour: 'value' },
   names: { frontier: 'Forward pass done', done: 'Both passes done', marked: 'Critical (no slack)', tree: 'Critical edges', value: 'Earliest start, then slack' },
   readouts: ['scans', 'frontier', 'done', 'marked'],
