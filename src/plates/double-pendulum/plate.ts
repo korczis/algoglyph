@@ -1,7 +1,7 @@
 import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
-import { energy, rk4, type Pendulum, type State } from './dynamics';
+import { energy, restEnergy, rk4, type Pendulum, type State } from './dynamics';
 
 /** Simulated time is counted in whole microseconds, so a stop lands on its second exactly. */
 const US_PER_S = 1e6;
@@ -112,7 +112,10 @@ export const doublePendulum: PlateCode = {
           if (a < lo) lo = a;
           if (a > hi) hi = a;
         }
-        const drift = e0 !== 0 ? Math.abs((energy(states[0], k) - e0) / e0) : 0;
+        // relative to the oscillation energy E0 − E_min, never to E0, whose zero is the pivot's
+        // height: released level (90°) E0 is within µJ of 0 and the ratio would blow up
+        const swing = e0 - restEnergy(k);
+        const drift = swing > 0 ? Math.abs(energy(states[0], k) - e0) / swing : 0;
         ctx.stats([
           { label: 'simulated time', value: `${t.toFixed(2)} s` },
           { label: 'lower-arm spread', value: `${(hi - lo).toExponential(2)} rad` },
