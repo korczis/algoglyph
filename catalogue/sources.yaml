@@ -39,6 +39,78 @@ sources:
     year: 1982
     kind: paper
     url: https://doi.org/10.1109/TIT.1982.1056489
+  - id: shinbrot-1992-double-pendulum
+    title: 'Chaos in a double pendulum (American Journal of Physics 60(6), 491–499)'
+    author: T. Shinbrot, C. Grebogi, J. Wisdom, J. A. Yorke
+    year: 1992
+    kind: paper
+    url: https://doi.org/10.1119/1.16860
+  - id: reynolds-1987-boids
+    title: 'Flocks, herds and schools: A distributed behavioral model (SIGGRAPH Computer Graphics 21(4), 25–34)'
+    author: C. W. Reynolds
+    year: 1987
+    kind: paper
+    url: https://doi.org/10.1145/37402.37406
+  - id: pearson-1993-gray-scott
+    title: 'Complex Patterns in a Simple System (Science 261(5118), 189–192)'
+    author: J. E. Pearson
+    year: 1993
+    kind: paper
+    url: https://doi.org/10.1126/science.261.5118.189
+  - id: turing-1952-morphogenesis
+    title: 'The chemical basis of morphogenesis (Philosophical Transactions of the Royal Society B 237(641), 37–72)'
+    author: A. M. Turing
+    year: 1952
+    kind: paper
+    url: https://doi.org/10.1098/rstb.1952.0012
+  - id: wolfram-1983-cellular-automata
+    title: 'Statistical mechanics of cellular automata (Reviews of Modern Physics 55, 601–644)'
+    author: S. Wolfram
+    year: 1983
+    kind: paper
+    url: https://doi.org/10.1103/RevModPhys.55.601
+  - id: sprott-lorenz-lyapunov
+    title: Lyapunov Exponent and Dimension of the Lorenz Attractor
+    author: J. C. Sprott
+    year: 1997
+    kind: web
+    url: https://sprott.physics.wisc.edu/chaos/lorenzle.htm
+  - id: benettin-1980-lyapunov
+    title: 'Lyapunov characteristic exponents for smooth dynamical systems and for Hamiltonian systems (Meccanica 15(1), 9–20)'
+    author: G. Benettin, L. Galgani, A. Giorgilli, J.-M. Strelcyn
+    year: 1980
+    kind: paper
+    url: https://doi.org/10.1007/BF02128236
+  - id: henon-heiles-1964
+    title: 'The applicability of the third integral of motion: Some numerical experiments (The Astronomical Journal 69, 73)'
+    author: M. Hénon, C. Heiles
+    year: 1964
+    kind: paper
+    url: https://doi.org/10.1086/109234
+  - id: strogatz-2000-kuramoto
+    title: 'From Kuramoto to Crawford: exploring the onset of synchronization in populations of coupled oscillators (Physica D 143, 1–20)'
+    author: S. H. Strogatz
+    year: 2000
+    kind: paper
+    url: https://doi.org/10.1016/S0167-2789(00)00094-4
+  - id: kuramoto-1984-chemical-oscillations
+    title: Chemical Oscillations, Waves, and Turbulence (Springer)
+    author: Y. Kuramoto
+    year: 1984
+    kind: book
+    url: https://doi.org/10.1007/978-3-642-69689-3
+  - id: eckmann-1987-recurrence
+    title: 'Recurrence Plots of Dynamical Systems (Europhysics Letters 4(9), 973–977)'
+    author: J.-P. Eckmann, S. Oliffson Kamphorst, D. Ruelle
+    year: 1987
+    kind: paper
+    url: https://doi.org/10.1209/0295-5075/4/9/004
+  - id: page-1954-cusum
+    title: 'Continuous Inspection Schemes (Biometrika 41(1–2), 100–115)'
+    author: E. S. Page
+    year: 1954
+    kind: paper
+    url: https://doi.org/10.1093/biomet/41.1-2.100
   - id: du-faber-gunzburger-1999-cvt
     title: 'Centroidal Voronoi Tessellations: Applications and Algorithms (SIAM Review 41(4), 637–676)'
     author: Qiang Du, Vance Faber, Max Gunzburger
