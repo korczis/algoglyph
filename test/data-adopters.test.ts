@@ -125,7 +125,13 @@ describe('a reader\'s data composes with every control', () => {
     const d = entry(id).data[0];
     const n = Math.min(d.rows.max, Math.max(d.rows.min, 40));
     const rnd = mulberry32(31);
-    return tableFor(id, Array.from({ length: n }, (_, k) => [k + rnd(), 100 * rnd()]));
+    // a rising first column and a spread second, each moved inside its declared bounds when it falls out
+    return tableFor(id, Array.from({ length: n }, (_, k) => d.columns.map((c, j) => {
+      const v = j === 0 ? k + rnd() : 100 * rnd();
+      const lo = c.min ?? -Infinity;
+      const hi = c.max ?? Infinity;
+      return v >= lo && v <= hi ? v : lo + (hi - lo) * rnd();
+    })));
   }
 
   /** The plate driven at the pace control's top to the end of its first run: its last readouts. */
