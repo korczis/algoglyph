@@ -10,6 +10,7 @@ import type { Claim } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import type { GraphKernel } from '../src/engines/graph/trace';
 import { kernel as kruskal } from '../src/kernels/graph/kruskal-mst';
+import { kernel as prim } from '../src/kernels/graph/prim-mst';
 import { densePrim } from './support/graph-oracles';
 
 interface Entry { id: string; claims: Claim[] }
@@ -51,12 +52,26 @@ const kruskalScans: Check = (c, g) => {
   } else expect(c.expect.range, c.id).toEqual([g.n - trees, g.m]);
 };
 
+/** Prim takes every vertex into a tree exactly once (a new tree starts at each vertex still
+ * outside), and scans its whole edge list then, edges to the tree included: each undirected edge
+ * lies on both its endpoints' lists, so with no self-loop the scans are exactly 2E. */
+const primScans: Check = (c, g) => {
+  for (let e = 0; e < g.m; e++) expect(g.eu[e], `${c.id}: edge ${e} is no self-loop`).not.toBe(g.ev[e]);
+  expect(g.out.reduce((s, l) => s + l.length, 0), c.id).toBe(2 * g.m);
+  expect(c.expect.value, c.id).toBe(2 * g.m);
+};
+
 interface Plate { id: string; kernel: GraphKernel; checks: Record<string, Check>; needs: string[] }
 
 const PLATES: Plate[] = [
   {
     id: 'kruskal-mst', kernel: kruskal as GraphKernel,
     checks: { [WEIGHT]: weight, 'Tree edges': treeEdges, 'Edges examined': kruskalScans },
+    needs: [WEIGHT, 'Tree edges', 'Edges examined'],
+  },
+  {
+    id: 'prim-mst', kernel: prim as GraphKernel,
+    checks: { [WEIGHT]: weight, 'Tree edges': treeEdges, 'Edges examined': primScans },
     needs: [WEIGHT, 'Tree edges', 'Edges examined'],
   },
 ];
