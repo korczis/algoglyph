@@ -1,8 +1,8 @@
 // Measures, for every wasm sorting kernel the array engine may play, what one rebuild costs at
-// each n (the array plate built at that n, as a loop rebuilds it inside one frame: the whole
-// trace, the replay and the frame's own work; the worst input shape, best of three) and derives
-// the largest n whose rebuild stays within a budget: the `max_n` the sidecar will carry once the
-// array engine accepts ArrayKernel.maxN. A measurement, not a gate: it runs only when asked,
+// each n (the budget gate's own reading, test/support/budget.ts `rebuild`: the worst frame past
+// the end of a run, where the loop rebuilds inside draw(), at the gate's widest width, best of the
+// gate's repeats; the worst input shape) and derives the largest n whose rebuild stays within a
+// budget: the sidecar's `max_n`. A measurement, not a gate: it runs only when asked,
 //
 //   ALGOGLYPH_MAX_N=<out.json> [ALGOGLYPH_MAX_N_MS=<ms, overrides max_n_budget_ms>] [ALGOGLYPH_MAX_N_WRITE=1] \
 //     npx vitest run test/sorting-max-n.test.ts
@@ -22,6 +22,9 @@
 // record's max_n, with max_n_of, the kernel's source hash from its manifest, which the catalogue
 // gate compares, so a kernel changed after its measurement is refused until it is re-measured.
 // A kernel that needs no bound loses both keys.
+// Provenance: until they are re-derived on this instrument, the sidecar's recorded bounds (gnome,
+// odd-even, exchange, cycle, strand, enumeration and spaghetti sort, fb5dba9) were derived on the
+// earlier one, setup() plus a single draw() at 1440 px, and are not yet readings of this frame.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PACING } from '../src/core/pace';
