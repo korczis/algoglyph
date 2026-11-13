@@ -47,10 +47,16 @@ export const kernel: GraphKernel<ApspResult> = {
     return { dist: d, negative };
   },
   report(r, g) {
-    let fin = 0;
-    for (const x of r.dist) if (Number.isFinite(x)) fin++;
+    let fin = 0; let longest = 0; let sum = 0;
+    for (const x of r.dist) {
+      if (!Number.isFinite(x)) continue;
+      fin++; sum += x; longest = Math.max(longest, x);
+    }
     return [
       { label: 'Finite distances', value: `${fin} of ${g.n * g.n} pairs` },
+      // the distances themselves, over every finite ordered pair (the diagonal's zeros included)
+      { label: 'Longest finite distance', value: longest.toLocaleString('en') },
+      { label: 'Sum of finite distances', value: sum.toLocaleString('en') },
       { label: 'Negative cycle', value: r.negative ? 'yes' : 'none' },
     ];
   },
