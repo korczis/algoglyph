@@ -55,13 +55,16 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'n', label: 'Oscillators', min: 16, max: 512, step: 16, value: 192, rebuild: true },
     { kind: 'range', key: 'K', label: 'Coupling K', min: 0, max: 6, step: 0.05, value: 2 },
     { kind: 'select', key: 'dist', label: 'Natural frequencies', value: 'lorentz', options: [
-      { value: 'lorentz', label: 'Lorentzian, width 0.5' }, { value: 'gauss', label: 'Gaussian, σ 0.5' }] },
+      { value: 'lorentz', label: 'Lorentzian, half-width γ' }, { value: 'gauss', label: 'Gaussian, σ = γ' }] },
+    // the critical coupling is 2γ (Lorentzian) or 1.6γ (Gaussian): γ ends at 2, where K_c = 4,
+    // so the coupling's range up to 6 still reaches well above it and the plate shows locking
+    { kind: 'range', key: 'gamma', label: 'Frequency width γ', min: 0.1, max: 2, step: 0.05, value: 0.5 },
   ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const n = Number(params.n); const K = Number(params.K);
     const dist = str(params, 'dist');
-    const width = 0.5;
+    const width = Number(params.gamma ?? 0.5);
     const { omega, kc } = frequencies(n, dist, width, rnd);
     const theta = Float64Array.from({ length: n }, () => 2 * Math.PI * rnd());
     // each oscillator's rank by natural frequency, by one sort of the indices

@@ -3,13 +3,16 @@
 // same arithmetic in the same order, so every run is the same bit for bit; the old step is kept
 // here verbatim and run beside the library in this run (no hash recorded on one CPU). Defect D5:
 // the readout "Locked to the mean frequency" counted the oscillators whose effective frequency
-// is within 0.02 of the mean effective frequency, and now says so.
+// is within 0.02 of the mean effective frequency, and now says so. Then the width γ of the natural
+// frequencies, fixed at 0.5, becomes a control.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/engines/signal/input';
 import { Meter } from '../src/engines/signal/trace';
 import { Rk4 } from '../src/plates/_shared/ode/ode';
 import type { Params } from '../src/core/plate';
+import { parse, serialise } from '../src/core/share';
+import { loadPlate } from '../src/registry';
 import * as kuramoto from '../src/kernels/signal/kuramoto';
 import { read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
@@ -93,5 +96,114 @@ describe('kuramoto: the count of oscillators near the mean frequency says what i
     expect(now.reason).toBeUndefined();
     expect(now.value).toBeGreaterThan(0);
     expect((await at('Locked to the mean frequency (measured)')).reason).toMatch(/publishes no readout/);
+  });
+});
+
+// The oracle for the Lorentzian quantiles ω_i = γ tan(π((i + ½)/N − ½)): an oscillator locks when
+// |ω_i| ≤ K·r, and the locked ones give r = (1/N) Σ √(1 − (ω_i/Kr)²), the drifting ones nothing
+// on average (their stationary density is symmetric under θ → π − θ about ψ). Its fixed point
+// is the finite-N value of r, which for N → ∞ is √(1 − K_c/K) with K_c = 2γ.
+const quantiles = (n: number, g: number) => Array.from({ length: n }, (_, i) => g * Math.tan(Math.PI * ((i + 0.5) / n - 0.5)));
+function finiteN(n: number, g: number, K: number): { r: number; locked: number } {
+  const w = quantiles(n, g);
+  let r = Math.sqrt(1 - (2 * g) / K);
+  for (let it = 0; it < 500; it++) {
+    const kr = K * r;
+    r = w.reduce((a, x) => a + (Math.abs(x) <= kr ? Math.sqrt(1 - (x / kr) ** 2) : 0), 0) / n;
+  }
+  return { r, locked: w.filter((x) => Math.abs(x) <= K * r).length };
+}
+const lockedByTheory = (n: number, g: number, K: number) =>
+  quantiles(n, g).filter((x) => Math.abs(x) <= K * Math.sqrt(1 - (2 * g) / K)).length;
+
+// The margin of r̄ (the second half's mean of r) against √(1 − K_c/K), derived from the
+// estimator's distribution: the frequencies are the Lorentzian's quantiles, not draws, so the seed
+// draws only the initial phases; over the named seed set 1 … 200, disjoint from the claims' seed
+// 4242, the deviation r̄ − √(1 − K_c/K) has the bias and sd below (measured here and pinned to
+// within 20%), and the tolerance is 4 sd + |bias| rounded up at the display's third decimal, plus
+// 0.001 for the two printed numbers' rounding.
+const CLAIM_SEED = 4242;
+const SPREAD_SEEDS = Array.from({ length: 200 }, (_, i) => i + 1);
+/** γ, K, measured bias and sd of r̄ − √(1 − K_c/K) over SPREAD_SEEDS, and the tolerance. */
+const SPREAD: [number, number, number, number, number][] = [
+  [0.5, 2, 0.00048, 0.00064, 0.005], // 4 sd + bias = 0.0030 -> 0.004 + 0.001
+  [0.5, 4, 0.00004, 0.00030, 0.003], // 0.0012 -> 0.002 + 0.001
+  [2, 6, 0.00124, 0.00066, 0.005], // 0.0039 -> 0.004 + 0.001
+  [1, 4, 0.00059, 0.00043, 0.004], // 0.0023 -> 0.003 + 0.001
+  [0.25, 1.5, 0.00060, 0.00041, 0.004], // 0.0023 -> 0.003 + 0.001
+];
+const tolerance = (g: number, K: number) => SPREAD.find(([a, b]) => a === g && b === K)![4];
+
+describe('kuramoto: the spread of r̄ against the theory, on seeds disjoint from the claims’', () => {
+  it('the Lorentzian frequencies are quantiles: they draw nothing and do not depend on the seed', () => {
+    const a = mulberry32(1); const b = mulberry32(1);
+    const one = kuramoto.frequencies(192, 'lorentz', 0.5, a).omega;
+    expect(Array.from(kuramoto.frequencies(192, 'lorentz', 0.5, mulberry32(99)).omega)).toEqual(Array.from(one));
+    expect(a()).toBe(b());
+  });
+
+  it('measures the bias and sd pinned above, and the tolerance is 4 sd + |bias| rounded up, plus the rounding', () => {
+    expect(SPREAD_SEEDS).not.toContain(CLAIM_SEED);
+    for (const [g, K, bias, sd, tol] of SPREAD) {
+      const th = Math.sqrt(1 - (2 * g) / K);
+      const d = SPREAD_SEEDS.map((s) => kuramoto.simulate(192, K, g, 2500, s).mean - th);
+      const m = d.reduce((x, y) => x + y, 0) / d.length;
+      const v = Math.sqrt(d.reduce((x, y) => x + (y - m) ** 2, 0) / (d.length - 1));
+      expect(Math.abs(m - bias), `γ ${g}, K ${K}: bias ${m}`).toBeLessThanOrEqual(0.2 * Math.max(Math.abs(bias), sd));
+      expect(Math.abs(v / sd - 1), `γ ${g}, K ${K}: sd ${v}`).toBeLessThan(0.2);
+      expect(tol, `γ ${g}, K ${K}`).toBeCloseTo(Math.ceil((4 * v + Math.abs(m)) * 1000) / 1000 + 0.001, 9);
+    }
+  });
+
+  it('simulate() is the plate’s readout run: the same r̄ at the claims’ seed', async () => {
+    for (const [g, K] of [[0.5, 2], [2, 6]]) {
+      const r = (await at('r averaged over the second half so far', { gamma: g, K })).value!;
+      expect(Math.abs(r - kuramoto.simulate(192, K, g, 2500, CLAIM_SEED).mean)).toBeLessThanOrEqual(0.0005);
+    }
+  });
+});
+
+const KEY = 'gamma';
+describe('kuramoto: gamma, "Frequency width γ"', () => {
+  it('is a range 0.1 … 2 by 0.05, 0.5 (the old constant) by default, and the select names it', () => {
+    const d = kuramoto.kernel.params?.find((x) => x.key === KEY);
+    expect(d).toMatchObject({ kind: 'range', label: 'Frequency width γ', min: 0.1, max: 2, step: 0.05, value: 0.5 });
+    const dist = kuramoto.kernel.params?.find((x) => x.key === 'dist');
+    expect(dist?.kind === 'select' ? dist.options.map((o) => o.label) : []).toEqual(['Lorentzian, half-width γ', 'Gaussian, σ = γ']);
+    // K's range must reach above K_c = 2γ at the widest γ, or the plate cannot show locking there
+    const K = kuramoto.kernel.params?.find((x) => x.key === 'K');
+    expect(K?.kind === 'range' && d?.kind === 'range' && K.max > 2 * d.max).toBe(true);
+  });
+
+  it('round-trips through a shared link', async () => {
+    const defs = (await loadPlate(ID))!.params;
+    const d: Params = Object.fromEntries(defs.map((x) => [x.key, x.value]));
+    for (const v of [0.1, 1, 2]) {
+      expect(parse(defs, serialise(defs, { ...d, [KEY]: v }, 7))).toEqual({ seed: 7, params: { [KEY]: v } });
+    }
+  });
+
+  it('the finite-N fixed point is within 2.5e-4 of √(1 − K_c/K) at the default width, 5e-4 elsewhere', () => {
+    for (const [g, K] of [[0.5, 2], [0.5, 4], [1, 4], [2, 6], [0.25, 1.5]]) {
+      const f = finiteN(192, g, K);
+      const tol = g === 0.5 ? 2.5e-4 : 5e-4;
+      expect(Math.abs(f.r - Math.sqrt(1 - (2 * g) / K)), `γ ${g}, K ${K}`).toBeLessThan(tol);
+      expect(f.locked, `γ ${g}, K ${K}`).toBe(lockedByTheory(192, g, K));
+    }
+    expect(lockedByTheory(192, 0.5, 4)).toBe(174);
+    expect(lockedByTheory(192, 1, 4)).toBe(150);
+    expect(lockedByTheory(192, 2, 6)).toBe(128);
+  });
+
+  it('drives the readouts: K_c follows 2γ, and the measured r and count follow the oracle', async () => {
+    for (const [g, K] of [[1, 4], [2, 6], [0.25, 1.5]]) {
+      const kc = await at('Coupling K / critical K_c', { [KEY]: g, K });
+      expect(kc.reason).toBeUndefined();
+      const theory = (await at('Theory for N → ∞, √(1 − K_c/K)', { [KEY]: g, K })).value!;
+      expect(Math.abs(theory - Math.sqrt(1 - (2 * g) / K))).toBeLessThanOrEqual(0.0005);
+      const r = (await at('r averaged over the second half so far', { [KEY]: g, K })).value!;
+      expect(Math.abs(r - theory), `γ ${g}, K ${K}`).toBeLessThanOrEqual(tolerance(g, K));
+      expect((await at(NEAR, { [KEY]: g, K })).value, `γ ${g}, K ${K}`).toBe(lockedByTheory(192, g, K));
+    }
   });
 });
