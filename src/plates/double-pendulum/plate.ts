@@ -1,6 +1,10 @@
 import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import { energy, rk4, type Pendulum, type State } from './dynamics';
+
+/** Simulated time is counted in whole microseconds, so a stop lands on its second exactly. */
+const US_PER_S = 1e6;
 
 export const doublePendulum: PlateCode = {
   id: 'double-pendulum',
@@ -18,6 +22,9 @@ export const doublePendulum: PlateCode = {
       value: 120, rebuild: true },
     { kind: 'range', key: 'dt', label: 'Step size (ms)', min: 0.5, max: 10, step: 0.5, value: 2 },
     { kind: 'range', key: 'substeps', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 8 },
+    // a stop costs nothing, so its top is not a budget's: past 1000 s a reader lets it run on (0)
+    runsParam({ unit: 'simulated s', max: 1000,
+      note: 'A step that would pass the k-th second is cut to the time left, so it stops on it.' }),
     { kind: 'range', key: 'g', label: 'Gravity (m/s²)', min: 1, max: 25, step: 0.01, value: 9.81 },
     { kind: 'toggle', key: 'trails', label: 'Trails', value: true },
     paletteParam('ember'),
@@ -29,6 +36,8 @@ export const doublePendulum: PlateCode = {
     let t = 0;
     let e0 = 0;
     const k: Pendulum = { m1: 1, m2: 1, l1: 1, l2: 1, g: 9.81 };
+    // a run is one simulated second, counted in microseconds (src/plates/_shared/settle)
+    const stop = new StreamStop(params, US_PER_S);
 
     return {
       setup() {
@@ -42,6 +51,7 @@ export const doublePendulum: PlateCode = {
         k.g = num(params, 'g');
         e0 = energy(states[0], k);
         t = 0;
+        stop.reset();
         p.background(...ctx.bg);
       },
       draw() {
@@ -51,10 +61,16 @@ export const doublePendulum: PlateCode = {
           e0 = energy(states[0], k);
         }
         const dt = num(params, 'dt') / 1000;
+        const tick = Math.round(num(params, 'dt') * 1000);
         const steps = num(params, 'substeps');
         for (let s = 0; s < steps; s++) {
-          for (let i = 0; i < states.length; i++) states[i] = rk4(states[i], k, dt);
-          t += dt;
+          // the stop: a step that would pass the k-th second is cut to the time left (never at 0)
+          const left = stop.allow(tick);
+          if (left <= 0) break;
+          const h = left === tick ? dt : left / US_PER_S;
+          for (let i = 0; i < states.length; i++) states[i] = rk4(states[i], k, h);
+          t += h;
+          stop.advance(left);
         }
 
         const trails = bool(params, 'trails');
@@ -102,6 +118,7 @@ export const doublePendulum: PlateCode = {
           { label: 'lower-arm spread', value: `${(hi - lo).toExponential(2)} rad` },
           { label: 'energy drift (pendulum 1)', value: `${(drift * 100).toExponential(2)} %` },
           { label: 'integrator', value: `RK4, dt ${num(params, 'dt')} ms` },
+          ...stop.rows(),
         ]);
       },
     };
