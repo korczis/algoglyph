@@ -13,14 +13,18 @@ export function recurrence(states: number[][], eps: number): Uint8Array {
   return drain(recurrenceSteps(states, eps));
 }
 
-/** recurrence(), resumable: it yields after every 64 rows. */
-export function* recurrenceSteps(states: number[][], eps: number): Generator<void, Uint8Array, void> {
+/**
+ * recurrence(), resumable: it yields after every 64 rows. A pair recurs when its squared
+ * distance is at most eps2, eps² unless given: the plate passes the selected squared distance
+ * itself, since squaring a square root rounds below it and would drop the pairs tied with it.
+ */
+export function* recurrenceSteps(states: number[][], eps: number, eps2 = eps * eps): Generator<void, Uint8Array, void> {
   const n = states.length;
   const R = new Uint8Array(n * n);
   for (let i = 0; i < n; i++) for (let j = i; j < n; j++) {
     let d = 0;
     for (let c = 0; c < states[i].length; c++) d += (states[i][c] - states[j][c]) ** 2;
-    if (d <= eps * eps) { R[i * n + j] = 1; R[j * n + i] = 1; }
+    if (d <= eps2) { R[i * n + j] = 1; R[j * n + i] = 1; }
     if (j === n - 1 && (i & 63) === 63) yield;
   }
   return R;
@@ -47,15 +51,25 @@ export function thresholdFor(states: number[][], rate: number): number {
   return drain(thresholdSteps(states, rate));
 }
 
-/** thresholdFor(), resumable: it yields after every 64 rows of distances. */
+/** thresholdFor(), resumable: the square root of thresholdSquaredSteps(), the same value as
+ * selecting among the distances themselves, since the square root keeps their order. */
 export function* thresholdSteps(states: number[][], rate: number): Generator<void, number, void> {
+  return Math.sqrt(yield* thresholdSquaredSteps(states, rate));
+}
+
+/**
+ * The k-th smallest squared pair distance, k = floor(rate·M) of the M off-diagonal pairs, so that
+ * comparing squared distances with it keeps at least k pairs, ties included; resumable, it yields
+ * after every 64 rows of distances.
+ */
+export function* thresholdSquaredSteps(states: number[][], rate: number): Generator<void, number, void> {
   const n = states.length;
   const d = new Float64Array((n * (n - 1)) / 2);
   let at = 0;
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     let s = 0;
     for (let c = 0; c < states[i].length; c++) s += (states[i][c] - states[j][c]) ** 2;
-    d[at++] = Math.sqrt(s);
+    d[at++] = s;
     if (j === n - 1 && (i & 63) === 63) yield;
   }
   const k = Math.min(d.length - 1, Math.max(0, Math.floor(rate * d.length) - 1));
@@ -115,19 +129,22 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const { s, m, tau } = series(String(params.series ?? 'regime'), len + 4 * 3, seed);
   const states = embed(s, m, tau).slice(0, len);
   const n = states.length;
-  const eps = yield* thresholdSteps(states, Number(params.rate ?? 8) / 100);
+  // squared distances against the selected squared distance, so ties with it recur; ε for display
+  const eps2 = yield* thresholdSquaredSteps(states, Number(params.rate ?? 8) / 100);
+  const eps = Math.sqrt(eps2);
   yield;
-  const R = yield* recurrenceSteps(states, eps);
+  const R = yield* recurrenceSteps(states, eps, eps2);
   yield;
   // recurrent states in a mid tone of the palette, which reads on both grounds
   const values = new Float64Array(R.length);
   for (let i = 0; i < R.length; i++) values[i] = 0.3 * R[i];
   yield;
   const lo = Math.min(...s); const hi = Math.max(...s);
+  const lmin = Number(params.lmin ?? 2);
   const ticks = Array.from({ length: 60 }, (_, i) => Math.max(8, Math.round(((i + 1) * n) / 60)));
   const steps: NumericRun['steps'] = [];
   for (const k of ticks) {
-    const q = rqa(R, n, k);
+    const q = rqa(R, n, k, lmin);
     const layers: Layer[] = [
       { kind: 'grid', rows: n, cols: n, values, lo: 0, hi: 1, clear: 0, rowsShown: k },
       { kind: 'segments', segs: [[0, n - k, k, n - k], [k, n - k, k, n]], alpha: 0.5 },
@@ -139,9 +156,10 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
       stats: [
         { label: 'States', value: `${int(k)} of ${int(n)} (m ${m}, τ ${tau}, ε ${fmt(eps)})` },
         { label: 'Recurrence rate', value: `${fmt(100 * q.rr, 3)}%` },
-        { label: 'Determinism (diagonal lines ≥ 2)', value: `${fmt(100 * q.det, 3)}%` },
-        { label: 'Laminarity (vertical lines ≥ 2)', value: `${fmt(100 * q.lam, 3)}%` },
+        { label: 'Determinism', value: `${fmt(100 * q.det, 3)}% (diagonal lines ≥ ${int(lmin)})` },
+        { label: 'Laminarity', value: `${fmt(100 * q.lam, 3)}% (vertical lines ≥ ${int(lmin)})` },
         { label: 'Diagonal lines', value: `mean ${fmt(q.meanDiag, 3)}, longest ${int(q.maxDiag)}, entropy ${fmt(q.entropy, 3)}` },
+        { label: 'Longest diagonal line', value: `${int(q.maxDiag)} points` },
       ],
       chart: {
         title: 'Diagonal line lengths', x: { label: 'line length' }, y: { label: 'lines', log: true },
@@ -166,6 +184,8 @@ export const kernel: NumericKernel = {
         { value: 'logistic', label: 'Logistic map, r = 4' }, { value: 'lorenz', label: 'x(t) of the Lorenz flow' }, { value: 'noise', label: 'Gaussian white noise' }] },
     { kind: 'range', key: 'rate', label: 'Recurrence rate target (%)', min: 2, max: 20, step: 1, value: 8, rebuild: true },
     { kind: 'range', key: 'length', label: 'Length', min: 100, max: 400, step: 20, value: 300, rebuild: true },
+    // a line holds at most length − 1 points, 399 at the longest length: a larger minimum counts none
+    { kind: 'range', key: 'lmin', label: 'Shortest line counted', min: 2, max: 399, step: 1, value: 2, rebuild: true },
   ],
   aspect: 1.5,
   palette: 'ember',

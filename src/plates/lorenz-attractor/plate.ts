@@ -1,8 +1,15 @@
-import { paletteParam, ramp } from '../../core/palette';
+import { paletteParam } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { Rk4 } from '../_shared/ode/ode';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
+import { drawTrail, Trail } from './trail';
 
 type V3 = [number, number, number];
+
+/** The step of the flow, in time units. */
+const DT = 0.006;
+/** Steps in one run of the stop: 100 steps of DT, 0.6 time units, a whole number of steps. */
+const BLOCK = 100;
 
 export function lorenz([x, y, z]: V3, sigma: number, rho: number, beta: number): V3 {
   return [sigma * (y - x), x * (rho - z) - y, x * y - beta * z];
@@ -39,17 +46,21 @@ export const lorenzAttractor: PlateCode = {
     { kind: 'range', key: 'rho', label: 'ρ', min: 10, max: 60, step: 0.1, value: 28 },
     { kind: 'range', key: 'beta', label: 'β', min: 0.5, max: 5, step: 0.01, value: 2.67 },
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 12, step: 1, value: 3 },
+    // a stop costs nothing, so its top is not a budget's: past time 600 a reader lets it run on
+    runsParam({ unit: 'blocks of 0.6 time', max: 1000,
+      note: `A block is ${BLOCK} steps of dt ${DT}: k = 180 stops at time 108.` }),
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate', value: true },
     paletteParam('ember'),
   ],
   pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
-    let trails: V3[][] = [];
+    let trails: Trail[] = [];
     let heads: V3[] = [];
     let angle = 0;
     let steps = 0;
-    const dt = 0.006;
+    const dt = DT;
+    const stop = new StreamStop(params, BLOCK);
 
     return {
       setup() {
@@ -57,21 +68,22 @@ export const lorenzAttractor: PlateCode = {
         heads = Array.from({ length: n }, (): V3 => [
           1 + (ctx.rnd() - 0.5) * 1e-4, 1 + (ctx.rnd() - 0.5) * 1e-4, 20 + (ctx.rnd() - 0.5) * 1e-4,
         ]);
-        trails = heads.map(() => []);
+        trails = heads.map(() => new Trail(num(params, 'trail'), dt));
         steps = 0;
+        stop.reset();
         angle = ctx.rnd() * Math.PI * 2;
       },
       draw() {
         const sigma = num(params, 'sigma');
         const rho = num(params, 'rho');
         const beta = num(params, 'beta');
-        const max = num(params, 'trail');
-        const n = num(params, 'speed');
+        // clamped to the stop: the frame that reaches it steps only the steps left
+        const n = stop.allow(num(params, 'speed'));
+        stop.advance(n);
         for (let s = 0; s < n; s++) {
           for (let i = 0; i < heads.length; i++) {
             heads[i] = rk4Lorenz(heads[i], dt, sigma, rho, beta);
             trails[i].push(heads[i]);
-            if (trails[i].length > max) trails[i].shift();
           }
           steps++;
         }
@@ -86,21 +98,7 @@ export const lorenzAttractor: PlateCode = {
         const pal = ctx.palette();
         p.noFill();
         p.strokeWeight(1.3);
-        for (let i = 0; i < trails.length; i++) {
-          const tr = trails[i];
-          p.beginShape();
-          for (let j = 1; j < tr.length; j++) {
-            const a = tr[j - 1];
-            const b = tr[j];
-            const v = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / dt;
-            const c = ramp(pal, Math.min(1, v / 220));
-            const fade = j / tr.length;
-            p.stroke(c[0], c[1], c[2], 40 + 215 * fade);
-            // the attractor sits around z ≈ ρ − 1; centre it and map z to screen-up
-            p.vertex(b[0], -(b[2] - 25), b[1]);
-          }
-          p.endShape();
-        }
+        for (const tr of trails) drawTrail(p, tr, pal);
         p.strokeWeight(6);
         p.stroke(...ctx.fg);
         p.beginShape(p.POINTS);
@@ -111,11 +109,22 @@ export const lorenzAttractor: PlateCode = {
         for (const h of heads) {
           spread = Math.max(spread, Math.hypot(h[0] - heads[0][0], h[1] - heads[0][1], h[2] - heads[0][2]));
         }
+        // the fixed points C± = (±c, ±c, ρ − 1), c = √(β(ρ − 1)): stable below the Hopf value
+        // σ(σ + β + 3)/(σ − β − 1), where each tracer ends on one, whichever the seed picks
+        const c = Math.sqrt(beta * (rho - 1));
+        let near = 0;
+        for (const [x, y, z] of heads) {
+          near = Math.max(near, Math.min(Math.hypot(x - c, y - c, z - rho + 1),
+            Math.hypot(x + c, y + c, z - rho + 1)));
+        }
         ctx.stats([
           { label: 'simulated time', value: (steps * dt).toFixed(2) },
           { label: 'swarm spread', value: spread < 0.01 ? spread.toExponential(2) : spread.toFixed(2) },
+          { label: 'largest distance to the nearer of C±',
+            value: near < 0.01 ? near.toExponential(2) : near.toFixed(2) },
           { label: 'tracers', value: String(heads.length) },
           { label: 'integrator', value: `RK4, dt ${dt}` },
+          ...stop.rows(),
         ]);
       },
     };

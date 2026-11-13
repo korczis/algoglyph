@@ -1,8 +1,8 @@
 // Measures, for every wasm sorting kernel the array engine may play, what one rebuild costs at
-// each n (the array plate built at that n, as a loop rebuilds it inside one frame: the whole
-// trace, the replay and the frame's own work; the worst input shape, best of three) and derives
-// the largest n whose rebuild stays within a budget: the `max_n` the sidecar will carry once the
-// array engine accepts ArrayKernel.maxN. A measurement, not a gate: it runs only when asked,
+// each n (the budget gate's own reading, test/support/budget.ts `rebuild`: the worst frame past
+// the end of a run, where the loop rebuilds inside draw(), at the gate's widest width, best of the
+// gate's repeats; the worst input shape) and derives the largest n whose rebuild stays within a
+// budget: the sidecar's `max_n`. A measurement, not a gate: it runs only when asked,
 //
 //   ALGOGLYPH_MAX_N=<out.json> [ALGOGLYPH_MAX_N_MS=<ms, overrides max_n_budget_ms>] [ALGOGLYPH_MAX_N_WRITE=1] \
 //     npx vitest run test/sorting-max-n.test.ts
@@ -22,19 +22,22 @@
 // record's max_n, with max_n_of, the kernel's source hash from its manifest, which the catalogue
 // gate compares, so a kernel changed after its measurement is refused until it is re-measured.
 // A kernel that needs no bound loses both keys.
+// Provenance: until they are re-derived on this instrument, the sidecar's recorded bounds (gnome,
+// odd-even, exchange, cycle, strand, enumeration and spaghetti sort, fb5dba9) were derived on the
+// earlier one, setup() plus a single draw() at 1440 px, and are not yet readings of this frame.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PACING } from '../src/core/pace';
 import { parse } from 'yaml';
 import { ENTRIES } from '../src/core/catalogue';
-import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
-import type { Params, PlateContext } from '../src/core/plate';
-import { mulberry32 } from '../src/core/random';
+import type { Params, Plate } from '../src/core/plate';
+import { loadPlate } from '../src/registry';
 import { engine, MAX_N } from '../src/engines/array';
 import { SHAPES } from '../src/engines/array/trace';
 import type { ArrayKernel } from '../src/engines/array/trace';
 import { sidecarKernel } from '../src/kernels/sorting-wasm/_adapter';
-import { installBrowserStubs, p5Stub } from './support/p5-stub';
+import { rebuild as gateRebuild, widest } from './support/budget';
+import { installBrowserStubs } from './support/p5-stub';
 
 const OUT = process.env.ALGOGLYPH_MAX_N;
 const WRITE = process.env.ALGOGLYPH_MAX_N_WRITE === '1';
@@ -161,26 +164,21 @@ function playedRecords(): SidecarRecord[] {
 async function rebuildCost(id: string, factor: number): Promise<(n: number) => number> {
   // measured unbounded: the bound is what is being derived or checked
   const { maxN: _bound, ...kernel } = await sidecarKernel(id);
-  const plate = engine.plate({ id, title: id, group: 'sorting' }, kernel);
+  // the registered plate's info with the engine's code built on the uncapped kernel
+  const code = engine.plate({ id, title: id, group: 'sorting' }, kernel);
+  const registered = await loadPlate(id);
+  if (!registered) throw new Error(`${id} is not a live plate`);
+  const plate: Plate = { ...registered, params: code.params, create: code.create.bind(code) };
+  const { repeats } = parse(readFileSync('config/budgets.yaml', 'utf8')) as { repeats: number };
   return (n) => {
     let worst = 0;
     for (const [shape, corner] of SHAPES.flatMap((sh) => optionCorners(kernel).map((c) => [sh, c] as const))) {
+      const params: Params = { shape, n, pace: PACING.pace.max, loop: true, palette: 'spectral', ...corner };
+      // the budget gate's own reading (test/support/budget.ts), imported so the two cannot drift:
+      // the worst frame past the end of a run, where the loop rebuilds inside draw(), at the
+      // gate's widest width, the best of the gate's repeats
       let best = Infinity;
-      for (let rep = 0; rep < 3; rep++) {
-        const params: Params = { shape, n, pace: PACING.pace.max, loop: true, palette: 'spectral', ...corner };
-        const seed = 4242 + 31 * rep + n;
-        const ground = GROUNDS.dark;
-        const ctx: PlateContext = {
-          width: 1440, height: Math.round(1440 / plate.aspect), params, seed, rnd: mulberry32(seed),
-          theme: 'dark', bg: ground.bg, fg: ground.fg, thumbnail: false,
-          palette: () => lookupPalette('spectral'), stats() {}, chart() {},
-        };
-        const t = cpuMs();
-        const sim = plate.create(p5Stub(), ctx);
-        sim.setup();
-        sim.draw();
-        best = Math.min(best, cpuMs() - t);
-      }
+      for (let rep = 0; rep < repeats; rep++) best = Math.min(best, gateRebuild(plate, params, widest).frame);
       worst = Math.max(worst, best);
     }
     return worst / factor;
