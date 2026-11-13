@@ -14,6 +14,41 @@ motivation: Warehouse logistics spend most of their time on exactly this.
 complexity: "S-shape and largest gap O(n log n); the optimal tour O(2ⁿ n²) by dynamic programming over subsets"
 related:
   - simple-closed-path
+claims:
+  - id: held-karp-states-10
+    statement: >-
+      Held and Karp's programme keeps one state per subset S of the picks and pick j in S that ends
+      a path through S; every one is reachable, so there are Σ |S| = m · 2^(m − 1) of them, exactly
+      10 · 512 = 5,120 for 10 picks.
+    readout: Dynamic-programme states
+    expect: { value: 5120 }
+    setup:
+      params: { n: 10, aisles: 8 }
+  - id: held-karp-states-12
+    statement: >-
+      For 12 picks, the control's top, the states number exactly 12 · 2¹¹ = 24,576: the
+      exponential growth that keeps the exact route to short lists.
+    readout: Dynamic-programme states
+    expect: { value: 24576 }
+    setup:
+      params: { n: 12, aisles: 8 }
+  - id: s-shape-is-no-shorter-than-optimal
+    statement: >-
+      The S-shape route visits every pick and returns, so it is a tour and cannot be shorter than
+      the optimal one: its printed length minus the optimal length is at least 0 (both are rounded
+      to whole units, which keeps the order), on seed 4242's list of 10 picks in 8 aisles.
+    readout: S-shape
+    expect: { against: Optimal, above: -0.5 }
+    setup:
+      params: { n: 10, aisles: 8 }
+  - id: largest-gap-is-no-shorter-than-optimal
+    statement: >-
+      The largest-gap route is a tour too, so its printed length is at least the optimal one on the
+      same list.
+    readout: Largest gap
+    expect: { against: Optimal, above: -0.5 }
+    setup:
+      params: { n: 10, aisles: 8 }
 ---
 
 S-shape, largest-gap and optimal routes through the same picking list, and their walking distances.
