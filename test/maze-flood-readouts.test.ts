@@ -3,6 +3,8 @@
 // counts the passages carved so far (each cell's east and south openings, so each passage once),
 // and the claims compare it with the cells readout.
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error -- plain ESM shared with the node tooling
+import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import { holds, read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
 
@@ -26,4 +28,32 @@ describe('maze-flood: the passages readout (G7)', () => {
       }
     });
   }
+});
+
+// The longest shortest path from the source has no independent exact value here: the only oracle
+// is a re-carve with the plate's own generator (integrator decision (e)). It is claimed within hard
+// bounds instead, derived from the canvas alone: the claims instrument draws on 800 by 500 (the
+// plate's 16:10), so the grid is ⌊800 / cell⌋ by ⌊500 / cell⌋ cells with the source in its middle
+// cell. A route moves one cell a step, so the farthest corner is at least its Manhattan distance
+// away; a perfect maze is a tree, so no route has more than cells − 1 steps.
+describe('maze-flood: the bounds the claims state, from the canvas alone', () => {
+  const bounds = (cell: number) => {
+    const cols = Math.max(4, Math.floor(800 / cell));
+    const rows = Math.max(4, Math.floor(500 / cell));
+    const sx = Math.floor(cols / 2); const sy = Math.floor(rows / 2);
+    const corner = Math.max(...[[0, 0], [cols - 1, 0], [0, rows - 1], [cols - 1, rows - 1]].map(([x, y]) => Math.abs(x - sx) + Math.abs(y - sy)));
+    return [corner, cols * rows - 1];
+  };
+
+  it('pins each claimed range to the Manhattan corner and cells − 1', () => {
+    const { model } = loadCatalogue(process.cwd()) as { model: { entries: { id: string; claims: Claim[] }[] } };
+    const claims = model.entries.find((e) => e.id === ID)!.claims;
+    const ranged = claims.filter((c) => c.readout === 'longest shortest path');
+    expect(ranged.length).toBeGreaterThanOrEqual(3);
+    for (const c of ranged) {
+      const cell = Number(c.setup?.params?.cell ?? 32);
+      expect(c.expect.range, `${c.id} at cell ${cell}`).toEqual(bounds(cell));
+    }
+    expect(bounds(32)).toEqual([19, 374]);
+  });
 });
