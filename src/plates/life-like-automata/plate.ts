@@ -46,6 +46,9 @@ export const lifeLikeAutomata: PlateCode = {
         { value: 'rpent', label: 'R-pentomino' },
         { value: 'gun', label: 'Gosper glider gun' },
         { value: 'acorn', label: 'Acorn' },
+        { value: 'blinker', label: 'Blinker (period 2)' },
+        { value: 'block', label: 'Block (still life)' },
+        { value: 'glider', label: 'Glider' },
         { value: 'empty', label: 'Empty (draw with the pointer)' },
       ],
     },
@@ -130,6 +133,9 @@ export const lifeLikeAutomata: PlateCode = {
       if (preset === 'soup') life.soup(num(params, 'density'), ctx.rnd);
       else if (preset === 'rpent') centre(PATTERNS.rPentomino);
       else if (preset === 'acorn') centre(PATTERNS.acorn);
+      else if (preset === 'blinker') centre(PATTERNS.blinker);
+      else if (preset === 'block') centre(PATTERNS.block);
+      else if (preset === 'glider') centre(PATTERNS.glider);
       else if (preset === 'gun') {
         life.place(PATTERNS.gosperGun, Math.floor(w * 0.08), Math.floor(h * 0.12));
       }
