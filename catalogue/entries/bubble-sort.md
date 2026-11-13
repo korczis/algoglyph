@@ -34,6 +34,14 @@ bounds:
   best: 'n − 1 comparisons and no writes (Already sorted)'
   average: 'on every input, array writes = 2 × inversions'
   worst: 'n(n − 1)/2 comparisons and n(n − 1) array writes (Reversed)'
+claims:
+  - id: reversed-writes-twice-the-inversions
+    statement: >-
+      On Reversed at 128 keys bubble sort makes 2 × inversions = n(n − 1) = 16,256 array writes: each of the 8,128 inversions is removed by one exchange of two writes.
+    readout: Array writes
+    expect: { value: 16256 }
+    setup:
+      params: { shape: reversed, n: 128 }
 ---
 
 Exchange neighbours that are out of order, pass after pass, until a pass changes nothing.

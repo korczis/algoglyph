@@ -31,6 +31,14 @@ bounds:
   best: 'n(n − 1)/2 comparisons and no writes (Already sorted)'
   average: 'on every input, n(n − 1)/2 comparisons'
   worst: 'n(n − 1)/2 comparisons and at most 2(n − 1) array writes'
+claims:
+  - id: quadratic-on-every-input
+    statement: >-
+      On Random permutation at 128 keys selection sort makes n(n − 1)/2 = 8,128 comparisons, exactly as many as on every other input of that size, Already sorted included.
+    readout: Comparisons
+    expect: { value: 8128 }
+    setup:
+      params: { shape: random, n: 128 }
 ---
 
 Find the smallest remaining key and exchange it into place, left to right.

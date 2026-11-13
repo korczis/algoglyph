@@ -36,6 +36,14 @@ bounds:
   model: 'comparisons and array writes (a shift is one write)'
   best: 'Σ (n − h) comparisons over the increments h < n, and no writes (Already sorted)'
   worst: 'O(n^(3/2)) comparisons'
+claims:
+  - id: sorted-one-comparison-per-key-and-pass
+    statement: >-
+      On Already sorted at 128 keys Shellsort with Knuth's increments writes nothing and makes Σ (n − h) = 461 comparisons over h = 121, 40, 13, 4, 1.
+    readout: Comparisons
+    expect: { value: 461 }
+    setup:
+      params: { shape: sorted, n: 128 }
 ---
 
 Insertion sort on keys h apart, for h = …, 40, 13, 4, 1: Knuth's increments.

@@ -45,6 +45,14 @@ bounds:
   best: 'no writes on Already sorted, and n − g comparisons for each gap g = ⌊10g/13⌋ from g = n down to 1'
   average: 'unknown (no analysis)'
   worst: 'O(n²), from the passes with gap 1'
+claims:
+  - id: sorted-one-pass-per-gap
+    statement: >-
+      On Already sorted at 128 keys comb sort writes nothing and makes Σ (n − g) = 1,400 comparisons, one pass for each of the 14 gaps g = ⌊10g/13⌋ from 128 down to 1.
+    readout: Comparisons
+    expect: { value: 1400 }
+    setup:
+      params: { shape: sorted, n: 128 }
 ---
 
 Bubble sort over keys a gap apart: compare and exchange pairs h positions away, shrink h by a constant factor after each pass, and finish with ordinary bubble passes once h reaches 1.

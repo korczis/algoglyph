@@ -41,6 +41,14 @@ bounds:
   best: 'one sweep and no writes (Already sorted); a sweep of n keys, n a power of two, makes (n/2) lg n comparisons'
   average: 'unknown; on every input, comparisons = sweeps × the comparisons of one sweep'
   worst: 'unknown'
+claims:
+  - id: sorted-one-sweep
+    statement: >-
+      On Already sorted at 512 keys circle sort makes one sweep of (n/2) lg n = 2,304 comparisons and stops: the sweep exchanged nothing.
+    readout: Comparisons
+    expect: { value: 2304 }
+    setup:
+      params: { shape: sorted, n: 512 }
 ---
 
 Compare-exchange the first key with the last, the second with the second last, and so on to the middle; then do the same inside each half, down to single keys. Repeat whole sweeps until one makes no exchange.

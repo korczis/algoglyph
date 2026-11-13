@@ -47,6 +47,14 @@ bounds:
   best: 'n − 1 comparisons and no writes (Already sorted)'
   average: 'on every input, array writes = 2 × inversions, and 2 × inversions ≤ comparisons ≤ 2 × inversions + n − 1'
   worst: 'n(n − 1) comparisons and n(n − 1) array writes (Reversed)'
+claims:
+  - id: reversed-twice-the-inversions
+    statement: >-
+      On Reversed at 128 keys gnome sort makes 2 × inversions = n(n − 1) = 16,256 comparisons, exactly as many as its array writes.
+    readout: Comparisons
+    expect: { value: 16256 }
+    setup:
+      params: { shape: reversed, n: 128 }
 ---
 
 One index and one rule: if the key before it is not larger, step forward; otherwise exchange the pair and step back. The sort is done when the index walks off the end.
