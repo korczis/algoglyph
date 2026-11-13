@@ -73,3 +73,72 @@ describe('double-pendulum D2: the energy drift is relative to the oscillation en
     }
   });
 });
+
+const KEY = 'theta';
+/** A claim that reads `readout` once the run has settled, judging nothing. */
+const probe = (readout: string, params: Params): Claim => ({
+  id: 'probe', statement: 'a control test reading', readout,
+  expect: { range: [-Number.MAX_VALUE, Number.MAX_VALUE] }, setup: { params },
+});
+
+// The small-angle oracle for m1 = m2, l1 = l2 = l: two normal modes, ω∓² = (2 ∓ √2)g/l, the
+// slow one (1, √2) and the fast one (1, −√2). Released at rest from (θ, θ), the angles are
+// a·(1, √2) + b·(1, −√2) with a = (2 + √2)/4, b = (2 − √2)/4, and the two modes carry the
+// fractions a²/(a² + b²) and b²/(a² + b²) of the oscillation energy (both have vᵀKv = 4g).
+// RK4 on a mode of frequency ω multiplies its energy by |R(iωh)|² = 1 − (ωh)⁶/72 + (ωh)⁸/576 a
+// step, R(z) = 1 + z + z²/2 + z³/6 + z⁴/24, so after n steps the drift is
+// Σ w_k (1 − |R(iω_k h)|^(2n)), below n(ω₊h)⁶/72.
+const G = 9.81;
+const R2 = (y: number) => (1 - (y * y) / 2 + y ** 4 / 24) ** 2 + (y - y ** 3 / 6) ** 2;
+const W_FAST = Math.sqrt((2 + Math.SQRT2) * G);
+const W_SLOW = Math.sqrt((2 - Math.SQRT2) * G);
+function smallAngleDrift(h: number, n: number): { linear: number; bound: number } {
+  const a = (2 + Math.SQRT2) / 4;
+  const b = (2 - Math.SQRT2) / 4;
+  const fast = (b * b) / (a * a + b * b);
+  const linear = fast * (1 - R2(W_FAST * h) ** n) + (1 - fast) * (1 - R2(W_SLOW * h) ** n);
+  return { linear, bound: (n * (W_FAST * h) ** 6) / 72 };
+}
+
+describe('double-pendulum: theta, "Release angle (°)"', () => {
+  it('is a range 1 … 179 by 1, 120 (the old default) by default', async () => {
+    const d = (await loadPlate(ID))!.params.find((x) => x.key === KEY);
+    expect(d).toMatchObject({ kind: 'range', label: 'Release angle (°)', min: 1, max: 179, step: 1,
+      value: 120, rebuild: true });
+  });
+
+  it('round-trips through a shared link, down to 1°', async () => {
+    const defs = (await loadPlate(ID))!.params;
+    const d: Params = Object.fromEntries(defs.map((x) => [x.key, x.value]));
+    for (const v of [1, 5, 29]) {
+      expect(parse(defs, serialise(defs, { ...d, [KEY]: v }, 7))).toEqual({ seed: 7, params: { [KEY]: v } });
+    }
+  });
+
+  it('the oracle: the bound is n(ω₊h)⁶/72 = 1.67e-10 at dt 2 ms over 10 s, the drift 4.79e-12', () => {
+    const { linear, bound } = smallAngleDrift(0.002, 5000);
+    expect(W_FAST * 0.002).toBeCloseTo(0.0115747, 6);
+    expect(bound).toBeCloseTo(1.6699e-10, 13);
+    expect(linear).toBeCloseTo(4.794e-12, 14);
+    expect(linear).toBeLessThan(bound);
+  });
+
+  it('drives the readout: at 1°, one pendulum, 10 s, the drift is the small-angle one', async () => {
+    // the swing E0 − E_min at 1° is ½·3g·θ² ≈ 4.48e-3 J, against |E| ≈ 29.4 J: each energy
+    // evaluation rounds by about an ulp of 29.4 (3.6e-15 J), 7.9e-13 of the swing, so the drift
+    // is read to within a few of those (4 ulp: 3.2e-12), as well as the bound n(ω₊h)⁶/72
+    const swing = 1.5 * G * (Math.PI / 180) ** 2;
+    const ulps = (4 * 2 ** -52 * 32) / swing;
+    for (const [dt, n] of [[2, 5000], [5, 2000]] as const) {
+      const r = await read(ID, probe(DRIFT, { count: 1, [KEY]: 1, dt, runs: 10 }));
+      expect(r.reason).toBeUndefined();
+      const { linear, bound } = smallAngleDrift(dt / 1000, n);
+      // the readout is in per cent; the nonlinearity at 1° shifts the frequencies by O(θ²) = 3e-4
+      // and the readout prints three digits (0.5 %)
+      expect(r.value!, `dt ${dt} ms`).toBeLessThan(100 * bound);
+      const tol = 100 * (ulps + 0.01 * linear);
+      expect(Math.abs(r.value! - 100 * linear), `dt ${dt} ms: ${r.value} against ${100 * linear}`)
+        .toBeLessThanOrEqual(tol);
+    }
+  });
+});

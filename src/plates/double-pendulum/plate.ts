@@ -18,7 +18,8 @@ export const doublePendulum: PlateCode = {
       kind: 'select', key: 'spread', label: 'Total offset', value: '1e-6', rebuild: true,
       options: ['1e-9', '1e-6', '1e-4', '1e-2'].map((v) => ({ value: v, label: `${v} rad` })),
     },
-    { kind: 'range', key: 'theta', label: 'Release angle (°)', min: 30, max: 179, step: 1,
+    // down to 1°, where the small-angle theory (two normal modes) bounds the drift analytically
+    { kind: 'range', key: 'theta', label: 'Release angle (°)', min: 1, max: 179, step: 1,
       value: 120, rebuild: true },
     { kind: 'range', key: 'dt', label: 'Step size (ms)', min: 0.5, max: 10, step: 0.5, value: 2 },
     { kind: 'range', key: 'substeps', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 8 },
