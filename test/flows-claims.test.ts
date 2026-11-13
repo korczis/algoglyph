@@ -10,11 +10,12 @@ import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import type { Claim } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import type { GraphKernel } from '../src/engines/graph/trace';
+import { kernel as bipartiteMatching } from '../src/kernels/graph/bipartite-matching';
 import { kernel as edmondsKarp } from '../src/kernels/graph/edmonds-karp';
 import { kernel as fordFulkerson } from '../src/kernels/graph/ford-fulkerson';
 import { kernel as minCostFlow } from '../src/kernels/graph/min-cost-flow';
 import { kernel as preflowPush } from '../src/kernels/graph/preflow-push';
-import { dinic, successiveShortestPaths } from './support/graph-oracles';
+import { dinic, hopcroftKarp, successiveShortestPaths } from './support/graph-oracles';
 
 interface Entry { id: string; claims: Claim[] }
 const { model } = loadCatalogue(process.cwd()) as { model: { entries: Entry[] } };
@@ -97,6 +98,11 @@ const minimumCost: Check = (c, g) => {
   expect(c.expect.value, c.id).toBe(ref.cost);
 };
 
+/** A literal claim on the matching: Hopcroft–Karp's maximum matching size. */
+const maximumMatching: Check = (c, g) => {
+  expect(c.expect.value, c.id).toBe(hopcroftKarp(g));
+};
+
 interface Plate { id: string; kernel: GraphKernel; checks: Record<string, Check>; needs: string[] }
 
 const PLATES: Plate[] = [
@@ -131,6 +137,11 @@ const PLATES: Plate[] = [
     id: 'min-cost-flow', kernel: minCostFlow as GraphKernel,
     checks: { 'Flow value': flowValue, 'Minimum cost': minimumCost },
     needs: ['Flow value', 'Minimum cost'],
+  },
+  {
+    id: 'bipartite-matching', kernel: bipartiteMatching as GraphKernel,
+    checks: { 'Maximum matching': maximumMatching, 'König vertex cover': exactAgainst('Maximum matching') },
+    needs: ['Maximum matching', 'König vertex cover'],
   },
 ];
 
