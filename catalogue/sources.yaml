@@ -1255,3 +1255,21 @@ sources:
     year: 2018
     kind: "software"
     url: "https://github.com/gustavo-depaula/stalin-sort"
+  - id: yang-1952
+    title: The Spontaneous Magnetization of a Two-Dimensional Ising Model (Physical Review 85, 808–816)
+    author: C. N. Yang
+    year: 1952
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.85.808
+  - id: onsager-1944
+    title: 'Crystal Statistics. I. A Two-Dimensional Model with an Order-Disorder Transition (Physical Review 65, 117–149)'
+    author: Lars Onsager
+    year: 1944
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.65.117
+  - id: newman-barkema-1999
+    title: Monte Carlo Methods in Statistical Physics
+    author: M. E. J. Newman, G. T. Barkema
+    publisher: Oxford University Press
+    year: 1999
+    kind: book
