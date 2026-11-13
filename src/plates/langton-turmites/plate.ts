@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import { fadeTrace } from '../_shared/trace/trace';
 import { parseTurmite, Turmite, type Ant } from './ant';
 
@@ -34,6 +35,9 @@ export const langtonTurmites: PlateCode = {
       rebuild: true },
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 4000, step: 1,
       value: 120, hint: 'Langton\'s highway starts near step 10 000.' },
+    // a stop costs nothing, so its top is not a budget's: past a million steps a reader lets it
+    // run on (0)
+    runsParam({ unit: 'steps', max: 1_000_000, note: 'A step moves every ant once.' }),
     { kind: 'range', key: 'fade', label: 'Trail fade per frame', min: 0.8, max: 0.995,
       step: 0.005, value: 0.94 },
     paletteParam('ember'),
@@ -51,6 +55,8 @@ export const langtonTurmites: PlateCode = {
     let paintOn = true;
     let history: [number, number, number][] = [];
     let frames = 0;
+    // a run is one step of the ants (src/plates/_shared/settle)
+    const stop = new StreamStop(params, 1);
     // colour tables per cell colour and glow level, rebuilt only when the palette changes
     let lutKey = '';
     let lut = new Uint8Array(0);
@@ -120,6 +126,7 @@ export const langtonTurmites: PlateCode = {
         lutKey = '';
         history = [];
         frames = 0;
+        stop.reset();
         const turns = parseTurmite(str(params, 'turmite')) ?? [1, 3];
         const ants: Ant[] = [{ x: Math.floor(w / 2), y: Math.floor(h / 2), dir: 0 }];
         for (let k = 1; k < num(params, 'ants'); k++) {
@@ -136,8 +143,10 @@ export const langtonTurmites: PlateCode = {
       dragged: (x, y) => brush(x, y),
       draw() {
         tables();
-        const n = ctx.thumbnail ? 160 : num(params, 'speed');
+        // clamped to the stop: the frame that reaches it steps only the steps left
+        const n = stop.allow(ctx.thumbnail ? 160 : num(params, 'speed'));
         for (let k = 0; k < n; k++) ant.step();
+        stop.advance(n);
         paint(num(params, 'fade'));
         p.background(...ctx.bg);
         const [ox, oy] = offset();
@@ -155,7 +164,8 @@ export const langtonTurmites: PlateCode = {
 
         const a = ant;
         frames++;
-        if (!ctx.thumbnail) {
+        // held at the stop, the chart keeps its points rather than repeating the last one
+        if (!ctx.thumbnail && n > 0) {
           history.push([a.steps, a.visitedCount, a.coloured]);
           if (history.length > CHART_POINTS) history.shift();
         }
@@ -183,6 +193,7 @@ export const langtonTurmites: PlateCode = {
               + `since step ${hw.exact ? '' : '≤ '}${fmt(hw.since)}`
             : 'none detected' },
           { label: 'board', value: `${w}×${h} (torus)` },
+          ...stop.rows(),
         ]);
       },
     };

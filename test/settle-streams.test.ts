@@ -299,3 +299,19 @@ describe('gray-scott stops at a reaction-diffusion step', () => {
     expect(await settled('gray-scott', COMPLETED_RUNS, p)).toBe('1,000 of 1,000, stopped');
   });
 });
+
+describe('langton-turmites stops at a step of the ants', () => {
+  common('langton-turmites', 'steps', 1_000_000, 60);
+
+  it('settles at step 12000 when a frame steps 7, and reads that board', async () => {
+    // 12000 / 7 is not whole; the board after 12000 steps is 100 frames of 120 steps
+    const free = await after('langton-turmites', {}, 100);
+    expect(free.steps).toBe('12,000');
+    const p = { speed: 7, [RUNS_KEY]: 12_000 };
+    expect(await settled('langton-turmites', 'steps', p)).toBe('12,000');
+    for (const r of ['cells visited', 'coloured cells']) {
+      expect(await settled('langton-turmites', r, p), r).toBe(free[r]);
+    }
+    expect(await settled('langton-turmites', COMPLETED_RUNS, p)).toBe('12,000 of 12,000, stopped');
+  });
+});
