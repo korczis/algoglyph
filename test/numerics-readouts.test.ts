@@ -108,3 +108,66 @@ describe('simpson-quadrature: a cubic integrand and Simpson’s error on its own
     expect(Math.abs(independent - estimate) / estimate).toBeLessThan(1e-3);
   }, 120_000);
 });
+
+describe('cubic-splines publishes its measured convergence order', () => {
+  /** The natural spline's knot curvatures by dense Gaussian elimination with partial pivoting. */
+  function naturalCurvatures(xs: number[], ys: number[]): number[] {
+    const n = xs.length;
+    const A = Array.from({ length: n }, () => new Array<number>(n + 1).fill(0));
+    A[0][0] = 1; A[n - 1][n - 1] = 1;
+    for (let i = 1; i < n - 1; i++) {
+      const h0 = xs[i] - xs[i - 1]; const h1 = xs[i + 1] - xs[i];
+      A[i][i - 1] = h0 / 6; A[i][i] = (h0 + h1) / 3; A[i][i + 1] = h1 / 6;
+      A[i][n] = (ys[i + 1] - ys[i]) / h1 - (ys[i] - ys[i - 1]) / h0;
+    }
+    for (let c = 0; c < n; c++) {
+      let p = c;
+      for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      [A[c], A[p]] = [A[p], A[c]];
+      for (let r = c + 1; r < n; r++) {
+        const f = A[r][c] / A[c][c];
+        for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k];
+      }
+    }
+    const m = new Array<number>(n).fill(0);
+    for (let r = n - 1; r >= 0; r--) {
+      let s = A[r][n];
+      for (let k = r + 1; k < n; k++) s -= A[r][k] * m[k];
+      m[r] = s / A[r][r];
+    }
+    return m;
+  }
+  /** Max |f − s| on the 801-point grid of [−1, 1], for n equally spaced knots. */
+  function maxError(f: (x: number) => number, n: number): number {
+    const xs = Array.from({ length: n }, (_, i) => -1 + (2 * i) / (n - 1));
+    const ys = xs.map(f);
+    const m = naturalCurvatures(xs, ys);
+    let e = 0;
+    for (let g = 0; g <= 800; g++) {
+      const x = -1 + g / 400;
+      const i = Math.min(n - 2, Math.max(0, Math.floor((x + 1) / (2 / (n - 1)))));
+      const h = xs[i + 1] - xs[i];
+      const A = (xs[i + 1] - x) / h; const B = (x - xs[i]) / h;
+      const s = A * ys[i] + B * ys[i + 1] + ((A ** 3 - A) * m[i] + (B ** 3 - B) * m[i + 1]) * h * h / 6;
+      e = Math.max(e, Math.abs(s - f(x)));
+    }
+    return e;
+  }
+  /** Least-squares slope of log error against log h over n = 13…25, the last halving of h. */
+  function order(f: (x: number) => number): number {
+    const pts = Array.from({ length: 13 }, (_, k) => 13 + k).map((n) => [Math.log(2 / (n - 1)), Math.log(maxError(f, n))]);
+    const mx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+    const my = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    return pts.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0) / pts.reduce((s, [x]) => s + (x - mx) ** 2, 0);
+  }
+  const targets: Record<string, (x: number) => number> = {
+    sine: (x) => Math.sin(3 * x), runge: (x) => 1 / (1 + 25 * x * x),
+  };
+  for (const [key, f] of Object.entries(targets)) {
+    it(`matches an independent dense-solve fit on ${key}`, async () => {
+      const r = await reading('cubic-splines', 'Measured order, last halving of h', { target: key });
+      // four significant digits on display
+      expect(Math.abs(r.value - order(f)), `${r.text} against ${order(f)}`).toBeLessThanOrEqual(5e-4);
+    }, 120_000);
+  }
+});
