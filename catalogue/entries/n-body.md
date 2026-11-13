@@ -10,6 +10,10 @@ tags:
   - 3D
 complexity: O(n²) per step, leapfrog KDK
 interaction: Drag to orbit, scroll to zoom.
+relations:
+  - type: generalizes
+    target: kepler-orbits
+    reason: Two bodies, one heavy enough to stay put, are the Kepler problem; here every body pulls on every other, with a softening length.
 ---
 
 Newtonian gravity between every pair of bodies: a disc in orbit, two galaxies colliding, or a cold cube collapsing into a cluster. Drag to orbit.
