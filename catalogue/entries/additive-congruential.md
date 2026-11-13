@@ -13,6 +13,92 @@ tags:
 complexity: 'one addition per number, a table of 55 words'
 related:
   - linear-congruential
+claims:
+  - id: chi-square-within-three-sd-seed-1
+    statement: >-
+      The 4,096 outputs scaled to [0, 1) fill 16 equal bins as uniform numbers do: χ² with 15
+      degrees of freedom has mean 15 and standard deviation √30 ≈ 5.48, and it stays below 15 + 3√30
+      = 31.43, plus 0.005 of display rounding, on seed 1 of the fixed seed set 1–5.
+    readout: χ² over 16 bins (15 dof)
+    expect: { below: 31.44 }
+    setup:
+      seed: 1
+  - id: serial-correlation-within-three-se-seed-1
+    statement: >-
+      The lag-one serial correlation of the 4,096 outputs is within three standard errors of 0,
+      ±3/√4096 = ±0.046875 (plus display rounding), on seed 1 of the fixed seed set 1–5.
+    readout: Serial correlation
+    expect: { range: [-0.04688, 0.04688] }
+    setup:
+      seed: 1
+  - id: chi-square-within-three-sd-seed-2
+    statement: >-
+      The 4,096 outputs scaled to [0, 1) fill 16 equal bins as uniform numbers do: χ² with 15
+      degrees of freedom has mean 15 and standard deviation √30 ≈ 5.48, and it stays below 15 + 3√30
+      = 31.43, plus 0.005 of display rounding, on seed 2 of the fixed seed set 1–5.
+    readout: χ² over 16 bins (15 dof)
+    expect: { below: 31.44 }
+    setup:
+      seed: 2
+  - id: serial-correlation-within-three-se-seed-2
+    statement: >-
+      The lag-one serial correlation of the 4,096 outputs is within three standard errors of 0,
+      ±3/√4096 = ±0.046875 (plus display rounding), on seed 2 of the fixed seed set 1–5.
+    readout: Serial correlation
+    expect: { range: [-0.04688, 0.04688] }
+    setup:
+      seed: 2
+  - id: chi-square-within-three-sd-seed-3
+    statement: >-
+      The 4,096 outputs scaled to [0, 1) fill 16 equal bins as uniform numbers do: χ² with 15
+      degrees of freedom has mean 15 and standard deviation √30 ≈ 5.48, and it stays below 15 + 3√30
+      = 31.43, plus 0.005 of display rounding, on seed 3 of the fixed seed set 1–5.
+    readout: χ² over 16 bins (15 dof)
+    expect: { below: 31.44 }
+    setup:
+      seed: 3
+  - id: serial-correlation-within-three-se-seed-3
+    statement: >-
+      The lag-one serial correlation of the 4,096 outputs is within three standard errors of 0,
+      ±3/√4096 = ±0.046875 (plus display rounding), on seed 3 of the fixed seed set 1–5.
+    readout: Serial correlation
+    expect: { range: [-0.04688, 0.04688] }
+    setup:
+      seed: 3
+  - id: chi-square-within-three-sd-seed-4
+    statement: >-
+      The 4,096 outputs scaled to [0, 1) fill 16 equal bins as uniform numbers do: χ² with 15
+      degrees of freedom has mean 15 and standard deviation √30 ≈ 5.48, and it stays below 15 + 3√30
+      = 31.43, plus 0.005 of display rounding, on seed 4 of the fixed seed set 1–5.
+    readout: χ² over 16 bins (15 dof)
+    expect: { below: 31.44 }
+    setup:
+      seed: 4
+  - id: serial-correlation-within-three-se-seed-4
+    statement: >-
+      The lag-one serial correlation of the 4,096 outputs is within three standard errors of 0,
+      ±3/√4096 = ±0.046875 (plus display rounding), on seed 4 of the fixed seed set 1–5.
+    readout: Serial correlation
+    expect: { range: [-0.04688, 0.04688] }
+    setup:
+      seed: 4
+  - id: chi-square-within-three-sd-seed-5
+    statement: >-
+      The 4,096 outputs scaled to [0, 1) fill 16 equal bins as uniform numbers do: χ² with 15
+      degrees of freedom has mean 15 and standard deviation √30 ≈ 5.48, and it stays below 15 + 3√30
+      = 31.43, plus 0.005 of display rounding, on seed 5 of the fixed seed set 1–5.
+    readout: χ² over 16 bins (15 dof)
+    expect: { below: 31.44 }
+    setup:
+      seed: 5
+  - id: serial-correlation-within-three-se-seed-5
+    statement: >-
+      The lag-one serial correlation of the 4,096 outputs is within three standard errors of 0,
+      ±3/√4096 = ±0.046875 (plus display rounding), on seed 5 of the fixed seed set 1–5.
+    readout: Serial correlation
+    expect: { range: [-0.04688, 0.04688] }
+    setup:
+      seed: 5
 ---
 
 Each number the sum of two earlier ones in a shift register, with a very long period.
