@@ -5,7 +5,7 @@
 //   rebuild   the frames after a run ends: a loop or a new input built inside draw()
 //   drag      a slider moved without a remount: params change between frames
 // The corners are derived from the plate's own controls, never listed per plate.
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { CATALOGUE, ENTRIES } from '../../src/core/catalogue';
@@ -254,6 +254,12 @@ function judge(where: string, m: Reading) {
   const on = (factor > 1 ? `, this machine ${factor.toFixed(2)}× the reference` : '')
     + (headroom < 1 ? `, local headroom ${headroom}` : '');
   const b = scaled();
+  // BUDGET_REPORT=<file>: every reading, passing or not, as one JSON line (what each corner costs
+  // against its budget, so a margin below the budget can be measured before it is enforced)
+  if (process.env.BUDGET_REPORT) {
+    appendFileSync(process.env.BUDGET_REPORT, `${JSON.stringify({ where, at: m.at, frame: m.frame,
+      create: m.create, frameBudget: b.frame, createBudget: b.create })}\n`);
+  }
   expect(m.create, `${where}: ${m.create.toFixed(0)} ms to create${on}`).toBeLessThanOrEqual(b.create);
   expect(m.frame, `${where}: ${m.frame.toFixed(1)} ms per frame${at}${on}`).toBeLessThanOrEqual(b.frame);
 }
