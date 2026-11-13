@@ -5,7 +5,7 @@ import type { Params, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32, shuffle } from '../src/core/random';
 import {
   Delaunay, LATTICE, inCircle, minAngle, orient,
-} from '../src/plates/bowyer-watson-delaunay/bowyer';
+} from '../src/plates/_shared/delaunay/delaunay';
 import plate, { FADE, highlight, scatter } from '../src/plates/bowyer-watson-delaunay/plate';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 

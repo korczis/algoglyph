@@ -6,7 +6,7 @@ import { defaults, type SelectParam } from '../src/core/plate';
 import { DEFAULT_SEED } from '../src/core/claims';
 import { mulberry32 } from '../src/core/random';
 import { parse, serialise } from '../src/core/share';
-import { Delaunay, LATTICE, orient } from '../src/plates/bowyer-watson-delaunay/bowyer';
+import { Delaunay, LATTICE, orient } from '../src/plates/_shared/delaunay/delaunay';
 import { scatter } from '../src/plates/bowyer-watson-delaunay/plate';
 import { loadPlate } from '../src/registry';
 import { nthNumber, read, type Claim } from './support/claims';
