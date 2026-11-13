@@ -3,6 +3,7 @@ import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { binary, neighbourhoods, next } from './rule';
 import { Pacer, paceParam } from '../../core/pace';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 
 export const ruleWeaver: PlateCode = {
   id: 'rule-weaver',
@@ -22,6 +23,10 @@ export const ruleWeaver: PlateCode = {
       ],
     },
     paceParam(),
+    // a stop costs nothing, so its top is not a budget's: past 100 000 generations a reader lets
+    // it run on (0)
+    runsParam({ unit: 'generations', max: 100_000,
+      note: 'A generation is one new row below the first.' }),
     { kind: 'toggle', key: 'legend', label: 'Show the rule legend', value: true },
     paletteParam('riso'),
   ],
@@ -35,6 +40,8 @@ export const ruleWeaver: PlateCode = {
     let nextRow: Uint8Array;
     let generation = 0;
     let cell = 4;
+    // a run is one generation, a row computed below the first (src/plates/_shared/settle)
+    const stop = new StreamStop(params, 1);
 
     const paint = (y: number) => {
       const pal = ctx.palette();
@@ -66,10 +73,13 @@ export const ruleWeaver: PlateCode = {
         hood.fill(7);
         paint(0);
         generation = 1;
+        stop.reset();
       },
       draw() {
         const rule = num(params, 'rule');
-        const steps = ctx.thumbnail ? 2 : pacer.take(params);
+        // clamped to the stop: the frame that reaches it steps only the generations left
+        const steps = stop.allow(ctx.thumbnail ? 2 : pacer.take(params));
+        stop.advance(steps);
         for (let k = 0; k < steps; k++) {
           // hood keeps the parents' neighbourhoods, so paint() colours a cell by its birth
           neighbourhoods(row, hood);
@@ -118,6 +128,7 @@ export const ruleWeaver: PlateCode = {
           { label: 'live cells', value: `${((100 * alive) / row.length).toFixed(1)} %` },
           { label: 'width', value: `${row.length} cells (ring)` },
           pacer.row(params),
+          ...stop.rows(),
         ]);
       },
     };

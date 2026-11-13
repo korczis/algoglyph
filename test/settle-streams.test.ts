@@ -343,3 +343,32 @@ describe('life-like-automata stops at a generation', () => {
     });
   }
 });
+
+/** Rule 90 from a single live cell on a ring of `width` cells, after `n` generations. */
+function rule90(width: number, n: number): number {
+  let row = new Uint8Array(width);
+  row[Math.floor(width / 2)] = 1;
+  for (let g = 0; g < n; g++) {
+    const next = new Uint8Array(width);
+    for (let i = 0; i < width; i++) next[i] = row[(i + width - 1) % width] ^ row[(i + 1) % width];
+    row = next;
+  }
+  return row.reduce((a, b) => a + b, 0);
+}
+
+describe('rule-weaver stops at a generation', () => {
+  common('rule-weaver', 'generations', 100_000, 60);
+
+  for (const k of [63, 99]) {
+    it(`settles at generation ${k} of rule 90 and reads that row`, async () => {
+      // 200 cells at 800 px; a frame steps up to 8 generations, a multiple of neither
+      const live = rule90(200, k);
+      expect(live).not.toBe(rule90(200, k + 1));
+      expect(live).not.toBe(rule90(200, k - 1));
+      const p = { rule: 90, [RUNS_KEY]: k };
+      const share = `${((100 * live) / 200).toFixed(1)} %`;
+      expect(await settled('rule-weaver', 'live cells', p)).toBe(share);
+      expect(await settled('rule-weaver', COMPLETED_RUNS, p)).toBe(`${k} of ${k}, stopped`);
+    });
+  }
+});
