@@ -39,6 +39,8 @@ export const ruleWeaver: PlateCode = {
     let hood: Uint8Array;
     let nextRow: Uint8Array;
     let generation = 0;
+    // live cells of generation 0, against which a rule that conserves them (184) is read
+    let firstAlive = 0;
     let cell = 4;
     // a run is one generation, a row computed below the first (src/plates/_shared/settle)
     const stop = new StreamStop(params, 1);
@@ -70,6 +72,8 @@ export const ruleWeaver: PlateCode = {
           const density = start === 'sparse' ? 0.08 : 0.5;
           for (let i = 0; i < cols; i++) row[i] = ctx.rnd() < density ? 1 : 0;
         }
+        firstAlive = 0;
+        for (let i = 0; i < cols; i++) firstAlive += row[i];
         hood.fill(7);
         // the first row is generation 0; each step below adds one, so the label is the row shown
         paint(0);
@@ -123,10 +127,12 @@ export const ruleWeaver: PlateCode = {
 
         let alive = 0;
         for (let i = 0; i < row.length; i++) alive += row[i];
+        const percent = (n: number) => `${((100 * n) / row.length).toFixed(1)} %`;
         ctx.stats([
           { label: 'rule', value: `${rule} = ${binary(rule)}₂` },
           { label: 'generation', value: generation.toLocaleString('en') },
-          { label: 'live cells', value: `${((100 * alive) / row.length).toFixed(1)} %` },
+          { label: 'live cells', value: percent(alive) },
+          { label: 'live cells in the first row', value: percent(firstAlive) },
           { label: 'width', value: `${row.length} cells (ring)` },
           pacer.row(params),
           ...stop.rows(),
