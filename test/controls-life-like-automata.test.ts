@@ -2,8 +2,11 @@
 // patterns already in life.ts), centred on the board like the R-pentomino; the default, the
 // random soup, is unchanged and draws the same numbers. Each check reads the plate through the
 // claims instrument (test/support/claims.ts) against Conway's rule written out below,
-// independent of the plate's life.ts.
+// independent of the plate's life.ts. Last, the oracles of the entry's claims, counted here on
+// that board and compared with the values the claims state.
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error -- plain ESM shared with the node tooling
+import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import { DEFAULT_SEED } from '../src/core/claims';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import { defaults, type Params, type Plate, type PlateContext, type Stat } from '../src/core/plate';
@@ -167,5 +170,64 @@ describe('life-like-automata: the presets blinker, block and glider', () => {
     expect(firstNumber(await settled('population', { preset: 'glider', [RUNS_KEY]: 40 }))).toBe(5);
     expect(await settled('period of the board', { preset: 'glider', [RUNS_KEY]: 40 }))
       .toMatch(/^not periodic/);
+  });
+});
+
+/** The entry's claims as the catalogue loads them. */
+function claimsOf(id: string): Claim[] {
+  type Model = { model: { entries: { id: string; claims: Claim[] }[] } };
+  const { model } = loadCatalogue(process.cwd()) as Model;
+  return model.entries.find((e) => e.id === id)?.claims ?? [];
+}
+
+const GUN = [
+  '........................O...........',
+  '......................O.O...........',
+  '............OO......OO............OO',
+  '...........O...O....OO............OO',
+  'OO........O.....O...OO..............',
+  'OO........O...O.OO....O.O...........',
+  '..........O.....O.......O...........',
+  '...........O...O....................',
+  '............OO......................',
+];
+
+describe('life-like-automata: the oracles of the entry\'s claims', () => {
+  const claims = claimsOf(ID);
+  const byId = (id: string) => {
+    const c = claims.find((x) => x.id === id);
+    expect(c, `catalogue/entries/${ID}.md claim ${id}`).toBeDefined();
+    return c as Claim;
+  };
+
+  it('gun-population-at-300: 36 + 5k at every 30k, up to generation 5280, here', () => {
+    // the gun as the plate places it: its corner at (⌊0.08 W⌋, ⌊0.12 H⌋) = (21, 19)
+    const g = new Board().place(GUN, Math.floor(W * 0.08), Math.floor(H * 0.12));
+    expect(g.population).toBe(36);
+    let last = 0;
+    for (let n = 1; n <= 5310; n++) {
+      g.step();
+      if (n % 30) continue;
+      if (g.population !== 36 + 5 * (n / 30)) break;
+      last = n;
+    }
+    // the stream holds the count for 176 periods; the 177th breaks it (the stream has wrapped
+    // round the torus into the gun)
+    expect(last).toBe(5280);
+    const c = byId('gun-population-at-300');
+    expect(c.setup?.params).toEqual({ preset: 'gun', [RUNS_KEY]: 300 });
+    expect(c.expect).toEqual({ value: 36 + 5 * (300 / 30) });
+  });
+
+  it('blinker-period-2 and block-period-1: stopped where the detector has confirmed them', () => {
+    // a repeated hash at generation p proposes p; the board is compared one period later, at 2p
+    for (const [id, preset, period] of [
+      ['blinker-period-2', 'blinker', 2], ['block-period-1', 'block', 1],
+    ] as const) {
+      const c = byId(id);
+      expect(c.readout).toBe('period of the board');
+      expect(c.expect).toEqual({ value: period });
+      expect(c.setup?.params).toEqual({ preset, [RUNS_KEY]: 2 * period });
+    }
   });
 });
