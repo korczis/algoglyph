@@ -7,6 +7,8 @@ export interface Claim {
   statement: string;
   readout: string;
   expect: {
+    /** Which number of this readout is read (from 1; default 1). */
+    number?: number;
     value?: number; tolerance?: number; range?: [number, number]; below?: number; above?: number;
     /** Compare with another readout (or another number of the same one): the claim judges
      * readout − against, with tolerance (|difference|), below or above. */
@@ -28,14 +30,17 @@ export function expectationText(claim: Claim): string {
     const other = x.against === claim.readout
       ? `its number ${x.against_number ?? 1}`
       : `${x.against}${x.against_number ? ` (number ${x.against_number})` : ''}`;
-    const of = `${claim.readout} minus ${other}${x.offset ? ` minus ${x.offset}` : ''}`;
+    const self = x.number && x.number !== 1 ? `${claim.readout} (number ${x.number})` : claim.readout;
+    const of = `${self} minus ${other}${x.offset ? ` minus ${x.offset}` : ''}`;
     if (x.tolerance !== undefined) return `${of} within ±${x.tolerance}`;
     return x.below !== undefined ? `${of} below ${x.below}` : `${of} above ${x.above}`;
   }
-  if (x.range) return `between ${x.range[0]} and ${x.range[1]}`;
-  if (x.below !== undefined) return `below ${x.below}`;
-  if (x.above !== undefined) return `above ${x.above}`;
-  return x.tolerance ? `${x.value} ± ${x.tolerance}` : `exactly ${x.value}`;
+  // a claim reading another than the first number says which, beside the readout's label
+  const its = x.number && x.number !== 1 ? `its number ${x.number} ` : '';
+  if (x.range) return `${its}between ${x.range[0]} and ${x.range[1]}`;
+  if (x.below !== undefined) return `${its}below ${x.below}`;
+  if (x.above !== undefined) return `${its}above ${x.above}`;
+  return its + (x.tolerance ? `${x.value} ± ${x.tolerance}` : `exactly ${x.value}`);
 }
 
 /** The run a claim is about, in short: its changed parameters and its seed. */

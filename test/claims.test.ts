@@ -123,6 +123,20 @@ describe('the claims instrument', () => {
     expect(third.reason).toMatch(/has no number 9/);
   }, 120_000);
 
+  it('reads the k-th number of the claim\'s own readout when expect.number names it', async () => {
+    const first = await read('bootstrap-ci', base);
+    const second = await read('bootstrap-ci', { ...base, expect: { range: [0, 100], number: 2 } });
+    expect(second.reason).toBeUndefined();
+    expect(second.value).toBe(nthNumber(second.text as string, 2));
+    expect(second.value).not.toBe(first.value);
+    // and in a comparison, this readout's k-th number minus the other's
+    const vs: Claim = { ...base, readout: 'Posterior mean', expect: { against: 'Closed form Beta mean', tolerance: 1, number: 1 } };
+    const r = await read('bayes-update', vs);
+    expect(r.reason).toBeUndefined();
+    const beyond = await read('bootstrap-ci', { ...base, expect: { range: [0, 100], number: 99 } });
+    expect(beyond.reason).toMatch(/readout "90% intervals covering" has no number 99: /);
+  }, 120_000);
+
   it('waits for the completed runs a plate that runs on is asked to stop after', async () => {
     // a trial plate finishes several runs a frame, a scaling plate pauses between runs: both are
     // read on their k-th completed run, never in a pause between two runs
@@ -183,6 +197,16 @@ describe('the claims schema', () => {
     expect(vs('{ range: [0, 1], against_number: 2 }')).toMatch(/expect\.against_number needs expect\.against/);
     expect(vs('{ range: [0, 1], offset: 1 }')).toMatch(/expect\.offset is a difference from expect\.against/);
     expect(vs('{ against: Other, offset: 1, tolerance: 0 }')).toBe('');
+  });
+
+  it('refuses an expect.number that is not a positive integer', () => {
+    const n = (x: string) => errorsWith(ok.replace('{ range: [0, 1] }', x)).join('\n');
+    expect(n('{ range: [0, 1], number: 2 }')).toBe('');
+    expect(n('{ against: Other, tolerance: 0.1, number: 3 }')).toBe('');
+    expect(n('{ range: [0, 1], number: 0 }')).toMatch(/expect\.number is a positive integer, counting from 1/);
+    expect(n('{ range: [0, 1], number: -1 }')).toMatch(/expect\.number is a positive integer, counting from 1/);
+    expect(n('{ range: [0, 1], number: 1.5 }')).toMatch(/expect\.number is a positive integer, counting from 1/);
+    expect(n('{ range: [0, 1], number: two }')).toMatch(/claims\[0\]\.expect\.number: expected an integer/);
   });
 
   it('refuses a reader-data option in a setup, and passes an ordinary select value', () => {

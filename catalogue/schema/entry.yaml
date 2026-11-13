@@ -97,12 +97,13 @@ fields:
       fields:
         id: { type: id, required: true, doc: Unique within the entry. }
         statement: { type: string, required: true, min_length: 12, doc: The claim in words, as a reader checks it. }
-        readout: { type: string, required: true, doc: The label of a readout the plate publishes; its value's first number is read. }
+        readout: { type: string, required: true, doc: "The label of a readout the plate publishes; its value's first number is read, or the one expect.number names." }
         expect:
           type: map
           required: true
           doc: What the statement predicts for that number, in the readout's own units (a percentage stays a percentage).
           fields:
+            number: { type: integer, doc: "Which number of the claim's own readout is read (from 1; default 1), as against_number counts the other's." }
             value: { type: number, doc: The predicted value; with tolerance, an interval around it. }
             tolerance: { type: number, doc: Allowed distance from value; 0 when absent. }
             range: { type: list, of: { type: number }, doc: '[lo, hi], inclusive.' }

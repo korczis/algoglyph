@@ -1,6 +1,6 @@
 // The one instrument for every entry's claims (ADR 0007, catalogue/schema/entry.yaml `claims`):
 // run the plate headless with the claim's setup and seed until its readouts settle, read the
-// named readout's first number and judge it against the claim's expectation. No entry has test
+// named readout's first number (or the one expect.number names) and judge it against the claim's expectation. No entry has test
 // code of its own; the evidence is this run, never an authored value.
 import { GROUNDS, palette as lookupPalette } from '../../src/core/palette';
 import { defaults, type Params, type PlateContext, type Stat } from '../../src/core/plate';
@@ -92,11 +92,17 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   if (!row) {
     return { frames, reason: `${id} publishes no readout "${claim.readout}"; it publishes: ${rows.map((r) => `"${r.label}"`).join(', ')}` };
   }
-  const value = firstNumber(row.value);
-  if (value === null) return { frames, text: row.value, reason: `readout "${claim.readout}" shows no number: ${row.value}` };
   const x = claim.expect;
+  // the claim's own readout is read at the number it names (expect.number, from 1), else its first
+  const nth = x.number ?? 1;
+  const value = nthNumber(row.value, nth);
+  if (value === null) {
+    return { frames, text: row.value, reason: x.number === undefined
+      ? `readout "${claim.readout}" shows no number: ${row.value}`
+      : `readout "${claim.readout}" has no number ${nth}: ${row.value}` };
+  }
   if (x.against === undefined) return { frames, value, text: row.value };
-  // a comparison: the claim judges this readout's first number minus the other's chosen number
+  // a comparison: the claim judges this readout's number read minus the other's chosen number
   const other = rows.find((r) => r.label === x.against);
   if (!other) {
     return { frames, reason: `${id} publishes no readout "${x.against}" to compare with; it publishes: ${rows.map((r) => `"${r.label}"`).join(', ')}` };

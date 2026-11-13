@@ -74,3 +74,12 @@ refused where the catalogue is checked with code.
   under a second each.
 - Later waves add claims wherever a plate measures something; wave 3 (inference) uses them
   for its measured outcomes.
+
+## Amendment (2026-11-13): which number a claim reads
+
+`expect.number` (a positive integer, from 1, default 1) names which number of the claim's own
+readout the instrument reads, as `expect.against_number` names the other readout's. Everything
+above that says "first number" reads "the number `expect.number` names". A `number` of 0, a
+negative or fractional one, or one that is not an integer is refused where the catalogue is
+checked; a `number` beyond the numbers the readout shows fails the claim, the instrument naming
+the readout and its text. The card says which number it reads ("its number 2 below 0.5").

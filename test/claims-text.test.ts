@@ -24,6 +24,14 @@ describe('a claim in words', () => {
     expect(expectationText(c({ against: 'Chain', offset: 1, tolerance: 0 }))).toBe('Coverage minus Chain minus 1 within ±0');
   });
 
+  it('states which number of the readout a claim reads, when it is not the first', () => {
+    expect(expectationText(c({ below: 0.5, number: 2 }))).toBe('its number 2 below 0.5');
+    expect(expectationText(c({ range: [0, 1], number: 3 }))).toBe('its number 3 between 0 and 1');
+    expect(expectationText(c({ value: 1, number: 1 }))).toBe('exactly 1');
+    expect(expectationText(c({ against: 'Exact', number: 2, tolerance: 0.01 }))).toBe('Coverage (number 2) minus Exact within ±0.01');
+    expect(expectationText(c({ against: 'Coverage', number: 2, against_number: 3, above: 0 }))).toBe('Coverage (number 2) minus its number 3 above 0');
+  });
+
   it('states the run, with the default seed when the claim names none', () => {
     expect(setupText(c({ value: 1 }))).toBe('seed 4242');
     expect(setupText(c({ value: 1 }, { params: { n: 200, population: 'normal' }, seed: 7 }))).toBe('n 200, population normal, seed 7');

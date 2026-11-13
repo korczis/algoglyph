@@ -3,7 +3,7 @@
 /**
  * The static form of a list of claims (ADR 0007): exactly one of value, range, below and above; a
  * range is [lo, hi] with lo <= hi; a tolerance only around a value; a comparison judged by exactly
- * one of tolerance, below and above; ids unique within the list; no setup value naming a reader's
+ * one of tolerance, below and above; expect.number, the readout's number read, a positive integer; ids unique within the list; no setup value naming a reader's
  * data option (data:<id>, ADR 0010), which the instrument cannot pass. Whether a claim's readout exists
  * and its value holds is the plate's to show: test/claims.test.ts runs it. One definition, for an
  * entry's claims and a figure's (scripts/lib/figures.mjs).
@@ -32,6 +32,7 @@ export function claimErrors(claims) {
       if (x.against_number !== undefined) err('expect.against_number needs expect.against');
       if (x.offset !== undefined) err('expect.offset is a difference from expect.against');
     }
+    if (x.number !== undefined && !(Number.isInteger(x.number) && x.number >= 1)) err('expect.number is a positive integer, counting from 1');
     if (hasRange && (x.range.length !== 2 || x.range[0] > x.range[1])) err('expect.range must be [lo, hi] with lo <= hi');
     if (x.tolerance !== undefined && !hasValue && !against) err('expect.tolerance is a distance around expect.value');
     if (typeof x.tolerance === 'number' && x.tolerance < 0) err('expect.tolerance cannot be negative');
