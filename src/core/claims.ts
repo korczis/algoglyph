@@ -16,7 +16,8 @@ export interface Claim {
     /** With against: the difference the claim states; it judges readout − against − offset. */
     offset?: number;
   };
-  setup?: { params?: Record<string, string | number | boolean>; seed?: number };
+  /** seed: the one run's seed; seeds: the claim holds at every one, each a run of its own. */
+  setup?: { params?: Record<string, string | number | boolean>; seed?: number; seeds?: number[] };
   source?: string;
 }
 
@@ -46,5 +47,12 @@ export function expectationText(claim: Claim): string {
 /** The run a claim is about, in short: its changed parameters and its seed. */
 export function setupText(claim: Claim): string {
   const params = Object.entries(claim.setup?.params ?? {}).map(([k, v]) => `${k} ${v}`);
-  return [...params, `seed ${claim.setup?.seed ?? DEFAULT_SEED}`].join(', ');
+  const seeds = claim.setup?.seeds;
+  const run = seeds ? `every seed of ${seeds.join(', ')}` : `seed ${claim.setup?.seed ?? DEFAULT_SEED}`;
+  return [...params, run].join(', ');
+}
+
+/** The seeds a claim runs at: every one it lists, else its one seed (4242 when it names none). */
+export function claimSeeds(claim: Claim): number[] {
+  return claim.setup?.seeds ?? [claim.setup?.seed ?? DEFAULT_SEED];
 }

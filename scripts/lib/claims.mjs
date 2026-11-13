@@ -3,7 +3,8 @@
 /**
  * The static form of a list of claims (ADR 0007): exactly one of value, range, below and above; a
  * range is [lo, hi] with lo <= hi; a tolerance only around a value; a comparison judged by exactly
- * one of tolerance, below and above; expect.number, the readout's number read, a positive integer; ids unique within the list; no setup value naming a reader's
+ * one of tolerance, below and above; expect.number, the readout's number read, a positive integer;
+ * setup.seeds a non-empty list without repeats, never beside setup.seed; ids unique within the list; no setup value naming a reader's
  * data option (data:<id>, ADR 0010), which the instrument cannot pass. Whether a claim's readout exists
  * and its value holds is the plate's to show: test/claims.test.ts runs it. One definition, for an
  * entry's claims and a figure's (scripts/lib/figures.mjs).
@@ -36,6 +37,17 @@ export function claimErrors(claims) {
     if (hasRange && (x.range.length !== 2 || x.range[0] > x.range[1])) err('expect.range must be [lo, hi] with lo <= hi');
     if (x.tolerance !== undefined && !hasValue && !against) err('expect.tolerance is a distance around expect.value');
     if (typeof x.tolerance === 'number' && x.tolerance < 0) err('expect.tolerance cannot be negative');
+    // seeds: one claim held at every listed seed (ADR 0007 amendment), never beside a single seed
+    const seeds = c.setup?.seeds;
+    if (seeds !== undefined && c.setup?.seed !== undefined) err('setup.seed and setup.seeds are exclusive: a claim runs at one seed or at every seed of a list');
+    if (Array.isArray(seeds)) {
+      if (!seeds.length) err('setup.seeds lists at least one seed');
+      const seen = new Set();
+      for (const s of seeds) {
+        if (seen.has(s)) err(`setup.seeds lists seed ${s} twice`);
+        seen.add(s);
+      }
+    }
     // a reader's own data (ADR 0010) never reaches the instrument: its context carries no `data`,
     // so the plate would run its generated input under that option and the claim would read it
     const params = c.setup?.params;

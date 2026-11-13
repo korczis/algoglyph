@@ -37,6 +37,11 @@ describe('a claim in words', () => {
     expect(setupText(c({ value: 1 }, { params: { n: 200, population: 'normal' }, seed: 7 }))).toBe('n 200, population normal, seed 7');
   });
 
+  it('states a claim held at every seed of a list, one run per seed', () => {
+    expect(setupText(c({ below: 1 }, { params: { n: 200 }, seeds: [1, 2, 3, 4, 5] }))).toBe('n 200, every seed of 1, 2, 3, 4, 5');
+    expect(setupText(c({ below: 1 }, { seeds: [7] }))).toBe('every seed of 7');
+  });
+
   it('is the formatter the instrument reports with', () => {
     expect(expected).toBe(expectationText);
   });

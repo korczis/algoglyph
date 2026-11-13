@@ -117,7 +117,8 @@ fields:
           doc: The run the claim is about; the plate's defaults otherwise, with loop off.
           fields:
             params: { type: any, doc: Parameter values by key; each must exist on the plate. }
-            seed: { type: integer, doc: The run's seed; 4242 when absent. }
+            seed: { type: integer, doc: "The run's seed; 4242 when absent. Exclusive with seeds." }
+            seeds: { type: list, of: { type: integer }, doc: "Seeds the claim holds at, every one: the instrument runs the claim once per seed, judges each reading against the same expect, and the claim fails at the first seed that misses. Non-empty, no seed twice, exclusive with seed." }
         source: { type: source, doc: The cited work the statement comes from, when it is not the entry's notes. }
   data:
     type: list

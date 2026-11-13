@@ -4,7 +4,7 @@
 // code of its own; the evidence is this run, never an authored value.
 import { GROUNDS, palette as lookupPalette } from '../../src/core/palette';
 import { defaults, type Params, type PlateContext, type Stat } from '../../src/core/plate';
-import { type Claim, DEFAULT_SEED, expectationText } from '../../src/core/claims';
+import { type Claim, claimSeeds, DEFAULT_SEED, expectationText } from '../../src/core/claims';
 import { mulberry32 } from '../../src/core/random';
 import { COMPLETED_RUNS, RUNS_KEY } from '../../src/plates/_shared/settle/settle';
 import { loadPlate } from '../../src/registry';
@@ -36,7 +36,8 @@ export const firstNumber = (text: string): number | null => nthNumber(text, 1);
 
 export interface Reading { value?: number; text?: string; frames: number; reason?: string }
 
-/** Run entry `id`'s plate for `claim` and read its readout. A reason means no value was read. */
+/** Run entry `id`'s plate for `claim` at its one seed and read its readout. A reason means no value
+ * was read. A claim listing `seeds` is read once per seed through `failures`. */
 export async function read(id: string, claim: Claim): Promise<Reading> {
   const plate = await loadPlate(id);
   if (!plate) return { frames: 0, reason: `${id} has no plate` };
@@ -54,6 +55,7 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
     if (!plate.params.some((d) => d.key === k)) return { frames: 0, reason: `setup.params.${k} is not a parameter of ${id}` };
     params[k] = v as Params[string];
   }
+  if (claim.setup?.seeds) return { frames: 0, reason: 'a claim with setup.seeds is read once per seed: use failures()' };
   const seed = claim.setup?.seed ?? DEFAULT_SEED;
   const ground = GROUNDS.dark;
   let rows: Stat[] = [];
@@ -123,6 +125,19 @@ export function holds(claim: Claim, value: number): boolean {
   if (x.below !== undefined) return value < x.below;
   if (x.above !== undefined) return value > x.above;
   return Math.abs(value - (x.value as number)) <= (x.tolerance ?? 0);
+}
+
+/** Every way `claim` fails on entry `id`'s plate, one message per failing seed: the claim runs once
+ * at each seed it lists (`setup.seeds`, each judged against the same expect) or at its one seed.
+ * Empty when it holds. */
+export async function failures(id: string, claim: Claim): Promise<string[]> {
+  const out: string[] = [];
+  for (const seed of claimSeeds(claim)) {
+    const r = await read(id, { ...claim, setup: { params: claim.setup?.params, seed } });
+    if (r.reason !== undefined) out.push(`seed ${seed}: ${r.reason}`);
+    else if (!holds(claim, r.value as number)) out.push(`seed ${seed}: "${claim.readout}" read ${r.text} (${r.value}), expected ${expectationText(claim)}`);
+  }
+  return out;
 }
 
 /** The expectation in words, for a failure message: the page's own formatter. */

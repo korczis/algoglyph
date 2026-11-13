@@ -83,3 +83,23 @@ above that says "first number" reads "the number `expect.number` names". A `numb
 negative or fractional one, or one that is not an integer is refused where the catalogue is
 checked; a `number` beyond the numbers the readout shows fails the claim, the instrument naming
 the readout and its text. The card says which number it reads ("its number 2 below 0.5").
+
+## Amendment (2026-11-13): one claim at a list of seeds
+
+A claim read one seed, so a claim stated over a fixed seed set was written once per seed: the
+same statement, readout and expectation repeated with only `seed` changed, each its own card.
+`setup.seeds: [s1, s2, ...]` makes it one claim with this meaning: **the claim holds at every
+listed seed**. The instrument runs the plate once per seed, with the claim's own params, judges
+each reading against the same `expect`, and reports every seed that fails by its number
+(`failures` in `test/support/claims.ts`). The list is non-empty, names no seed twice, holds
+integers only, and is exclusive with `setup.seed`; each is refused where the catalogue is
+checked. The card is one card whose Run line lists the seeds ("every seed of 1, 2, 3, 4, 5");
+pages show the claim and never run it, so there is no live check to extend.
+
+No statistic across seeds (a median, "at least k of n") is defined: every claim restored to a
+seed list holds at every seed under a bound derived without those seeds, so none needs one. A
+claim whose oracle is a statistic over seeds is a later amendment, written with the claim that
+needs it. The seeds are fixed before they are read; a seed is never dropped because its reading
+misses a band, since a list chosen after its readings is selection, not evidence. A bound that
+does not hold at a pre-registered seed is the finding, and the bound or the claim's form is
+what changes.
