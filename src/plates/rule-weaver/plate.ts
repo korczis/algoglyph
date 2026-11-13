@@ -71,8 +71,9 @@ export const ruleWeaver: PlateCode = {
           for (let i = 0; i < cols; i++) row[i] = ctx.rnd() < density ? 1 : 0;
         }
         hood.fill(7);
+        // the first row is generation 0; each step below adds one, so the label is the row shown
         paint(0);
-        generation = 1;
+        generation = 0;
         stop.reset();
       },
       draw() {
@@ -85,9 +86,9 @@ export const ruleWeaver: PlateCode = {
           neighbourhoods(row, hood);
           next(rule, hood, nextRow);
           [row, nextRow] = [nextRow, row];
+          generation++;
           if (generation >= raster.h) raster.scrollUp(1);
           paint(Math.min(generation, raster.h - 1));
-          generation++;
         }
         p.background(...ctx.bg);
         raster.blit(p, false, 0, 0, raster.w * cell, raster.h * cell);
