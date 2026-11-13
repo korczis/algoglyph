@@ -3,10 +3,20 @@
 // order is unchanged. The proof runs the old inline heap, kept here as the reference, beside the
 // library one in the same run and asserts the same expansion order, distances and path on every
 // map, kind and weight below.
+// The latent crash: the plate tries 20 maps for one with a passable start, goal and a path
+// between; if every attempt failed, `search` stayed unset and the first pace() or draw() threw.
+// The test makes every attempt fail by drawing the terrain with every cell a wall (wall level 0,
+// as a lower wall height would) and asks for a plate that says so instead.
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { HOLD_FRAMES } from '../src/core/pace';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import type { Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
 import { Search, terrain, type Kind, type Terrain } from '../src/plates/pathfinding-terrain/search';
+import { installBrowserStubs, p5Stub } from './support/p5-stub';
+
+installBrowserStubs();
 
 /** The plate's default map: 800 × 500 px (aspect 16/10) at 12 px cells. */
 const W = 66;
@@ -136,5 +146,41 @@ describe('pathfinding-terrain: the shared heap keeps the pop order (D5)', () => 
       }
     }
     expect(maps).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe('pathfinding-terrain: a map whose every attempt fails (the latent crash)', () => {
+  it('shows that no map was found instead of throwing', async () => {
+    vi.resetModules();
+    vi.doMock('../src/plates/pathfinding-terrain/search', async (importOriginal) => {
+      const real = await importOriginal<typeof import('../src/plates/pathfinding-terrain/search')>();
+      // every height is at least 0, so wall level 0 makes every cell a wall: no start, no goal
+      return { ...real, terrain: (w: number, h: number, rnd: () => number, rough: number) => real.terrain(w, h, rnd, rough, 0) };
+    });
+    try {
+      const plate = (await import('../src/plates/pathfinding-terrain/plate')).default as PlateCode;
+      const params: Params = { ...Object.fromEntries(plate.params.map((d) => [d.key, d.value])), loop: false };
+      const ground = GROUNDS.dark;
+      let rows: Stat[] = [];
+      const ctx: PlateContext = {
+        width: 800, height: 500, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
+        bg: ground.bg, fg: ground.fg, thumbnail: false, palette: () => lookupPalette('phosphor'),
+        stats(r) { rows = r; }, chart() {},
+      };
+      const sim = plate.create(p5Stub(), ctx);
+      sim.setup();
+      for (let f = 0; f < 10; f++) sim.draw();
+      expect(sim.pace?.()).toMatchObject({ done: true });
+      const value = (label: string) => rows.find((r) => r.label === label)?.value;
+      expect(value('path cost')).toBe('no map found');
+      expect(value('expanded cells')).toBe('0');
+      // with a new map asked for when done, every later map fails too and the plate keeps going
+      params.loop = true;
+      for (let f = 0; f < 3 * HOLD_FRAMES; f++) sim.draw();
+      expect(value('path cost')).toBe('no map found');
+    } finally {
+      vi.doUnmock('../src/plates/pathfinding-terrain/search');
+      vi.resetModules();
+    }
   });
 });

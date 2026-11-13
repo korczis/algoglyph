@@ -37,7 +37,8 @@ export const pathfinding: PlateCode = {
     const params = ctx.params;
     let map: Terrain;
     let heights: Float64Array;
-    let search: Search;
+    // null when every attempt below failed: no map had a passable start, goal and a path between
+    let search: Search | null = null;
     let raster: Raster;
     let optimum = 0;
     let generation = 0;
@@ -51,6 +52,7 @@ export const pathfinding: PlateCode = {
       const w = Math.max(8, Math.floor(ctx.width / cell));
       const h = Math.max(6, Math.floor(ctx.height / cell));
       const rnd = mulberry32(ctx.seed + generation * 15485863);
+      search = null;
       for (let attempt = 0; attempt < 20; attempt++) {
         ({ heights, terrain: map } = terrain(w, h, rnd, num(params, 'rough'), 0.8));
         // start on the left, goal on the right: the cheapest cells of their columns
@@ -77,19 +79,21 @@ export const pathfinding: PlateCode = {
         pacer.start(steps);
         break;
       }
+      if (!search) pacer.start(0);
       raster = new Raster(w, h);
       hold = 0;
     };
 
     return {
-      pace: () => pacer.report(search.status !== 'running', params),
+      pace: () => pacer.report(!search || search.status !== 'running', params),
       setup() {
         build();
       },
       draw() {
-        const speed = ctx.thumbnail ? 120 : search.status === 'running' ? pacer.take(params) : 0;
-        for (let k = 0; k < speed && search.status === 'running'; k++) search.step();
-        if (search.status !== 'running') {
+        const running = () => search?.status === 'running';
+        const speed = ctx.thumbnail ? 120 : running() ? pacer.take(params) : 0;
+        for (let k = 0; k < speed && running(); k++) search?.step();
+        if (!running()) {
           hold++;
           if (bool(params, 'loop') && hold > HOLD_FRAMES && !ctx.thumbnail) {
             generation++;
@@ -107,8 +111,8 @@ export const pathfinding: PlateCode = {
             // contour bands every tenth of the height range
             const band = Math.floor(heights[i] * 10) % 2 === 0 ? 1 : 0.9;
             c = scale(mix(ctx.bg, ramp(pal, heights[i]), 0.42), band);
-            if (search.closed[i]) c = mix(c, ramp(pal, 0.95), 0.35);
-            else if (search.open[i]) c = ramp(pal, 1);
+            if (search?.closed[i]) c = mix(c, ramp(pal, 0.95), 0.35);
+            else if (search?.open[i]) c = ramp(pal, 1);
           }
           raster.set(i % w, Math.floor(i / w), c[0], c[1], c[2]);
         }
@@ -119,7 +123,7 @@ export const pathfinding: PlateCode = {
 
         const centre = (i: number): [number, number] =>
           [ox + (i % w + 0.5) * cell, oy + (Math.floor(i / w) + 0.5) * cell];
-        const route = search.path();
+        const route = search?.path() ?? [];
         if (route.length > 1) {
           p.noFill();
           p.stroke(...ctx.fg);
@@ -130,7 +134,8 @@ export const pathfinding: PlateCode = {
           p.endShape();
         }
         p.noStroke();
-        for (const [i, label] of [[search.start, 'A'], [search.goal, 'B']] as const) {
+        const ends = search ? [[search.start, 'A'], [search.goal, 'B']] as const : [];
+        for (const [i, label] of ends) {
           const [x, y] = centre(i);
           p.fill(...ctx.fg);
           p.circle(x, y, cell * 2.2);
@@ -140,6 +145,16 @@ export const pathfinding: PlateCode = {
           p.text(label, x, y + 0.5);
         }
 
+        if (!search) {
+          ctx.stats([
+            { label: 'algorithm', value: LABELS[str(params, 'algorithm') as Kind] ?? LABELS.astar },
+            { label: 'expanded cells', value: '0' },
+            { label: 'path cost', value: 'no map found' },
+            { label: 'vs optimum', value: 'no map found' },
+            pacer.row(params),
+          ]);
+          return;
+        }
         const cost = search.status === 'found' ? search.g[search.goal] : NaN;
         ctx.stats([
           { label: 'algorithm', value: search.kind === 'astar'
