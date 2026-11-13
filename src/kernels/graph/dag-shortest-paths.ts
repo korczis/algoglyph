@@ -57,6 +57,10 @@ export const kernel: GraphKernel<DagSpResult> = {
   },
   report(r) {
     const fin = r.dist.filter(Number.isFinite);
-    return [{ label: 'Reached', value: `${fin.length} vertices, distances ${Math.min(...fin)} to ${Math.max(...fin)}` }];
+    // the farthest distance in a row of its own, so that its first number is the distance
+    return [
+      { label: 'Reached', value: `${fin.length} vertices, distances ${Math.min(...fin)} to ${Math.max(...fin)}` },
+      { label: 'Farthest', value: `${Math.max(...fin)} from the source` },
+    ];
   },
 };

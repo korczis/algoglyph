@@ -2,8 +2,10 @@
 // topological order "Relaxed", including those the source cannot reach, whose out-edges it skips
 // (80 of 80 on the default graph, where 79 are reached); a vertex is now relaxed only when it is
 // reached, so the count is the reachable set's size, and the run's work drops by one settlement per
-// unreached vertex. Every expectation here is computed in this file without the kernel:
-// reachability by an explicit-stack depth-first search over the edge list.
+// unreached vertex. G5: the farthest distance was only the second end of the Reached row's range,
+// so a claim (which reads a readout's first number) could not read it; it has a Farthest row of its
+// own. Every expectation here is computed in this file without the kernel: reachability by an
+// explicit-stack depth-first search over the edge list, distances by Floyd–Warshall.
 import { describe, expect, it } from 'vitest';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import { defaultParams, trace } from '../src/engines/graph/trace';
@@ -55,4 +57,30 @@ describe('dag-shortest-paths: Relaxed counts the reached vertices only (D4)', ()
       }
     }
   });
+});
+
+/** Distances from s by Floyd–Warshall on a dense matrix (a DAG has no cycle at all). */
+function floydFrom(g: Graph, s: number): number[] {
+  const d = Array.from({ length: g.n }, (_, i) => Array.from({ length: g.n }, (_, j) => (i === j ? 0 : Infinity)));
+  for (let e = 0; e < g.m; e++) if (g.w[e] < d[g.eu[e]][g.ev[e]]) d[g.eu[e]][g.ev[e]] = g.w[e];
+  for (let k = 0; k < g.n; k++) for (let i = 0; i < g.n; i++) {
+    if (d[i][k] === Infinity) continue;
+    for (let j = 0; j < g.n; j++) if (d[i][k] + d[k][j] < d[i][j]) d[i][j] = d[i][k] + d[k][j];
+  }
+  return d[s];
+}
+
+const farthest = (dist: number[]) => Math.max(...dist.filter(Number.isFinite));
+
+describe('dag-shortest-paths: the Farthest readout (G5)', () => {
+  for (const shape of ['signed-dag', 'dag'] as Shape[]) {
+    it(`reads the largest finite distance on the ${shape} input`, async () => {
+      for (const seed of [7, 4242]) for (const n of [N, 400]) {
+        const g = makeGraph(shape, n, seed, ASPECT);
+        const r = await read(ID, probe('Farthest', shape, seed, n));
+        expect(r.reason, `${shape} n ${n} seed ${seed}`).toBeUndefined();
+        expect(r.value, `${shape} n ${n} seed ${seed}: ${r.text}`).toBe(farthest(floydFrom(g, g.s)));
+      }
+    });
+  }
 });
