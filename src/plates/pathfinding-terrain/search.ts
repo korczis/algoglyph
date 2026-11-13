@@ -1,6 +1,8 @@
 // Best-first search on a weighted 4-connected grid as a step machine. Entering a cell costs
 // cost[cell] (Infinity is a wall). One machine covers Dijkstra (no heuristic), A* (g + w·h)
 // and greedy best-first (h only); the heuristic is Manhattan distance times the cheapest cell.
+// The queue is lazy: a cell is pushed again when its key improves and skipped when popped closed.
+import { Heap } from '../../kernels/geometry/_heap';
 
 export type Kind = 'dijkstra' | 'astar' | 'greedy';
 
@@ -9,55 +11,6 @@ export interface Terrain {
   h: number;
   cost: Float64Array;
   minCost: number;
-}
-
-class Heap {
-  private keys: number[] = [];
-  private vals: number[] = [];
-
-  get size(): number {
-    return this.keys.length;
-  }
-
-  push(key: number, val: number): void {
-    const k = this.keys;
-    const v = this.vals;
-    k.push(key);
-    v.push(val);
-    let i = k.length - 1;
-    while (i > 0) {
-      const parent = (i - 1) >> 1;
-      if (k[parent] <= k[i]) break;
-      [k[parent], k[i]] = [k[i], k[parent]];
-      [v[parent], v[i]] = [v[i], v[parent]];
-      i = parent;
-    }
-  }
-
-  pop(): number {
-    const k = this.keys;
-    const v = this.vals;
-    const top = v[0];
-    const lk = k.pop() as number;
-    const lv = v.pop() as number;
-    if (k.length) {
-      k[0] = lk;
-      v[0] = lv;
-      let i = 0;
-      for (;;) {
-        const l = 2 * i + 1;
-        const r = l + 1;
-        let m = i;
-        if (l < k.length && k[l] < k[m]) m = l;
-        if (r < k.length && k[r] < k[m]) m = r;
-        if (m === i) break;
-        [k[m], k[i]] = [k[i], k[m]];
-        [v[m], v[i]] = [v[i], v[m]];
-        i = m;
-      }
-    }
-    return top;
-  }
 }
 
 export type Status = 'running' | 'found' | 'failed';
@@ -69,7 +22,8 @@ export class Search {
   readonly open: Uint8Array;
   expanded = 0;
   status: Status = 'running';
-  private readonly heap = new Heap();
+  // strictly smaller key first, as the sift comparisons of the heap this plate used to carry
+  private readonly heap = new Heap<{ key: number; cell: number }>((a, b) => a.key < b.key);
 
   constructor(readonly t: Terrain, readonly start: number, readonly goal: number,
     readonly kind: Kind, readonly weight = 1) {
@@ -80,7 +34,7 @@ export class Search {
     this.open = new Uint8Array(n);
     this.g[start] = 0;
     this.open[start] = 1;
-    this.heap.push(this.priority(start), start);
+    this.heap.push({ key: this.priority(start), cell: start });
   }
 
   heuristic(i: number): number {
@@ -99,7 +53,7 @@ export class Search {
   step(): Status {
     if (this.status !== 'running') return this.status;
     while (this.heap.size) {
-      const i = this.heap.pop();
+      const i = (this.heap.pop() as { cell: number }).cell;
       if (this.closed[i]) continue;
       this.closed[i] = 1;
       this.open[i] = 0;
@@ -120,7 +74,7 @@ export class Search {
           this.g[j] = ng;
           this.parent[j] = i;
           this.open[j] = 1;
-          this.heap.push(this.priority(j), j);
+          this.heap.push({ key: this.priority(j), cell: j });
         }
       }
       return this.status;
