@@ -92,7 +92,9 @@ export const kernel: SignalKernel = {
       const span = (history.length - 1 - Math.max(0, history.length - 1 - Math.round(20 / (every * DT)))) * every * DT;
       const eff = Float64Array.from(unwrapped, (u, i) => (span > 0 ? (u - back[i]) / span : omega[i]));
       const meanEff = eff.reduce((a, b) => a + b, 0) / n;
-      const locked = span > 0 ? eff.filter((w) => Math.abs(w - meanEff) < 0.02).length : 0;
+      // the oscillators turning at the mean effective frequency, to 0.02: the locked cluster once
+      // the transient has passed (a count of a tolerance, not a test of locking)
+      const near = span > 0 ? eff.filter((w) => Math.abs(w - meanEff) < 0.02).length : 0;
       const tail = rs.slice(rs.length >> 1);
       const avg = tail.reduce((a, b) => a + b, 0) / tail.length;
       const pts: number[] = [];
@@ -116,7 +118,7 @@ export const kernel: SignalKernel = {
           { label: 'Coupling K / critical K_c', value: `${K.toFixed(2)} / ${kc.toFixed(3)} = ${(K / kc).toFixed(2)}` },
           ...(dist === 'lorentz' ? [{ label: 'Theory for N → ∞, √(1 − K_c/K)', value: K > kc ? Math.sqrt(1 - kc / K).toFixed(3) : '0 (incoherent)' }] : []),
           { label: 'Incoherent level 1/√N', value: (1 / Math.sqrt(n)).toFixed(3) },
-          { label: 'Locked to the mean frequency (measured)', value: `${locked} of ${n}` },
+          { label: 'Effective frequency within 0.02 of the mean (measured)', value: `${near} of ${n}` },
         ],
         counts: meter.snapshot(),
         chart: { title: 'Order parameter over time', x: { label: 'time' }, y: { label: 'r' }, series: [

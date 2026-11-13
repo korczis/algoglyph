@@ -1,13 +1,17 @@
 // kuramoto (wave 6). Defect D4: its hand-written classical Runge–Kutta step (five arrays
 // allocated per step) moves onto the one integrator library's Rk4 (src/plates/_shared/ode), the
 // same arithmetic in the same order, so every run is the same bit for bit; the old step is kept
-// here verbatim and run beside the library in this run (no hash recorded on one CPU).
+// here verbatim and run beside the library in this run (no hash recorded on one CPU). Defect D5:
+// the readout "Locked to the mean frequency" counted the oscillators whose effective frequency
+// is within 0.02 of the mean effective frequency, and now says so.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/engines/signal/input';
 import { Meter } from '../src/engines/signal/trace';
 import { Rk4 } from '../src/plates/_shared/ode/ode';
+import type { Params } from '../src/core/plate';
 import * as kuramoto from '../src/kernels/signal/kuramoto';
+import { read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
@@ -72,5 +76,22 @@ describe('kuramoto: the Runge–Kutta step comes from src/plates/_shared/ode', (
     const src = readFileSync('src/kernels/signal/kuramoto.ts', 'utf8');
     expect(src).toMatch(/import \{ Rk4[^}]*\} from '\.\.\/\.\.\/plates\/_shared\/ode\/ode'/);
     expect(src).not.toMatch(/k1\[i\] \+ 2 \* k2\[i\]/);
+  });
+});
+
+const ID = 'kuramoto';
+const probe = (readout: string, params: Params): Claim =>
+  ({ id: 'probe', statement: 'a control test reading', readout, expect: { range: [-1e12, 1e12] }, setup: { params: params as Record<string, number> } });
+async function at(readout: string, params: Params = {}): Promise<{ value?: number; reason?: string }> {
+  return read(ID, probe(readout, params));
+}
+const NEAR = 'Effective frequency within 0.02 of the mean (measured)';
+
+describe('kuramoto: the count of oscillators near the mean frequency says what it counts', () => {
+  it('publishes the count under its own label, and no longer as "Locked"', async () => {
+    const now = await at(NEAR, { K: 4 });
+    expect(now.reason).toBeUndefined();
+    expect(now.value).toBeGreaterThan(0);
+    expect((await at('Locked to the mean frequency (measured)')).reason).toMatch(/publishes no readout/);
   });
 });
