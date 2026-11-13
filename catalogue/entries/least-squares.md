@@ -27,6 +27,18 @@ data:
     ignores: [samples, noise]
     url_bytes: 1800
     note: x is mapped onto [−1, 1]; a seeded half of the points is fitted and the other half held out, so the best held-out degree is measured on your data.
+claims:
+  - id: residual-orthogonal-to-the-columns
+    statement: >-
+      The least-squares residual is orthogonal to every column of the design matrix, Xᵀr = 0, the
+      normal equations that Householder QR satisfies without ever forming XᵀX. On the generated
+      Runge samples (24 training points, noise 0.08) at degree 15, the plate's own product Xᵀr,
+      computed apart from the QR, stays below 10⁻⁹; it is exactly 0 for the same data solved in
+      rational arithmetic, and an independent float QR leaves 1.1e−11 of rounding.
+    readout: max |Xᵀr| (normal equations)
+    expect: { below: 1.0e-9 }
+    setup:
+      params: { target: runge, samples: 24, noise: 0.08 }
 ---
 
 The curve that minimises the sum of squared vertical distances.

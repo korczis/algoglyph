@@ -353,8 +353,16 @@ try {
         const refused = await p.waitForSelector('[data-data-errors]', { state: 'visible', timeout: 5000 }).then(() => true, () => false);
         if (!refused) fail(where, 'a value that is not a number was not refused on the page');
         const n = Math.max(d.rows.min, 12);
+        // a rising first column and a scattered rest; a value outside its column's declared bounds is
+        // moved inside them on the same pattern, so a plate with narrow bounds gets a table it accepts
+        const sample = (c, j, k) => {
+          const raw = j === 0 ? k : (k * k * 7 + 3) % 23;
+          const lo = c.min ?? -Infinity;
+          const hi = c.max ?? Infinity;
+          return raw >= lo && raw <= hi ? raw : Number((lo + ((hi - lo) * (raw % 23 + 0.5)) / 23).toPrecision(6));
+        };
         const csv = [d.columns.map((c) => c.key).join(','),
-          ...Array.from({ length: n }, (_, k) => d.columns.map((c, j) => (j === 0 ? k : (k * k * 7 + 3) % 23)).join(','))].join('\n');
+          ...Array.from({ length: n }, (_, k) => d.columns.map((c, j) => sample(c, j, k)).join(','))].join('\n');
         await p.setInputFiles(`#data-file-${d.id}`, { name: 'mine.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
         // a reader looks back at the plate to see it run: a plate scrolled out of view is paused
         // (src/core/stage.ts), and filling the form scrolled it away
