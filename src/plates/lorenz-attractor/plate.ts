@@ -1,7 +1,8 @@
-import { paletteParam, ramp } from '../../core/palette';
+import { paletteParam } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { Rk4 } from '../_shared/ode/ode';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
+import { drawTrail, Trail } from './trail';
 
 type V3 = [number, number, number];
 
@@ -54,7 +55,7 @@ export const lorenzAttractor: PlateCode = {
   pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
   create(p, ctx) {
     const params = ctx.params;
-    let trails: V3[][] = [];
+    let trails: Trail[] = [];
     let heads: V3[] = [];
     let angle = 0;
     let steps = 0;
@@ -67,7 +68,7 @@ export const lorenzAttractor: PlateCode = {
         heads = Array.from({ length: n }, (): V3 => [
           1 + (ctx.rnd() - 0.5) * 1e-4, 1 + (ctx.rnd() - 0.5) * 1e-4, 20 + (ctx.rnd() - 0.5) * 1e-4,
         ]);
-        trails = heads.map(() => []);
+        trails = heads.map(() => new Trail(num(params, 'trail'), dt));
         steps = 0;
         stop.reset();
         angle = ctx.rnd() * Math.PI * 2;
@@ -76,7 +77,6 @@ export const lorenzAttractor: PlateCode = {
         const sigma = num(params, 'sigma');
         const rho = num(params, 'rho');
         const beta = num(params, 'beta');
-        const max = num(params, 'trail');
         // clamped to the stop: the frame that reaches it steps only the steps left
         const n = stop.allow(num(params, 'speed'));
         stop.advance(n);
@@ -84,7 +84,6 @@ export const lorenzAttractor: PlateCode = {
           for (let i = 0; i < heads.length; i++) {
             heads[i] = rk4Lorenz(heads[i], dt, sigma, rho, beta);
             trails[i].push(heads[i]);
-            if (trails[i].length > max) trails[i].shift();
           }
           steps++;
         }
@@ -99,21 +98,7 @@ export const lorenzAttractor: PlateCode = {
         const pal = ctx.palette();
         p.noFill();
         p.strokeWeight(1.3);
-        for (let i = 0; i < trails.length; i++) {
-          const tr = trails[i];
-          p.beginShape();
-          for (let j = 1; j < tr.length; j++) {
-            const a = tr[j - 1];
-            const b = tr[j];
-            const v = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / dt;
-            const c = ramp(pal, Math.min(1, v / 220));
-            const fade = j / tr.length;
-            p.stroke(c[0], c[1], c[2], 40 + 215 * fade);
-            // the attractor sits around z ≈ ρ − 1; centre it and map z to screen-up
-            p.vertex(b[0], -(b[2] - 25), b[1]);
-          }
-          p.endShape();
-        }
+        for (const tr of trails) drawTrail(p, tr, pal);
         p.strokeWeight(6);
         p.stroke(...ctx.fg);
         p.beginShape(p.POINTS);
