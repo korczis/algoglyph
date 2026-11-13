@@ -14,12 +14,13 @@ import { parse, serialise } from '../src/core/share';
 import {
   rk4 as pendulumStep, type Pendulum, type State,
 } from '../src/plates/double-pendulum/dynamics';
+import { Life, parseRule, PATTERNS, type Rule } from '../src/plates/life-like-automata/life';
 import { rk4Lorenz } from '../src/plates/lorenz-attractor/plate';
 import {
   COMPLETED_RUNS, LAST_COMPLETED_RUN, RUNS_KEY, RunCounter, runsParam, StreamStop,
 } from '../src/plates/_shared/settle/settle';
 import { loadPlate } from '../src/registry';
-import { read, type Claim } from './support/claims';
+import { firstNumber, read, type Claim } from './support/claims';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
 
 installBrowserStubs();
@@ -314,4 +315,31 @@ describe('langton-turmites stops at a step of the ants', () => {
     }
     expect(await settled('langton-turmites', COMPLETED_RUNS, p)).toBe('12,000 of 12,000, stopped');
   });
+});
+
+/** The live cells of the Gosper gun's board at 800 px (cells of 3 px) after `n` generations. */
+function gunPopulation(n: number): number {
+  const w = Math.floor(800 / 3);
+  const h = Math.floor(500 / 3);
+  const life = new Life(w, h);
+  life.place(PATTERNS.gosperGun, Math.floor(w * 0.08), Math.floor(h * 0.12));
+  life.perturbed();
+  const conway = parseRule('B3/S23') as Rule;
+  for (let g = 0; g < n; g++) life.step(conway);
+  return life.population;
+}
+
+describe('life-like-automata stops at a generation', () => {
+  common('life-like-automata', 'generations', 100_000, 60);
+
+  for (const k of [300, 310]) {
+    it(`settles at generation ${k} of the gun and reads that board`, async () => {
+      // at the pace control's top a frame steps 20 generations: 310 is not a multiple
+      const p = { preset: 'gun', [RUNS_KEY]: k };
+      expect(await settled('life-like-automata', 'generation', p)).toBe(String(k));
+      const population = await settled('life-like-automata', 'population', p);
+      expect(firstNumber(population)).toBe(gunPopulation(k));
+      expect(await settled('life-like-automata', COMPLETED_RUNS, p)).toBe(`${k} of ${k}, stopped`);
+    });
+  }
 });
