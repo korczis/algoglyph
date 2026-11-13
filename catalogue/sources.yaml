@@ -1255,3 +1255,21 @@ sources:
     year: 2018
     kind: "software"
     url: "https://github.com/gustavo-depaula/stalin-sort"
+  - id: goldstein-classical-mechanics
+    title: Classical Mechanics (third edition)
+    author: Herbert Goldstein, Charles P. Poole, John L. Safko
+    publisher: Addison-Wesley
+    year: 2002
+    kind: book
+  - id: rutherford-1911
+    title: The Scattering of α and β Particles by Matter and the Structure of the Atom (Philosophical Magazine 21, 669)
+    author: Ernest Rutherford
+    year: 1911
+    kind: paper
+    url: https://doi.org/10.1080/14786440508637080
+  - id: hairer-lubich-wanner
+    title: Geometric Numerical Integration (second edition)
+    author: Ernst Hairer, Christian Lubich, Gerhard Wanner
+    publisher: Springer
+    year: 2006
+    kind: book
