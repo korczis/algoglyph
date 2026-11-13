@@ -2,7 +2,7 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import {
-  BOUNDED, interlace, julia, mandelbrot, toGrid, toPlane, zoomAt, type View,
+  BOUNDED, countedArea, interlace, julia, mandelbrot, toGrid, toPlane, zoomAt, type View,
 } from './escape';
 
 /** Iterations computed per frame before the progressive pass yields to the browser. */
@@ -243,6 +243,14 @@ export const mandelbrotJulia: PlateCode = {
       moveTo(next);
     };
 
+    /** Bounded pixels as an area of the plane, with the count's binomial standard error. */
+    const areaText = () => {
+      if (!pixelsDone) return '—';
+      // a pixel is a square of side width / rw, so the view is width × width · rh / rw
+      const { area, se } = countedArea(pixelsDone - escaped, pixelsDone, (view.width * view.width * rh) / rw);
+      return `${area.toPrecision(5)} ± ${se.toPrecision(2)} (binomial standard error of the count)`;
+    };
+
     const pick = (x: number, y: number) => {
       [cr, ci] = toPlane(MANDELBROT_VIEWS.home, ctx.width, ctx.height, x, y);
       restart(UNKNOWN);
@@ -369,6 +377,7 @@ export const mandelbrotJulia: PlateCode = {
           },
           { label: 'mean escape count ν', value: escaped ? (muSum / escaped).toFixed(2) : '—' },
           { label: 'rows rendered', value: `${rowsDone} / ${rh}` },
+          { label: 'area inside (pixel count)', value: areaText() },
         ];
         if (isJulia) rows.splice(1, 0, { label: 'c', value: complex(cr, ci, 5) });
         ctx.stats(rows);

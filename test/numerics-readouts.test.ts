@@ -186,3 +186,38 @@ describe('collatz-coral counts the steps from a chosen start', () => {
     }, 120_000);
   }
 });
+
+describe('mandelbrot-julia estimates the area inside by counting pixels', () => {
+  // the instrument's canvas: 800 px wide at the plate's 16 : 10, one pixel per point
+  const W = 800; const H = 500; const width = 3.6;
+  /** Pixels of the home view whose orbit stays within radius 256 for `cap` steps, every one iterated. */
+  function inside(cap: number): number {
+    const s = width / W;
+    let k = 0;
+    for (let r = 0; r < H; r++) {
+      const ci = -(r + 0.5 - H / 2) * s;
+      const re0 = -0.65 + (0.5 - W / 2) * s;
+      for (let x = 0; x < W; x++) {
+        const cr = re0 + x * s;
+        let zr = 0; let zi = 0; let n = 0;
+        while (n < cap && zr * zr + zi * zi <= 256 * 256) { const t = zr * zr - zi * zi + cr; zi = 2 * zr * zi + ci; zr = t; n++; }
+        if (zr * zr + zi * zi <= 256 * 256) k++;
+      }
+    }
+    return k;
+  }
+
+  it('reads the independent pixel count and lies within 3 SE of the literature area at cap 2000', async () => {
+    const r = await reading('mandelbrot-julia', 'area inside (pixel count)', { iter: 2000 });
+    const m = /±\s*([\d.]+(?:e-?\d+)?)/.exec(r.text);
+    expect(m, r.text).not.toBeNull();
+    const se = Number((m as RegExpExecArray)[1]);
+    const N = W * H; const view = width * (width * H) / W;
+    const p = inside(2000) / N;
+    // the same estimator, from the independent count: five significant digits on display
+    expect(Math.abs(r.value - p * view), r.text).toBeLessThanOrEqual(5e-5 + view / N);
+    expect(Math.abs(se - view * Math.sqrt((p * (1 - p)) / N)), r.text).toBeLessThanOrEqual(5e-5);
+    // the literature value of the Mandelbrot set's area, 1.50659177 ± 8e−8
+    expect(Math.abs(r.value - 1.50659177)).toBeLessThanOrEqual(3 * se);
+  }, 120_000);
+});
