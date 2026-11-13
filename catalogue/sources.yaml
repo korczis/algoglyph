@@ -1255,3 +1255,9 @@ sources:
     year: 2018
     kind: "software"
     url: "https://github.com/gustavo-depaula/stalin-sort"
+  - id: jackson-classical-electrodynamics
+    title: Classical Electrodynamics (third edition)
+    author: John David Jackson
+    publisher: Wiley
+    year: 1999
+    kind: book
