@@ -2,8 +2,8 @@
 // they agree within the interval's share of the tolerance, split otherwise. Each node is
 // evaluated once (the parent hands its values down), and every evaluation is counted.
 import { drain, fmt, int, mapSliced, Meter, sample, span, type Layer, type NumericKernel, type NumericRun, type RunInput, type XY } from '../../engines/numeric/trace';
-import { integrand, integrandParam } from './_functions';
-import { convergence } from './simpson-quadrature';
+import { integrand, integrandParam, type Integrand } from './_functions';
+import { convergence, simpson } from './simpson-quadrature';
 
 export interface Piece { a: number; b: number; depth: number; accepted: boolean; value: number }
 
@@ -53,11 +53,47 @@ export function* sweepSteps(key: unknown): Generator<void, XY[], void> {
 
 const axes = { x: { label: 'function evaluations', log: true }, y: { label: '|error|', log: true } };
 
+/** Evaluations the uniform search may spend in all: every even n up to about 2,800 panels. */
+export const SCAN_CAP = 2_000_000;
+
+export interface UniformNeed {
+  /** Evaluations of the fewest even panels within each target error, or null past the cap. */
+  needs: (number | null)[];
+  /** Evaluations of the largest panel count tried. */
+  largest: number;
+}
+
+/**
+ * The fewest even panels n for which uniform composite Simpson is within each target error,
+ * found by trying every even n from 2 in turn and counting the evaluations of each try; a target
+ * not met within SCAN_CAP evaluations in all stays null. Resumable: it yields as it goes.
+ */
+export function* uniformNeeds(g: Integrand, targets: number[]): Generator<void, UniformNeed, void> {
+  const needs: (number | null)[] = targets.map(() => null);
+  let spent = 0; let largest = 0; let slice = 0;
+  for (let n = 2; spent < SCAN_CAP && needs.some((v) => v === null); n += 2) {
+    const m = new Meter();
+    const err = Math.abs(simpson(m.counted(g.f), g.a, g.b, n) - g.exact);
+    largest = m.get('evals');
+    spent += largest;
+    targets.forEach((t, i) => { if (needs[i] === null && err <= t) needs[i] = largest; });
+    if ((slice += largest) > 50_000) { slice = 0; yield; }
+  }
+  return { needs, largest };
+}
+
 function* build({ params }: RunInput): Generator<void, NumericRun, void> {
   const g = integrand(params.integrand);
   const eps = 10 ** -Number(params.tol ?? 6);
   const r = adaptiveSimpson(g.f, g.a, g.b, eps);
   yield;
+  const achieved = Math.abs(r.value - g.exact);
+  const uniformNeed = yield* uniformNeeds(g, [eps, achieved]);
+  const needText = (v: number | null) => (v === null ? `more than ${int(uniformNeed.largest)}` : int(v));
+  const uniformRow = {
+    label: 'Uniform Simpson to the tolerance',
+    value: `${needText(uniformNeed.needs[0])} evaluations (to this run's error ${fmt(achieved)}: ${needText(uniformNeed.needs[1])})`,
+  };
   const curve = sample(g.f, g.a, g.b, 600);
   const yr = span([0, ...curve.map((q) => q[1])]);
   const panels = [
@@ -95,6 +131,7 @@ function* build({ params }: RunInput): Generator<void, NumericRun, void> {
         { label: 'Accepted area so far', value: fmt(partial, 10) },
         { label: 'Final estimate', value: `${fmt(r.value, 12)} (error ${fmt(Math.abs(r.value - g.exact))} against tolerance ${fmt(eps)})` },
         { label: 'Deepest split', value: int(r.maxDepth) },
+        uniformRow,
       ],
     });
     yield;

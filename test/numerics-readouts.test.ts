@@ -221,3 +221,38 @@ describe('mandelbrot-julia estimates the area inside by counting pixels', () => 
     expect(Math.abs(r.value - 1.50659177)).toBeLessThanOrEqual(3 * se);
   }, 120_000);
 });
+
+describe('adaptive-quadrature publishes what uniform Simpson needs for the same accuracy', () => {
+  const INTEGRANDS: Record<string, { f: (x: number) => number; a: number; b: number; exact: number }> = {
+    sine: { f: Math.sin, a: 0, b: Math.PI, exact: 2 },
+    peak: { f: (x) => 1 / (x * x + 0.01), a: -1, b: 1, exact: 20 * Math.atan(10) },
+    sqrt: { f: (x) => Math.sqrt(x), a: 0, b: 1, exact: 2 / 3 },
+    wave: { f: (x) => x * Math.sin(7 * x), a: 0, b: Math.PI, exact: Math.PI / 7 },
+  };
+  /** Evaluations of the fewest even panels n for which uniform composite Simpson is within `eps`. */
+  function uniformNeeds(key: string, eps: number): number {
+    const g = INTEGRANDS[key];
+    for (let n = 2; ; n += 2) {
+      const h = (g.b - g.a) / n;
+      let s = g.f(g.a) + g.f(g.b);
+      for (let i = 1; i < n; i++) s += (i % 2 ? 4 : 2) * g.f(g.a + i * h);
+      if (Math.abs((s * h) / 3 - g.exact) <= eps) return n + 1;
+    }
+  }
+  for (const key of Object.keys(INTEGRANDS)) {
+    it(`matches an independent search on ${key} at tolerance 1e-6`, async () => {
+      const r = await reading('adaptive-quadrature', 'Uniform Simpson to the tolerance', { integrand: key, tol: 6 });
+      expect(r.value, r.text).toBe(uniformNeeds(key, 1e-6));
+    }, 120_000);
+  }
+  it('also searches to the error the adaptive run achieved', async () => {
+    // the adaptive run's own error, unrounded: the target the plate's second search aims at
+    const { adaptiveSimpson } = await import('../src/kernels/numeric/adaptive-quadrature');
+    const g = INTEGRANDS.peak;
+    const achieved = Math.abs(adaptiveSimpson(g.f, g.a, g.b, 1e-6).value - g.exact);
+    const r = await reading('adaptive-quadrature', 'Uniform Simpson to the tolerance', { integrand: 'peak', tol: 6 });
+    const m = /this run's error [^:]*: ([\d,]+)/.exec(r.text);
+    expect(m, r.text).not.toBeNull();
+    expect(Number(m![1].replace(/,/g, ''))).toBe(uniformNeeds('peak', achieved));
+  }, 120_000);
+});
