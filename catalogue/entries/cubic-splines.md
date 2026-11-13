@@ -15,6 +15,17 @@ tags:
 complexity: 'O(n) to build (one tridiagonal solve), O(log n) per evaluation'
 related:
   - polynomial-interpolation
+claims:
+  - id: runge-natural-spline-error
+    statement: >-
+      The natural cubic spline through 25 equally spaced knots of Runge's 1/(1 + 25x²) stays within
+      0.0019257 of it on the 801-point grid of [−1, 1], where one polynomial through the same knots
+      is off by 257. The oracle is the same spline solved independently, as a dense system in
+      exact rational arithmetic; the tolerance is the readout's display rounding.
+    readout: Max error on [-1, 1]
+    expect: { value: 0.0019257, tolerance: 5.0e-7 }
+    setup:
+      params: { target: runge }
 ---
 
 Piecewise cubics joined with matching slope and curvature, without the wiggles.
