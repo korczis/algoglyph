@@ -1255,3 +1255,9 @@ sources:
     year: 2018
     kind: "software"
     url: "https://github.com/gustavo-depaula/stalin-sort"
+  - id: ho-ruehli-brennan-1975
+    title: The Modified Nodal Approach to Network Analysis (IEEE Transactions on Circuits and Systems 22, 504)
+    author: Chung-Wen Ho, Albert E. Ruehli, Pierce A. Brennan
+    year: 1975
+    kind: paper
+    url: https://doi.org/10.1109/TCS.1975.1084079
