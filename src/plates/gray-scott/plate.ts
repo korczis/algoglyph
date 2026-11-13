@@ -1,5 +1,5 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
-import { num, str, type PlateCode } from '../../core/plate';
+import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { bounded, cellWithin, stepsWithin } from '../../core/budget';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
@@ -25,6 +25,9 @@ export const grayScott: PlateCode = {
       value: 0 },
     { kind: 'range', key: 'res', label: 'Cell size (px)', min: 2, max: 6, step: 1, value: 3,
       rebuild: true },
+    // off, the dish is the uniform state (u, v) = (1, 0) the patterns grow from; the drops'
+    // random numbers are still drawn, so every later draw is the same
+    { kind: 'toggle', key: 'drops', label: 'Seed drops', value: true, rebuild: true },
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 40, step: 1, value: 14 },
     // a stop costs nothing, so its top is not a budget's: past 100 000 steps a reader lets it
     // run on (0)
@@ -58,8 +61,12 @@ export const grayScott: PlateCode = {
         fl = field(w, h);
         raster = new Raster(w, h);
         const drops = 6 + Math.floor(ctx.rnd() * 8);
+        const seeded = bool(params, 'drops');
         for (let d = 0; d < drops; d++) {
-          seed(fl, Math.floor(ctx.rnd() * w), Math.floor(ctx.rnd() * h), 2 + Math.floor(ctx.rnd() * 5));
+          const x = Math.floor(ctx.rnd() * w);
+          const y = Math.floor(ctx.rnd() * h);
+          const r = 2 + Math.floor(ctx.rnd() * 5);
+          if (seeded) seed(fl, x, y, r);
         }
         steps = 0;
         stop.reset();
