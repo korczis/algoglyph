@@ -7,6 +7,9 @@
 // own. Every expectation here is computed in this file without the kernel: reachability by an
 // explicit-stack depth-first search over the edge list, distances by Floyd–Warshall.
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error -- plain ESM shared with the node tooling
+import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
+import { DEFAULT_SEED } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
 import { defaultParams, trace } from '../src/engines/graph/trace';
 import { kernel } from '../src/kernels/graph/dag-shortest-paths';
@@ -83,4 +86,37 @@ describe('dag-shortest-paths: the Farthest readout (G5)', () => {
       }
     });
   }
+});
+
+describe('dag-shortest-paths: the claims’ figures', () => {
+  const { model } = loadCatalogue(process.cwd()) as { model: { entries: { id: string; claims: Claim[] }[] } };
+  const claimOf = (id: string): Claim => {
+    const c = model.entries.find((e) => e.id === ID)?.claims.find((x) => x.id === id);
+    expect(c, `${ID} claim ${id}`).toBeDefined();
+    return c!;
+  };
+  const graphOf = (c: Claim) => makeGraph((c.setup?.params?.shape as Shape) ?? 'signed-dag',
+    Number(c.setup?.params?.n ?? N), c.setup?.seed ?? DEFAULT_SEED, ASPECT);
+
+  it('one relaxation for each out-edge of a reached vertex, counted from the edge list', () => {
+    const c = claimOf('one-relaxation-per-reached-out-edge');
+    const g = graphOf(c);
+    const seen = reachable(g, g.s);
+    let out = 0;
+    for (let e = 0; e < g.m; e++) if (seen[g.eu[e]]) out++;
+    expect(c.expect.value).toBe(out);
+  });
+
+  it('every edge scanned twice while ordering: the offset is 2m', () => {
+    const c = claimOf('edges-examined-twice-m-plus-the-relaxations');
+    expect(c.expect.offset).toBe(2 * graphOf(c).m);
+  });
+
+  it('the farthest distances are Floyd–Warshall’s', () => {
+    for (const id of ['farthest-is-floyd-warshall', 'farthest-is-floyd-warshall-without-negative-weights']) {
+      const c = claimOf(id);
+      const g = graphOf(c);
+      expect(c.expect.value, id).toBe(farthest(floydFrom(g, g.s)));
+    }
+  });
 });
