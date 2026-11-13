@@ -71,6 +71,10 @@ export const kernel: GraphKernel<BellmanResult> = {
   report(r) {
     if (r.cycle) return [{ label: 'Negative cycle', value: `${r.cycle.length} vertices: ${r.cycle.join(' → ')}` }];
     const fin = r.dist.filter(Number.isFinite);
-    return [{ label: 'Result', value: `no negative cycle; ${fin.length} reached, farthest at ${Math.max(...fin)}` }];
+    // the farthest distance in a row of its own, so that its first number is the distance
+    return [
+      { label: 'Result', value: `no negative cycle; ${fin.length} reached` },
+      { label: 'Farthest', value: `${Math.max(...fin)} from the source` },
+    ];
   },
 };
