@@ -5,8 +5,11 @@
 // as they are painted); the report keeps the largest component.
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SEED } from '../src/core/claims';
-import { installBrowserStubs } from './support/p5-stub';
+import { makeGraph } from '../src/engines/graph/graph';
+import { trace } from '../src/engines/graph/trace';
+import { kernel, type SccResult } from '../src/kernels/graph/tarjan-scc';
 import { repeatedLabels, settledRows } from './support/digraph-oracles';
+import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
 
@@ -24,4 +27,34 @@ describe('tarjan-scc: a settled plate publishes each readout label once (D2)', (
       expect(rows.map((r) => r.label)).toContain('Largest');
     });
   }
+});
+
+// G3. The notes: "Components come out in reverse topological order: no component has an edge into
+// one popped after it." The plate counts those edges, so a claim can read 0 off the plate. A
+// component is popped only when its root finishes, after the search has left every vertex the
+// root reaches, so each component reached from it is already popped (Tarjan 1972; the stack
+// invariant): no edge can point into a later one.
+const LATER = 'Edges into a later-popped component';
+
+describe('tarjan-scc counts the edges into a later-popped component (G3)', () => {
+  for (const [what, set] of SETTINGS) for (const seed of [DEFAULT_SEED, 7]) {
+    it(`reads 0 on the ${what}, seed ${seed}`, async () => {
+      const rows = await settledRows('tarjan-scc', set as never, seed);
+      const row = rows.find((r) => r.label === LATER);
+      expect(row, rows.map((r) => r.label).join(' | ')).toBeDefined();
+      expect(row?.value).toBe('0');
+    });
+  }
+
+  it('counts every edge between components when the pop order is reversed', () => {
+    const g = makeGraph('digraph', 70, DEFAULT_SEED, 16 / 9);
+    const comp = (trace(kernel, g, { s: g.s, t: g.t, p: {} }).result as SccResult).comp;
+    const k = Math.max(...comp) + 1;
+    let between = 0;
+    for (let e = 0; e < g.m; e++) if (comp[g.eu[e]] !== comp[g.ev[e]]) between++;
+    expect(between).toBeGreaterThan(0);
+    const reversed = { comp: comp.map((c) => k - 1 - c) };
+    const rows = kernel.report?.(reversed, g, { s: g.s, t: g.t, p: {} }) ?? [];
+    expect(rows.find((r) => r.label === LATER)?.value).toBe(String(between));
+  });
 });

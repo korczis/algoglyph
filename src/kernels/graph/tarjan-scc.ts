@@ -67,11 +67,18 @@ export const kernel: GraphKernel<SccResult> = {
     }
     return { comp };
   },
-  report(r) {
+  report(r, g) {
     const sizes = new Map<number, number>();
     for (const c of r.comp) sizes.set(c, (sizes.get(c) ?? 0) + 1);
+    // components are numbered in the order they are popped: an edge into a higher number would
+    // point into a component popped later, which reverse topological order never allows
+    let later = 0;
+    for (let e = 0; e < g.m; e++) if (r.comp[g.ev[e]] > r.comp[g.eu[e]]) later++;
     // the count is the engine's groups readout (names.groups); a second row of that label
     // would hide from a claim behind the first
-    return [{ label: 'Largest', value: `${Math.max(...sizes.values())} vertices` }];
+    return [
+      { label: 'Largest', value: `${Math.max(...sizes.values())} vertices` },
+      { label: 'Edges into a later-popped component', value: String(later) },
+    ];
   },
 };
