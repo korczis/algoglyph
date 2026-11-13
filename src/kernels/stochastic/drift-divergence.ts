@@ -10,6 +10,8 @@ export interface DriftStep {
   q: number[];
   psi: number;
   kl: number;
+  /** KL(reference || current), the other direction: kl + klBack is the PSI. */
+  klBack: number;
   js: number;
 }
 
@@ -67,7 +69,7 @@ export const kernel: StochasticKernel<DriftResult> = {
       const qc = histogram(cur, LO, HI, BINS);
       const q = proportions(qc);
       ops.count(3);
-      const step = { shift, scale, p, q, psi: psi(p, q), kl: kl(q, p), js: js(p, q) };
+      const step = { shift, scale, p, q, psi: psi(p, q), kl: kl(q, p), klBack: kl(p, q), js: js(p, q) };
       steps.push(step);
       ops.point('PSI', shift, step.psi);
       ops.point('KL(current ‖ reference), nats', shift, step.kl);
@@ -89,6 +91,7 @@ export const kernel: StochasticKernel<DriftResult> = {
       ], [
         { label: 'PSI', value: `${fmt(step.psi, 4)}${step.psi > 0.25 ? ' (above the customary 0.25 alarm)' : step.psi > 0.1 ? ' (above 0.1: watch)' : ''}` },
         { label: 'KL(current ‖ reference)', value: `${fmt(step.kl, 4)} nats` },
+        { label: 'KL both ways', value: `${fmt(step.kl, 4)} + ${fmt(step.klBack, 4)} = ${fmt(step.kl + step.klBack, 4)} nats` },
         { label: 'Jensen–Shannon', value: `${fmt(step.js, 4)} bits` },
         { label: 'Window drawn from', value: `N(${fmt(shift, 2)}, ${fmt(scale, 2)}²), ${fmt(n)} samples` },
         { label: 'Step', value: `${fmt(k)} of ${fmt(STEPS)}` },
