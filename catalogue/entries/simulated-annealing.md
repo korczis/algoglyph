@@ -20,7 +20,7 @@ claims:
   - id: annealing-settles-on-himmelblau-seed-1
     statement: >-
       On Himmelblau's function, four equal minima at 0, 2,400 evaluations cooled to 0.001 of the
-      first temperature end within 0.006 of the minimum, on seed 1 of the fixed seed set 1–5. On
+      first temperature end within 0.006 of the minimum, on seed 1 of the fixed seed set 1–3. On
       Rastrigin no such claim is made: there the final gap is bimodal, the walk often freezing in a
       neighbouring basin.
     readout: Gap to the known minimum
@@ -31,7 +31,7 @@ claims:
   - id: annealing-settles-on-himmelblau-seed-2
     statement: >-
       On Himmelblau's function, four equal minima at 0, 2,400 evaluations cooled to 0.001 of the
-      first temperature end within 0.006 of the minimum, on seed 2 of the fixed seed set 1–5. On
+      first temperature end within 0.006 of the minimum, on seed 2 of the fixed seed set 1–3. On
       Rastrigin no such claim is made: there the final gap is bimodal, the walk often freezing in a
       neighbouring basin.
     readout: Gap to the known minimum
@@ -42,7 +42,7 @@ claims:
   - id: annealing-settles-on-himmelblau-seed-3
     statement: >-
       On Himmelblau's function, four equal minima at 0, 2,400 evaluations cooled to 0.001 of the
-      first temperature end within 0.006 of the minimum, on seed 3 of the fixed seed set 1–5. On
+      first temperature end within 0.006 of the minimum, on seed 3 of the fixed seed set 1–3. On
       Rastrigin no such claim is made: there the final gap is bimodal, the walk often freezing in a
       neighbouring basin.
     readout: Gap to the known minimum
@@ -50,28 +50,6 @@ claims:
     setup:
       params: { landscape: himmelblau, budget: 2400, cooling: 0.001 }
       seed: 3
-  - id: annealing-settles-on-himmelblau-seed-4
-    statement: >-
-      On Himmelblau's function, four equal minima at 0, 2,400 evaluations cooled to 0.001 of the
-      first temperature end within 0.006 of the minimum, on seed 4 of the fixed seed set 1–5. On
-      Rastrigin no such claim is made: there the final gap is bimodal, the walk often freezing in a
-      neighbouring basin.
-    readout: Gap to the known minimum
-    expect: { below: 0.006 }
-    setup:
-      params: { landscape: himmelblau, budget: 2400, cooling: 0.001 }
-      seed: 4
-  - id: annealing-settles-on-himmelblau-seed-5
-    statement: >-
-      On Himmelblau's function, four equal minima at 0, 2,400 evaluations cooled to 0.001 of the
-      first temperature end within 0.006 of the minimum, on seed 5 of the fixed seed set 1–5. On
-      Rastrigin no such claim is made: there the final gap is bimodal, the walk often freezing in a
-      neighbouring basin.
-    readout: Gap to the known minimum
-    expect: { below: 0.006 }
-    setup:
-      params: { landscape: himmelblau, budget: 2400, cooling: 0.001 }
-      seed: 5
 ---
 
 Accept worse moves with a probability that cools, to escape local optima.

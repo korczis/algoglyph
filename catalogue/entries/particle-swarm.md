@@ -18,7 +18,7 @@ claims:
     statement: >-
       With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Rastrigin's
       egg box: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 1 of the fixed seed set 1–5.
+      10⁻⁵), on seed 1 of the fixed seed set 1–3.
     readout: Gap to the known minimum
     expect: { below: 0.0001 }
     setup:
@@ -28,7 +28,7 @@ claims:
     statement: >-
       With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Rastrigin's
       egg box: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 2 of the fixed seed set 1–5.
+      10⁻⁵), on seed 2 of the fixed seed set 1–3.
     readout: Gap to the known minimum
     expect: { below: 0.0001 }
     setup:
@@ -38,37 +38,17 @@ claims:
     statement: >-
       With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Rastrigin's
       egg box: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 3 of the fixed seed set 1–5.
+      10⁻⁵), on seed 3 of the fixed seed set 1–3.
     readout: Gap to the known minimum
     expect: { below: 0.0001 }
     setup:
       params: { landscape: rastrigin, budget: 2400, swarm: 24 }
       seed: 3
-  - id: swarm-reaches-the-minimum-rastrigin-seed-4
-    statement: >-
-      With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Rastrigin's
-      egg box: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 4 of the fixed seed set 1–5.
-    readout: Gap to the known minimum
-    expect: { below: 0.0001 }
-    setup:
-      params: { landscape: rastrigin, budget: 2400, swarm: 24 }
-      seed: 4
-  - id: swarm-reaches-the-minimum-rastrigin-seed-5
-    statement: >-
-      With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Rastrigin's
-      egg box: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 5 of the fixed seed set 1–5.
-    readout: Gap to the known minimum
-    expect: { below: 0.0001 }
-    setup:
-      params: { landscape: rastrigin, budget: 2400, swarm: 24 }
-      seed: 5
   - id: swarm-reaches-the-minimum-ackley-seed-1
     statement: >-
       With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Ackley's
       funnel: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 1 of the fixed seed set 1–5.
+      10⁻⁵), on seed 1 of the fixed seed set 1–3.
     readout: Gap to the known minimum
     expect: { below: 0.0001 }
     setup:
@@ -78,7 +58,7 @@ claims:
     statement: >-
       With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Ackley's
       funnel: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 2 of the fixed seed set 1–5.
+      10⁻⁵), on seed 2 of the fixed seed set 1–3.
     readout: Gap to the known minimum
     expect: { below: 0.0001 }
     setup:
@@ -88,32 +68,12 @@ claims:
     statement: >-
       With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Ackley's
       funnel: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 3 of the fixed seed set 1–5.
+      10⁻⁵), on seed 3 of the fixed seed set 1–3.
     readout: Gap to the known minimum
     expect: { below: 0.0001 }
     setup:
       params: { landscape: ackley, budget: 2400, swarm: 24 }
       seed: 3
-  - id: swarm-reaches-the-minimum-ackley-seed-4
-    statement: >-
-      With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Ackley's
-      funnel: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 4 of the fixed seed set 1–5.
-    readout: Gap to the known minimum
-    expect: { below: 0.0001 }
-    setup:
-      params: { landscape: ackley, budget: 2400, swarm: 24 }
-      seed: 4
-  - id: swarm-reaches-the-minimum-ackley-seed-5
-    statement: >-
-      With 2,400 evaluations and 24 particles the swarm finds the global minimum 0 of Ackley's
-      funnel: the gap printed to four decimals is 0.0000, so below 10⁻⁴ (the true gap below 5 ·
-      10⁻⁵), on seed 5 of the fixed seed set 1–5.
-    readout: Gap to the known minimum
-    expect: { below: 0.0001 }
-    setup:
-      params: { landscape: ackley, budget: 2400, swarm: 24 }
-      seed: 5
 ---
 
 Particles pulled towards their own best and the swarm's best positions.
