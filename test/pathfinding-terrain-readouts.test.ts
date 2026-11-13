@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { HOLD_FRAMES } from '../src/core/pace';
 import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
 import type { Params, PlateCode, PlateContext, Stat } from '../src/core/plate';
+import { ENTRIES } from '../src/core/catalogue';
 import { mulberry32 } from '../src/core/random';
 import { Search, terrain, type Kind, type Terrain } from '../src/plates/pathfinding-terrain/search';
 import { installBrowserStubs, p5Stub } from './support/p5-stub';
@@ -183,4 +184,86 @@ describe('pathfinding-terrain: a map whose every attempt fails (the latent crash
       vi.resetModules();
     }
   });
+});
+
+/** Distances from `start` by Dijkstra with a linear scan for the nearest open cell: no heap. */
+function scanDijkstra(t: Terrain, start: number): Float64Array {
+  const n = t.w * t.h;
+  const d = new Float64Array(n).fill(Infinity);
+  const done = new Uint8Array(n);
+  d[start] = 0;
+  for (;;) {
+    let u = -1;
+    for (let i = 0; i < n; i++) if (!done[i] && Number.isFinite(d[i]) && (u < 0 || d[i] < d[u])) u = i;
+    if (u < 0) return d;
+    done[u] = 1;
+    const x = u % t.w; const y = Math.floor(u / t.w);
+    for (const j of [x > 0 ? u - 1 : -1, x < t.w - 1 ? u + 1 : -1, y > 0 ? u - t.w : -1, y < t.h - 1 ? u + t.w : -1]) {
+      if (j >= 0 && Number.isFinite(t.cost[j]) && d[u] + t.cost[j] < d[j]) d[j] = d[u] + t.cost[j];
+    }
+  }
+}
+
+/** The map the plate draws for this seed and roughness: its first attempt with a path. */
+function plateMap(seed: number, rough: number) {
+  const rnd = mulberry32(seed);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const { terrain: t } = terrain(W, H, rnd, rough, WALL);
+    const [start, goal] = endpoints(t);
+    if (start < 0 || goal < 0) continue;
+    const d = scanDijkstra(t, start);
+    if (Number.isFinite(d[goal])) return { t, start, goal, d };
+  }
+  throw new Error(`no map at seed ${seed}`);
+}
+
+/**
+ * The expansion range of a best-first search that stops when it pops the goal. With a consistent
+ * heuristic h (here Manhattan × the cheapest cell: one step changes it by at most that cell cost,
+ * never more than the entered cell's cost) every cell is expanded with its true distance g*, in
+ * order of f = g* + h, so A* expands every cell with f < C* (the optimum), none with f > C*, and
+ * some of those with f = C*, the goal among them: [#{f < C*} + 1, #{f ≤ C*}] (Hart, Nilsson and
+ * Raphael 1968). Dijkstra is the case h = 0. The equalities are counted with a margin of
+ * 1e-9 · C*, so cost sums rounded in another order only widen the range.
+ */
+function expansionRange(m: ReturnType<typeof plateMap>, kind: 'astar' | 'dijkstra'): [number, number] {
+  const { t, goal, d } = m;
+  const C = d[goal];
+  const eps = 1e-9 * C;
+  const h = (i: number) => (Math.abs((i % t.w) - (goal % t.w))
+    + Math.abs(Math.floor(i / t.w) - Math.floor(goal / t.w))) * t.minCost;
+  let below = 0; let upTo = 0;
+  for (let i = 0; i < d.length; i++) {
+    if (!Number.isFinite(d[i])) continue;
+    const f = kind === 'astar' ? d[i] + h(i) : d[i];
+    if (f < C - eps) below++;
+    if (f <= C + eps) upTo++;
+  }
+  return [below + 1, upTo];
+}
+
+describe('pathfinding-terrain: every claim literal is what the heap-free Dijkstra gives', () => {
+  const entry = ENTRIES.find((e) => e.id === 'pathfinding-terrain')!;
+  it('has claims', () => expect(entry.claims.length).toBeGreaterThan(0));
+  for (const c of entry.claims) {
+    it(c.id, () => {
+      const p = (c.setup?.params ?? {}) as Record<string, number | string>;
+      const kind = String(p.algorithm ?? 'astar');
+      expect(Number(p.weight ?? 1), 'the claims are about A* at weight 1 and Dijkstra').toBe(1);
+      expect(['astar', 'dijkstra']).toContain(kind);
+      const m = plateMap(c.setup?.seed ?? 4242, Number(p.rough ?? 1.2));
+      const x = c.expect;
+      if (c.readout === 'vs optimum') {
+        // optimal at weight 1: 0 % above, within half the printed decimal
+        expect(x).toEqual({ value: 0, tolerance: 0.05 });
+      } else if (c.readout === 'path cost') {
+        expect(x.value).toBe(Number(m.d[m.goal].toFixed(1)));
+        expect(x.tolerance).toBe(0.05);
+      } else if (c.readout === 'expanded cells') {
+        expect(x.range).toEqual(expansionRange(m, kind as 'astar' | 'dijkstra'));
+      } else {
+        throw new Error(`no oracle for readout ${c.readout}`);
+      }
+    });
+  }
 });
