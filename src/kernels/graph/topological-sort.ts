@@ -44,7 +44,15 @@ export const kernel: GraphKernel<TopoResult> = {
     }
     return { order };
   },
-  report(r) {
-    return [{ label: 'Order', value: `${r.order.slice(0, 6).join(', ')}${r.order.length > 6 ? ', ...' : ''}` }];
+  report(r, g) {
+    // an edge whose head is placed before its tail points backward: none on a DAG
+    const place = new Array<number>(g.n).fill(-1);
+    r.order.forEach((v, i) => { if (v >= 0) place[v] = i; });
+    let backward = 0;
+    for (let e = 0; e < g.m; e++) if (place[g.ev[e]] < place[g.eu[e]]) backward++;
+    return [
+      { label: 'Order', value: `${r.order.slice(0, 6).join(', ')}${r.order.length > 6 ? ', ...' : ''}` },
+      { label: 'Edges pointing backward', value: String(backward) },
+    ];
   },
 };
