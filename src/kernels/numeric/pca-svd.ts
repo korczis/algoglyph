@@ -65,6 +65,28 @@ export function* jacobiSteps(X: Mat, record = false, tol = 1e-13, maxSweeps = 30
   return { U, s, V: Vs, sweeps, rotations };
 }
 
+/**
+ * ‖X − X_k‖²_F, entry by entry, where X_k = Σ_{a<k} s_a u_a v_aᵀ is rebuilt from the factors.
+ * It equals the sum of the discarded s_a² (Eckart–Young) only if the factors really are an SVD
+ * of X: orthonormal U and V and X = U diag(s) Vᵀ.
+ */
+export function reconstructionError(X: Mat, svd: SVD, k: number): number {
+  const d = X[0].length;
+  const r = Math.min(k, svd.s.length);
+  let e = 0;
+  for (let i = 0; i < X.length; i++) {
+    for (let j = 0; j < d; j++) {
+      let x = 0;
+      for (let a = 0; a < r; a++) x += svd.U[i][a] * svd.s[a] * svd.V[j][a];
+      e += (X[i][j] - x) ** 2;
+    }
+  }
+  return e;
+}
+
+/** Components kept by the reconstruction readout: the two the middle panel shows. */
+const KEPT = 2;
+
 /** Rows of centred data in d dimensions with planted axis scales, rotated at random. */
 export function cloud(seed: number, d: number, m: number): { X: Mat; scales: number[] } {
   const rnd = mulberry32(seed);
@@ -88,6 +110,8 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
   const raw: XY[] = X.map((r) => [r[0], r[1]]);
   const lim = Math.max(...X.flat().map(Math.abs)) * 1.1;
   const total = svd.s.reduce((t, v) => t + v * v, 0);
+  const rebuilt = reconstructionError(X, svd, KEPT);
+  const discarded = svd.s.slice(KEPT).reduce((t, v) => t + v * v, 0);
   const first: Rotation = { i: 0, j: 0, V: Array.from({ length: d }, (_, i) => Array.from({ length: d }, (_, j) => (i === j ? 1 : 0))), U: X, off: offOrthogonality(X) };
   const rots = [first, ...svd.rotations];
   const offs: XY[] = rots.map((r, k) => [k, Math.max(r.off, 1e-17)]);
@@ -114,6 +138,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
         { label: 'Variance on the leading column', value: `${fmt((100 * norms[p] ** 2) / total, 3)}%` },
         { label: 'Singular values at convergence', value: svd.s.map((v) => fmt(v, 3)).join(', ') },
         { label: 'Sweeps to converge', value: int(svd.sweeps) },
+        { label: 'Rank-2 reconstruction error ‖X − X₂‖²', value: `${fmt(rebuilt, 7)} (discarded σ² sum ${fmt(discarded, 7)})` },
       ],
     };
   }, 1);

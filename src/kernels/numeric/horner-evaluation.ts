@@ -98,6 +98,7 @@ export const kernel: NumericKernel = {
           { label: 'This evaluation', value: `Horner ${mh.get('mul')} ×, running powers ${mr.get('mul')} ×, powers from scratch ${mn.get('mul')} ×` },
           { label: 'Multiplications so far', value: `${int(totals.h)} / ${int(totals.r)} / ${int(totals.n)}` },
           { label: 'Largest |Horner − naive| so far', value: fmt(drift) },
+          { label: 'Additions this evaluation', value: `Horner ${mh.get('add')} +, running powers ${mr.get('add')} +, powers from scratch ${mn.get('add')} +` },
         ],
       };
     });

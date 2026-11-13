@@ -97,3 +97,14 @@ export function interlace(h: number): [number, number][] {
   }
   return out;
 }
+
+/**
+ * The area inside from a pixel count: the fraction of the counted pixels that stayed bounded,
+ * times the area of the view, with the binomial standard error of that fraction scaled the same
+ * way. The pixel grid is regular, not random, so the error is a model of the count's spread;
+ * an iteration cap counts slow escapers as inside, a bias the error does not include.
+ */
+export function countedArea(inside: number, pixels: number, viewArea: number): { area: number; se: number } {
+  const p = pixels ? inside / pixels : 0;
+  return { area: p * viewArea, se: pixels ? viewArea * Math.sqrt((p * (1 - p)) / pixels) : 0 };
+}
