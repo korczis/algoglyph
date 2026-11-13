@@ -48,3 +48,8 @@ export function energy(s: State, k: Pendulum): number {
   const potential = -(m1 + m2) * g * l1 * Math.cos(t1) - m2 * g * l2 * Math.cos(t2);
   return kinetic + potential;
 }
+
+/** The energy hanging at rest, both arms straight down: E_min = −(m1 + m2)g·l1 − m2·g·l2. */
+export function restEnergy(k: Pendulum): number {
+  return -(k.m1 + k.m2) * k.g * k.l1 - k.m2 * k.g * k.l2;
+}

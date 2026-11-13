@@ -48,7 +48,9 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
       stats: [
         { label: 'Delay τ (first minimum of mutual information)', value: `${int(tau)} samples` },
         { label: 'False nearest neighbours, m = 1 … 5', value: fnn.map((q) => `${fmt(q[1], 3)}%`).join(', ') },
-        { label: 'Smallest m under 5% false neighbours', value: dim ? int(dim) : 'none up to 5 (no low-dimensional attractor)' },
+        { label: 'False neighbours at the largest m', value: `${fmt(fnn[fnn.length - 1][1], 3)}% (m = ${int(fnn[fnn.length - 1][0])})` },
+        // without a digit when none is found, so a claim never reads it as the largest m tried
+        { label: 'Smallest m under 5% false neighbours', value: dim ? int(dim) : 'none up to the largest m tried (no low-dimensional attractor)' },
         { label: 'Vectors embedded', value: `${int(n)} of ${int(e2.length)}` },
       ],
       chart: { title: 'False nearest neighbours against dimension', x: { label: 'embedding dimension m' }, y: { label: 'false neighbours (%)' }, series: [{ name: 'Kennel test', points: fnn }] },
