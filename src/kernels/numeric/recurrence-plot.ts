@@ -158,6 +158,7 @@ function* build({ seed, params }: RunInput): Generator<void, NumericRun, void> {
         { label: 'Determinism (diagonal lines ≥ 2)', value: `${fmt(100 * q.det, 3)}%` },
         { label: 'Laminarity (vertical lines ≥ 2)', value: `${fmt(100 * q.lam, 3)}%` },
         { label: 'Diagonal lines', value: `mean ${fmt(q.meanDiag, 3)}, longest ${int(q.maxDiag)}, entropy ${fmt(q.entropy, 3)}` },
+        { label: 'Longest diagonal line', value: `${int(q.maxDiag)} points` },
       ],
       chart: {
         title: 'Diagonal line lengths', x: { label: 'line length' }, y: { label: 'lines', log: true },
