@@ -28,6 +28,9 @@ relations:
   - type: compares_with
     target: gaussian-elimination
     reason: Both solve a linear system; elimination costs O(N³) for N unknowns, while conjugate gradients on this sparse grid converge in a few hundred sweeps.
+  - type: analogue_of
+    target: brownian-walkers
+    reason: 'The walkers'' density at steady state obeys the same Laplace equation: concentration for the potential, the diffusion constant for ε, an absorbing wall for a grounded conductor, a source of walkers for a charge.'
   - type: related_to
     target: stable-fluids
     reason: Its pressure projection is a Poisson solve on a grid, the same operator with the velocity's divergence for the charge.
