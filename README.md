@@ -2045,7 +2045,7 @@ An attractor reconstructed from one observed signal and its delays.<br>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/hurst-dfa">315 · Hurst exponent and detrended fluctuation</a></b><br>
 Whether a series' trends persist or reverse, from how its fluctuations scale.<br>
-<sub>Time-series analysis · O(N) per window size, O(N log N) over the logarithmic set of sizes · hurst, dfa, long memory</sub>
+<sub>Time-series analysis · O(N) per window size, O(N log N) over the logarithmic set of sizes; Θ(N²) to generate the fractional Gaussian noise by Hosking's recursion · hurst, dfa, long memory</sub>
 </td>
 </tr>
 <tr>
