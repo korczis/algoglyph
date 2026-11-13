@@ -2,6 +2,7 @@ import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { DEFAULT_RULES, Flock, Grid, meanNearest, polarisation, type Rules, type V3 }
   from './flock';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 
 const HALF: V3 = [1.5, 0.9, 1];
 const HISTORY = 16;
@@ -36,6 +37,8 @@ export const boidsMurmuration: PlateCode = {
       ],
     },
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate camera', value: true },
+    // a stop costs nothing, so its top is not a budget's: past 10 000 steps a reader lets it run on
+    runsParam({ unit: 'steps', max: 10_000, note: 'One flock step a frame.' }),
     paletteParam('ember'),
   ],
   pace: { kind: 'stream', emergent: 'a flocking simulation: the boids\' speed is simulated motion, not counted events' },
@@ -49,6 +52,8 @@ export const boidsMurmuration: PlateCode = {
     let filled = 0;
     let angle = 0;
     let frames = 0;
+    // a run is one flock step (src/plates/_shared/settle)
+    const stop = new StreamStop(params, 1);
 
     const rules = (): Rules => ({
       ...DEFAULT_RULES,
@@ -98,12 +103,17 @@ export const boidsMurmuration: PlateCode = {
         filled = 0;
         frames = 0;
         angle = ctx.rnd() * Math.PI * 2;
+        stop.reset();
         record();
       },
       draw() {
         const r = rules();
-        flock.step(r);
-        record();
+        // stopped, the flock holds still: no step, and the trails keep the last ones
+        if (stop.allow(1)) {
+          flock.step(r);
+          stop.advance(1);
+          record();
+        }
         frames++;
         if (bool(params, 'spin')) angle += 0.0018;
         // a thumbnail keeps only its last frame, so earlier ones need the step, not the picture
@@ -190,6 +200,7 @@ export const boidsMurmuration: PlateCode = {
           { label: 'pair checks / step', value: `${flock.checks.toLocaleString('en')} of `
             + `${all.toLocaleString('en')} (${((100 * flock.checks) / all).toFixed(1)} %)` },
           { label: 'steps', value: flock.steps.toLocaleString('en') },
+          ...stop.rows(),
         ]);
       },
     };

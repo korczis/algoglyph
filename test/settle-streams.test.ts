@@ -257,3 +257,29 @@ describe('lorenz-attractor stops at a block of 0.6 time (100 steps)', () => {
       .toBe(swarmSpread(2, 9000));
   });
 });
+
+/** The readouts of a stop-free run of `id` after `frames` frames. */
+async function after(id: string, over: Params, frames: number): Promise<Record<string, string>> {
+  const m = await mount(id, over);
+  let last: Record<string, string> = {};
+  for (let f = 0; f < frames; f++) last = m.frame();
+  return last;
+}
+
+describe('boids-3d stops at a flock step', () => {
+  common('boids-3d', 'steps', 10_000, 60);
+
+  for (const k of [1, 37]) {
+    it(`settles at step ${k} and reads that step's flock`, async () => {
+      // one step a frame: the stop-free run's frame k is step k
+      const free = await after('boids-3d', {}, k);
+      const p = { [RUNS_KEY]: k };
+      expect(await settled('boids-3d', 'steps', p)).toBe(String(k));
+      expect(await settled('boids-3d', COMPLETED_RUNS, p)).toBe(`${k} of ${k}, stopped`);
+      const rows = ['pair checks / step', 'polarisation |⟨v̂⟩|', 'mean nearest-neighbour distance'];
+      for (const r of rows) {
+        expect(await settled('boids-3d', r, p), r).toBe(free[r]);
+      }
+    });
+  }
+});
