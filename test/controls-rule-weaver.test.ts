@@ -4,8 +4,11 @@
 // the claims instrument (test/support/claims.ts) and compares it with an elementary automaton
 // written out below, independent of the plate's own rule.ts. Then a readout of the first row's
 // live cells, so that a rule that conserves its live cells (184, the traffic rule) can be read
-// against it.
+// against it. Last, the oracles of the entry's claims, each computed here and compared with the
+// value the claim states: Lucas's theorem for rule 90's counts, exhaustion for 184's conservation.
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error -- plain ESM shared with the node tooling
+import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import { DEFAULT_SEED } from '../src/core/claims';
 import type { Params } from '../src/core/plate';
 import { mulberry32 } from '../src/core/random';
@@ -116,6 +119,56 @@ describe('rule-weaver: the live cells of the first row', () => {
     for (const k of [1, 99, 300]) {
       const p = { rule: 184, start: 'random', [RUNS_KEY]: k };
       expect(await settled('live cells', p), `at ${k}`).toBe(await settled(FIRST, p));
+    }
+  });
+});
+
+/** The entry's claims as the catalogue loads them. */
+function claimsOf(id: string): Claim[] {
+  type Model = { model: { entries: { id: string; claims: Claim[] }[] } };
+  const { model } = loadCatalogue(process.cwd()) as Model;
+  return model.entries.find((e) => e.id === id)?.claims ?? [];
+}
+
+/** Row n of Pascal's triangle mod 2, built by addition alone: its odd entries. */
+function oddBinomials(n: number): number {
+  let row = [1];
+  for (let m = 0; m < n; m++) row = [1, ...row.slice(1).map((v, k) => (v + row[k]) % 2), 1];
+  return row.reduce((a, b) => a + b, 0);
+}
+
+const popcount = (n: number) => n.toString(2).split('').filter((b) => b === '1').length;
+
+describe('rule-weaver: the oracles of the entry\'s claims', () => {
+  const claims = claimsOf('rule-weaver');
+  const byId = (id: string) => {
+    const c = claims.find((x) => x.id === id);
+    expect(c, `catalogue/entries/rule-weaver.md claim ${id}`).toBeDefined();
+    return c as Claim;
+  };
+
+  const rows = [['rule-90-at-row-63', 63, 64], ['rule-90-at-row-99', 99, 16]] as const;
+  for (const [id, n, cells] of rows) {
+    it(`${id}: 2^popcount(${n}) = ${cells} live cells, ${share(cells, WIDTH)}`, () => {
+      // Lucas: C(n, k) is odd iff the bits of k are a subset of n's, so row n has 2^popcount(n)
+      expect(2 ** popcount(n)).toBe(cells);
+      expect(oddBinomials(n)).toBe(cells);
+      // rule 90 from one cell is that row, spread over 2n + 1 cells, while the fronts have not
+      // met round the ring: n < width / 2
+      expect(n).toBeLessThan(WIDTH / 2);
+      expect(count(weave(90, WIDTH, n))).toBe(cells);
+      const c = byId(id);
+      expect(c.setup?.params).toEqual({ rule: 90, [RUNS_KEY]: n });
+      expect(c.expect).toEqual({ value: Number(((100 * cells) / WIDTH).toFixed(1)) });
+    });
+  }
+
+  it('rule-184-conserves-its-live-cells: the first row\'s count, exactly', () => {
+    for (const id of ['rule-184-conserves-its-live-cells', 'rule-184-conserves-a-sparse-row']) {
+      const c = byId(id);
+      expect(c.readout).toBe('live cells');
+      expect(c.expect).toEqual({ against: 'live cells in the first row', tolerance: 0 });
+      expect(c.setup?.params?.rule).toBe(184);
     }
   });
 });
