@@ -39,6 +39,18 @@ sources:
     year: 1982
     kind: paper
     url: https://doi.org/10.1109/TIT.1982.1056489
+  - id: hart-nilsson-raphael-1968
+    title: 'A Formal Basis for the Heuristic Determination of Minimum Cost Paths (IEEE Transactions on Systems Science and Cybernetics 4(2), 100–107)'
+    author: P. E. Hart, N. J. Nilsson, B. Raphael
+    year: 1968
+    kind: paper
+    url: https://doi.org/10.1109/TSSC.1968.300136
+  - id: yen-1971-k-shortest
+    title: 'Finding the K Shortest Loopless Paths in a Network (Management Science 17(11), 712–716)'
+    author: J. Y. Yen
+    year: 1971
+    kind: paper
+    url: https://doi.org/10.1287/mnsc.17.11.712
   - id: du-faber-gunzburger-1999-cvt
     title: 'Centroidal Voronoi Tessellations: Applications and Algorithms (SIAM Review 41(4), 637–676)'
     author: Qiang Du, Vance Faber, Max Gunzburger
