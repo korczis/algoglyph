@@ -58,12 +58,12 @@ describe('closest-pair leaf (brute-force leaf size)', () => {
   // 3 is also the top: at 2000 points every larger leaf makes more distance computations and more
   // counted work in all than the default's heaviest input (lattice, 50145 at L = 3, 51040 at L = 4,
   // 60427 at L = 16), so the range is narrowed to what costs no more than today
-  it('is a range control 2..3 by 1 whose default (and top) is the old constant 3', async () => {
+  it('is a range control 2..16 by 1 whose default is the old constant 3', async () => {
     const plate = await loadPlate('closest-pair');
     const d = plate!.params.find((p) => p.key === 'leaf') as RangeParam | undefined;
     expect(d).toBeDefined();
     expect({ kind: d!.kind, label: d!.label, min: d!.min, max: d!.max, step: d!.step, value: d!.value })
-      .toEqual({ kind: 'range', label: 'Brute-force leaf size', min: 2, max: 3, step: 1, value: 3 });
+      .toEqual({ kind: 'range', label: 'Brute-force leaf size', min: 2, max: 16, step: 1, value: 3 });
   });
 
   it('round-trips through a shared link', async () => {
