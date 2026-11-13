@@ -1,6 +1,7 @@
 import { str } from '../../core/plate';
 import { gaussian } from '../../core/random';
 import { mulberry32 } from '../../engines/signal/input';
+import { Rk4, type Deriv } from '../../plates/_shared/ode/ode';
 import type { Meter, SignalKernel, View } from '../../engines/signal/trace';
 
 export const EVAL = 'Derivative evaluations';
@@ -14,26 +15,16 @@ export function order(theta: Float64Array): { r: number; psi: number } {
   return { r: Math.hypot(c, s), psi: Math.atan2(s, c) };
 }
 
-/** dθ_i/dt = ω_i + (K/N) Σ_j sin(θ_j − θ_i), in its exact mean-field form K·r·sin(ψ − θ_i). */
-function deriv(theta: Float64Array, omega: Float64Array, K: number, out: Float64Array, meter?: Meter): void {
-  const { r, psi } = order(theta);
-  for (let i = 0; i < theta.length; i++) out[i] = omega[i] + K * r * Math.sin(psi - theta[i]);
-  meter?.add(EVAL, theta.length);
-}
-
-/** One classical Runge–Kutta step of length dt, in place. */
-export function rk4(theta: Float64Array, omega: Float64Array, K: number, dt = DT, meter?: Meter): void {
-  const n = theta.length;
-  const k1 = new Float64Array(n); const k2 = new Float64Array(n); const k3 = new Float64Array(n); const k4 = new Float64Array(n);
-  const tmp = new Float64Array(n);
-  deriv(theta, omega, K, k1, meter);
-  for (let i = 0; i < n; i++) tmp[i] = theta[i] + 0.5 * dt * k1[i];
-  deriv(tmp, omega, K, k2, meter);
-  for (let i = 0; i < n; i++) tmp[i] = theta[i] + 0.5 * dt * k2[i];
-  deriv(tmp, omega, K, k3, meter);
-  for (let i = 0; i < n; i++) tmp[i] = theta[i] + dt * k3[i];
-  deriv(tmp, omega, K, k4, meter);
-  for (let i = 0; i < n; i++) theta[i] += (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
+/**
+ * dθ_i/dt = ω_i + (K/N) Σ_j sin(θ_j − θ_i), in its exact mean-field form K·r·sin(ψ − θ_i), as
+ * the derivative the library's Rk4 (src/plates/_shared/ode) steps; each call is N evaluations.
+ */
+export function derivOf(omega: Float64Array, K: number, meter?: Meter): Deriv {
+  return (_t, theta, out) => {
+    const { r, psi } = order(theta);
+    for (let i = 0; i < theta.length; i++) out[i] = omega[i] + K * r * Math.sin(psi - theta[i]);
+    meter?.add(EVAL, theta.length);
+  };
 }
 
 /** Natural frequencies: Lorentzian by quantiles (critical coupling 2γ) or seeded Gaussian. */
@@ -50,7 +41,8 @@ export function simulate(n: number, K: number, width: number, steps: number, see
   const { omega } = frequencies(n, dist, width, rnd);
   const theta = Float64Array.from({ length: n }, () => 2 * Math.PI * rnd());
   const r: number[] = [];
-  for (let s = 0; s < steps; s++) { rk4(theta, omega, K, DT, meter); r.push(order(theta).r); }
+  const rk = new Rk4(n); const f = derivOf(omega, K, meter);
+  for (let s = 0; s < steps; s++) { rk.step(f, 0, theta, DT); r.push(order(theta).r); }
   const tail = r.slice(steps >> 1);
   return { r, mean: tail.reduce((a, b) => a + b, 0) / tail.length };
 }
@@ -81,9 +73,10 @@ export const kernel: SignalKernel = {
     const unwrapped = Float64Array.from(theta);
     const lim = Math.min(3, Math.max(...omega.map(Math.abs)) * 1.05);
     const history: Float64Array[] = [];
+    const rk = new Rk4(n); const f = derivOf(omega, K, meter);
     for (let s = 1; s <= steps; s++) {
       const before = Float64Array.from(theta);
-      rk4(theta, omega, K, DT, meter);
+      rk.step(f, 0, theta, DT);
       for (let i = 0; i < n; i++) {
         let d = theta[i] - before[i];
         d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
