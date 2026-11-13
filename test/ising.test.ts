@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import {
-  deltaE, energy, lattice, magnetisation, sweep, T_CRITICAL, type Lattice,
+  deltaE, energy, energyHundredths, lattice, magnetisation, spinSum, spontaneousMagnetisation, sweep, T_CRITICAL,
+  type Lattice,
 } from '../src/plates/ising-model/ising';
+import { FieldSweep } from '../src/plates/ising-model/field-sweep';
 
 // Independent brute force: sum over every site's right and lower bond, written from scratch.
 function bruteEnergy(s: ArrayLike<number>, w: number, h: number, field: number): number {
@@ -176,5 +178,72 @@ describe('ising model', () => {
     };
     expect(go(99)).toEqual(go(99));
     expect(go(99)).not.toEqual(go(100));
+  });
+
+  it('the heat books of a sweep are the energy change recomputed from scratch, in hundredths', () => {
+    const rnd = mulberry32(12);
+    const l = lattice(18, 14, 'random', rnd);
+    for (const k of [0, 37, -100, 150]) {
+      for (const t of [1.2, 2.27, 4]) {
+        const before = energyHundredths(l, k);
+        const heat = { e100: 0 };
+        for (let i = 0; i < 5; i++) sweep(l, t, k / 100, rnd, undefined, heat);
+        const after = energyHundredths(l, k);
+        expect(heat.e100).toBe(after - before);
+        // and the hundredths are the energy itself: the brute force here, at field k / 100
+        expect(after / 100).toBeCloseTo(bruteEnergy(l.s, l.w, l.h, k / 100), 9);
+      }
+    }
+    expect(spinSum(l)).toBe(Math.round(magnetisation(l) * l.s.length));
+  });
+
+  it('refuses to keep heat books off the 0.01 grid of the field', () => {
+    const rnd = mulberry32(3);
+    const l = lattice(8, 8, 'random', rnd);
+    expect(() => sweep(l, 2, 0.123, rnd, undefined, { e100: 0 })).toThrow(/0.01 grid/);
+    expect(() => sweep(l, 2, 0.123, rnd)).not.toThrow();
+  });
+
+  it('a swept field balances its books exactly on every cycle, at every temperature', () => {
+    for (const t of [1.2, 2.27, 4]) {
+      const rnd = mulberry32(8);
+      const l = lattice(24, 20, 'ordered', rnd);
+      const f = new FieldSweep(l, 60, 2);
+      let sweeps = 0;
+      while (f.cycles < 3) { f.step(t, rnd); sweeps++; }
+      expect(sweeps).toBe(3 * f.period);
+      expect(f.last!.residual).toBe(0);
+      expect(f.last!.loop.length).toBe(4 * 60);
+      // loop area and heat differ by exactly the cycle's change of energy
+      expect(f.last!.area - f.last!.dissipated - f.last!.change).toBeCloseTo(0, 12);
+    }
+  });
+
+  it('below Tc the loop is open and dissipates; above Tc it nearly closes', () => {
+    const area = (t: number) => {
+      const rnd = mulberry32(21);
+      const l = lattice(40, 40, 'ordered', rnd);
+      const f = new FieldSweep(l, 100, 2);
+      while (f.cycles < 2) f.step(t, rnd);
+      return f.last!;
+    };
+    const cold = area(1.5);
+    const hot = area(4);
+    expect(cold.area).toBeGreaterThan(1);
+    expect(cold.dissipated).toBeGreaterThan(1);
+    expect(hot.area).toBeLessThan(0.05);
+    // a ferromagnet below Tc keeps its sign past h = 0 on the way down
+    expect(cold.coercive).toBeLessThan(0);
+  });
+
+  it('Yang\'s spontaneous magnetisation: published values, 0 at and above Tc, 1 as T → 0', () => {
+    // m₀(T = 2) = 0.911319 (to six places, from (1 − sinh⁻⁴ 1)^(1/8))
+    const sinh1 = (Math.E - 1 / Math.E) / 2;
+    expect(spontaneousMagnetisation(2)).toBeCloseTo((1 - sinh1 ** -4) ** (1 / 8), 12);
+    expect(spontaneousMagnetisation(2)).toBeCloseTo(0.911319, 5);
+    expect(spontaneousMagnetisation(T_CRITICAL)).toBe(0);
+    expect(spontaneousMagnetisation(3)).toBe(0);
+    expect(spontaneousMagnetisation(0.3)).toBeCloseTo(1, 9);
+    expect(spontaneousMagnetisation(T_CRITICAL - 1e-6)).toBeLessThan(0.2);
   });
 });

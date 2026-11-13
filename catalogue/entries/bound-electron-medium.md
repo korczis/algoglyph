@@ -9,7 +9,7 @@ sources:
   - id: feynman-lectures
     ref: 'Vol. I, ch. 31 (the origin of the refractive index) and ch. 32 (radiation damping, scattering); Vol. II, ch. 11 (dielectrics) and ch. 32 (the index of dense materials)'
     purpose: further-reading
-  - id: jackson-classical-electrodynamics
+  - id: jackson-1999
     ref: 'Chapter 7: the Lorentz model of dispersion, the plasma frequency, the Kramers–Kronig relations and the sum rule'
     purpose: implementation
 tags:
