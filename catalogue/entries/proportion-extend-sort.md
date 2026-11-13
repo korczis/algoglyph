@@ -40,6 +40,14 @@ bounds:
   model: 'comparisons and array writes (an exchange is two writes)'
   average: 'close to n lg n − O(n) comparisons on random keys, in Chen''s experiments'
   worst: 'O(n log n) comparisons, with a constant that depends on p (Chen 2001)'
+claims:
+  - id: sorted-small-is-quadratic
+    statement: >-
+      On Already sorted at 16 keys proportion extend sort makes n(n − 1)/2 = 120 comparisons and no write.
+    readout: Comparisons
+    expect: { value: 120 }
+    setup:
+      params: { shape: sorted, n: 16 }
 ---
 
 Keep a sorted prefix and extend it: take an unsorted block up to p times its length, partition it around the median of the prefix, and recurse on both sides, each again a sorted part followed by an unsorted one.

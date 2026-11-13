@@ -54,6 +54,14 @@ bounds:
   best: 'linear: on Already sorted, n − 1 comparisons and no writes below 24 keys, then 2n comparisons up to 128 keys and 2n + 6 above, with 4 array writes'
   average: 'O(n log n) comparisons (Peters); below 24 keys insertion sort alone, with array writes = inversions + keys that move and inversions ≤ comparisons ≤ inversions + n − 1'
   worst: 'O(n log n) comparisons: heapsort finishes a subarray once too many of its partitions were bad (Peters)'
+claims:
+  - id: sorted-is-linear
+    statement: >-
+      On Already sorted at 512 keys pdqsort makes 2n + 6 = 1,030 comparisons and 4 array writes: a linear count on the input that makes quicksort with the rightmost pivot quadratic.
+    readout: Comparisons
+    expect: { value: 1030 }
+    setup:
+      params: { shape: sorted, n: 512 }
 ---
 
 Introsort extended: quicksort with a median-of-three pivot and insertion sort for short subarrays, plus three guards — break patterns that produce bad pivots, fall back to heapsort after too many bad partitions, and filter out keys equal to the pivot.

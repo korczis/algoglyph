@@ -50,6 +50,14 @@ bounds:
 experiments:
   - { id: sorted-input, title: Already sorted, params: { shape: sorted, n: 128 }, observe: "Every partition peels off one key: count the comparisons against the random case." }
   - { id: duplicates, title: Few distinct keys, params: { shape: few-unique, n: 128 }, observe: "Equal keys keep being partitioned; compare with three-way quicksort in the lab." }
+claims:
+  - id: sorted-is-quadratic
+    statement: >-
+      On Already sorted at 512 keys quicksort with the rightmost key as pivot makes (n − 1)(n + 4)/2 = 131,838 comparisons: every pivot is the largest key of its subarray.
+    readout: Comparisons
+    expect: { value: 131838 }
+    setup:
+      params: { shape: sorted, n: 512 }
 ---
 
 Partition around the rightmost key, then sort the two sides.
