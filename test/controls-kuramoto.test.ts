@@ -119,9 +119,12 @@ const lockedByTheory = (n: number, g: number, K: number) =>
 // The margin of r̄ (the second half's mean of r) against √(1 − K_c/K), derived from the
 // estimator's distribution: the frequencies are the Lorentzian's quantiles, not draws, so the seed
 // draws only the initial phases; over the named seed set 1 … 200, disjoint from the claims' seed
-// 4242, the deviation r̄ − √(1 − K_c/K) has the bias and sd below (measured here and pinned to
-// within 20%), and the tolerance is 4 sd + |bias| rounded up at the display's third decimal, plus
-// 0.001 for the two printed numbers' rounding.
+// 4242, the deviation r̄ − √(1 − K_c/K) has the bias and sd below, measured once over all 200
+// seeds (too slow to repeat each run: over the 120 s limit on a hosted x86 runner), and the
+// tolerance is 4 sd + |bias| rounded up at the display's third decimal, plus 0.001 for the two
+// printed numbers' rounding. Each run re-measures on the first 30 of those seeds: the sd within
+// 40% of the table's (an sd from 30 draws has a relative error of about 1/√58, 13%) and the bias
+// within four standard errors of that subsample's mean.
 const CLAIM_SEED = 4242;
 const SPREAD_SEEDS = Array.from({ length: 200 }, (_, i) => i + 1);
 /** γ, K, measured bias and sd of r̄ − √(1 − K_c/K) over SPREAD_SEEDS, and the tolerance. */
@@ -142,16 +145,23 @@ describe('kuramoto: the spread of r̄ against the theory, on seeds disjoint from
     expect(a()).toBe(b());
   });
 
-  it('measures the bias and sd pinned above, and the tolerance is 4 sd + |bias| rounded up, plus the rounding', () => {
+  it('each tolerance is the table’s 4 sd + |bias| rounded up, plus the rounding', () => {
     expect(SPREAD_SEEDS).not.toContain(CLAIM_SEED);
     for (const [g, K, bias, sd, tol] of SPREAD) {
+      expect(tol, `γ ${g}, K ${K}`).toBeCloseTo(Math.ceil((4 * sd + Math.abs(bias)) * 1000) / 1000 + 0.001, 9);
+    }
+  });
+
+  it('re-measures the table’s bias and sd on the first 30 spread seeds', () => {
+    const seeds = SPREAD_SEEDS.slice(0, 30);
+    for (const [g, K, bias, sd] of SPREAD) {
       const th = Math.sqrt(1 - (2 * g) / K);
-      const d = SPREAD_SEEDS.map((s) => kuramoto.simulate(192, K, g, 2500, s).mean - th);
+      const d = seeds.map((s) => kuramoto.simulate(192, K, g, 2500, s).mean - th);
       const m = d.reduce((x, y) => x + y, 0) / d.length;
       const v = Math.sqrt(d.reduce((x, y) => x + (y - m) ** 2, 0) / (d.length - 1));
-      expect(Math.abs(m - bias), `γ ${g}, K ${K}: bias ${m}`).toBeLessThanOrEqual(0.2 * Math.max(Math.abs(bias), sd));
-      expect(Math.abs(v / sd - 1), `γ ${g}, K ${K}: sd ${v}`).toBeLessThan(0.2);
-      expect(tol, `γ ${g}, K ${K}`).toBeCloseTo(Math.ceil((4 * v + Math.abs(m)) * 1000) / 1000 + 0.001, 9);
+      expect(v / sd, `γ ${g}, K ${K}: sd ${v}`).toBeGreaterThan(0.6);
+      expect(v / sd, `γ ${g}, K ${K}: sd ${v}`).toBeLessThan(1.4);
+      expect(Math.abs(m - bias), `γ ${g}, K ${K}: bias ${m}`).toBeLessThanOrEqual((4 * sd) / Math.sqrt(seeds.length));
     }
   });
 

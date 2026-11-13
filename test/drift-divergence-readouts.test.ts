@@ -104,14 +104,24 @@ describe('drift-divergence: the claims\' margins', () => {
     expect(Math.max(...runs.map((r) => r.kl))).toBeLessThan(claimById('no-drift-kl-is-small')!.expect.below as number);
   });
 
+  // The JS estimator at n 20000, measured once over all of SD_SEEDS (1..400, disjoint from the
+  // claim's seed): too slow to repeat on every run (over the 120 s limit on a hosted x86 runner),
+  // so the table records it and each run re-checks it on the first 40 of those seeds, whose sd
+  // estimate lies within 40% of the table's (an sd from 40 draws has a relative error of 1/√78,
+  // about 11%, so 40% is nearly four of its standard errors).
+  const JS_AT_20000 = { seeds: '1..400', mean: 0.247737, sd: 0.003394 };
+
   it('at n 20000 the JS claim is the exact binned divergence ± at least 4 sd over the other seeds', () => {
     const exact = jsBits(binned(0, 1), binned(1.5, 1.4));
     const c = claimById('js-at-full-drift')!;
     expect(c.setup?.params).toEqual({ n: 20000 });
-    const [mean, sd] = meanSd(SD_SEEDS.map((s) => trace(k, { n: 20000 }, s).result!.steps[80].js));
     expect(Math.abs((c.expect.value as number) - exact), `exact ${exact}`).toBeLessThanOrEqual(0.0005);
-    expect(c.expect.tolerance as number).toBeGreaterThanOrEqual(4 * sd);
-    expect(c.expect.tolerance as number).toBeLessThan(4 * sd + 0.002);
-    expect(Math.abs(mean - exact), `mean ${mean}, sd ${sd}`).toBeLessThan(sd);
+    expect(c.expect.tolerance as number).toBeGreaterThanOrEqual(4 * JS_AT_20000.sd);
+    expect(c.expect.tolerance as number).toBeLessThan(4 * JS_AT_20000.sd + 0.002);
+    expect(Math.abs(JS_AT_20000.mean - exact)).toBeLessThan(JS_AT_20000.sd);
+    const [mean, sd] = meanSd(SD_SEEDS.slice(0, 40).map((s) => trace(k, { n: 20000 }, s).result!.steps[80].js));
+    expect(sd / JS_AT_20000.sd, `sd ${sd} over 40 seeds`).toBeGreaterThan(0.6);
+    expect(sd / JS_AT_20000.sd, `sd ${sd} over 40 seeds`).toBeLessThan(1.4);
+    expect(Math.abs(mean - exact), `mean ${mean}`).toBeLessThan(JS_AT_20000.sd);
   });
 });
