@@ -185,6 +185,16 @@ describe('the claims schema', () => {
     expect(vs('{ against: Other, offset: 1, tolerance: 0 }')).toBe('');
   });
 
+  it('refuses a reader-data option in a setup, and passes an ordinary select value', () => {
+    // the instrument builds its context with no `data`, so a plate asked for data:<id> would
+    // silently run its generated input and the claim would read that instead
+    const withSetup = (params: string) => errorsWith(ok.replace('    expect:', `    setup:\n      params: ${params}\n    expect:`)).join('\n');
+    expect(withSetup('{ target: "data:points" }'))
+      .toMatch(/setup\.params\.target is the reader-data option data:points; the claims instrument passes no uploaded data, so the plate would silently run its generated input/);
+    expect(withSetup('{ target: runge, samples: 24 }')).toBe('');
+    expect(withSetup('{ label: "metadata: kept" }')).toBe('');
+  });
+
   it('refuses a reversed range and a tolerance without a value', () => {
     expect(errorsWith(ok.replace('[0, 1]', '[1, 0]')).join('\n')).toMatch(/expect\.range must be \[lo, hi\]/);
     expect(errorsWith(ok.replace('{ range: [0, 1] }', '{ range: [0, 1], tolerance: 1 }')).join('\n'))
