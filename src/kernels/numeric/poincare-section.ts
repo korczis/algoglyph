@@ -47,7 +47,9 @@ export function* orbitSteps(s0: S, lam: number, crossings: number, h = 0.01, pat
       const t = -x0 / (q[0] - x0);
       section.push([y0 + t * (q[1] - y0), py0 + t * (p[1] - py0)]);
     }
-    if (i % 64 === 0) drift = Math.max(drift, Math.abs(energy([q[0], q[1], p[0], p[1]], lam) - E0) / Math.abs(E0));
+    // at every step, so the largest drift reported is the largest there was
+    const e = 0.5 * (p[0] * p[0] + p[1] * p[1]) + potential(q[0], q[1], lam); // energy(), unpacked
+    drift = Math.max(drift, Math.abs(e - E0) / Math.abs(E0));
     if ((i & 0x3fff) === 0x3fff) yield;
   }
   return { section, path, drift };

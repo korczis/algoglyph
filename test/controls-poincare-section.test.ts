@@ -76,7 +76,8 @@ describe('poincare-section: the leapfrog comes from src/plates/_shared/ode', () 
       const was = oldOrbit(s, lam, 60);
       expect(now.section).toEqual(was.section);
       expect(now.path).toEqual(was.path);
-      expect(now.drift).toBe(was.drift);
+      // the drift is now taken at every step, the old one at every 64th (below): never smaller
+      expect(now.drift).toBeGreaterThanOrEqual(was.drift);
     }
   });
 
@@ -84,5 +85,32 @@ describe('poincare-section: the leapfrog comes from src/plates/_shared/ode', () 
     const src = readFileSync('src/kernels/numeric/poincare-section.ts', 'utf8');
     expect(src).toMatch(/from '\.\.\/\.\.\/plates\/_shared\/ode\/ode'/);
     expect(src).not.toMatch(/0\.5 \* h \* f[xy]/);
+  });
+});
+
+// The readout says "Largest relative energy drift", but the orbit sampled the energy every 64th
+// step: it now takes every step, so the largest it reports is the largest there was.
+describe('poincare-section: the largest drift is taken over every step', () => {
+  it('equals the maximum of |E − E0|/|E0| over every step of the orbit, counted here', () => {
+    for (const [y0, py0, E, lam] of STARTS) {
+      const s = poincare.start(y0, py0, E, lam)!;
+      const o = poincare.orbit(s, lam, 40);
+      const E0 = poincare.energy(s, lam);
+      const q = Float64Array.of(s[0], s[1]); const p = Float64Array.of(s[2], s[3]);
+      const accel = poincare.accelOf(lam);
+      const a = new Float64Array(2);
+      accel(q, a);
+      let crossings = 0; let worst = 0; let sampled = 0;
+      for (let i = 0; crossings < 40; i++) {
+        const x0 = q[0];
+        leapfrog(q, p, a, 0.01, accel);
+        if (x0 < 0 && q[0] >= 0 && p[0] > 0) crossings++;
+        const d = Math.abs(poincare.energy([q[0], q[1], p[0], p[1]], lam) - E0) / Math.abs(E0);
+        worst = Math.max(worst, d);
+        if (i % 64 === 0) sampled = Math.max(sampled, d);
+      }
+      expect(worst).toBeGreaterThan(sampled); // the sampling missed the peak on every start here
+      expect(o.drift).toBe(worst);
+    }
   });
 });
