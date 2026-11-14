@@ -126,7 +126,11 @@ export const poissonGrid: PlateCode = {
       snapshot();
       shown = 0;
       pacer.start(null);
-      rows = [{ label: 'conjugate-gradient iterations', value: 'solving' }];
+      // a reader's data is announced from the first frame, before the solve has converged
+      rows = [
+        ...(mode === 'data' ? [{ label: 'Input', value: `your data, ${electrodes.length} electrodes in the grounded box` }] : []),
+        { label: 'conjugate-gradient iterations', value: 'solving' },
+      ];
       if (ctx.thumbnail) { while (!solved) step(Infinity); }
     }
 
