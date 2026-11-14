@@ -39,6 +39,18 @@ sources:
     year: 1982
     kind: paper
     url: https://doi.org/10.1109/TIT.1982.1056489
+  - id: hart-nilsson-raphael-1968
+    title: 'A Formal Basis for the Heuristic Determination of Minimum Cost Paths (IEEE Transactions on Systems Science and Cybernetics 4(2), 100–107)'
+    author: P. E. Hart, N. J. Nilsson, B. Raphael
+    year: 1968
+    kind: paper
+    url: https://doi.org/10.1109/TSSC.1968.300136
+  - id: yen-1971-k-shortest
+    title: 'Finding the K Shortest Loopless Paths in a Network (Management Science 17(11), 712–716)'
+    author: J. Y. Yen
+    year: 1971
+    kind: paper
+    url: https://doi.org/10.1287/mnsc.17.11.712
   - id: shinbrot-1992-double-pendulum
     title: 'Chaos in a double pendulum (American Journal of Physics 60(6), 491–499)'
     author: T. Shinbrot, C. Grebogi, J. Wisdom, J. A. Yorke
@@ -1381,3 +1393,15 @@ sources:
     publisher: Springer
     year: 2006
     kind: book
+  - id: ho-ruehli-brennan-1975
+    title: The Modified Nodal Approach to Network Analysis (IEEE Transactions on Circuits and Systems 22, 504)
+    author: Chung-Wen Ho, Albert E. Ruehli, Pierce A. Brennan
+    year: 1975
+    kind: paper
+    url: https://doi.org/10.1109/TCS.1975.1084079
+  - id: yee-1966
+    title: Numerical Solution of Initial Boundary Value Problems Involving Maxwell's Equations in Isotropic Media (IEEE Transactions on Antennas and Propagation 14, 302)
+    author: Kane S. Yee
+    year: 1966
+    kind: paper
+    url: https://doi.org/10.1109/TAP.1966.1138693
