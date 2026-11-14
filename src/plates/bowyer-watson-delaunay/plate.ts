@@ -1,7 +1,9 @@
 import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode, type Stat } from '../../core/plate';
 import { gaussian } from '../../core/random';
-import { circumcentre, Delaunay, LATTICE, minAngle, type Insertion } from './bowyer';
+import {
+  circumcentre, Delaunay, LATTICE, minAngle, type Insertion,
+} from '../_shared/delaunay/delaunay';
 import { Pacer, paceParam } from '../../core/pace';
 
 type Pt = [number, number];
@@ -127,7 +129,7 @@ export const bowyerWatsonDelaunay: PlateCode = {
       ],
     },
     {
-      // the side of the integer lattice the points snap to (bowyer.ts): 4096 is the largest on
+      // the side of the integer lattice the points snap to (delaunay.ts): 4096 is the largest on
       // which the predicates stay exact; a coarse one merges points and lines them up
       kind: 'select', key: 'lattice', label: 'Lattice side', value: String(LATTICE),
       rebuild: true,

@@ -34,9 +34,11 @@ export const kernel: GraphKernel<DagSpResult> = {
     dist[s] = 0;
     ops.value(s, 0);
     for (const u of order) {
+      // its predecessors are final, so an infinite distance is final too: the source cannot reach
+      // u, its out-edges are skipped and it is never relaxed (it stays ordered, not relaxed)
+      if (!Number.isFinite(dist[u])) continue;
       ops.settle(u);
       yield;
-      if (!Number.isFinite(dist[u])) continue;
       for (const e of g.out[u]) {
         ops.scan(e);
         const v = g.ev[e];
@@ -55,6 +57,10 @@ export const kernel: GraphKernel<DagSpResult> = {
   },
   report(r) {
     const fin = r.dist.filter(Number.isFinite);
-    return [{ label: 'Reached', value: `${fin.length} vertices, distances ${Math.min(...fin)} to ${Math.max(...fin)}` }];
+    // the farthest distance in a row of its own, so that its first number is the distance
+    return [
+      { label: 'Reached', value: `${fin.length} vertices, distances ${Math.min(...fin)} to ${Math.max(...fin)}` },
+      { label: 'Farthest', value: `${Math.max(...fin)} from the source` },
+    ];
   },
 };

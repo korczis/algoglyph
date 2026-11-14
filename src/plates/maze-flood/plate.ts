@@ -1,7 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
-import { backtracker, E, flood, floodStep, grid, path, prim, S, type Flood, type Grid } from './maze';
+import { backtracker, E, flood, floodStep, grid, passages, path, prim, S, type Flood, type Grid } from './maze';
 import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
 type Phase = 'carve' | 'flood' | 'path' | 'hold';
@@ -144,6 +144,8 @@ export const mazeFlood: PlateCode = {
         ctx.stats([
           { label: 'phase', value: phase },
           { label: 'cells', value: (g.cols * g.rows).toLocaleString('en') },
+          // the passages carved so far: cells − 1 once the carve, a spanning tree, is done
+          { label: 'passages', value: passages(g).toLocaleString('en') },
           { label: 'flood frontier', value: phase === 'carve' ? '–' : String(fl.tail - fl.head) },
           { label: 'longest shortest path', value: phase === 'carve' ? '–' : String(fl.max) },
           pacer.row(params),
