@@ -234,6 +234,13 @@ function drag(plate: Plate, params: Params, width: number): Reading {
  */
 function best(run: () => Reading): Reading {
   let out: Reading = { create: Infinity, frame: Infinity, at: '' };
+  // one untimed run first, on a seed of its own (a plate caching a run by its seed must not answer
+  // the timed runs from it): the code is compiled and the garbage of whatever ran before in this
+  // process is collected there, not inside a timed frame. Without it lorenz-attractor's rebuild
+  // read 35-50 reference ms in 4 of 6 processes that had run ten heavier plates first, against
+  // 16-20 alone; with it 1 of 6 (test/budget-isolation.test.ts, which measures what is left)
+  seed = 4242 - 7919;
+  run();
   for (let r = 0; r < budget.repeats; r++) {
     seed = 4242 + 7919 * r;
     const m = run();
