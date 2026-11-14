@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import { fadeTrace } from '../_shared/trace/trace';
 import {
   bounds, generationsPerFrame, Life, parseRule, PATTERNS, ruleString, type Pattern, type Rule,
@@ -45,6 +46,9 @@ export const lifeLikeAutomata: PlateCode = {
         { value: 'rpent', label: 'R-pentomino' },
         { value: 'gun', label: 'Gosper glider gun' },
         { value: 'acorn', label: 'Acorn' },
+        { value: 'blinker', label: 'Blinker (period 2)' },
+        { value: 'block', label: 'Block (still life)' },
+        { value: 'glider', label: 'Glider' },
         { value: 'empty', label: 'Empty (draw with the pointer)' },
       ],
     },
@@ -53,6 +57,9 @@ export const lifeLikeAutomata: PlateCode = {
     { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 2, max: 10, step: 1, value: 3,
       rebuild: true },
     paceParam(),
+    // a stop costs nothing, so its top is not a budget's: past 100 000 generations a reader lets
+    // it run on (0)
+    runsParam({ unit: 'generations', max: 100_000 }),
     { kind: 'range', key: 'fade', label: 'Trail fade per frame', min: 0.8, max: 0.995,
       step: 0.005, value: 0.94 },
     paletteParam('ember'),
@@ -73,6 +80,8 @@ export const lifeLikeAutomata: PlateCode = {
     let paintOn = true;
     let history: [number, number, number, number][] = [];
     let frames = 0;
+    // a run is one generation (src/plates/_shared/settle)
+    const stop = new StreamStop(params, 1);
     // colour tables, rebuilt only when the palette changes
     let lutKey = '';
     const ageLut = new Uint8Array((AGE_CAP + 1) * 3);
@@ -124,6 +133,9 @@ export const lifeLikeAutomata: PlateCode = {
       if (preset === 'soup') life.soup(num(params, 'density'), ctx.rnd);
       else if (preset === 'rpent') centre(PATTERNS.rPentomino);
       else if (preset === 'acorn') centre(PATTERNS.acorn);
+      else if (preset === 'blinker') centre(PATTERNS.blinker);
+      else if (preset === 'block') centre(PATTERNS.block);
+      else if (preset === 'glider') centre(PATTERNS.glider);
       else if (preset === 'gun') {
         life.place(PATTERNS.gosperGun, Math.floor(w * 0.08), Math.floor(h * 0.12));
       }
@@ -168,6 +180,7 @@ export const lifeLikeAutomata: PlateCode = {
         ruleText = '';
         history = [];
         frames = 0;
+        stop.reset();
         life = new Life(w, h);
         seed();
       },
@@ -186,8 +199,11 @@ export const lifeLikeAutomata: PlateCode = {
           life.perturbed();
         }
         const asked = ctx.thumbnail ? 1 : pacer.take(params);
-        const n = asked ? generationsPerFrame(asked, w * h) : 0;
+        const room = asked ? generationsPerFrame(asked, w * h) : 0;
+        // clamped to the stop: the frame that reaches it steps only the generations left
+        const n = stop.allow(room);
         for (let k = 0; k < n; k++) life.step(rule);
+        stop.advance(n);
         paint(num(params, 'fade'));
         p.background(...ctx.bg);
         const [ox, oy] = offset();
@@ -195,7 +211,8 @@ export const lifeLikeAutomata: PlateCode = {
 
         const g = life;
         frames++;
-        if (!ctx.thumbnail) {
+        // held at the stop, the chart keeps its points rather than repeating the last one
+        if (!ctx.thumbnail && !(stop.stopped && n === 0)) {
           history.push([g.generation, g.population, g.births, g.deaths]);
           if (history.length > CHART_POINTS) history.shift();
         }
@@ -223,10 +240,12 @@ export const lifeLikeAutomata: PlateCode = {
             : g.proposed
               ? `${fmt(g.proposed)} proposed by the hashes, comparing boards`
               : `not periodic in the last ${fmt(g.remembered)} boards` },
-          { label: 'generations per frame', value: n < asked
+          { label: 'generations per frame', value: stop.stopped ? `${n}, held at the stop`
+            : n < asked
             ? `${n} of ${asked} asked, capped by the cell budget` : String(n) },
           { label: 'board', value: `${w}×${h} (torus)` },
           pacer.row(params),
+          ...stop.rows(),
         ]);
       },
     };

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 // @ts-expect-error -- plain ESM shared with the node tooling
 import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
-import { expected, firstNumber, holds, nthNumber, read, type Claim } from './support/claims';
+import { failures, firstNumber, holds, nthNumber, read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
@@ -25,9 +25,8 @@ for (const e of claimed) {
   describe(`claims of ${e.id}`, () => {
     for (const c of e.claims) {
       it(`${c.id}: ${c.statement}`, async () => {
-        const r = await read(e.id, c);
-        expect(r.reason, `catalogue/entries/${e.id}.md claim ${c.id}`).toBeUndefined();
-        expect(holds(c, r.value as number), `catalogue/entries/${e.id}.md claim ${c.id}: "${c.readout}" read ${r.text} (${r.value}), expected ${expected(c)}`).toBe(true);
+        // one run per seed the claim lists; every failing seed is named
+        expect(await failures(e.id, c), `catalogue/entries/${e.id}.md claim ${c.id}`).toEqual([]);
       }, 120_000);
     }
   });
@@ -50,9 +49,7 @@ for (const f of figures) {
     for (const c of f.claims) {
       it(`${c.id}: ${c.statement}`, async () => {
         const claim = underFigure(f.setup, c);
-        const r = await read(f.plate, claim);
-        expect(r.reason, `figure ${f.at} claim ${c.id}`).toBeUndefined();
-        expect(holds(claim, r.value as number), `figure ${f.at} claim ${c.id}: "${c.readout}" read ${r.text} (${r.value}), expected ${expected(claim)}`).toBe(true);
+        expect(await failures(f.plate, claim), `figure ${f.at} claim ${c.id}`).toEqual([]);
       }, 120_000);
     }
   });
@@ -123,6 +120,35 @@ describe('the claims instrument', () => {
     expect(third.reason).toMatch(/has no number 9/);
   }, 120_000);
 
+  it('reads the k-th number of the claim\'s own readout when expect.number names it', async () => {
+    const first = await read('bootstrap-ci', base);
+    const second = await read('bootstrap-ci', { ...base, expect: { range: [0, 100], number: 2 } });
+    expect(second.reason).toBeUndefined();
+    expect(second.value).toBe(nthNumber(second.text as string, 2));
+    expect(second.value).not.toBe(first.value);
+    // and in a comparison, this readout's k-th number minus the other's
+    const vs: Claim = { ...base, readout: 'Posterior mean', expect: { against: 'Closed form Beta mean', tolerance: 1, number: 1 } };
+    const r = await read('bayes-update', vs);
+    expect(r.reason).toBeUndefined();
+    const beyond = await read('bootstrap-ci', { ...base, expect: { range: [0, 100], number: 99 } });
+    expect(beyond.reason).toMatch(/readout "90% intervals covering" has no number 99: /);
+  }, 120_000);
+
+  it('runs a claim with seeds once per seed, the same reading as a claim at that seed, and names the seed that fails', async () => {
+    const at = async (seed: number) => read('bootstrap-ci', { ...base, setup: { seed } });
+    const [one, two] = [await at(1), await at(2)];
+    // the test owns its precondition: two seeds that read differently, else it proves nothing
+    expect(one.value).toBeDefined();
+    expect(two.value).not.toBe(one.value);
+    expect(await failures('bootstrap-ci', { ...base, setup: { seeds: [1, 2] } })).toEqual([]);
+    const pinned: Claim = { ...base, expect: { value: one.value as number }, setup: { seeds: [1, 2] } };
+    const failed = await failures('bootstrap-ci', pinned);
+    expect(failed).toHaveLength(1);
+    expect(failed[0]).toMatch(/^seed 2: "90% intervals covering" read .* expected exactly /);
+    const gone = await failures('bootstrap-ci', { ...base, readout: 'No such readout', setup: { seeds: [1, 2] } });
+    expect(gone.map((m) => m.slice(0, 7))).toEqual(['seed 1:', 'seed 2:']);
+  }, 120_000);
+
   it('waits for the completed runs a plate that runs on is asked to stop after', async () => {
     // a trial plate finishes several runs a frame, a scaling plate pauses between runs: both are
     // read on their k-th completed run, never in a pause between two runs
@@ -183,6 +209,27 @@ describe('the claims schema', () => {
     expect(vs('{ range: [0, 1], against_number: 2 }')).toMatch(/expect\.against_number needs expect\.against/);
     expect(vs('{ range: [0, 1], offset: 1 }')).toMatch(/expect\.offset is a difference from expect\.against/);
     expect(vs('{ against: Other, offset: 1, tolerance: 0 }')).toBe('');
+  });
+
+  it('refuses an expect.number that is not a positive integer', () => {
+    const n = (x: string) => errorsWith(ok.replace('{ range: [0, 1] }', x)).join('\n');
+    expect(n('{ range: [0, 1], number: 2 }')).toBe('');
+    expect(n('{ against: Other, tolerance: 0.1, number: 3 }')).toBe('');
+    expect(n('{ range: [0, 1], number: 0 }')).toMatch(/expect\.number is a positive integer, counting from 1/);
+    expect(n('{ range: [0, 1], number: -1 }')).toMatch(/expect\.number is a positive integer, counting from 1/);
+    expect(n('{ range: [0, 1], number: 1.5 }')).toMatch(/expect\.number is a positive integer, counting from 1/);
+    expect(n('{ range: [0, 1], number: two }')).toMatch(/claims\[0\]\.expect\.number: expected an integer/);
+  });
+
+  it('refuses seeds beside a seed, an empty or repeated list, and a seed that is not an integer', () => {
+    const s = (setup: string) => errorsWith(ok.replace('    expect:', `    setup: ${setup}\n    expect:`)).join('\n');
+    expect(s('{ seeds: [1, 2, 3, 4, 5] }')).toBe('');
+    expect(s('{ seed: 1, seeds: [1, 2] }')).toMatch(/setup\.seed and setup\.seeds are exclusive/);
+    expect(s('{ seeds: [] }')).toMatch(/setup\.seeds lists at least one seed/);
+    expect(s('{ seeds: [1, 2, 1] }')).toMatch(/setup\.seeds lists seed 1 twice/);
+    expect(s('{ seeds: [1, 2.5] }')).toMatch(/setup\.seeds\[1\]: expected an integer/);
+    expect(s('{ seeds: [1, two] }')).toMatch(/setup\.seeds\[1\]: expected an integer/);
+    expect(s('{ seeds: 3 }')).toMatch(/setup\.seeds: expected a list/);
   });
 
   it('refuses a reader-data option in a setup, and passes an ordinary select value', () => {

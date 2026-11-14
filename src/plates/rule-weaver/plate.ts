@@ -3,6 +3,7 @@ import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { binary, neighbourhoods, next } from './rule';
 import { Pacer, paceParam } from '../../core/pace';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 
 export const ruleWeaver: PlateCode = {
   id: 'rule-weaver',
@@ -22,6 +23,10 @@ export const ruleWeaver: PlateCode = {
       ],
     },
     paceParam(),
+    // a stop costs nothing, so its top is not a budget's: past 100 000 generations a reader lets
+    // it run on (0)
+    runsParam({ unit: 'generations', max: 100_000,
+      note: 'A generation is one new row below the first.' }),
     { kind: 'toggle', key: 'legend', label: 'Show the rule legend', value: true },
     paletteParam('riso'),
   ],
@@ -34,7 +39,11 @@ export const ruleWeaver: PlateCode = {
     let hood: Uint8Array;
     let nextRow: Uint8Array;
     let generation = 0;
+    // live cells of generation 0, against which a rule that conserves them (184) is read
+    let firstAlive = 0;
     let cell = 4;
+    // a run is one generation, a row computed below the first (src/plates/_shared/settle)
+    const stop = new StreamStop(params, 1);
 
     const paint = (y: number) => {
       const pal = ctx.palette();
@@ -63,21 +72,27 @@ export const ruleWeaver: PlateCode = {
           const density = start === 'sparse' ? 0.08 : 0.5;
           for (let i = 0; i < cols; i++) row[i] = ctx.rnd() < density ? 1 : 0;
         }
+        firstAlive = 0;
+        for (let i = 0; i < cols; i++) firstAlive += row[i];
         hood.fill(7);
+        // the first row is generation 0; each step below adds one, so the label is the row shown
         paint(0);
-        generation = 1;
+        generation = 0;
+        stop.reset();
       },
       draw() {
         const rule = num(params, 'rule');
-        const steps = ctx.thumbnail ? 2 : pacer.take(params);
+        // clamped to the stop: the frame that reaches it steps only the generations left
+        const steps = stop.allow(ctx.thumbnail ? 2 : pacer.take(params));
+        stop.advance(steps);
         for (let k = 0; k < steps; k++) {
           // hood keeps the parents' neighbourhoods, so paint() colours a cell by its birth
           neighbourhoods(row, hood);
           next(rule, hood, nextRow);
           [row, nextRow] = [nextRow, row];
+          generation++;
           if (generation >= raster.h) raster.scrollUp(1);
           paint(Math.min(generation, raster.h - 1));
-          generation++;
         }
         p.background(...ctx.bg);
         raster.blit(p, false, 0, 0, raster.w * cell, raster.h * cell);
@@ -112,12 +127,15 @@ export const ruleWeaver: PlateCode = {
 
         let alive = 0;
         for (let i = 0; i < row.length; i++) alive += row[i];
+        const percent = (n: number) => `${((100 * n) / row.length).toFixed(1)} %`;
         ctx.stats([
           { label: 'rule', value: `${rule} = ${binary(rule)}₂` },
           { label: 'generation', value: generation.toLocaleString('en') },
-          { label: 'live cells', value: `${((100 * alive) / row.length).toFixed(1)} %` },
+          { label: 'live cells', value: percent(alive) },
+          { label: 'live cells in the first row', value: percent(firstAlive) },
           { label: 'width', value: `${row.length} cells (ring)` },
           pacer.row(params),
+          ...stop.rows(),
         ]);
       },
     };

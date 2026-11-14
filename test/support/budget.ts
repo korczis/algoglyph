@@ -24,7 +24,7 @@ interface Budget {
   reference_cpu_ms: number; local_headroom: number;
 }
 const budget = parse(readFileSync('config/budgets.yaml', 'utf8')) as Budget;
-const widest = Math.max(...budget.widths);
+export const widest = Math.max(...budget.widths);
 
 /**
  * The all-maximum base, then one variant per option of each select that changes the work: a
@@ -170,7 +170,7 @@ function frame(sim: Sim): number {
   return cpuMs() - t;
 }
 
-interface Reading { create: number; frame: number; at: string }
+export interface Reading { create: number; frame: number; at: string }
 
 function start(plate: Plate, params: Params, width: number): { sim: Sim; create: number } {
   const t0 = cpuMs();
@@ -190,9 +190,10 @@ function settings(plate: Plate, params: Params, width: number): Reading {
 
 /**
  * Frames well past the first window, until a run has ended and been rebuilt: up to
- * `horizon_frames` frames or `horizon_cpu_ms` of CPU, whichever comes first.
+ * `horizon_frames` frames or `horizon_cpu_ms` of CPU, whichever comes first. Exported for
+ * test/sorting-max-n.test.ts: a derived max_n must measure the frame this gate judges.
  */
-function rebuild(plate: Plate, params: Params, width: number): Reading {
+export function rebuild(plate: Plate, params: Params, width: number): Reading {
   const { sim } = start(plate, params, width);
   let worst = 0;
   let at = 0;
