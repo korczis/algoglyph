@@ -1,10 +1,10 @@
 // The one instrument for every entry's claims (ADR 0007, catalogue/schema/entry.yaml `claims`):
 // run the plate headless with the claim's setup and seed until its readouts settle, read the
-// named readout's first number and judge it against the claim's expectation. No entry has test
+// named readout's first number (or the one expect.number names) and judge it against the claim's expectation. No entry has test
 // code of its own; the evidence is this run, never an authored value.
 import { GROUNDS, palette as lookupPalette } from '../../src/core/palette';
 import { defaults, type Params, type PlateContext, type Stat } from '../../src/core/plate';
-import { type Claim, DEFAULT_SEED, expectationText } from '../../src/core/claims';
+import { type Claim, claimSeeds, DEFAULT_SEED, expectationText } from '../../src/core/claims';
 import { mulberry32 } from '../../src/core/random';
 import { COMPLETED_RUNS, RUNS_KEY } from '../../src/plates/_shared/settle/settle';
 import { loadPlate } from '../../src/registry';
@@ -36,7 +36,8 @@ export const firstNumber = (text: string): number | null => nthNumber(text, 1);
 
 export interface Reading { value?: number; text?: string; frames: number; reason?: string }
 
-/** Run entry `id`'s plate for `claim` and read its readout. A reason means no value was read. */
+/** Run entry `id`'s plate for `claim` at its one seed and read its readout. A reason means no value
+ * was read. A claim listing `seeds` is read once per seed through `failures`. */
 export async function read(id: string, claim: Claim): Promise<Reading> {
   const plate = await loadPlate(id);
   if (!plate) return { frames: 0, reason: `${id} has no plate` };
@@ -54,6 +55,7 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
     if (!plate.params.some((d) => d.key === k)) return { frames: 0, reason: `setup.params.${k} is not a parameter of ${id}` };
     params[k] = v as Params[string];
   }
+  if (claim.setup?.seeds) return { frames: 0, reason: 'a claim with setup.seeds is read once per seed: use failures()' };
   const seed = claim.setup?.seed ?? DEFAULT_SEED;
   const ground = GROUNDS.dark;
   let rows: Stat[] = [];
@@ -92,11 +94,17 @@ export async function read(id: string, claim: Claim): Promise<Reading> {
   if (!row) {
     return { frames, reason: `${id} publishes no readout "${claim.readout}"; it publishes: ${rows.map((r) => `"${r.label}"`).join(', ')}` };
   }
-  const value = firstNumber(row.value);
-  if (value === null) return { frames, text: row.value, reason: `readout "${claim.readout}" shows no number: ${row.value}` };
   const x = claim.expect;
+  // the claim's own readout is read at the number it names (expect.number, from 1), else its first
+  const nth = x.number ?? 1;
+  const value = nthNumber(row.value, nth);
+  if (value === null) {
+    return { frames, text: row.value, reason: x.number === undefined
+      ? `readout "${claim.readout}" shows no number: ${row.value}`
+      : `readout "${claim.readout}" has no number ${nth}: ${row.value}` };
+  }
   if (x.against === undefined) return { frames, value, text: row.value };
-  // a comparison: the claim judges this readout's first number minus the other's chosen number
+  // a comparison: the claim judges this readout's number read minus the other's chosen number
   const other = rows.find((r) => r.label === x.against);
   if (!other) {
     return { frames, reason: `${id} publishes no readout "${x.against}" to compare with; it publishes: ${rows.map((r) => `"${r.label}"`).join(', ')}` };
@@ -117,6 +125,19 @@ export function holds(claim: Claim, value: number): boolean {
   if (x.below !== undefined) return value < x.below;
   if (x.above !== undefined) return value > x.above;
   return Math.abs(value - (x.value as number)) <= (x.tolerance ?? 0);
+}
+
+/** Every way `claim` fails on entry `id`'s plate, one message per failing seed: the claim runs once
+ * at each seed it lists (`setup.seeds`, each judged against the same expect) or at its one seed.
+ * Empty when it holds. */
+export async function failures(id: string, claim: Claim): Promise<string[]> {
+  const out: string[] = [];
+  for (const seed of claimSeeds(claim)) {
+    const r = await read(id, { ...claim, setup: { params: claim.setup?.params, seed } });
+    if (r.reason !== undefined) out.push(`seed ${seed}: ${r.reason}`);
+    else if (!holds(claim, r.value as number)) out.push(`seed ${seed}: "${claim.readout}" read ${r.text} (${r.value}), expected ${expectationText(claim)}`);
+  }
+  return out;
 }
 
 /** The expectation in words, for a failure message: the page's own formatter. */

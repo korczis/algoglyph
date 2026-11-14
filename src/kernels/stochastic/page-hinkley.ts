@@ -64,8 +64,11 @@ export const kernel: StochasticKernel<PageHinkleyResult> = {
     const streamTones = xs.map((_, i) => (i >= at ? 0.85 : 0.6));
     const statPts = statistic.map((v, i) => [i, v] as [number, number]);
     let mean = 0;
+    // the highest climb so far: below λ until the first alarm
+    let peak = 0;
     for (let t = 0; t < n; t++) {
       mean += xs[t];
+      peak = Math.max(peak, statistic[t]);
       if ((t + 1) % every === 0 || t === n - 1) {
         const upto = t + 1;
         ops.setSeries('statistic', statPts.slice(0, upto));
@@ -91,6 +94,7 @@ export const kernel: StochasticKernel<PageHinkleyResult> = {
           { label: 'Samples seen', value: fmt(upto) },
           { label: 'Running mean', value: fmt(mean / upto, 3) },
           { label: 'Statistic', value: `${fmt(statistic[t], 2)} (λ ${lambda})` },
+          { label: 'Peak of m_t − min m', value: `${fmt(peak, 2)} (λ ${lambda})` },
           { label: 'Alarm', value: seen ? `at sample ${fmt(alarm)}` : 'none yet' },
           {
             label: 'Detection',

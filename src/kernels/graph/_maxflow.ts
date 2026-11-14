@@ -54,8 +54,15 @@ export const FLOW_VIEW: Pick<GraphKernel, 'inputs' | 'n' | 'view' | 'names' | 'e
   view: { flow: true },
   endpoints: 'st',
   names: { frontier: 'Searched', done: 'Source side of the cut' },
-  report(r) {
-    const { value: v, flow } = r as FlowResult;
-    return [{ label: 'Maximum flow', value: `${v} (${flow.filter((x) => x > 0).length} edges carry flow)` }];
+  report(r, g) {
+    const { value: v, flow, side } = r as FlowResult;
+    // the cut the final residual network defines: the edges from the side still reachable from
+    // s to the rest, at full capacity (max-flow min-cut sets it equal to the flow value)
+    let cut = 0; let edges = 0;
+    for (let e = 0; e < g.m; e++) if (side[g.eu[e]] && !side[g.ev[e]]) { cut += g.cap[e]; edges++; }
+    return [
+      { label: 'Maximum flow', value: `${v} (${flow.filter((x) => x > 0).length} edges carry flow)` },
+      { label: 'Cut capacity', value: `${cut} (${edges} ${edges === 1 ? 'edge' : 'edges'} cut)` },
+    ];
   },
 };
