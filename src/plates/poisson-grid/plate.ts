@@ -7,8 +7,8 @@ import { boxSeries, chargeOn, conductor, fieldAt, fieldEnergy, makeGrid, Solve, 
 
 type Mode = 'charge' | 'coax' | 'cage' | 'cylinder' | 'data';
 
-/** Node-iterations of conjugate gradients a frame: about 70 iterations of the default 129² grid. */
-export const WORK_PER_FRAME = 1_200_000;
+/** Node-iterations of conjugate gradients a frame: about 40 iterations of the default 129² grid, 10 of the finest. */
+export const WORK_PER_FRAME = 700_000;
 /** The solve stops at this relative residual. */
 export const TOL = 1e-10;
 /** The picture keeps each iteration's potential at DISPLAY² points, to replay the solve converging. */
