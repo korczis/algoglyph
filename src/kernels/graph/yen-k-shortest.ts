@@ -16,9 +16,12 @@ export const kernel: GraphKernel<KspResult> = {
   params: [{ kind: 'range', key: 'k', label: 'Paths k', min: 1, max: 8, step: 1, value: 3, rebuild: true }],
   pick: 's',
   endpoints: 'st',
-  names: { frontier: 'In a spur search queue', done: 'Settled in a spur search', tree: 'Paths found', marked: 'Best path' },
+  // paths 2..k are drawn as tree edges and the best path's edges marked over them, so the tree
+  // count is the distinct edges on a later path and not on the best one; the paths are counted
+  // in the report
+  names: { frontier: 'In a spur search queue', done: 'Settled in a spur search', tree: 'Edges only on later paths', marked: 'Best path' },
   readouts: ['scans', 'relaxations', 'tree', 'rounds'],
-  chart: { title: 'Edges on the paths found', y: 'edges', series: ['tree'] },
+  chart: { title: 'Edges only on later paths', y: 'edges', series: ['tree'] },
   *steps(ops, { s, t, p }) {
     const g = ops.g;
     const k = Number(p.k);
@@ -70,8 +73,11 @@ export const kernel: GraphKernel<KspResult> = {
     }
     return { paths };
   },
-  report(r) {
-    if (!r.paths.length) return [{ label: 'Paths', value: 'target not reachable' }];
-    return [{ label: 'Path costs', value: r.paths.map((q) => q.cost).join(', ') }];
+  report(r, _g, { p }) {
+    if (!r.paths.length) return [{ label: 'Paths found', value: '0 (target not reachable)' }];
+    return [
+      { label: 'Paths found', value: `${r.paths.length} of ${Number(p.k)} asked` },
+      { label: 'Path costs', value: r.paths.map((q) => q.cost).join(', ') },
+    ];
   },
 };
