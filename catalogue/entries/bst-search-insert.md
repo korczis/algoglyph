@@ -27,6 +27,34 @@ bounds:
   model: key comparisons
   average: about 2 ln n, roughly 1.39 lg n, per search on random keys
   worst: n per search, on the path of n levels that ascending or descending keys build
+claims:
+  - id: ascending-keys-build-a-path
+    statement: >-
+      With 31 keys arriving in ascending order each one hangs to the right of the one before, so the
+      tree is a path: Height is exactly 31 levels, counting the nodes on the longest root-to-leaf
+      path (a single node is 1).
+    readout: Height
+    expect: { value: 31 }
+    setup:
+      params: { shape: ascending }
+  - id: ascending-comparisons
+    statement: >-
+      With 31 ascending keys the i-th insertion compares with all i − 1 keys on the path, 0 + 1 + …
+      + 30 = 465 comparisons; the 15 searches of the default seed take 233 more along that path, 698
+      in all, recomputed by an independent binary search tree.
+    readout: Key comparisons
+    expect: { value: 698 }
+    setup:
+      params: { shape: ascending }
+  - id: random-order-height
+    statement: >-
+      With the 31 keys in the default seed's random order the tree is 9 levels high, recomputed by
+      an independent binary search tree; height is in levels, counting the nodes on the longest
+      root-to-leaf path (a single node is 1).
+    readout: Height
+    expect: { value: 9 }
+    setup:
+      params: { shape: random }
 ---
 
 Search and insert by comparing down from the root; the shape is the insertion order.

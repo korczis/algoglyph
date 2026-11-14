@@ -25,6 +25,32 @@ pedagogy:
 bounds:
   model: levels
   worst: ⌈lg(n+1)⌉ after balancing, the minimal height, whatever the arrival order
+claims:
+  - id: random-order-balances-to-five-levels
+    statement: >-
+      Rotating the median of every subtree to its root (rank ⌊size / 2⌋) leaves 31 = 2^5 − 1 keys in
+      a perfect tree: Height is exactly 5 levels, counting the nodes on the longest root-to-leaf
+      path (a single node is 1), whatever order the keys arrived in.
+    readout: Height
+    expect: { value: 5 }
+    setup:
+      params: { shape: random }
+  - id: ascending-balancing-rotations
+    statement: >-
+      With 31 ascending keys the path is rebalanced by exactly 49 rotations, recomputed by an
+      independent median rebalancing written in the test.
+    readout: Rotations
+    expect: { value: 49 }
+    setup:
+      params: { shape: ascending }
+  - id: random-order-balancing-rotations
+    statement: >-
+      With the 31 keys in the default seed's random order the rebalancing makes 33 rotations,
+      recomputed by an independent median rebalancing written in the test.
+    readout: Rotations
+    expect: { value: 33 }
+    setup:
+      params: { shape: random }
 ---
 
 A rotation exchanges a parent and child and keeps the order, the move every balanced tree is built from.

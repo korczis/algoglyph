@@ -28,6 +28,33 @@ pedagogy:
 bounds:
   model: rotations
   worst: one per key comparison of an insertion, n − 1 when the new key lands at the bottom of a path
+claims:
+  - id: ascending-one-rotation-per-key
+    statement: >-
+      With 31 ascending keys each new key is the largest: it is compared once with the root, hung as
+      its right child and rotated up once, so the run makes exactly 30 rotations, one per key after
+      the first.
+    readout: Rotations
+    expect: { value: 30 }
+    setup:
+      params: { shape: ascending }
+  - id: ascending-keys-build-a-path
+    statement: >-
+      With 31 ascending keys each new root keeps the old root as its left child, so the tree is a
+      path leaning left: Height is exactly 31 levels, counting the nodes on the longest root-to-leaf
+      path (a single node is 1).
+    readout: Height
+    expect: { value: 31 }
+    setup:
+      params: { shape: ascending }
+  - id: random-order-rotations
+    statement: >-
+      With the 31 keys in the default seed's random order the insertions make 141 rotations, one for
+      every node on each new key's search path, recomputed by an independent root-insertion tree.
+    readout: Rotations
+    expect: { value: 141 }
+    setup:
+      params: { shape: random }
 ---
 
 Insert at the bottom, then rotate the new key up to the root.

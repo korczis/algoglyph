@@ -29,6 +29,32 @@ algorithm:
 bounds:
   model: nodes touched (pages read)
   average: about log_t n pages per search, each searched by binary search
+claims:
+  - id: degree-three-ascending-height
+    statement: >-
+      With minimum degree t = 3 (pages of 2 to 5 keys) and 31 ascending keys the B-tree is 3 levels
+      high, levels, counting the nodes on the longest root-to-leaf path (a single node is 1),
+      recomputed by an independent B-tree.
+    readout: Height
+    expect: { value: 3 }
+    setup:
+      params: { shape: ascending, degree: 3 }
+  - id: degree-three-ascending-splits
+    statement: >-
+      With t = 3 and 31 ascending keys the insertions split 11 full pages, the root's splits
+      included, recomputed by an independent B-tree.
+    readout: Node splits
+    expect: { value: 11 }
+    setup:
+      params: { shape: ascending, degree: 3 }
+  - id: degree-two-is-the-2-3-4-tree
+    statement: >-
+      With t = 2 the B-tree is the 2-3-4 tree: on 31 ascending keys it splits the same 22 full nodes
+      the 2-3-4 plate does, binary search within a page changing the comparisons but not the shape.
+    readout: Node splits
+    expect: { value: 22 }
+    setup:
+      params: { shape: ascending, degree: 2 }
 ---
 
 Nodes the size of a disk page, split when full, so a search touches log_M n pages.
