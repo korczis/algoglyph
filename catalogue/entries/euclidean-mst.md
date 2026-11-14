@@ -98,3 +98,5 @@ The MST of points in the plane, found among the edges of their Delaunay triangul
 Every pair of points is an edge of the input, but none is drawn until the triangulation is done. Then its edges appear and Kruskal runs on them alone, ordered by true length: kept edges join fragments and recolour them, the rest fade.
 
 The tree is the minimum spanning tree of all n(n − 1)/2 pairs, while only the triangulation’s edges are ever examined, as the edge-examined readout shows.
+
+The triangulation drawn is that of the points snapped to a 4095-step lattice over their bounding box, so that its predicates are exact: a point lying within half a step of the hull can become one of its corners. The tree is unaffected, since it is found by true length and equals the minimum spanning tree of the unsnapped points.
