@@ -60,7 +60,8 @@ describe('searching tree claims: every figure from an independent structure', ()
       expect(claims.length, id).toBeGreaterThanOrEqual(3);
       for (const c of claims) {
         expect(c.setup?.seeds, `${c.id}: one seed per claim here`).toBeUndefined();
-        const opts = id === 'b-tree' ? { degree: Number((c.setup?.params as Record<string, unknown>)?.degree ?? 3) } : {};
+        const opts: Record<string, number> = id === 'b-tree'
+          ? { degree: Number((c.setup?.params as Record<string, unknown>)?.degree ?? 3) } : {};
         const w = inputOf(c, opts);
         const r = ORACLES[id](w.keys as number[], w.searches as number[], opts);
         if (!isPage(r)) {
