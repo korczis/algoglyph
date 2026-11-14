@@ -124,7 +124,9 @@ nodes:
       - { id: mechanics, title: Mechanics, summary: Pendulums, constraints and cloth. }
       - { id: gravitation, title: Gravitation, summary: Many bodies and the trees that make them fast. }
       - { id: waves, title: Waves, summary: The wave equation on a grid. }
+      - { id: optics, title: Optics, summary: Light in matter, its index, its dispersion and its absorption. }
       - { id: electrostatics, title: Electrostatics, summary: Charges, their fields and potentials, and Gauss's law. }
+      - { id: circuits, title: Circuits, summary: Resistors, coils and capacitors, in time and at one frequency. }
       - { id: quantum, title: Quantum behaviour, summary: Two slits, amplitudes and the price of knowing which way. }
       - { id: relativity, title: Relativity, summary: Events, boosts and the quantities every observer agrees on. }
       - { id: magnetism, title: Magnetism, summary: Currents, their magnetic fields, and induction. }

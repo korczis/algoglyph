@@ -33,6 +33,9 @@ export const collatzCoral: PlateCode = {
       value: 0.3, rebuild: true },
     { kind: 'range', key: 'step', label: 'Step length (px)', min: 1, max: 14, step: 0.5, value: 5,
       rebuild: true },
+    // read by the readout only: the picture is the sampled orbits whatever this is set to
+    { kind: 'range', key: 'start', label: 'Count the steps from', min: 1, max: 100000, step: 1,
+      value: 27, hint: 'One start value whose orbit the readout counts; the drawing is unchanged.' },
     paletteParam('ember'),
   ],
   pace: { kind: 'still', why: 'draws every orbit once, progressively, into one still picture' },
@@ -43,6 +46,18 @@ export const collatzCoral: PlateCode = {
     let longest = { n: 1, len: 1 };
     let maxLen = 1;
     let steps = 0;
+    let counted = { start: 0, text: '' };
+
+    /** The orbit of the start control, counted by the same iteration that draws the coral. */
+    const chosen = () => {
+      const start = Math.max(1, Math.round(num(params, 'start')));
+      if (counted.start !== start) {
+        const orbit = collatz(start);
+        const top = orbit.reduce((a, b) => Math.max(a, b), 1);
+        counted = { start, text: `${orbit.length - 1} (start ${start.toLocaleString('en')}, highest value ${top.toLocaleString('en')})` };
+      }
+      return counted.text;
+    };
 
     return {
       setup() {
@@ -97,6 +112,7 @@ export const collatzCoral: PlateCode = {
           { label: 'orbits drawn', value: `${index.toLocaleString('en')} / ${starts.length.toLocaleString('en')}` },
           { label: 'steps drawn', value: steps.toLocaleString('en') },
           { label: 'longest orbit', value: `${longest.n.toLocaleString('en')} → ${longest.len - 1} steps` },
+          { label: 'steps from the chosen start', value: chosen() },
         ]);
       },
     };
