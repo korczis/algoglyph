@@ -1,8 +1,8 @@
-// The graph engine's input controls of wave 7a phase 2 (maxCapacity,
-// reciprocity, maxWeight, cycleWeight, minConfidence) and wave 7b (crossHoldings) leave every
-// graph plate and lab IDENTICAL at its defaults: each default is the old constant and every draw
-// consumes the same random number in the same place (a count such as crossHoldings shifts the
-// later draws only off its default).
+// The graph engine's input controls of wave 7a phase 2 (maxCapacity, reciprocity, maxWeight,
+// cycleWeight, minConfidence) and wave 7b (crossHoldings, edgesPerVertex) leave every graph
+// plate and lab IDENTICAL at its defaults: each default is the old constant and every draw
+// consumes the same random number in the same place (a count such as crossHoldings or
+// edgesPerVertex shifts the later draws only off its default).
 // Proved against the old engine itself, in the same run (rules 9 and 10, never a recorded hash):
 // test/fixtures/graph-engine-before/graph.ts is src/engines/graph/graph.ts as it was before the
 // controls, and vi.doMock puts it under a fresh copy of the registry, so each plate is drawn
@@ -30,7 +30,7 @@ const SEEDS = [1, 7, 4242];
 
 /** The new input keys with their defaults: the old constants of graph.ts. */
 const DEFAULTS = { maxCapacity: 12, reciprocity: 0.35, maxWeight: 9, cycleWeight: -40, minConfidence: 0.3,
-  crossHoldings: 1 };
+  crossHoldings: 1, edgesPerVertex: 1.2 };
 
 /** A fresh registry on the old generator (old) or the new one: the plate code is the same. */
 async function registry(old: boolean) {

@@ -101,6 +101,9 @@ export const MIN_CONFIDENCE = 0.3;
  * it. */
 export const CROSS_HOLDINGS = 1;
 
+/** The random input's edges per vertex, unless the kernel's own control sets it. */
+export const EDGES_PER_VERTEX = 1.2;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -126,11 +129,15 @@ export interface GraphInput {
    * 0 (a DAG). A count, so a setting off the default shifts the draws after them (the share
    * weights and the free floats); the default 1 is the old max(1, round(n / 12)). */
   crossHoldings?: number;
+  /** The random input draws min(n(n − 1)/2, round(edgesPerVertex · n)) distinct pairs, each
+   * weight just after its pair: the list at a lower value is a prefix of the list at a higher
+   * one, and off the default only the draws after the edges (the vertex weights) shift. */
+  edgesPerVertex?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
 export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
-  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence', 'crossHoldings'];
+  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence', 'crossHoldings', 'edgesPerVertex'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -423,7 +430,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         return true;
       };
       if (shape === 'random') {
-        const want = Math.min((n * (n - 1)) / 2, Math.round(1.2 * n));
+        const perVertex = input.edgesPerVertex ?? EDGES_PER_VERTEX;
+        const want = Math.min((n * (n - 1)) / 2, Math.round(perVertex * n));
         while (edges.length < want) add(Math.floor(rnd() * n), Math.floor(rnd() * n));
       } else {
         for (let v = 0; v < n; v++) {

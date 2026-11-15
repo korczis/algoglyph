@@ -1,5 +1,6 @@
 import { E, type GraphKernel } from '../../engines/graph/trace';
 import { lowLink } from './_lowlink';
+import { EDGES_PER_VERTEX_PARAM } from './_density';
 
 export interface BridgesResult { bridge: boolean[] }
 
@@ -9,6 +10,7 @@ export const kernel: GraphKernel<BridgesResult> = {
   goal: 'bridges',
   inputs: ['geometric', 'small-world', 'random', 'islands'],
   n: { min: 6, max: 300, value: 70 },
+  params: [EDGES_PER_VERTEX_PARAM],
   pick: 's',
   endpoints: 's',
   names: { frontier: 'On the stack', done: 'Finished', tree: 'DFS tree edges', value: 'Low point' },
