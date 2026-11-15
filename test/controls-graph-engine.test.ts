@@ -32,15 +32,26 @@ const LAB_IDS = labs.map((l) => l.id);
 /** The new input keys with their defaults: the old constants of graph.ts. */
 const DEFAULTS = { maxCapacity: 12, reciprocity: 0.35, maxWeight: 9, cycleWeight: -40, minConfidence: 0.3 };
 
-/** A fresh registry on the old generator (old) or the new one: the plate code is the same. */
-async function registry(old: boolean) {
+/** The generator a registry draws on: the new one, the old one, or the new one with a planted
+ * change (one vertex more on every graph) that the comparison must be able to see. */
+type Generator = 'new' | 'old' | 'planted';
+
+/** A fresh registry on the given generator: the plate code is the same. */
+async function registry(gen: Generator) {
   vi.resetModules();
   // the old generator over the new module: the kernels still find the new defaults' constants
   // (MAX_CAPACITY, ...) for their controls, while every graph is drawn by the old makeGraph
-  if (old) {
+  if (gen === 'old') {
     vi.doMock(GRAPH, async () => ({
       ...(await vi.importActual<object>(GRAPH)), ...(await import('./fixtures/graph-engine-before/graph')),
     }));
+  }
+  else if (gen === 'planted') {
+    vi.doMock(GRAPH, async () => {
+      const real = await vi.importActual<typeof NEW>(GRAPH);
+      const makeGraph: typeof NEW.makeGraph = (shape, n, ...rest) => real.makeGraph(shape, n + 1, ...rest);
+      return { ...real, makeGraph };
+    });
   }
   else vi.doUnmock(GRAPH);
   const R = await import('../src/registry');
@@ -59,24 +70,29 @@ type Side = {
  * module cache current at the time of the import: a plate the new registry loaded after the old
  * one was built would be drawn by the old generator, and the comparison would prove nothing.
  */
+async function compared(gen: Generator, plateIds: string[], labIds: string[]) {
+  const load = async (g: Generator): Promise<Side> => {
+    const { R, makeGraph } = await registry(g);
+    const plates = new Map<string, Plate>();
+    for (const id of plateIds) plates.set(id, (await R.loadPlate(id))!);
+    const labs = new Map<string, Plate | undefined>();
+    for (const id of labIds) labs.set(id, await R.loadLab(id));
+    return { makeGraph, plates, labs };
+  };
+  const after = await load(gen);
+  const before = await load('old');
+  vi.doUnmock(GRAPH);
+  return { after, before };
+}
+
 let both: Promise<{ after: Side; before: Side }> | undefined;
 function sides() {
-  both ??= (async () => {
-    const load = async (old: boolean): Promise<Side> => {
-      const { R, makeGraph } = await registry(old);
-      const plates = new Map<string, Plate>();
-      for (const id of PLATE_IDS) plates.set(id, (await R.loadPlate(id))!);
-      const labs = new Map<string, Plate | undefined>();
-      for (const id of LAB_IDS) labs.set(id, await R.loadLab(id));
-      return { makeGraph, plates, labs };
-    };
-    const after = await load(false);
-    const before = await load(true);
-    vi.doUnmock(GRAPH);
-    return { after, before };
-  })();
+  both ??= compared('new', PLATE_IDS, LAB_IDS);
   return both;
 }
+
+/** Plates whose default input is not the grid (one vertex more changes the graph), and fast. */
+const PLANTED = ['yen-k-shortest', 'bipartite-matching'];
 
 const digest = (x: string) => createHash('sha256').update(x).digest('hex');
 
@@ -176,6 +192,18 @@ describe('the graph engine at its defaults is the engine before the controls', (
       .toEqual(OLD.makeGraph('flow', 40, 1, 16 / 9));
     expect(after.makeGraph('flow', 40, 1, 16 / 9, { maxCapacity: 1 } as object))
       .not.toEqual(OLD.makeGraph('flow', 40, 1, 16 / 9));
+  });
+
+  it('the comparison sees a planted change: one vertex more on the new side changes a drawing', async () => {
+    // the same loading path as every plate test below, with the new side's makeGraph wrapped
+    const { after, before } = await compared('planted', PLANTED, []);
+    for (const id of PLANTED) expect(PLATE_IDS, id).toContain(id);
+    const differs = PLANTED.filter((id) => {
+      const a = picture(after.plates.get(id)!, 90);
+      const b = picture(before.plates.get(id)!, 90);
+      return JSON.stringify(a) !== JSON.stringify(b);
+    });
+    expect(differs, 'plates whose drawing the planted change altered').not.toEqual([]);
   });
 
   // One test per plate and per lab, so that no single test carries the whole catalogue; each
