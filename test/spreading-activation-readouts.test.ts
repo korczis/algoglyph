@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SEED } from '../src/core/claims';
 import { makeGraph, other, type Graph, type Shape } from '../src/engines/graph/graph';
-import { defaultParams, trace, type GraphKernel } from '../src/engines/graph/trace';
+import { defaultParams, EVENT_CAP, trace, type GraphKernel } from '../src/engines/graph/trace';
 import { kernel, type ActivationResult } from '../src/kernels/graph/spreading-activation';
 import { repeatedLabels, settledRows } from './support/digraph-oracles';
 import { installBrowserStubs } from './support/p5-stub';
@@ -120,6 +120,24 @@ describe('spreading-activation: a run that ends by itself is unchanged by D2', (
       expect(now.result).toEqual(then.result);
       expect(kernel.report?.(now.result as ActivationResult, g, opts))
         .toEqual(before.report?.(then.result as ActivationResult, g, opts));
+    });
+  }
+});
+
+// D3: a kernel that is not mayStop must finish at its controls' extremes (trace.ts). At threshold
+// 0 a round scans every edge twice while the pulse mass falls only by d a round, so the decay's
+// upper end sets the run's length: at n 300 it truncated 19 of 20 runs at decay 0.95.
+describe('spreading-activation finishes at its own extreme (D3)', () => {
+  const decay = kernel.params?.find((d) => d.key === 'decay');
+  const top = decay?.kind === 'range' ? decay.max : NaN;
+  const n = Number(kernel.n?.max);
+  for (const shape of kernel.inputs) for (const seed of [DEFAULT_SEED, 7]) {
+    it(`${shape}, n ${n}, decay ${top}, threshold 0, seed ${seed}: not stopped at the event cap`, () => {
+      expect(kernel.mayStop).toBeFalsy();
+      const g = makeGraph(shape as Shape, n, seed, 16 / 9);
+      const t = trace(kernel, g, { s: g.s, t: g.t, p: { decay: top, threshold: 0 } }, seed,
+        EVENT_CAP, false);
+      expect(t.truncated, `${t.length} events`).toBe(false);
     });
   }
 });
