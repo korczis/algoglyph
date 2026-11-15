@@ -5,7 +5,7 @@ import { RunCounter, runsParam } from '../_shared/settle/settle';
 import {
   ABSORB, DT, N, RANGES, Scattering, X_LEFT, X_RIGHT, type Shares,
 } from './experiment';
-import type { Potential, Preset, Wave } from './schrodinger';
+import type { Potential, Preset, Wave } from '../_shared/quantum/schrodinger';
 
 /** Simulated time per frame in the gallery thumbnail. */
 const THUMB_STEPS = 40;
