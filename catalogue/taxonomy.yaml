@@ -129,6 +129,7 @@ nodes:
       - { id: circuits, title: Circuits, summary: Resistors, coils and capacitors, in time and at one frequency. }
       - { id: quantum, title: Quantum behaviour, summary: Two slits, amplitudes and the price of knowing which way. }
       - { id: relativity, title: Relativity, summary: Events, boosts and the quantities every observer agrees on. }
+      - { id: magnetism, title: Magnetism, summary: Currents, their magnetic fields, and induction. }
       - { id: radiation, title: Radiation, summary: Moving charges, their retarded fields and the light they send out. }
       - { id: fluids, title: Fluids, summary: Advection, diffusion and incompressibility. }
       - { id: statistical, title: Statistical physics, summary: Spins, temperature and phase transitions. }
