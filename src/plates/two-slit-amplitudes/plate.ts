@@ -16,9 +16,9 @@ import { MAX_PER_FRAME, roundRobin } from '../_shared/two-slit/pace';
 import { Pacer, paceParam } from '../../core/pace';
 import { deBroglie, electronMomentum, HBAR, length, PLANCK } from '../_shared/two-slit/units';
 
-type Scenario = 'electrons' | 'watched' | 'resolution' | 'recoil';
+type Scenario = 'electrons' | 'watched' | 'resolution' | 'recoil' | 'flux' | 'single';
 
-const AMPLITUDE: Scenario[] = ['electrons', 'watched'];
+const AMPLITUDE: Scenario[] = ['electrons', 'watched', 'flux', 'single'];
 /** Particles per frame, all runs, in the gallery thumbnail. */
 const THUMB_RATE = 4500;
 /** Bins of the hit histograms over the fringe windows of the resolution and recoil modes. */
@@ -44,10 +44,12 @@ export const twoSlitAmplitudes: PlateCode = {
         { value: 'watched', label: 'Watched by a light behind the slits' },
         { value: 'resolution', label: 'Fine fringes and a coarse detector' },
         { value: 'recoil', label: 'A slit wall free to recoil' },
+        { value: 'flux', label: 'A magnetic flux between the slits (Aharonov–Bohm)' },
+        { value: 'single', label: 'One slit alone: its own diffraction' },
       ],
     },
     { kind: 'range', key: 'energy', label: 'Electron energy (eV)', min: 10, max: 500, step: 10,
-      value: 50, rebuild: true, when: when('electrons', 'watched', 'recoil') },
+      value: 50, rebuild: true, when: when('electrons', 'watched', 'recoil', 'flux', 'single') },
     { kind: 'range', key: 'd', label: 'Slit separation d (µm)', min: 1, max: 5, step: 0.1,
       value: 2.5, rebuild: true },
     { kind: 'range', key: 'a', label: 'Slit width a (µm)', min: 0.1, max: 1, step: 0.05,
@@ -93,6 +95,8 @@ export const twoSlitAmplitudes: PlateCode = {
     { kind: 'range', key: 'spread', label: 'Wall momentum spread σₚ/Δq, log₁₀', min: -1.3, max: 1,
       step: 0.01, value: -0.3, rebuild: true, when: when('recoil') },
     // a default run is a demonstration: one run (or the three of the electron mode) of this many
+    { kind: 'range', key: 'flux', label: 'Flux between the slits, in flux quanta h/e', min: 0, max: 2, step: 0.05,
+      value: 0.25, rebuild: true, when: when('flux') },
     // particles, paced from their count (config/pacing.yaml); the claims pin their own n
     { kind: 'range', key: 'n', label: 'Particles emitted per run', min: 50, max: 60000,
       step: 50, value: 450, rebuild: true },
@@ -112,6 +116,141 @@ export const twoSlitAmplitudes: PlateCode = {
     let left: () => number = () => 0;
     let render: (g: CanvasRenderingContext2D) => void = () => {};
     const stream = () => mulberry32(Math.floor(ctx.rnd() * 0x7fffffff) + 1);
+
+    /**
+     * Two experiments beyond the two slits. A flux Φ between the slits, shielded from the electrons'
+     * paths, adds the Aharonov–Bohm phase 2πΦ/Φ₀ (Φ₀ = h/e) between them: the run with the flux and a
+     * run without are each fitted for the phase of their fringes, and the difference is compared with
+     * Φ/Φ₀. One slit alone: the share of the electrons it passes that land within its first
+     * diffraction zeros, ±λL/a, against the integral of sinc² over that lobe.
+     */
+    function beyond(mode: 'flux' | 'single') {
+      const lambda = deBroglie(electronMomentum(num(params, 'energy')));
+      const s: Slits = { lambda, d: num(params, 'd') * 1e-6, a: num(params, 'a') * 1e-6, L: num(params, 'L') };
+      const screen = new Screen(s);
+      const X = screen.X;
+      const bins = num(params, 'bins');
+      const w = (2 * X) / bins;
+      const binOf = (x: number) => Math.min(bins - 1, Math.floor(((x + X) / (2 * X)) * bins));
+      const k = (2 * Math.PI) / screen.period;
+      const zero = (s.lambda * s.L) / s.a;
+      const flux = num(params, 'flux');
+      // the phase between the paths, (e/ħ)∫A·dl along each, from the vector potential of a thin
+      // solenoid of flux Φ behind the wall between them, A = (Φ/2π) ẑ × r/r², by the midpoint rule on
+      // each straight leg (source, slit, the screen's centre); in flux quanta, so e/ħ = 2π/Φ₀
+      const legs = (y: number): [number, number][] => [[-1, 0], [0, y], [1, 0]];
+      const lineA = (pts: [number, number][]) => {
+        const g = 512;
+        let total = 0;
+        for (let j = 0; j + 1 < pts.length; j++) {
+          const [x0, y0] = pts[j]; const [x1, y1] = pts[j + 1];
+          for (let q = 0; q < g; q++) {
+            const t = (q + 0.5) / g;
+            const x = x0 + t * (x1 - x0) - 0.5; const y = y0 + t * (y1 - y0);
+            total += ((flux / (2 * Math.PI)) * (-y * (x1 - x0) + x * (y1 - y0))) / (x * x + y * y) / g;
+          }
+        }
+        return total;
+      };
+      // the solenoid sits at (0.5, 0), between the legs through the slits at y = ±1
+      const enclosed = lineA(legs(-1)) - lineA(legs(1));
+      const abPhase = 2 * Math.PI * enclosed;
+      // the fringes move towards +x by the enclosed flux in quanta: the second path's phase is −2πΦ/Φ₀
+      const phases = mode === 'flux' ? [0, -abPhase] : [0];
+      const rnds = phases.map(() => stream());
+      const runs = phases.map(() => ({ emitted: 0, hits: 0, blocked: 0, central: 0, hist: new Float64Array(bins) }));
+      const expected = phases.map((theta) => Float64Array.from({ length: bins }, (_, i) => {
+        const lo = -X + i * w;
+        return n * integrate((x) => (mode === 'flux' ? twoSlit(s, x, theta) : oneSlit(s, x)), lo, lo + w, 64);
+      }));
+      // the share of the single-slit pattern within its first zeros, by Simpson's rule on sinc²
+      const lobe = integrate((x) => envelope(s, x), -zero, zero, 4096);
+      const wrap = (v: number) => v - Math.round(v);
+
+      /** The fringes' phase in a histogram, by least squares of the counts on the envelope times
+       * 1, cos kx and sin kx, over the central lobe where the envelope is not small. */
+      function phaseOf(hist: Float64Array): number {
+        const S = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+        const y = [0, 0, 0];
+        for (let i = 0; i < bins; i++) {
+          const x = -X + (i + 0.5) * w;
+          if (Math.abs(x) > 0.9 * zero) continue;
+          const e = envelope(s, x);
+          const f = [e, e * Math.cos(k * x), e * Math.sin(k * x)];
+          for (let a = 0; a < 3; a++) { y[a] += f[a] * hist[i]; for (let b = 0; b < 3; b++) S[a][b] += f[a] * f[b]; }
+        }
+        const det = (m: number[][]) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+        const D = det(S) || 1;
+        const sol = [0, 1, 2].map((c) => det(S.map((row, i) => row.map((v, j) => (j === c ? y[i] : v)))) / D);
+        // counts ∝ e(1 + cos(kx + θ)) = e(1 + cos θ cos kx − sin θ sin kx)
+        return Math.atan2(-sol[2], sol[1]);
+      }
+
+      left = () => runs.reduce((t, run) => t + Math.max(0, n - run.emitted), 0);
+      step = (budget) => {
+        roundRobin(budget, (r) => n - runs[r].emitted, runs.length, (r) => {
+          const run = runs[r];
+          run.emitted++;
+          const out = mode === 'flux' ? screen.emitTwo(rnds[r], phases[r]) : screen.emitOne(rnds[r]);
+          if (out.outcome === 'blocked') { run.blocked++; return; }
+          if (out.outcome !== 'hit') return;
+          run.hits++;
+          if (Math.abs(out.x) < zero) run.central++;
+          run.hist[binOf(out.x)]++;
+        });
+      };
+
+      stats = () => {
+        const done = left() === 0;
+        const rows: Stat[] = [
+          { label: 'electron wavelength λ', value: `${(lambda * 1e9).toFixed(5)} nm` },
+          { label: 'emitted, each run', value: `${count(Math.min(...runs.map((r) => r.emitted)))} of ${count(n)}` },
+        ];
+        if (mode === 'flux') {
+          const shift = done ? wrap((phaseOf(runs[0].hist) - phaseOf(runs[1].hist)) / (2 * Math.PI)) : NaN;
+          rows.push(
+            { label: 'fringe period Λ = λL/d', value: length(screen.period) },
+            { label: 'fringe shift with the flux, fitted, in periods', value: done ? shift.toFixed(4) : 'after the runs' },
+            { label: 'enclosed flux from ∮A·dl between the paths, in Φ₀', value: enclosed.toFixed(6) },
+            { label: 'Aharonov–Bohm shift Φ/Φ₀, wrapped to ±½', value: wrap(flux).toFixed(4) },
+          );
+        } else {
+          const run = runs[0];
+          const passed = run.emitted - run.blocked;
+          const share = passed ? run.central / passed : 0;
+          rows.push(
+            { label: 'first diffraction zeros ±λL/a', value: length(zero) },
+            { label: 'share within the first zeros, of the electrons the slit passes', value: done ? pm(share, Math.sqrt((share * (1 - share)) / Math.max(1, passed)), 4) : 'after the run' },
+            { label: 'share of sinc² within its first zeros, by Simpson', value: lobe.toFixed(4) },
+          );
+        }
+        return rows;
+      };
+
+      render = (g) => {
+        const W = ctx.width;
+        const H = ctx.height;
+        const pal = ctx.palette();
+        const fg = ctx.fg;
+        const top = H * 0.08;
+        const span = H * 0.84;
+        const panel: Panel = { x: W * 0.3, w: W * 0.62, y: top, h: span };
+        let peak = 1;
+        runs.forEach((run, r) => { for (let i = 0; i < bins; i++) peak = Math.max(peak, run.hist[i], expected[r][i] * 1.15); });
+        const colours = [ramp(pal, 0.35), ramp(pal, 0.8)];
+        runs.forEach((run, r) => {
+          bars(g, panel, run.hist, peak, rgba(colours[r], 0.45));
+          curve(g, panel, expected[r], peak, rgba(r ? fg : mix(ctx.bg, fg, 0.6), 0.9), 1.2, r ? [] : [4, 3]);
+        });
+        g.fillStyle = rgba(fg, 0.75);
+        g.font = '11px monospace';
+        g.textBaseline = 'top';
+        g.fillText(mode === 'flux' ? 'hits without the flux and with it, and the expected counts' : 'hits through one slit, and the expected counts', W * 0.3, top - 16);
+        legend(g, W * 0.04, top + 8, mode === 'flux'
+          ? [[rgba(colours[0], 0.8), 'no flux'], [rgba(colours[1], 0.8), `flux ${flux} Φ₀`]]
+          : [[rgba(colours[0], 0.8), 'one slit']], fg);
+      };
+    }
 
     /** Electrons or watched electrons: the far-field amplitudes on a counter's bins. */
     function amplitudes(watched: boolean) {
@@ -574,6 +713,7 @@ export const twoSlitAmplitudes: PlateCode = {
         scenario = str(params, 'scenario') as Scenario;
         n = num(params, 'n');
         if (scenario === 'electrons' || scenario === 'watched') amplitudes(scenario === 'watched');
+        else if (scenario === 'flux' || scenario === 'single') beyond(scenario);
         else if (scenario === 'resolution') resolution();
         else recoil();
         pacer.start(left());
