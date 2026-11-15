@@ -33,9 +33,10 @@ export const kernel: GraphKernel<ActivationResult> = {
     ops.value(s, 1);
     ops.discover(s);
     let pulses = 0;
+    let firing = true;
     for (let round = 0; round < 10000; round++) {
       const next = new Array<number>(g.n).fill(0);
-      let firing = false;
+      firing = false;
       for (let u = 0; u < g.n; u++) {
         if (pulse[u] <= 0) continue;
         if (pulse[u] < th || !strength[u]) { if (act[u] > 0) ops.settle(u); continue; }
@@ -63,6 +64,11 @@ export const kernel: GraphKernel<ActivationResult> = {
       yield;
       if (biggest < 1e-13) break;
     }
+    // Left by the cut or the round cap (a zero threshold re-discovers every recipient, so it
+    // never stops firing): the pulses still held are negligible, so their vertices are settled
+    // as the next round would settle a pulse below the threshold. A run that stopped firing has
+    // settled every vertex already and does nothing here.
+    if (firing) for (let u = 0; u < g.n; u++) if (pulse[u] > 0) ops.settle(u);
     return { act, pulses };
   },
   report(r, _g, { s }) {
