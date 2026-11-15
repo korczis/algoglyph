@@ -199,10 +199,8 @@ export const kernel: GraphKernel<CommunitiesResult> = {
     }
     return { comm: label, levels: levels + 1 };
   },
+  // the engine's groups readout ("Communities", names.groups) already counts the communities
   report(r) {
-    return [
-      { label: 'Communities', value: String(new Set(r.comm).size) },
-      { label: 'Levels', value: String(r.levels) },
-    ];
+    return [{ label: 'Levels', value: String(r.levels) }];
   },
 };

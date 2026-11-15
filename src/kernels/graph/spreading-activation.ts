@@ -70,7 +70,7 @@ export const kernel: GraphKernel<ActivationResult> = {
     let top = -1;
     for (let v = 0; v < r.act.length; v++) if (v !== s && (top < 0 || r.act[v] > r.act[top])) top = v;
     return [
-      { label: 'Activated', value: `${reached} vertices, ${r.pulses} firings` },
+      { label: 'Reach and firings', value: `${reached} vertices, ${r.pulses} firings` },
       { label: 'Most activated', value: top < 0 ? 'none' : `vertex ${top}: ${r.act[top].toPrecision(3)}` },
     ];
   },
