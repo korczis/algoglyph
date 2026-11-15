@@ -89,6 +89,10 @@ export const RECIPROCITY = 0.35;
  * sets it (the random shape keeps 1..99). */
 export const MAX_WEIGHT = 9;
 
+/** The weight of each edge of the negative-cycle shape's planted three-cycle, unless the
+ * kernel's own control sets it. */
+export const CYCLE_WEIGHT = -40;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -105,11 +109,13 @@ export interface GraphInput {
   /** Grid and small-world weights are int(1, maxWeight): the same single draw in the same place
    * at every value, so the graph but its weights stays as it was. */
   maxWeight?: number;
+  /** The planted negative cycle's three edges weigh cycleWeight each (no draw at all). */
+  cycleWeight?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
 export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
-  'reciprocity', 'maxWeight'];
+  'reciprocity', 'maxWeight', 'cycleWeight'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -363,7 +369,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         const [b, c] = [near[0], near[1]];
         for (const [u, v] of [[a, b], [b, c], [c, a]] as [number, number][]) {
           const old = edges.find((e) => e[0] === u && e[1] === v);
-          if (old) old[2] = -40; else edges.push([u, v, -40]);
+          const w = input.cycleWeight ?? CYCLE_WEIGHT;
+          if (old) old[2] = w; else edges.push([u, v, w]);
         }
       }
       return build(shape, x, y, edges, true, { s, t: farthest(x, y, s) }, rnd, longest);

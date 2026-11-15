@@ -93,6 +93,32 @@ claims:
     expect: { above: 0 }
     setup:
       params: { shape: negative-cycle }
+  - id: a-shallow-negative-cycle-takes-every-round
+    statement: >-
+      At planted edge weight −1 the cycle weighs 3 · (−1) = −3, still below 0, and the source
+      reaches it, so no round is ever the last to change nothing: n rounds. Rounds equals the
+      Graph readout's vertex count, with no tolerance (the test confirms the reachable negative
+      cycle by Floyd–Warshall).
+    readout: Rounds
+    expect: { against: Graph, tolerance: 0 }
+    setup:
+      params: { shape: negative-cycle, cycleWeight: -1 }
+  - id: a-deep-negative-cycle-takes-every-round
+    statement: >-
+      At planted edge weight −90 the cycle weighs −270 and Bellman–Ford again runs all n rounds:
+      Rounds equals the vertex count, with no tolerance.
+    readout: Rounds
+    expect: { against: Graph, tolerance: 0 }
+    setup:
+      params: { shape: negative-cycle, cycleWeight: -90 }
+  - id: a-shallow-negative-cycle-still-changes-in-the-last-round
+    statement: >-
+      At planted edge weight −1 the last round still lowers a distance on the cycle: the change in
+      the last round is above 0.
+    readout: Change in the last round
+    expect: { above: 0 }
+    setup:
+      params: { shape: negative-cycle, cycleWeight: -1 }
 ---
 
 Relax every edge V − 1 times; one more round that still improves reveals a negative cycle.

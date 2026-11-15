@@ -7,13 +7,18 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error -- plain ESM shared with the node tooling
 import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import { DEFAULT_SEED } from '../src/core/claims';
+import type { Params } from '../src/core/plate';
+import { graphInput } from '../src/engines/graph';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
+import { defaultParams, type GraphKernel } from '../src/engines/graph/trace';
+import { kernel as bellmanFord } from '../src/kernels/graph/bellman-ford';
 import { read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
 
 const ID = 'bellman-ford';
+const kernel = bellmanFord as GraphKernel;
 const N = 60;
 const ASPECT = 16 / 9;
 
@@ -79,7 +84,8 @@ describe('bellman-ford: the claims’ figures', () => {
     return c!;
   };
   const graphOf = (c: Claim) => makeGraph((c.setup?.params?.shape as Shape) ?? 'signed',
-    Number(c.setup?.params?.n ?? N), c.setup?.seed ?? DEFAULT_SEED, ASPECT);
+    Number(c.setup?.params?.n ?? N), c.setup?.seed ?? DEFAULT_SEED, ASPECT,
+    graphInput(kernel, { ...defaultParams(kernel), ...(c.setup?.params ?? {}) as Params }));
 
   it('the reached count is the reachable set, counted without relaxing', () => {
     const c = claimOf('reached-is-the-reachable-set');
@@ -108,6 +114,14 @@ describe('bellman-ford: the claims’ figures', () => {
     };
     expect(negative(graphOf(claimOf('last-round-changes-nothing')))).toBe(false);
     expect(negative(graphOf(claimOf('a-negative-cycle-takes-every-round')))).toBe(true);
+    // the planted cycle's edge weight at both ends of its control: 3w < 0, still reachable
+    for (const id of ['a-shallow-negative-cycle-takes-every-round', 'a-deep-negative-cycle-takes-every-round',
+      'a-shallow-negative-cycle-still-changes-in-the-last-round']) {
+      const c = claimOf(id);
+      const g = graphOf(c);
+      expect(g.w.filter((w) => w === c.setup?.params?.cycleWeight).length, id).toBeGreaterThanOrEqual(3);
+      expect(negative(g), id).toBe(true);
+    }
     const geo = graphOf(claimOf('rounds-at-most-n'));
     expect(reachable(geo, geo.s)).toBe(geo.n);
   });
