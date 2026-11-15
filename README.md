@@ -2147,7 +2147,7 @@ A pendulum in the Panthéon, with the Earth spun up a few thousand times: its sw
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/soft-body-3d">329 · Jelly Physics</a></b><br>
 Point masses on damped springs: drop a jelly cube or a gas-filled ball on the floor, or watch a column pinned at its base wobble. Colour is the local strain.<br>
-<sub>Mechanics · O(springs + faces) per step, velocity Verlet · mass-spring, Verlet, pressure, 3D</sub>
+<sub>Mechanics · O(springs + faces) per step, velocity Verlet · mass-spring, Verlet, pressure, 3D, angular momentum</sub>
 <br><sub>Pointer: Drag to orbit, scroll to zoom.</sub>
 </td>
 </tr>

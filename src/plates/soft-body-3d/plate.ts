@@ -1,11 +1,15 @@
 import { bounded } from '../../core/budget';
 import { mix, paletteParam, ramp, scale, type RGB } from '../../core/palette';
-import { bool, num, str, type PlateCode } from '../../core/plate';
+import { bool, num, str, type PlateCode, type Stat } from '../../core/plate';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import {
-  EnergyBaseline, STRUCTURAL, centroid, energy, forces, framePlan, preset, stableStep, step,
-  strain, volume, worldKey,
+  EnergyBaseline, STRUCTURAL, angularMomentum, centroid, energy, forces, framePlan, preset,
+  rayleigh, stableStep, step, strain, totalMass, volume, worldKey,
   type Preset, type SoftBody, type World,
 } from './softbody';
+
+/** A run of the stop control is one simulated second, counted in nanoseconds. */
+const NS_PER_S = 1e9;
 
 /** Simulated seconds per frame: two-thirds speed at 60 frames per second. */
 export const FRAME_TIME = 1 / 90;
@@ -55,6 +59,10 @@ export const softBody: PlateCode = {
       value: 0.6 },
     { kind: 'range', key: 'substeps', label: 'Steps per frame (minimum)', min: 2, max: 40,
       step: 1, value: 8 },
+    // a stop costs nothing, so its top is not a budget's: past 1000 s a reader lets it run on (0)
+    runsParam({ unit: 'simulated s', max: 1000,
+      note: 'A step that would pass the k-th second is cut to the time left, so it stops on it; '
+        + 'while it is set, a body at rest is not dropped again.' }),
     { kind: 'toggle', key: 'wire', label: 'Springs (tension wireframe)', value: false },
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate', value: true },
     paletteParam('ember'),
@@ -77,6 +85,23 @@ export const softBody: PlateCode = {
     let history: [number, number, number, number, number][] = [];
     // the stable step depends only on the body and the world: recompute it when either changes
     let stable = { key: '', dt: 0 };
+    const stop = new StreamStop(params, NS_PER_S);
+    // free flight since the release: nothing pinned and no mass has touched the ground yet
+    let flying = false;
+    let launchedAt = 0;
+    let l0: [number, number, number] = [0, 0, 0];
+    let p0 = 0;
+    let mass = 1;
+    let lDrift = 0;
+    let pDrift = 0;
+    // the energy's largest change since the release or a control change, and Verlet's bound on it
+    let worst = 0;
+    let quotient = 0;
+    let bound: number | null = null;
+
+    // the bound is linear theory about an undeformed equilibrium: a pinned body that cannot
+    // turn rigidly, no gravity to sag it, no damping to drain it, and no gas stiffness unread
+    const applies = (w: World) => name === 'column' && w.gravity === 0 && w.damping === 0;
 
     const world = (): World => ({
       gravity: num(params, 'gravity'),
@@ -102,6 +127,17 @@ export const softBody: PlateCode = {
       const w = world();
       forces(b, w);
       baseline.reset(w, energy(b, w).total, t);
+      flying = !b.pinned.some((q) => q);
+      launchedAt = t;
+      l0 = angularMomentum(b);
+      mass = totalMass(b);
+      p0 = 0;
+      for (let i = 0; i < b.n; i++) p0 += b.m[i] * b.v[i * 3 + 1];
+      lDrift = 0;
+      pDrift = 0;
+      worst = 0;
+      quotient = rayleigh(b, w);
+      bound = null;
       stable = { key: '', dt: 0 };
       history = [];
       quiet = 0;
@@ -253,6 +289,7 @@ export const softBody: PlateCode = {
         drops = 0;
         t = 0;
         angle = 0.7;
+        stop.reset();
         launch();
       },
       draw() {
@@ -263,16 +300,52 @@ export const softBody: PlateCode = {
           forces(b, w);
           stable = { key, dt: stableStep(b, w) };
         }
-        if (baseline.track(w, () => energy(b, w).total, t)) history = [];
+        const rebased = baseline.track(w, () => energy(b, w).total, t);
+        if (rebased) {
+          history = [];
+          // the bound is about a release from rest geometry; a changed world starts elsewhere
+          worst = 0;
+          quotient = 0;
+        }
         const plan = framePlan(b, w, FRAME_TIME, num(params, 'substeps'), WORK_PER_FRAME,
           stable.dt);
         const { steps, dt } = plan;
-        for (let s = 0; s < steps; s++) contacts = step(b, w, dt);
-        t += plan.simulated;
+        if (bound === null && quotient > 0) bound = (dt * dt * quotient) / 4;
+        if (rebased) bound = null;
+        const tick = Math.round(dt * NS_PER_S);
+        let ran = 0;
+        let whole = true;
+        for (let s = 0; s < steps; s++) {
+          // the stop: a step that would pass the k-th second is cut to the time left
+          const left = stop.allow(tick);
+          if (left <= 0) {
+            whole = false;
+            break;
+          }
+          const h = left === tick ? dt : left / NS_PER_S;
+          if (h !== dt) whole = false;
+          contacts = step(b, w, h);
+          if (contacts) flying = false;
+          ran += h;
+          stop.advance(left);
+        }
+        // the plan's own time when the frame ran whole, so the default run is the same bit for bit
+        const simulated = whole ? plan.simulated : ran;
+        t += simulated;
         const e = energy(b, w);
         if (!Number.isFinite(e.total)) launch();
-        quiet = e.kinetic < SETTLE_KE ? quiet + plan.simulated : 0;
-        if (quiet > SETTLE_TIME && !ctx.thumbnail) launch();
+        worst = Math.max(worst, Math.abs(baseline.drift(e.total)));
+        if (flying) {
+          const l = angularMomentum(b);
+          const size = Math.hypot(l0[0], l0[1], l0[2]);
+          if (size > 0) lDrift = Math.max(lDrift, Math.hypot(l[0] - l0[0], l[1] - l0[1], l[2] - l0[2]) / size);
+          let py = 0;
+          for (let i = 0; i < b.n; i++) py += b.m[i] * b.v[i * 3 + 1];
+          const fall = mass * w.gravity * (t - launchedAt);
+          if (fall > 0) pDrift = Math.max(pDrift, Math.abs(py - p0 + fall) / fall);
+        }
+        quiet = e.kinetic < SETTLE_KE ? quiet + simulated : 0;
+        if (quiet > SETTLE_TIME && !ctx.thumbnail && !stop.limit) launch();
         const st = measureStrain();
 
         p.background(...ctx.bg);
@@ -306,7 +379,23 @@ export const softBody: PlateCode = {
           const ratio = volume(b) / b.restVolume;
           rows.push({ label: 'volume / rest volume', value: ratio.toFixed(3) });
         }
-        ctx.stats(rows);
+        const pinned = name === 'column';
+        const phase = flying ? ' (in flight)' : ' (until it landed)';
+        const extra: Stat[] = [
+          { label: 'angular momentum about the mass centre, change in free flight',
+            value: pinned ? '– (the base is pinned)' : `${lDrift.toExponential(2)}${phase}` },
+          { label: 'momentum against −M·g·t, change in free flight',
+            value: pinned ? '– (the base is pinned)' : w.gravity > 0
+              ? `${pDrift.toExponential(2)}${phase}` : '– (no gravity)' },
+          { label: 'largest energy change since release or last control change',
+            value: `${(100 * worst).toExponential(2)} %` },
+          { label: 'Verlet bound at release (dt²/4)·vᵀKv/vᵀMv',
+            value: !applies(w) ? '– (the undamped column in zero gravity only)'
+              : bound === null ? '– (a control changed since the release)'
+                : `${(100 * bound).toExponential(2)} %` },
+          ...stop.rows(),
+        ];
+        ctx.stats([...rows, ...extra]);
         if (!ctx.thumbnail) {
           history.push([t - baseline.since, e.kinetic, e.gravity, e.elastic + e.gas, e.total]);
           if (history.length > 600) history.shift();

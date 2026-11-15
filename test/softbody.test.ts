@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { FRAME_TIME, SETTLE_KE, WORK_PER_FRAME } from '../src/plates/soft-body-3d/plate';
+import { FRAME_TIME, SETTLE_KE, WORK_PER_FRAME, softBody } from '../src/plates/soft-body-3d/plate';
 import {
-  BEND, EnergyBaseline, SHEAR, STRUCTURAL, energy, forces, framePlan, icosphere, lattice, momentum,
-  preset, rates, stableStep, step, stepCost, volume, type SoftBody, type World,
+  BEND, EnergyBaseline, SHEAR, STRUCTURAL, angularMomentum, energy, forces, framePlan, icosphere,
+  lattice, momentum, preset, rates, rayleigh, stableStep, step, stepCost, totalMass, volume,
+  type SoftBody, type World,
 } from '../src/plates/soft-body-3d/softbody';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import type { Params, PlateContext, Stat } from '../src/core/plate';
+import { p5Stub } from './support/p5-stub';
 
 const FREE: World = {
   gravity: 0, ground: false, restitution: 0, friction: 0, stiffness: 100, damping: 0, pressure: 0,
@@ -473,5 +477,143 @@ describe('soft body: work per frame', () => {
     forces(b, w);
     for (let f = 0; f < 90; f++) for (let s = 0; s < plan.steps; s++) step(b, w, plan.dt);
     expect(Number.isFinite(energy(b, w).total)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The second pass: free-flight invariants, Verlet's energy bound, the stop control.
+// ---------------------------------------------------------------------------------------------
+
+/** Angular momentum about the origin of the mass centre, computed here term by term. */
+function spinOf(b: SoftBody): number[] {
+  const M = totalMass(b);
+  const X = [0, 1, 2].map((d) => Array.from(b.m).reduce((a, m, i) => a + m * b.x[i * 3 + d], 0) / M);
+  const V = [0, 1, 2].map((d) => Array.from(b.m).reduce((a, m, i) => a + m * b.v[i * 3 + d], 0) / M);
+  const L = [0, 0, 0];
+  for (let i = 0; i < b.n; i++) {
+    const r = [0, 1, 2].map((d) => b.x[i * 3 + d] - X[d]);
+    const u = [0, 1, 2].map((d) => b.v[i * 3 + d] - V[d]);
+    L[0] += b.m[i] * (r[1] * u[2] - r[2] * u[1]);
+    L[1] += b.m[i] * (r[2] * u[0] - r[0] * u[2]);
+    L[2] += b.m[i] * (r[0] * u[1] - r[1] * u[0]);
+  }
+  return L;
+}
+
+describe('soft body: free flight and the Verlet energy bound', () => {
+  it('angularMomentum is Σ m (x − X) × (v − V)', () => {
+    const b = preset('cube', 5, mulberry32(9));
+    kick(b, 4, 0.7);
+    const a = angularMomentum(b);
+    const want = spinOf(b);
+    for (let d = 0; d < 3; d++) expect(Math.abs(a[d] - want[d])).toBeLessThan(1e-14);
+  });
+
+  for (const [name, w] of [
+    ['cube', { ...FLOOR, ground: false, damping: 0.3 }],
+    ['ball', { ...FLOOR, ground: false, damping: 0.3, pressure: 30 }],
+  ] as const) {
+    it(`${name}: in flight under gravity, damped, the spin about the mass centre is kept to round-off`, () => {
+      const b = preset(name, 6, mulberry32(21));
+      kick(b, 8, 0.8);
+      forces(b, w);
+      const l0 = spinOf(b);
+      const dt = stableStep(b, w);
+      for (let s = 0; s < 2000; s++) step(b, w, dt);
+      const l1 = spinOf(b);
+      const drift = Math.hypot(l1[0] - l0[0], l1[1] - l0[1], l1[2] - l0[2]) / Math.hypot(...l0);
+      expect(drift).toBeLessThan(1e-11);
+    });
+  }
+
+  it('a non-central force breaks it: the test can see a moment', () => {
+    // a sideways push on one mass and the opposite on another: no net force, a net moment
+    const w = { ...FLOOR, ground: false };
+    const b = preset('cube', 4, mulberry32(2));
+    forces(b, w);
+    const l0 = spinOf(b);
+    b.f[0 * 3 + 2] += 1;
+    b.f[(b.n - 1) * 3 + 2] -= 1;
+    step(b, w, 1e-3);
+    const l1 = spinOf(b);
+    expect(Math.hypot(l1[0] - l0[0], l1[1] - l0[1], l1[2] - l0[2]) / Math.hypot(...l0)).toBeGreaterThan(1e-6);
+  });
+
+  it('the Rayleigh quotient of one spring stretched by its masses is ω² = 2k/m', () => {
+    const b = lattice(2, 1, 1, 1, 2);
+    const w = { ...FREE, stiffness: 50 };
+    b.v[0] = -0.3;
+    b.v[3] = 0.3;
+    // one structural spring, kw = h = 1, masses 1 each
+    expect(rayleigh(b, w)).toBeCloseTo((2 * 50) / 1, 10);
+    // a rigid translation stretches nothing
+    b.v[0] = 0.3;
+    expect(rayleigh(b, w)).toBe(0);
+  });
+
+  it('the undamped column in zero gravity: energy never below its release, never above the bound, and the bound falls as dt²', () => {
+    const w: World = { ...FLOOR, gravity: 0, damping: 0 };
+    const run = (substeps: number) => {
+      const b = preset('column', 7, mulberry32(4242));
+      forces(b, w);
+      const plan = framePlan(b, w, FRAME_TIME, substeps, WORK_PER_FRAME, stableStep(b, w));
+      const bound = (plan.dt * plan.dt * rayleigh(b, w)) / 4;
+      const e0 = energy(b, w).total;
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let s = 0; s < Math.round(10 / plan.dt); s++) {
+        step(b, w, plan.dt);
+        const d = (energy(b, w).total - e0) / e0;
+        lo = Math.min(lo, d);
+        hi = Math.max(hi, d);
+      }
+      return { bound, lo, hi };
+    };
+    const coarse = run(8);
+    const fine = run(40);
+    for (const r of [coarse, fine]) {
+      expect(r.hi).toBeLessThan(r.bound);
+      expect(r.hi).toBeGreaterThan(0.5 * r.bound);
+      expect(r.lo).toBeGreaterThan(-1e-3 * r.bound);
+    }
+    expect(coarse.bound / fine.bound).toBeCloseTo(25, 6);
+  });
+});
+
+describe('soft body: the plate stops after k simulated seconds', () => {
+  const run = (over: Params, frames: number): Stat[] => {
+    let rows: Stat[] = [];
+    const params: Params = {
+      ...Object.fromEntries(softBody.params.map((d) => [d.key, d.value])), ...over,
+    };
+    const ground = GROUNDS.dark;
+    const ctx: PlateContext = {
+      width: 400, height: 250, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
+      bg: ground.bg, fg: ground.fg, thumbnail: false, palette: () => lookupPalette('ember'),
+      stats(r) { rows = r; }, chart() {},
+    };
+    const sim = softBody.create(p5Stub(), ctx);
+    sim.setup();
+    for (let f = 0; f < frames; f++) sim.draw();
+    return rows;
+  };
+  const value = (rows: Stat[], label: string) => rows.find((r) => r.label === label)?.value;
+
+  it('at k it stops on the k-th second and holds still; at 0 it runs on', () => {
+    const a = run({ runs: 1 }, 100);
+    const b = run({ runs: 1 }, 140);
+    expect(value(a, 'completed runs')).toBe('1 of 1, stopped');
+    expect(value(a, 'simulated time')).toBe('1.00 s (drop 1)');
+    expect(a).toEqual(b);
+    expect(value(run({}, 100), 'completed runs')).toBe('1');
+  });
+
+  it('reads the free flight only while it lasts, and the bound only where it applies', () => {
+    const cube = run({ runs: 1 }, 100);
+    expect(value(cube, 'angular momentum about the mass centre, change in free flight')).toMatch(/until it landed/);
+    expect(value(cube, 'Verlet bound at release (dt²/4)·vᵀKv/vᵀMv')).toMatch(/^–/);
+    const column = run({ preset: 'column', damping: 0, gravity: 0, runs: 1 }, 100);
+    expect(value(column, 'angular momentum about the mass centre, change in free flight')).toMatch(/pinned/);
+    expect(value(column, 'Verlet bound at release (dt²/4)·vᵀKv/vᵀMv')).toMatch(/^\d/);
   });
 });
