@@ -1470,3 +1470,21 @@ sources:
     publisher: Vieweg
     year: 1931
     kind: book
+  - id: breit-rabi-1931
+    title: Measurement of Nuclear Spin (Physical Review 38, 2082)
+    author: G. Breit, I. I. Rabi
+    year: 1931
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.38.2082.2
+  - id: racah-1942
+    title: Theory of Complex Spectra. II (Physical Review 62, 438)
+    author: Giulio Racah
+    year: 1942
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.62.438
+  - id: condon-shortley-1935
+    title: The Theory of Atomic Spectra
+    author: E. U. Condon, G. H. Shortley
+    publisher: Cambridge University Press
+    year: 1935
+    kind: book
