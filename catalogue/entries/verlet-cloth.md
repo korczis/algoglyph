@@ -31,6 +31,9 @@ relations:
   - type: compares_with
     target: double-pendulum
     reason: Both hold masses at fixed distances; that plate removes its two rods by choosing angles as coordinates, this one moves particles freely and then projects every link back to its length.
+  - type: related_to
+    target: collisions
+    reason: Both rest on Newton's third law; there two balls' impulses are equal and opposite, so a collision keeps the total momentum, here every link's two corrections are, so the cloth's centre of mass falls as if the links were not there.
 experiments:
   - id: free-fall
     title: The first steps of the drop
