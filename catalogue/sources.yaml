@@ -1488,3 +1488,15 @@ sources:
     publisher: Cambridge University Press
     year: 1935
     kind: book
+  - id: ashcroft-mermin-1976
+    title: Solid State Physics
+    author: Neil W. Ashcroft, N. David Mermin
+    publisher: Holt, Rinehart and Winston
+    year: 1976
+    kind: book
+  - id: crank-nicolson-1947
+    title: A Practical Method for Numerical Evaluation of Solutions of Partial Differential Equations of the Heat-Conduction Type (Mathematical Proceedings of the Cambridge Philosophical Society 43, 50)
+    author: John Crank, Phyllis Nicolson
+    year: 1947
+    kind: paper
+    url: https://doi.org/10.1017/S0305004100023197
