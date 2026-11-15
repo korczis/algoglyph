@@ -160,6 +160,8 @@ export const kernel: GraphKernel<LayeredResult> = {
       { label: 'Crossings', value: `${r.initial} before the sweeps, ${r.crossings} after` },
       { label: 'Edges reversed to break cycles', value: String(r.reversed.length) },
       { label: 'Edges against the layer order', value: String(against) },
+      // the nodes after the graph's own: one for each layer a long edge passes, sum (span - 1)
+      { label: 'Dummy nodes', value: String(r.layer.length - g.n) },
     ];
   },
 };

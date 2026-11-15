@@ -3,7 +3,9 @@
 // layering puts every head at least one layer after its tail). Computed here from the Graph's
 // edge lists alone: the cycles broken by reversing the back edges of a recursive depth-first
 // search (roots in vertex order, each vertex's edges in list order, as the kernel's note
-// describes), and the layers by the longest path into each vertex, memoised.
+// describes), and the layers by the longest path into each vertex, memoised. And "Dummy nodes":
+// an edge spanning k layers is split into k segments by k - 1 dummy nodes, so there are
+// sum (span - 1) of them, the segments minus the edges, with the spans from that layering.
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SEED } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
@@ -14,6 +16,7 @@ import { installBrowserStubs } from './support/p5-stub';
 installBrowserStubs();
 
 const AGAINST = 'Edges against the layer order';
+const DUMMIES = 'Dummy nodes';
 const SHAPES = kernel.inputs as Shape[];
 const SEEDS = [DEFAULT_SEED, 7];
 
@@ -75,6 +78,20 @@ describe('sugiyama-layout: "Edges against the layer order" (G5)', () => {
       expect(value(rows, 'Edges reversed to break cycles'), shown).toBe(String(back.size));
       expect(value(rows, 'Layers'), shown).toBe(String(Math.max(...layer) + 1));
       expect(value(rows, AGAINST), shown).toBe(String(against));
+    });
+  }
+});
+
+describe('sugiyama-layout: "Dummy nodes", the sum of span - 1 over the edges (G5)', () => {
+  for (const shape of SHAPES) for (const n of [4, 40, 160]) for (const seed of SEEDS) {
+    it(`reads sum (span - 1): ${shape}, n ${n}, seed ${seed}`, async () => {
+      const g = makeGraph(shape, n, seed, 16 / 9);
+      const { arcs, layer } = layering(g);
+      const dummies = arcs.reduce((sum, [a, b]) => sum + layer[b] - layer[a] - 1, 0);
+      const rows = await settledRows('sugiyama-layout', { shape, n } as never, seed);
+      const shown = rows.map((r) => `${r.label}: ${r.value}`).join(' | ');
+      expect(repeatedLabels(rows), shown).toEqual([]);
+      expect(value(rows, DUMMIES), shown).toBe(String(dummies));
     });
   }
 });
