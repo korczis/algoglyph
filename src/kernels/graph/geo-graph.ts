@@ -1,11 +1,17 @@
 import type { GraphKernel } from '../../engines/graph/trace';
 
-export interface GeoResult { x: number[]; y: number[]; offset: number }
+export interface GeoResult {
+  x: number[]; y: number[]; offset: number;
+  /** The virial ratio of the last positions: 1 at a fixed point, where sum (x - mean) . F = 0. */
+  balance: number;
+}
 
 // A spring layout (Fruchterman-Reingold forces: attraction d^2/L along edges, repulsion L^2/d
 // between pairs, steps capped by a cooling temperature) plus a spring of strength `pull` from
 // each vertex to its place on the map (the small squares). The layout starts on a circle; a
-// strong pull pins vertices to the map, a weak one lets the graph's own structure bend it.
+// strong pull pins vertices to the map, a weak one lets the graph's own structure bend it. At a
+// fixed point sum (x - mean x) . F = 0: the pairs' L^2 each balance the edges' d^3/L less the map
+// springs' k (a - x) . (x - mean x), and their ratio is the force balance of the last positions.
 export const kernel: GraphKernel<GeoResult> = {
   goal: 'geo-layout',
   inputs: ['geometric', 'communities', 'grid'],
@@ -68,9 +74,18 @@ export const kernel: GraphKernel<GeoResult> = {
       // the iteration’s all-pairs repulsion, which records nothing
       yield (n * (n - 1)) / 2;
     }
-    return { x, y, offset };
+    const k = (pull * 4 * n) / Math.max(1, Math.sqrt(n)) / L;
+    let mx = 0; let my = 0;
+    for (let v = 0; v < n; v++) { mx += x[v] / n; my += y[v] / n; }
+    let held = 0;
+    for (let e = 0; e < g.m; e++) held += Math.hypot(x[g.eu[e]] - x[g.ev[e]], y[g.eu[e]] - y[g.ev[e]]) ** 3 / L;
+    for (let v = 0; v < n; v++) held -= k * ((g.x[v] - x[v]) * (x[v] - mx) + (g.y[v] - y[v]) * (y[v] - my));
+    return { x, y, offset, balance: held / ((L * L * n * (n - 1)) / 2) };
   },
   report(r, g) {
-    return [{ label: 'Mean distance from the map', value: (r.offset / g.n).toPrecision(3) }];
+    return [
+      { label: 'Mean distance from the map', value: (r.offset / g.n).toPrecision(3) },
+      { label: 'Force balance', value: r.balance.toFixed(4) },
+    ];
   },
 };
