@@ -1751,7 +1751,7 @@ Relevance flows from a seed along weighted edges and fades, choosing what to loo
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/fibonacci-sphere">271 · Fibonacci sphere layout</a></b><br>
 Points spread evenly on a sphere by the golden angle, a stable home for a 3D graph.<br>
-<sub>Graph layout · O(V + E) · sphere, golden angle, 3d</sub>
+<sub>Graph layout · O(V + E) to place the vertices; the random-assignment baseline adds O(V²), one chord for every pair of points · sphere, golden angle, 3d</sub>
 <br><sub>Pointer: Tap a vertex to start the placement from it.</sub>
 </td>
 <td width="50%" valign="top">
