@@ -1,7 +1,11 @@
 import { other } from '../../engines/graph/graph';
 import { V, type GraphKernel } from '../../engines/graph/trace';
 
-export interface CentralityResult { degree: number[]; closeness: number[]; eigen: number[]; lambda: number; iterations: number; converged: boolean }
+export interface CentralityResult {
+  degree: number[]; closeness: number[]; eigen: number[]; lambda: number; iterations: number; converged: boolean;
+  /** The power iteration's round cap this run had. */
+  cap: number;
+}
 
 /** Spearman's rank correlation of two score lists (ties take their mean rank). */
 export function spearman(a: number[], b: number[]): number {
@@ -24,24 +28,43 @@ export function spearman(a: number[], b: number[]): number {
   return saa && sbb ? sab / Math.sqrt(saa * sbb) : NaN;
 }
 
-/** The power iteration's round cap; a vector still moving then is reported as stopped at it. */
+/** The power iteration's default round cap; a vector still moving then is reported as stopped at it. */
 export const POWER_ROUNDS = 300;
 
 // Three passes, each leaving its scores on the vertices. Degree: incident edges. Closeness: a
 // breadth-first search from each vertex, (r - 1) / (sum of hop distances) over the r vertices
 // it reaches. Eigenvector: power iteration on A + I (the same eigenvectors as A, and it cannot
-// oscillate on bipartite graphs) until no score moves by 1e-10 (or for at most POWER_ROUNDS rounds, which the readouts then name), normalised to unit length.
+// oscillate on bipartite graphs) until no score moves by 1e-10 (or for at most `powerRounds` rounds, which the readouts then name), normalised to unit length.
 export const kernel: GraphKernel<CentralityResult> = {
   goal: 'centrality',
   inputs: ['communities', 'small-world', 'geometric', 'grid'],
   n: { min: 4, max: 80, value: 50 },
+  params: [
+    // Starts at 150 for what the readout means: the eigenvalue it names is lambda_max to 1e-3 even
+    // when the iteration stopped (its error is second order), and on every input at n 50 and
+    // geometric at n 80 (seeds 4242 and 7) that takes up to 106 rounds; slower-mixing inputs need
+    // more, and the readout then says the run stopped at the cap.
+    // Ends at 850, before the budget does, because a longer run no longer fits the memory bound
+    // of 300,000 recorded events (12 MB, test/kernels-graph.test.ts): a round at n 80 records
+    // m + n + 1 events (221-310) on a base of 23,002-37,420, and runs need up to 2,526 rounds to
+    // converge. Over every input at n 60, 70, 75, 78 and 80, seeds 1-100 (2,000 runs), the worst
+    // run took 297,884 events at 850 and 313,234 at 900 (communities, n 80, seed 2, 11 runs past
+    // the bound); the 600,000-event cap first truncates a run at 1,900 (1,850: 586,216).
+    {
+      kind: 'range', key: 'powerRounds', label: 'Power-iteration rounds at most', min: 150, max: 850, step: 50,
+      value: POWER_ROUNDS, rebuild: true,
+      hint: 'Ends at 850, where a run at n 80 still fits the 300,000 events a trace may hold: 297,884 at 850, 313,234 at 900.',
+    },
+  ],
   view: { colour: 'value', size: true },
   names: { frontier: 'In a search', done: 'Scored', value: 'Score' },
   readouts: ['rounds', 'scans', 'values', 'change'],
   chart: { title: 'Change per round (degree, closeness, then power iteration)', x: 'rounds', y: 'total change', series: ['change'], log: true },
-  *steps(ops) {
+  *steps(ops, { p }) {
     const g = ops.g;
     const n = g.n;
+    // a run that passes no value takes the constant: the default run is the run before the control
+    const cap = Number(p.powerRounds ?? POWER_ROUNDS);
     const degree = new Array<number>(n).fill(0);
     for (let v = 0; v < n; v++) {
       for (const e of g.out[v]) { ops.scan(e); degree[v]++; }
@@ -73,7 +96,7 @@ export const kernel: GraphKernel<CentralityResult> = {
     for (let v = 0; v < n; v++) ops.vertex(v, V.unseen);
     let x = new Array<number>(n).fill(1 / Math.sqrt(n));
     let lambda = 0; let iterations = 0; let converged = false;
-    for (let it = 0; it < POWER_ROUNDS; it++) {
+    for (let it = 0; it < cap; it++) {
       iterations = it + 1;
       const y = x.slice();
       for (let e = 0; e < g.m; e++) {
@@ -90,7 +113,7 @@ export const kernel: GraphKernel<CentralityResult> = {
       yield;
       if (moved < 1e-10) { converged = true; break; }
     }
-    return { degree, closeness, eigen: x, lambda, iterations, converged };
+    return { degree, closeness, eigen: x, lambda, iterations, converged, cap };
   },
   report(r) {
     const top = (a: number[]) => a.reduce((b, x, i) => (x > a[b] ? i : b), 0);
@@ -98,7 +121,7 @@ export const kernel: GraphKernel<CentralityResult> = {
       { label: 'Most central', value: `degree ${top(r.degree)}, closeness ${top(r.closeness)}, eigenvector ${top(r.eigen)}` },
       {
         label: 'Power iteration',
-        value: `${r.converged ? `converged after ${r.iterations} rounds` : `stopped at the ${POWER_ROUNDS}-round cap`}, eigenvalue ${r.lambda.toFixed(3)}`,
+        value: `${r.converged ? `converged after ${r.iterations} rounds` : `stopped at the ${r.cap}-round cap`}, eigenvalue ${r.lambda.toFixed(3)}`,
       },
       { label: 'Rank agreement (Spearman)', value: `degree–closeness ${spearman(r.degree, r.closeness).toFixed(2)}, degree–eigenvector ${spearman(r.degree, r.eigen).toFixed(2)}` },
     ];
