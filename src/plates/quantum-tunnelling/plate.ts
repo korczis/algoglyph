@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp, type Palette, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
+import { RunCounter, runsParam } from '../_shared/settle/settle';
 import {
   ABSORB, DT, N, RANGES, Scattering, X_LEFT, X_RIGHT, type Shares,
 } from './experiment';
@@ -45,6 +46,7 @@ export const quantumTunnelling: PlateCode = {
       ],
     },
     { kind: 'toggle', key: 'parts', label: 'Show Re ψ and Im ψ', value: true },
+    runsParam(),
     paletteParam('abyss'),
   ],
   pace: { kind: 'stream', emergent: 'a Schrödinger integrator: its steps per frame (Δt each) set simulated time per frame' },
@@ -59,6 +61,7 @@ export const quantumTunnelling: PlateCode = {
     let rowSteps = 1;
     let runs = 0;
     let last: Shares | null = null;
+    let counter = new RunCounter(params);
     /** [t, reflected, inside, transmitted] of the current run, sampled with the ribbon rows. */
     let history: [number, number, number, number][] = [];
     const xL = X_LEFT;
@@ -155,12 +158,15 @@ export const quantumTunnelling: PlateCode = {
         rowSteps = Math.max(1, Math.round(run.tRun / (raster.h * DT)));
         runs = 0;
         last = null;
+        counter = new RunCounter(params);
       },
       draw() {
         // step in chunks that end on ribbon rows, so the potential half steps fuse in between
         let left = ctx.thumbnail ? THUMB_STEPS : Math.max(1, Math.round(num(params, 'speed')));
         // the chart is rebuilt only when its history grew
         let fresh = false;
+        // held on its k-th completed run (the `runs` control): the readouts stay still for a claim
+        if (counter.stopped) left = 0;
         while (left > 0) {
           const chunk = Math.min(left, rowSteps - (wave.steps % rowSteps));
           wave.step(chunk);
@@ -173,6 +179,8 @@ export const quantumTunnelling: PlateCode = {
           if (run.done()) {
             last = sh;
             runs++;
+            counter.complete(`transmitted ${pct(sh.transmitted)}, inside ${pct(sh.inside)}`);
+            if (counter.stopped) break;
             pushRow(true);
             run.launch();
             history = [];
@@ -323,6 +331,7 @@ export const quantumTunnelling: PlateCode = {
           { label: 'packet-averaged T', value: pct(run.packetT) },
           { label: 'last run: transmitted / inside',
             value: last ? `${pct(last.transmitted)} / ${pct(last.inside)}` : 'running' },
+          ...counter.rows(),
         ]);
       },
     };
