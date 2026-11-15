@@ -93,6 +93,10 @@ export const MAX_WEIGHT = 9;
  * kernel's own control sets it. */
 export const CYCLE_WEIGHT = -40;
 
+/** The lowest confidence the links shape draws (the highest is 0.99), unless the kernel's own
+ * control sets it. */
+export const MIN_CONFIDENCE = 0.3;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -111,11 +115,14 @@ export interface GraphInput {
   maxWeight?: number;
   /** The planted negative cycle's three edges weigh cycleWeight each (no draw at all). */
   cycleWeight?: number;
+  /** Link confidences are round(lo + u · (99 − lo)) / 100 with lo = round(100 · minConfidence):
+   * the same single draw in the same place, and at 0.30 the old round(30 + u · 69) / 100. */
+  minConfidence?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
 export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
-  'reciprocity', 'maxWeight', 'cycleWeight'];
+  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -577,7 +584,9 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       const pairs = knn(x, y, 3);
       connect(x, y, pairs);
       const s = leftmost(x);
-      return build(shape, x, y, pairs.map(([i, j]) => [i, j, Math.round(30 + rnd() * 69) / 100]), false,
+      // in hundredths, an integer lo, so the default's expression is the old one exactly
+      const lo = Math.round(100 * (input.minConfidence ?? MIN_CONFIDENCE));
+      return build(shape, x, y, pairs.map(([i, j]) => [i, j, Math.round(lo + rnd() * (99 - lo)) / 100]), false,
         { s, t: farthest(x, y, s) }, rnd, longest);
     }
     case 'reasoning': {

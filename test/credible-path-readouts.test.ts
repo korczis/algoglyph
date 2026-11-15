@@ -45,7 +45,9 @@ describe('credible-path: every claim literal is what the independent oracle give
     it(c.id, () => {
       expect(c.readout).toBe('Product of confidences');
       const p = (c.setup?.params ?? {}) as Record<string, number | string>;
-      const g = makeGraph('links', Number(p.n ?? N), c.setup?.seed ?? SEED, ASPECT);
+      // the plate's own input control, the lowest link confidence, as the plate passes it
+      const input = p.minConfidence === undefined ? {} : { minConfidence: Number(p.minConfidence) };
+      const g = makeGraph('links', Number(p.n ?? N), c.setup?.seed ?? SEED, ASPECT, input);
       const best = largestProduct(g);
       const x = c.expect;
       if (String(p.cost ?? 'doubt') === 'log') {

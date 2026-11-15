@@ -1,3 +1,4 @@
+import { MIN_CONFIDENCE } from '../../engines/graph/graph';
 import { E, type GraphKernel } from '../../engines/graph/trace';
 import { dijkstra, pathTo } from './_dijkstra';
 
@@ -15,10 +16,20 @@ export const kernel: GraphKernel<CredibleResult> = {
   goal: 'credible',
   inputs: ['links'],
   n: { min: 4, max: 300, value: 90 },
-  params: [{
-    kind: 'select', key: 'cost', label: 'Edge cost', value: 'doubt', rebuild: true,
-    options: [{ value: 'doubt', label: '1 − confidence' }, { value: 'log', label: '−ln confidence (product)' }],
-  }],
+  params: [
+    {
+      kind: 'select', key: 'cost', label: 'Edge cost', value: 'doubt', rebuild: true,
+      options: [{ value: 'doubt', label: '1 − confidence' }, { value: 'log', label: '−ln confidence (product)' }],
+    },
+    // the engine draws each link's confidence from minConfidence to 0.99 in hundredths (graph.ts
+    // GraphInput). From 0.01, since c > 0 keeps −ln c finite, to 0.98, since c < 0.99, the top,
+    // keeps the draw's range non-empty: a meaning reason at each end; the budget does not end it
+    {
+      kind: 'range', key: 'minConfidence', label: 'Lowest link confidence', min: 0.01, max: 0.98,
+      step: 0.01, value: MIN_CONFIDENCE, rebuild: true,
+      hint: 'Each link’s confidence is drawn from this up to 0.99.',
+    },
+  ],
   pick: 's',
   endpoints: 'st',
   view: { colour: 'value' },
