@@ -190,7 +190,7 @@ function scatter(n: number, aspect: number, rnd: () => number): { x: number[]; y
 const d2 = (x: number[], y: number[], i: number, j: number) => (x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2;
 
 /** Undirected pairs i < j joining each point to its k nearest (ties by index). */
-function knn(x: number[], y: number[], k: number, among?: number[]): [number, number][] {
+export function knn(x: number[], y: number[], k: number, among?: number[]): [number, number][] {
   const ids = among ?? x.map((_, i) => i);
   const seen = new Set<number>();
   const pairs: [number, number][] = [];
@@ -222,7 +222,7 @@ function find(p: number[], a: number): number {
 }
 
 /** Add the shortest pair between components until the pairs connect every point. */
-function connect(x: number[], y: number[], pairs: [number, number][]): void {
+export function connect(x: number[], y: number[], pairs: [number, number][]): void {
   const n = x.length;
   const p = x.map((_, i) => i);
   for (const [a, b] of pairs) p[find(p, a)] = find(p, b);
@@ -240,6 +240,24 @@ function connect(x: number[], y: number[], pairs: [number, number][]): void {
     if (bi < 0) return;
     pairs.push([Math.min(bi, bj), Math.max(bi, bj)]);
     p[find(p, bi)] = find(p, bj);
+  }
+}
+
+/** Join the points ids (one island) inside itself: each point apart from ids[0]'s component
+ * gets a pair to the nearest point of that component, which it joins, pushed onto local. */
+export function joinWithin(x: number[], y: number[], ids: number[],
+  local: [number, number][]): void {
+  if (ids.length <= 1) return;
+  const sub = ids.map((i) => i);
+  const p = new Map(sub.map((i) => [i, i]));
+  const f = (a: number): number => { while (p.get(a) !== a) a = p.get(a)!; return a; };
+  for (const [a, b] of local) p.set(f(a), f(b));
+  for (const i of sub) {
+    if (f(i) === f(sub[0])) continue;
+    let best = sub[0];
+    for (const j of sub) if (f(j) === f(sub[0]) && d2(x, y, i, j) < d2(x, y, i, best)) best = j;
+    local.push([Math.min(i, best), Math.max(i, best)]);
+    p.set(f(i), f(sub[0]));
   }
 }
 
@@ -460,20 +478,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       for (let k = 0; k < c; k++) {
         const ids = truth.map((t, i) => (t === k ? i : -1)).filter((i) => i >= 0);
         const local = knn(x, y, shape === 'communities' ? 4 : 2, ids);
-        if (ids.length > 1) {
-          const sub = ids.map((i) => i);
-          // connect each island inside itself
-          const p = new Map(sub.map((i) => [i, i]));
-          const f = (a: number): number => { while (p.get(a) !== a) a = p.get(a)!; return a; };
-          for (const [a, b] of local) p.set(f(a), f(b));
-          for (const i of sub) {
-            if (f(i) === f(sub[0])) continue;
-            let best = sub[0];
-            for (const j of sub) if (f(j) === f(sub[0]) && d2(x, y, i, j) < d2(x, y, i, best)) best = j;
-            local.push([Math.min(i, best), Math.max(i, best)]);
-            p.set(f(i), f(sub[0]));
-          }
-        }
+        joinWithin(x, y, ids, local);
         pairs.push(...local);
       }
       const seen = new Set(pairs.map(([a, b]) => a * n + b));
