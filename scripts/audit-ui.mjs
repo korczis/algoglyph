@@ -275,7 +275,10 @@ try {
         for (const id of ids) {
           const card = p.locator(`main [data-thumb="${id}"]`);
           if (!(await card.count())) { fail(where, `no card for ${id}`); continue; }
-          await card.scrollIntoViewIfNeeded();
+          // the card only has to be seen by the page's IntersectionObserver: a plain scroll, not
+          // Playwright's, which waits for the element to hold still and threw out of the whole
+          // gate at load 56 while the cards above it were still rendering (ce6628c, numerics)
+          await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
           const left = Math.max(1000, budget - (Date.now() - started));
           await p.waitForFunction((x) => document.querySelector(`main [data-thumb="${x}"] img`)
             ?.getAttribute('src')?.startsWith('data:image'), id, { timeout: left, polling: 250 })
