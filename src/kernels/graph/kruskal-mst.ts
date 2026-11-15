@@ -1,6 +1,7 @@
 import { E, type GraphKernel } from '../../engines/graph/trace';
 import { join, MST_VIEW, type MstResult } from './_mst';
 import { UnionFind } from './_uf';
+import { MAX_WEIGHT_PARAM } from './_weights';
 
 // Edges in increasing weight (ties by index); an edge joining two fragments is taken, an edge
 // inside one would close a cycle and is dropped. Union-find answers which fragment is which.
@@ -8,6 +9,7 @@ export const kernel: GraphKernel<MstResult> = {
   goal: 'mst',
   inputs: ['geometric', 'grid', 'random', 'small-world'],
   n: { min: 4, max: 400, value: 120 },
+  params: [MAX_WEIGHT_PARAM],
   ...MST_VIEW,
   *steps(ops) {
     const g = ops.g;

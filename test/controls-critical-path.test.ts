@@ -9,7 +9,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ENTRIES } from '../src/core/catalogue';
-import type { Params, RangeParam } from '../src/core/plate';
+import type { ParamDef, Params, RangeParam } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
 import * as G from '../src/engines/graph';
 import { INPUT_KEYS, makeGraph, SHAPES, type Graph, type Shape } from '../src/engines/graph/graph';
@@ -162,8 +162,12 @@ describe('the graph engine at the defaults is what it was before the control', (
 
   it('every graph plate offers the same controls, the new one aside', () => {
     // every input control aside: each is checked by its own plate's controls test
+    // and topological-sort's cyclic input option (wave 7a phase 2, C4,
+    // test/controls-topological-sort.test.ts): the rest of its input select is as it was
+    const option = (id: string, d: ParamDef): ParamDef => (id === 'topological-sort' && d.kind === 'select'
+      && d.key === 'shape' ? { ...d, options: d.options.filter((o) => o.value !== 'digraph') } : d);
     const defs = live.map((e) => [e.id, plateOf(e.id).params
-      .filter((d) => !(INPUT_KEYS as readonly string[]).includes(d.key))]);
+      .filter((d) => !(INPUT_KEYS as readonly string[]).includes(d.key)).map((d) => option(e.id, d))]);
     expect(hash(defs)).toBe(CONTROLS);
   });
 

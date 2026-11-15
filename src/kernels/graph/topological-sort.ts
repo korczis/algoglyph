@@ -4,9 +4,12 @@ export interface TopoResult { order: number[] }
 
 // DFS over a DAG: a vertex finishes only after everything it points to, so the reverse of the
 // finishing order puts every edge forward. The k-th vertex to finish takes position n - 1 - k.
+// The directed input with cycles is offered last, to show what a cycle does: no order puts all
+// of a cycle's edges forward, and the readout counts the ones pointing backward (edges between
+// different strong components still point forward: the order is one of the condensation).
 export const kernel: GraphKernel<TopoResult> = {
   goal: 'toposort',
-  inputs: ['dag', 'signed-dag', 'reasoning'],
+  inputs: ['dag', 'signed-dag', 'reasoning', 'digraph'],
   n: { min: 6, max: 300, value: 60 },
   view: { colour: 'value' },
   names: { frontier: 'On the stack', done: 'Placed', value: 'Position' },

@@ -1,6 +1,7 @@
 // Augmenting-path maximum flow, with the path search chosen by the caller: depth-first for
 // Ford-Fulkerson, breadth-first (shortest paths) for Edmonds-Karp. Capacities are integers, so
 // every augmentation adds at least one unit and the loop ends.
+import { MAX_CAPACITY } from '../../engines/graph/graph';
 import { V, type GraphKernel, type GraphOps } from '../../engines/graph/trace';
 import { arcs, augment, minCut, value, type Arc, type FlowResult } from './_flow';
 
@@ -48,9 +49,22 @@ export function* augmentingPaths(ops: GraphOps, s: number, t: number, order: 'df
   return { flow: f, value: value(ops, f, s), side };
 }
 
-export const FLOW_VIEW: Pick<GraphKernel, 'inputs' | 'n' | 'view' | 'names' | 'endpoints' | 'report'> = {
+export const FLOW_VIEW: Pick<GraphKernel, 'inputs' | 'n' | 'params' | 'view' | 'names' | 'endpoints' | 'report'> = {
   inputs: ['flow'],
   n: { min: 4, max: 150, value: 40 },
+  // the engine draws each capacity as int(1, maxCapacity) (graph.ts GraphInput). At 1 every
+  // residual room is 0 or 1, so an augmentation carries exactly one unit. The budget does not end
+  // the range (min-cost-flow at 80 vertices and 1000 costs 2.4 ms a frame against 24): it ends at
+  // 1000 because past it the runs no longer change but in scale. Ford–Fulkerson and Edmonds–Karp
+  // traced the same events at 1000, 10^4, 10^5 and 10^6 on the largest networks of seeds 1, 7 and
+  // 4242, and min-cost-flow the same 196,024 events at seed 4242 (2026-11-15)
+  params: [
+    {
+      kind: 'range', key: 'maxCapacity', label: 'Largest capacity', min: 1, max: 1000, step: 1,
+      value: MAX_CAPACITY, rebuild: true,
+      hint: 'Each edge’s capacity is drawn from 1 to this; at 1 every augmenting path carries one unit.',
+    },
+  ],
   view: { flow: true },
   endpoints: 'st',
   names: { frontier: 'Searched', done: 'Source side of the cut' },

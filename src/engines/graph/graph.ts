@@ -78,6 +78,25 @@ export const MAX_DURATION = 9;
  * kernel's own control sets it. */
 export const FAN_IN = 0.7;
 
+/** The largest capacity the flow input draws, unless the kernel's own control sets it. */
+export const MAX_CAPACITY = 12;
+
+/** The share of the directed input's edges drawn with their reverse, unless the kernel's own
+ * control sets it (the 'digraph' shape only; signed and negative-cycle keep it). */
+export const RECIPROCITY = 0.35;
+
+/** The largest edge weight of the grid and the small world, unless the kernel's own control
+ * sets it (the random shape keeps 1..99). */
+export const MAX_WEIGHT = 9;
+
+/** The weight of each edge of the negative-cycle shape's planted three-cycle, unless the
+ * kernel's own control sets it. */
+export const CYCLE_WEIGHT = -40;
+
+/** The lowest confidence the links shape draws (the highest is 0.99), unless the kernel's own
+ * control sets it. */
+export const MIN_CONFIDENCE = 0.3;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -85,10 +104,25 @@ export interface GraphInput {
   /** The reasoning conclusion draws max(1, round(fanIn × claims below)) supports, with
    * replacement; it is drawn last among the edges, so every edge below it stays as it was. */
   fanIn?: number;
+  /** Flow capacities are int(1, maxCapacity): the same single draw in the same place at every
+   * value, so the network but its capacities stays as it was. */
+  maxCapacity?: number;
+  /** A 'digraph' edge gets its reverse when its draw falls below reciprocity: the same draw at
+   * every value, so the vertices, the pairs and their first directions stay as they were. */
+  reciprocity?: number;
+  /** Grid and small-world weights are int(1, maxWeight): the same single draw in the same place
+   * at every value, so the graph but its weights stays as it was. */
+  maxWeight?: number;
+  /** The planted negative cycle's three edges weigh cycleWeight each (no draw at all). */
+  cycleWeight?: number;
+  /** Link confidences are round(lo + u · (99 − lo)) / 100 with lo = round(100 · minConfidence):
+   * the same single draw in the same place, and at 0.30 the old round(30 + u · 69) / 100. */
+  minConfidence?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
-export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn'];
+export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
+  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -308,6 +342,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
   const rnd = mulberry32(seed);
   const longest = input.maxDuration ?? MAX_DURATION;
   const fanIn = input.fanIn ?? FAN_IN;
+  const capacity = input.maxCapacity ?? MAX_CAPACITY;
+  const heaviest = input.maxWeight ?? MAX_WEIGHT;
   n = Math.max(2, Math.floor(n));
   switch (shape) {
     case 'geometric': case 'digraph': case 'signed': case 'negative-cycle': {
@@ -319,11 +355,12 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         return build(shape, x, y, pairs.map(([i, j]) => [i, j, lengthOf(x, y, i, j, aspect)]), false, { s, t: farthest(x, y, s) }, rnd, longest);
       }
       const edges: Edge[] = [];
+      const twoWay = shape === 'digraph' ? input.reciprocity ?? RECIPROCITY : RECIPROCITY;
       for (const [i, j] of pairs) {
         const [u, v] = rnd() < 0.5 ? [i, j] : [j, i];
         const len = lengthOf(x, y, u, v, aspect);
         edges.push([u, v, len]);
-        if (rnd() < 0.35) edges.push([v, u, len]);
+        if (rnd() < twoWay) edges.push([v, u, len]);
       }
       if (shape !== 'digraph') {
         // potentials keep every cycle's weight as it was (positive) while some edges go negative
@@ -339,7 +376,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         const [b, c] = [near[0], near[1]];
         for (const [u, v] of [[a, b], [b, c], [c, a]] as [number, number][]) {
           const old = edges.find((e) => e[0] === u && e[1] === v);
-          if (old) old[2] = -40; else edges.push([u, v, -40]);
+          const w = input.cycleWeight ?? CYCLE_WEIGHT;
+          if (old) old[2] = w; else edges.push([u, v, w]);
         }
       }
       return build(shape, x, y, edges, true, { s, t: farthest(x, y, s) }, rnd, longest);
@@ -358,8 +396,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const v = r * cols + c;
-          if (c + 1 < cols) edges.push([v, v + 1, int(rnd, 1, 9)]);
-          if (r + 1 < rows) edges.push([v, v + cols, int(rnd, 1, 9)]);
+          if (c + 1 < cols) edges.push([v, v + 1, int(rnd, 1, heaviest)]);
+          if (r + 1 < rows) edges.push([v, v + cols, int(rnd, 1, heaviest)]);
         }
       }
       return build(shape, x, y, edges, false, { s: 0, t: rows * cols - 1 }, rnd, longest);
@@ -373,7 +411,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         const k = Math.min(u, v) * n + Math.max(u, v);
         if (seen.has(k)) return false;
         seen.add(k);
-        edges.push([Math.min(u, v), Math.max(u, v), shape === 'random' ? int(rnd, 1, 99) : int(rnd, 1, 9)]);
+        edges.push([Math.min(u, v), Math.max(u, v), shape === 'random' ? int(rnd, 1, 99) : int(rnd, 1, heaviest)]);
         return true;
       };
       if (shape === 'random') {
@@ -475,9 +513,9 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       const edges: Edge[] = []; const cost: number[] = [];
       for (const [i, j] of pairs) {
         const [u, v] = x[i] <= x[j] ? [i, j] : [j, i];
-        if (v === 0 || u === n - 1) { edges.push([v, u, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9)); continue; }
-        edges.push([u, v, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9));
-        if (rnd() < 0.25 && u !== 0 && v !== n - 1) { edges.push([v, u, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9)); }
+        if (v === 0 || u === n - 1) { edges.push([v, u, int(rnd, 1, capacity)]); cost.push(int(rnd, 1, 9)); continue; }
+        edges.push([u, v, int(rnd, 1, capacity)]); cost.push(int(rnd, 1, 9));
+        if (rnd() < 0.25 && u !== 0 && v !== n - 1) { edges.push([v, u, int(rnd, 1, capacity)]); cost.push(int(rnd, 1, 9)); }
       }
       return build(shape, x, y, edges, true, { s: 0, t: n - 1, cap: edges.map((e) => e[2]), cost }, rnd, longest);
     }
@@ -546,7 +584,9 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       const pairs = knn(x, y, 3);
       connect(x, y, pairs);
       const s = leftmost(x);
-      return build(shape, x, y, pairs.map(([i, j]) => [i, j, Math.round(30 + rnd() * 69) / 100]), false,
+      // in hundredths, an integer lo, so the default's expression is the old one exactly
+      const lo = Math.round(100 * (input.minConfidence ?? MIN_CONFIDENCE));
+      return build(shape, x, y, pairs.map(([i, j]) => [i, j, Math.round(lo + rnd() * (99 - lo)) / 100]), false,
         { s, t: farthest(x, y, s) }, rnd, longest);
     }
     case 'reasoning': {

@@ -126,6 +126,42 @@ claims:
     expect: { range: [1614, 1614] }
     setup:
       seed: 7
+  - id: optimal-at-the-lowest-walls
+    statement: >-
+      At wall height 0.55, the lowest, every cell at least that high is a wall and much of the map
+      is closed off, yet the estimate still never overestimates: A* at weight 1 is 0 % above the
+      optimum, within half the printed decimal, 0.05.
+    readout: vs optimum
+    expect: { value: 0, tolerance: 0.05 }
+    setup:
+      params: { wall: 0.55 }
+    source: hart-nilsson-raphael-1968
+  - id: path-cost-is-the-optimum-at-the-lowest-walls
+    statement: >-
+      At wall height 0.55 the plate's map (its second attempt: the first had no passable start,
+      goal and path between) has the optimum 214.352 by the heap-free Dijkstra in the test: 214.4
+      within half the printed decimal, 0.05.
+    readout: path cost
+    expect: { value: 214.4, tolerance: 0.05 }
+    setup:
+      params: { wall: 0.55 }
+  - id: optimal-with-one-wall
+    statement: >-
+      At wall height 1 only the highest cell is a wall (the heights are normalised to [0, 1]), and
+      A* at weight 1 is again 0 % above the optimum, within 0.05.
+    readout: vs optimum
+    expect: { value: 0, tolerance: 0.05 }
+    setup:
+      params: { wall: 1 }
+    source: hart-nilsson-raphael-1968
+  - id: path-cost-is-the-optimum-with-one-wall
+    statement: >-
+      At wall height 1 the heap-free Dijkstra in the test gives the optimum 247.643: 247.6 within
+      half the printed decimal, 0.05.
+    readout: path cost
+    expect: { value: 247.6, tolerance: 0.05 }
+    setup:
+      params: { wall: 1 }
 ---
 
 Three searches cross the same hills: Dijkstra floods everything, A* leans towards the goal, greedy sprints and pays for it. Same map, measured costs.

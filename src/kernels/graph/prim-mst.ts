@@ -2,6 +2,7 @@ import { other } from '../../engines/graph/graph';
 import { E, type GraphKernel } from '../../engines/graph/trace';
 import { IndexHeap } from './_heap';
 import { MST_VIEW, type MstResult } from './_mst';
+import { MAX_WEIGHT_PARAM } from './_weights';
 
 // Eager Prim: a priority queue holds each outside vertex at the weight of its cheapest edge into
 // the tree; the cheapest comes in, and its edges may lower its neighbours' keys. A disconnected
@@ -10,6 +11,7 @@ export const kernel: GraphKernel<MstResult> = {
   goal: 'mst',
   inputs: ['geometric', 'grid', 'random', 'small-world'],
   n: { min: 4, max: 400, value: 120 },
+  params: [MAX_WEIGHT_PARAM],
   ...MST_VIEW,
   view: { colour: 'state' },
   names: { frontier: 'In the queue', done: 'In the tree', tree: 'Tree edges' },

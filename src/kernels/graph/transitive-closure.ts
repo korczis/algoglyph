@@ -1,4 +1,5 @@
 import type { GraphKernel } from '../../engines/graph/trace';
+import { RECIPROCITY_PARAM } from './_reciprocity';
 
 export interface ClosureResult { reach: Uint8Array }
 
@@ -8,6 +9,7 @@ export const kernel: GraphKernel<ClosureResult> = {
   goal: 'closure',
   inputs: ['digraph', 'dag', 'ownership'],
   n: { min: 4, max: 64, value: 24 },
+  params: [RECIPROCITY_PARAM],
   view: { matrix: 'boolean' },
   names: { frontier: 'Intermediate vertex', done: 'Used as intermediate' },
   readouts: ['cells', 'rounds', 'done'],

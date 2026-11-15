@@ -93,6 +93,31 @@ claims:
     expect: { value: 138 }
     setup:
       params: { shape: digraph }
+  - id: unit-weights-farthest-is-hops-on-the-grid
+    statement: >-
+      At largest edge weight 1 every distance is a hop count and Dijkstra settles in
+      breadth-first order: on the 16-by-9 grid the corner source's farthest vertex is the opposite
+      corner, rows + cols − 2 = 23 hops away, exactly.
+    readout: Farthest settled
+    expect: { value: 23 }
+    setup:
+      params: { shape: grid, maxWeight: 1 }
+  - id: unit-weights-farthest-is-hops-on-the-small-world
+    statement: >-
+      On the small-world graph at largest edge weight 1 the farthest settled distance is the
+      source's hop eccentricity, 10, which a breadth-first search in the test counts, exactly.
+    readout: Farthest settled
+    expect: { value: 10 }
+    setup:
+      params: { shape: small-world, maxWeight: 1 }
+  - id: farthest-is-bellman-ford-at-weight-99-on-the-grid
+    statement: >-
+      At largest edge weight 99 the Bellman–Ford in the test puts the grid's farthest vertex at
+      617, and Dijkstra settles it at 617, exactly.
+    readout: Farthest settled
+    expect: { value: 617 }
+    setup:
+      params: { shape: grid, maxWeight: 99 }
 ---
 
 Settle vertices in order of distance, relaxing the edges of each one settled.

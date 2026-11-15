@@ -73,10 +73,42 @@ claims:
     expect: { value: 128 }
     setup:
       params: { n: 4 }
+  - id: max-flow-is-dinics-at-unit-capacity
+    statement: >-
+      At largest capacity 1 Dinic's algorithm in test/flows-claims.test.ts finds a maximum flow
+      of 1 on the default 30-vertex network, and the plate reads 1, exactly.
+    readout: Flow value
+    expect: { value: 1 }
+    setup:
+      params: { maxCapacity: 1 }
+  - id: minimum-cost-at-unit-capacity
+    statement: >-
+      At largest capacity 1 successive shortest paths in the test send that one unit for a cost
+      of 37, and the plate ends at 37, exactly (integer costs, tolerance 0).
+    readout: Minimum cost
+    expect: { value: 37 }
+    setup:
+      params: { maxCapacity: 1 }
+  - id: max-flow-is-dinics-at-capacity-1000
+    statement: >-
+      At largest capacity 1,000 Dinic's algorithm finds 376 on the default network, and the plate
+      reads 376, exactly.
+    readout: Flow value
+    expect: { value: 376 }
+    setup:
+      params: { maxCapacity: 1000 }
+  - id: minimum-cost-at-capacity-1000
+    statement: >-
+      At largest capacity 1,000 successive shortest paths find the minimum cost of that flow,
+      14,142, and the plate ends at 14,142, exactly.
+    readout: Minimum cost
+    expect: { value: 14142 }
+    setup:
+      params: { maxCapacity: 1000 }
 ---
 
 A maximum flow whose cost is reduced by cancelling negative cycles in the residual graph.
 
-Each edge has a capacity from 1 to 12 and a cost per unit from 1 to 9. The plate first finds a maximum flow by shortest augmenting paths, then repeatedly finds a negative-cost cycle in the residual network and pushes flow round it; the cycle flashes in the foreground colour.
+Each edge has a capacity from 1 to the largest capacity (12 by default) and a cost per unit from 1 to 9. The plate first finds a maximum flow by shortest augmenting paths, then repeatedly finds a negative-cost cycle in the residual network and pushes flow round it; the cycle flashes in the foreground colour.
 
 The flow value in the chart stays flat while the cost falls; the readouts give the final cost and how many cycles were cancelled. Rounds counts both phases: the augmentations that build the maximum flow, then the cycles cancelled.
