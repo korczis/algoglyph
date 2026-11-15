@@ -1,6 +1,7 @@
 import type { GraphKernel } from '../../engines/graph/trace';
 import { join, MST_VIEW, type MstResult } from './_mst';
 import { UnionFind } from './_uf';
+import { MAX_WEIGHT_PARAM } from './_weights';
 
 // Rounds: every fragment finds its cheapest edge to another fragment (ties broken by edge index,
 // so the choices never form a cycle), and all of them are added at once. Each round at least
@@ -9,6 +10,7 @@ export const kernel: GraphKernel<MstResult> = {
   goal: 'mst',
   inputs: ['geometric', 'grid', 'random', 'small-world'],
   n: { min: 4, max: 400, value: 120 },
+  params: [MAX_WEIGHT_PARAM],
   ...MST_VIEW,
   readouts: ['scans', 'tree', 'treeWeight', 'groups', 'rounds'],
   chart: { title: 'Fragments, round by round', x: 'rounds', y: 'count', series: ['groups', 'tree'] },

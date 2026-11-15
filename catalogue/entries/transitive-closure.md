@@ -84,6 +84,30 @@ claims:
     expect: { range: [223, 4096] }
     setup:
       params: { n: 64 }
+  - id: every-pair-when-every-edge-is-two-way
+    statement: >-
+      At two-way share 1 every edge runs both ways and the input is connected, so every vertex
+      reaches every vertex, itself included: all n² = 24² = 576 cells are written once, exactly,
+      as the breadth-first search from every vertex in the test confirms.
+    readout: Matrix writes
+    expect: { value: 576 }
+    setup:
+      params: { reciprocity: 1 }
+  - id: every-pair-when-every-edge-is-two-way-at-64
+    statement: >-
+      On 64 vertices at two-way share 1, 64² = 4,096 writes, exactly.
+    readout: Matrix writes
+    expect: { value: 4096 }
+    setup:
+      params: { reciprocity: 1, n: 64 }
+  - id: writes-when-no-edge-is-two-way
+    statement: >-
+      At two-way share 0 the breadth-first search from every vertex in the test counts 509
+      reachable pairs, so 509 matrix writes, exactly.
+    readout: Matrix writes
+    expect: { value: 509 }
+    setup:
+      params: { reciprocity: 0 }
 ---
 
 Who can reach whom, filled into a matrix one intermediate vertex at a time.

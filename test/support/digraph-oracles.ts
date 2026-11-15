@@ -8,8 +8,8 @@ import { defaults, type Params, type Plate, type PlateContext, type Stat } from 
 import { DEFAULT_SEED } from '../../src/core/claims';
 import { mulberry32 } from '../../src/core/random';
 import { makeGraph, type Graph, type Shape } from '../../src/engines/graph/graph';
-import { engine as graphEngine } from '../../src/engines/graph';
-import type { GraphKernel } from '../../src/engines/graph/trace';
+import { engine as graphEngine, graphInput } from '../../src/engines/graph';
+import { defaultParams, type GraphKernel } from '../../src/engines/graph/trace';
 // @ts-expect-error -- plain ESM shared with the node tooling
 import { loadCatalogue } from '../../scripts/lib/catalogue.mjs';
 import { loadPlate } from '../../src/registry';
@@ -115,5 +115,7 @@ export function claimGraph(kernel: GraphKernel, c: EntryClaim): Graph {
   const p = c.setup?.params ?? {};
   const shape = (p.shape ?? kernel.inputs[0]) as Shape;
   const n = Number(p.n ?? kernel.n?.value);
-  return makeGraph(shape, n, c.setup?.seed ?? DEFAULT_SEED, kernel.view?.matrix ? 1 : 16 / 9);
+  // the kernel's own input controls (reciprocity, ...), as the plate passes them (graphInput)
+  const input = graphInput(kernel, { ...defaultParams(kernel), ...(p as Params) });
+  return makeGraph(shape, n, c.setup?.seed ?? DEFAULT_SEED, kernel.view?.matrix ? 1 : 16 / 9, input);
 }

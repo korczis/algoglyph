@@ -1,4 +1,5 @@
 import { E, V, type GraphKernel } from '../../engines/graph/trace';
+import { CYCLE_WEIGHT } from '../../engines/graph/graph';
 
 export interface BellmanResult { dist: number[]; parentEdge: number[]; cycle: number[] | null; cycleEdges: number[] }
 
@@ -10,6 +11,18 @@ export const kernel: GraphKernel<BellmanResult> = {
   goal: 'sssp',
   inputs: ['signed', 'negative-cycle', 'signed-dag', 'geometric', 'dag', 'digraph'],
   n: { min: 4, max: 200, value: 60 },
+  // the engine sets the planted three-cycle's edges to cycleWeight (graph.ts GraphInput). From −90,
+  // the span of the potentials (0..90) that shift every other edge, so the planted edges reach as
+  // far below the rest as the potentials move any of them; to −1, the last weight whose cycle,
+  // 3w, is still negative, so the input is still the one with a negative cycle. The budget does
+  // not end it: a reachable negative cycle runs all n rounds at every weight
+  params: [
+    {
+      kind: 'range', key: 'cycleWeight', label: 'Planted cycle’s edge weight', min: -90, max: -1,
+      step: 1, value: CYCLE_WEIGHT, rebuild: true, when: { key: 'shape', values: ['negative-cycle'] },
+      hint: 'Each of the three edges of the planted cycle weighs this; the cycle weighs three times it.',
+    },
+  ],
   pick: 's',
   endpoints: 's',
   view: { colour: 'value' },

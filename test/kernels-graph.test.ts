@@ -423,7 +423,16 @@ const CHECKS: Record<string, Check> = {
     expect([...r.order].sort((a, b) => a - b)).toEqual(Array.from({ length: g.n }, (_, i) => i));
     const pos = new Array<number>(g.n);
     r.order.forEach((v: number, i: number) => { pos[v] = i; });
-    for (let e = 0; e < g.m; e++) expect(pos[g.eu[e]]).toBeLessThan(pos[g.ev[e]]);
+    // reverse DFS postorder orders the condensation: every edge between two strong components
+    // (two vertices that do not reach each other both ways) points forward; on a DAG that is
+    // every edge, and on a cyclic input some edge inside a component must point backward
+    const d = hops(g);
+    let inside = 0; let backward = 0;
+    for (let e = 0; e < g.m; e++) {
+      const [u, v] = [g.eu[e], g.ev[e]];
+      if (Number.isFinite(d[v][u])) { inside++; if (pos[u] > pos[v]) backward++; } else expect(pos[u]).toBeLessThan(pos[v]);
+    }
+    expect(backward > 0).toBe(inside > 0);
   },
   closure(g, run) {
     const r = run();
