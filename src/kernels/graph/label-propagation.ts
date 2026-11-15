@@ -1,3 +1,4 @@
+import { shuffle } from '../../core/random';
 import { other } from '../../engines/graph/graph';
 import type { GraphKernel } from '../../engines/graph/trace';
 
@@ -23,10 +24,7 @@ export const kernel: GraphKernel<LabelsResult> = {
     let rounds = 0; let converged = false;
     while (rounds < 200) {
       rounds++;
-      for (let i = order.length - 1; i > 0; i--) {
-        const j = Math.floor(ops.rnd() * (i + 1));
-        [order[i], order[j]] = [order[j], order[i]];
-      }
+      shuffle(order, ops.rnd);
       let changed = 0;
       for (const v of order) {
         if (!g.out[v].length) continue;

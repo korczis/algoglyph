@@ -1,3 +1,4 @@
+import { shuffle } from '../../core/random';
 import { other } from '../../engines/graph/graph';
 import type { GraphKernel, GraphOps } from '../../engines/graph/trace';
 
@@ -14,13 +15,9 @@ interface Level {
   members: number[][];
 }
 
+/** 0 … n - 1 in a random order. */
 function shuffled(n: number, rnd: () => number): number[] {
-  const a = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+  return shuffle(Array.from({ length: n }, (_, i) => i), rnd);
 }
 
 /** Label every original vertex with the community of the level node it belongs to. */
