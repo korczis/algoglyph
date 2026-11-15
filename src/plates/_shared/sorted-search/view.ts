@@ -9,6 +9,7 @@ const SEARCH_PACE = { kind: 'stream', unit: 'probes', per_s: 15 } satisfies Pace
 import { mix, paletteParam, ramp } from '../../../core/palette';
 import { num, str, type PlateCode } from '../../../core/plate';
 import { chartGate } from '../publish';
+import { runsParam, StreamStop } from '../settle/settle';
 import { ProbeMap } from './probe-map';
 import { query, sortedKeys, type Result, type Spread } from './search';
 
@@ -59,14 +60,16 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
       {
         kind: 'select', key: 'spread', label: 'Key values', value: o.spread, rebuild: true,
         options: [
-          { value: 'uniform', label: 'Spread evenly' },
+          { value: 'uniform', label: 'Uniformly at random' },
           { value: 'logarithmic', label: 'Spread on a log scale' },
+          { value: 'even', label: 'Evenly spaced (a[i] = 8i)' },
         ],
       },
       { kind: 'range', key: 'hit', label: 'Share of searches for a present key', min: 0, max: 1,
         step: 0.05, value: 0.75 },
       paceParam(),
       paletteParam(o.palette),
+      runsParam({ unit: 'searches', max: 100_000, note: 'A search is one key looked up, found or not.' }),
     ],
     pace: SEARCH_PACE,
     create(p, ctx) {
@@ -84,6 +87,8 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
       const gate = chartGate();
       const curve: [number, number][] = [];
       const curveOther: [number, number][] = [];
+      // one run is one search: the stream stops after the k-th has completed (ADR 0007)
+      const stop = new StreamStop(params, 1);
 
       const begin = () => {
         const key = query(keys, num(params, 'hit'), ctx.rnd, present);
@@ -111,6 +116,7 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
       return {
         pace: () => pacer.report(false, params),
         setup() {
+          stop.reset();
           keys = sortedKeys(num(params, 'n'), str(params, 'spread') as Spread, ctx.rnd);
           present = new Set(keys);
           map = new ProbeMap(keys.length, MAP_LIMIT);
@@ -128,11 +134,16 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
             acc += pacer.perFrame(params);
             while (acc >= 1) {
               acc -= 1;
-              if (!current) begin();
+              if (!current) {
+                if (stop.stopped) { acc = 0; break; }
+                begin();
+              }
               const c = current!;
               if (c.shown < c.r.probes.length) c.shown++;
               else {
                 complete();
+                stop.advance(1);
+                if (stop.stopped) { acc = 0; break; }
                 begin();
               }
             }
@@ -218,7 +229,10 @@ export function searchPlate(o: SearchPlateOptions): PlateCode {
                 + 'unmapped points not drawn)' : String(map.points) },
           ];
           if (o.compare) rows.push({ label: `Mean probes, ${o.compare.name} on the same keys`, value: mean(other) });
-          ctx.stats([...rows, pacer.row(params)]);
+          // integer totals, after the readouts the plate had, then the settle signal
+          const totals = [{ label: 'Probes in all', value: String(own.total) }];
+          if (o.compare) totals.push({ label: `Probes in all, ${o.compare.name} on the same keys`, value: String(other.total) });
+          ctx.stats([...rows, pacer.row(params), ...totals, ...stop.rows()]);
           if (curve.length > 1 && gate.open()) {
             const series = [{ name: o.name, points: curve.slice() }];
             if (o.compare) series.push({ name: o.compare.name, points: curveOther.slice() });

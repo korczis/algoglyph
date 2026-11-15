@@ -27,11 +27,13 @@ export function binarySearch(a: ArrayLike<number>, key: number): Result {
   return { index: -1, probes, bounds };
 }
 
-export type Spread = 'uniform' | 'logarithmic';
+export type Spread = 'uniform' | 'logarithmic' | 'even';
 
 /** n distinct sorted integer keys: uniform on [0, 8n), or log-uniform on [1, 64n), which packs
- * small values densely and leaves wide gaps between large ones. */
+ * small values densely and leaves wide gaps between large ones, or evenly spaced, a[i] = 8i, on
+ * the same range as the uniform keys and drawn without the random stream. */
 export function sortedKeys(n: number, spread: Spread, rnd: () => number): number[] {
+  if (spread === 'even') return Array.from({ length: n }, (_, i) => 8 * i);
   const seen = new Set<number>();
   const logTop = Math.log(64 * n);
   while (seen.size < n) {

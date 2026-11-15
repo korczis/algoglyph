@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import { sortedKeys } from '../_shared/sorted-search/search';
 import { Isam, type Lookup } from './isam';
 import { Pacer, paceParam } from '../../core/pace';
@@ -27,6 +28,7 @@ export const indexedSequentialAccess: PlateCode = {
       value: 0.05, hint: 'Share of the key span the crowded inserts fall in, from 0.4 of it up.' },
     paceParam(),
     paletteParam('abyss'),
+    runsParam({ unit: 'operations', max: 100_000, note: 'An operation is one search or one insertion.' }),
   ],
   pace: { kind: 'stream', unit: 'index probes and page reads' },
   create(p, ctx) {
@@ -45,8 +47,11 @@ export const indexedSequentialAccess: PlateCode = {
     const recent: number[] = [];
     const curve: [number, number][] = [];
     const gate = chartGate();
+    // one run is one operation: the stream stops after the k-th (ADR 0007)
+    const stop = new StreamStop(params, 1);
 
     const operate = () => {
+      stop.advance(1);
       const insert = ctx.rnd() < num(params, 'inserts') && isam.size < loaded * 3;
       let key: number;
       if (insert) {
@@ -73,6 +78,7 @@ export const indexedSequentialAccess: PlateCode = {
     return {
       pace: () => pacer.report(false, params),
       setup() {
+        stop.reset();
         const n = num(params, 'n');
         const keys = sortedKeys(n, 'uniform', ctx.rnd);
         top = keys[n - 1] + 1;
@@ -86,6 +92,7 @@ export const indexedSequentialAccess: PlateCode = {
           // an operation lights its index probes and page reads at once: that many changes
           acc += pacer.perFrame(params);
           while (acc >= 1) {
+            if (stop.stopped) { acc = 0; break; }
             operate();
             acc -= Math.max(1, last ? last.look.indexProbes + last.look.pageReads : 1);
           }
@@ -148,6 +155,11 @@ export const indexedSequentialAccess: PlateCode = {
           { label: 'Page reads per search, all', value: searches ? (reads / searches).toFixed(2) : '–' },
           { label: `Page reads per search, last ${recent.length}`, value: recent.length ? mean.toFixed(2) : '–' },
           pacer.row(params),
+          // integer totals, after the readouts the plate had, then the settle signal
+          { label: 'Searches', value: String(searches) },
+          { label: 'Index comparisons in all', value: String(probes) },
+          { label: 'Page reads in all', value: String(reads) },
+          ...stop.rows(),
         ]);
         if (curve.length > 1 && gate.open()) {
           ctx.chart({

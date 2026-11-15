@@ -23,6 +23,32 @@ pedagogy:
 bounds:
   model: levels
   worst: between log₄(n+1) and lg(n+1), every leaf at the same depth
+claims:
+  - id: ascending-height
+    statement: >-
+      With 31 ascending keys the 2-3-4 tree is 4 levels high, levels, counting the nodes on the
+      longest root-to-leaf path (a single node is 1), every leaf on the same level, recomputed by an
+      independent B-tree of minimum degree 2.
+    readout: Height
+    expect: { value: 4 }
+    setup:
+      params: { shape: ascending }
+  - id: ascending-splits
+    statement: >-
+      With 31 ascending keys the insertions split 22 full nodes on the way down, the root's splits
+      included, recomputed by an independent B-tree of minimum degree 2.
+    readout: Node splits
+    expect: { value: 22 }
+    setup:
+      params: { shape: ascending }
+  - id: random-order-splits
+    statement: >-
+      With the 31 keys in the default seed's random order the insertions split 14 full nodes,
+      recomputed by an independent B-tree of minimum degree 2.
+    readout: Node splits
+    expect: { value: 14 }
+    setup:
+      params: { shape: random }
 ---
 
 Split every 4-node on the way down, so an insertion never has to come back up.

@@ -90,13 +90,17 @@ describe('indexed sequential access at its default is what it was before the con
   // recorded on the code before the control existed (S5 779097a)
   const READOUTS = 'cae064cd2b1cacb2';
   const PARAMS = 'fe014494ef0e32c7';
+  // what the searching claims appended later (the settle control and its readouts, and the
+  // integer totals): left out, so the recorded hashes still prove the default unchanged
+  const APPENDED_ROWS = new Set(['Searches', 'Index comparisons in all', 'Page reads in all', 'completed runs']);
+  const APPENDED_KEYS = new Set([KEY, 'runs']);
 
   const run = () => {
     const rows: unknown[] = [];
     for (const seed of [1, 42, 4242]) {
       for (const hot of [true, false]) {
         const p = mount({ ...defaults(), hot }, seed);
-        for (let f = 0; f < 600; f++) { p.sim.draw(); if (f % 100 === 99) rows.push(p.rows().map((r) => r.value)); }
+        for (let f = 0; f < 600; f++) { p.sim.draw(); if (f % 100 === 99) rows.push(p.rows().filter((r) => !APPENDED_ROWS.has(r.label)).map((r) => r.value)); }
       }
     }
     return rows;
@@ -107,6 +111,6 @@ describe('indexed sequential access at its default is what it was before the con
   });
 
   it('offers the same controls as before, the new one aside', () => {
-    expect(hash(plate.params.filter((d) => d.key !== KEY))).toBe(PARAMS);
+    expect(hash(plate.params.filter((d) => !APPENDED_KEYS.has(d.key)))).toBe(PARAMS);
   });
 });

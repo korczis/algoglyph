@@ -28,6 +28,32 @@ pedagogy:
 bounds:
   model: levels
   worst: below about 1.44 lg n
+claims:
+  - id: ascending-keys-fill-a-perfect-tree
+    statement: >-
+      With 31 = 2^5 − 1 ascending keys the AVL tree ends perfect: Height is exactly 5 levels,
+      counting the nodes on the longest root-to-leaf path (a single node is 1).
+    readout: Height
+    expect: { value: 5 }
+    setup:
+      params: { shape: ascending }
+  - id: ascending-rotations
+    statement: >-
+      With 31 ascending keys the i-th insertion makes one single rotation exactly when i is not a
+      power of two, so the run makes 31 − 5 = 26 rotations (a double rotation would count two;
+      ascending keys never need one).
+    readout: Rotations
+    expect: { value: 26 }
+    setup:
+      params: { shape: ascending }
+  - id: random-order-rotations
+    statement: >-
+      With the 31 keys in the default seed's random order the insertions make 16 rotations, a double
+      rotation counted as two, recomputed by an independent AVL tree.
+    readout: Rotations
+    expect: { value: 16 }
+    setup:
+      params: { shape: random }
 ---
 
 Keep the heights of every node's subtrees within one, with single and double rotations.
