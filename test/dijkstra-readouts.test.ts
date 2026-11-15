@@ -7,11 +7,16 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error -- plain ESM shared with the node tooling
 import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import { DEFAULT_SEED } from '../src/core/claims';
+import type { Params } from '../src/core/plate';
+import { graphInput } from '../src/engines/graph';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
+import { defaultParams, type GraphKernel } from '../src/engines/graph/trace';
+import { kernel as dijkstra } from '../src/kernels/graph/dijkstra';
 import type { Claim } from './support/claims';
 
 const ID = 'dijkstra';
 const N = 140;
+const kernel = dijkstra as GraphKernel;
 const ASPECT = 16 / 9;
 const { model } = loadCatalogue(process.cwd()) as { model: { entries: { id: string; claims: Claim[] }[] } };
 const claimOf = (id: string): Claim => {
@@ -20,7 +25,23 @@ const claimOf = (id: string): Claim => {
   return c!;
 };
 const graphOf = (c: Claim) => makeGraph((c.setup?.params?.shape as Shape) ?? 'geometric',
-  Number(c.setup?.params?.n ?? N), c.setup?.seed ?? DEFAULT_SEED, ASPECT);
+  Number(c.setup?.params?.n ?? N), c.setup?.seed ?? DEFAULT_SEED, ASPECT,
+  graphInput(kernel, { ...defaultParams(kernel), ...(c.setup?.params ?? {}) as Params }));
+
+/** Hop distances from s by breadth-first search over the edge list (no weights, no queue order
+ * by distance): the oracle for the unit-weight claims. */
+function hopsFrom(g: Graph, s: number): number[] {
+  const d = new Array<number>(g.n).fill(Infinity);
+  d[s] = 0;
+  const q = [s];
+  for (let h = 0; h < q.length; h++) {
+    for (let e = 0; e < g.m; e++) {
+      const v = g.eu[e] === q[h] ? g.ev[e] : g.ev[e] === q[h] ? g.eu[e] : -1;
+      if (v >= 0 && d[v] === Infinity) { d[v] = d[q[h]] + 1; q.push(v); }
+    }
+  }
+  return d;
+}
 
 /** Distances from s by Bellman–Ford: n − 1 rounds over every arc (both ways when undirected). */
 function bellmanFrom(g: Graph, s: number): number[] {
@@ -53,6 +74,25 @@ function reachable(g: Graph, s: number): number {
 }
 
 describe('dijkstra: the claims’ figures', () => {
+  it('at largest edge weight 1 the farthest is a hop count; at 99 Bellman–Ford’s', () => {
+    const grid = claimOf('unit-weights-farthest-is-hops-on-the-grid');
+    const g = graphOf(grid);
+    const cols = Math.round(Math.sqrt(N * ASPECT)); const rows = Math.round(N / cols);
+    expect(g.w.every((w) => w === 1)).toBe(true);
+    // the corner s = 0 to the opposite corner: rows − 1 steps down and cols − 1 across
+    expect(g.s).toBe(0);
+    expect(grid.expect.value).toBe(rows + cols - 2);
+    expect(grid.expect.value).toBe(Math.max(...hopsFrom(g, g.s)));
+    const sw = claimOf('unit-weights-farthest-is-hops-on-the-small-world');
+    const h = graphOf(sw);
+    expect(h.w.every((w) => w === 1)).toBe(true);
+    expect(sw.expect.value).toBe(Math.max(...hopsFrom(h, h.s).filter(Number.isFinite)));
+    const top = claimOf('farthest-is-bellman-ford-at-weight-99-on-the-grid');
+    const t = graphOf(top);
+    expect(Math.max(...t.w)).toBeGreaterThan(9);
+    expect(top.expect.value).toBe(Math.max(...bellmanFrom(t, t.s).filter(Number.isFinite)));
+  });
+
   it('the farthest settled distances are Bellman–Ford’s', () => {
     for (const id of ['farthest-is-bellman-ford', 'farthest-is-bellman-ford-on-the-grid']) {
       const c = claimOf(id);

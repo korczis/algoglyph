@@ -1,5 +1,5 @@
 // The graph engine's input controls of wave 7a phase 2 (maxCapacity,
-// reciprocity) leave every graph plate and lab IDENTICAL at its defaults: each
+// reciprocity, maxWeight) leave every graph plate and lab IDENTICAL at its defaults: each
 // default is the old constant and every draw consumes the same random number in the same place.
 // Proved against the old engine itself, in the same run (rules 9 and 10, never a recorded hash):
 // test/fixtures/graph-engine-before/graph.ts is src/engines/graph/graph.ts as it was before the
@@ -27,7 +27,7 @@ const labs = CATALOGUE.labs.filter((l) => (l as { engine?: string }).engine === 
 const SEEDS = [1, 7, 4242];
 
 /** The new input keys with their defaults: the old constants of graph.ts. */
-const DEFAULTS = { maxCapacity: 12, reciprocity: 0.35 };
+const DEFAULTS = { maxCapacity: 12, reciprocity: 0.35, maxWeight: 9 };
 
 /** A fresh registry on the old generator (old) or the new one: the plate code is the same. */
 async function registry(old: boolean) {

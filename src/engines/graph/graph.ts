@@ -85,6 +85,10 @@ export const MAX_CAPACITY = 12;
  * control sets it (the 'digraph' shape only; signed and negative-cycle keep it). */
 export const RECIPROCITY = 0.35;
 
+/** The largest edge weight of the grid and the small world, unless the kernel's own control
+ * sets it (the random shape keeps 1..99). */
+export const MAX_WEIGHT = 9;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -98,11 +102,14 @@ export interface GraphInput {
   /** A 'digraph' edge gets its reverse when its draw falls below reciprocity: the same draw at
    * every value, so the vertices, the pairs and their first directions stay as they were. */
   reciprocity?: number;
+  /** Grid and small-world weights are int(1, maxWeight): the same single draw in the same place
+   * at every value, so the graph but its weights stays as it was. */
+  maxWeight?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
 export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
-  'reciprocity'];
+  'reciprocity', 'maxWeight'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -323,6 +330,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
   const longest = input.maxDuration ?? MAX_DURATION;
   const fanIn = input.fanIn ?? FAN_IN;
   const capacity = input.maxCapacity ?? MAX_CAPACITY;
+  const heaviest = input.maxWeight ?? MAX_WEIGHT;
   n = Math.max(2, Math.floor(n));
   switch (shape) {
     case 'geometric': case 'digraph': case 'signed': case 'negative-cycle': {
@@ -374,8 +382,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const v = r * cols + c;
-          if (c + 1 < cols) edges.push([v, v + 1, int(rnd, 1, 9)]);
-          if (r + 1 < rows) edges.push([v, v + cols, int(rnd, 1, 9)]);
+          if (c + 1 < cols) edges.push([v, v + 1, int(rnd, 1, heaviest)]);
+          if (r + 1 < rows) edges.push([v, v + cols, int(rnd, 1, heaviest)]);
         }
       }
       return build(shape, x, y, edges, false, { s: 0, t: rows * cols - 1 }, rnd, longest);
@@ -389,7 +397,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         const k = Math.min(u, v) * n + Math.max(u, v);
         if (seen.has(k)) return false;
         seen.add(k);
-        edges.push([Math.min(u, v), Math.max(u, v), shape === 'random' ? int(rnd, 1, 99) : int(rnd, 1, 9)]);
+        edges.push([Math.min(u, v), Math.max(u, v), shape === 'random' ? int(rnd, 1, 99) : int(rnd, 1, heaviest)]);
         return true;
       };
       if (shape === 'random') {

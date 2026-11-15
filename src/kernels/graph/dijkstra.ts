@@ -1,5 +1,6 @@
 import type { GraphKernel } from '../../engines/graph/trace';
 import { dijkstra, type Sssp } from './_dijkstra';
+import { MAX_WEIGHT_PARAM } from './_weights';
 
 // A binary heap of tentative distances: the nearest unsettled vertex is final (no edge is
 // negative, so no detour can undercut it), and relaxing its edges may lower its neighbours'.
@@ -7,6 +8,7 @@ export const kernel: GraphKernel<Sssp> = {
   goal: 'sssp',
   inputs: ['geometric', 'grid', 'digraph', 'dag', 'small-world', 'random'],
   n: { min: 4, max: 400, value: 140 },
+  params: [MAX_WEIGHT_PARAM],
   pick: 's',
   endpoints: 's',
   view: { colour: 'value' },
