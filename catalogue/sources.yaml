@@ -1441,3 +1441,14 @@ sources:
     year: 2007
     kind: paper
     url: https://doi.org/10.1119/1.2710480
+  - id: andersen-1983-rattle
+    title: 'Rattle: A "Velocity" Version of the Shake Algorithm for Molecular Dynamics Calculations (Journal of Computational Physics 52, 24)'
+    author: Hans C. Andersen
+    year: 1983
+    kind: paper
+    url: https://doi.org/10.1016/0021-9991(83)90014-1
+  - id: huygens-1673-horologium
+    title: Horologium Oscillatorium
+    author: Christiaan Huygens
+    year: 1673
+    kind: book
