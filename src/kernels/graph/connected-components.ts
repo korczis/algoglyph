@@ -10,7 +10,8 @@ export const kernel: GraphKernel<ComponentsResult> = {
   n: { min: 8, max: 400, value: 110 },
   view: { colour: 'group' },
   names: { frontier: 'On the stack', done: 'Labelled', groups: 'Components', tree: 'Search tree edges' },
-  readouts: ['scans', 'done', 'groups'],
+  // No engine 'groups' row: the report's Components row counts the same labels once.
+  readouts: ['scans', 'done'],
   chart: { title: 'Labelling progress', y: 'vertices', series: ['done', 'frontier'] },
   *steps(ops) {
     const g = ops.g;

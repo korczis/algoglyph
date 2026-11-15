@@ -1769,7 +1769,7 @@ A force layout whose vertices are pulled towards their places on a map.<br>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/sugiyama-layout">274 · Layered DAG layout (Sugiyama)</a></b><br>
 Assign layers, order each layer to reduce crossings, then place: how plans are drawn.<br>
-<sub>Graph layout · crossing minimisation is NP-hard; each barycentre sweep sorts every layer, O(N log N) for N vertices and dummy nodes · layered layout, crossing minimisation</sub>
+<sub>Graph layout · crossing minimisation is NP-hard; each barycentre sweep sorts every layer, O(N log N) for N vertices and dummy nodes, and counts the crossings by testing pairs of segments, O(S²) for S segments · layered layout, crossing minimisation</sub>
 </td>
 </tr>
 </table>

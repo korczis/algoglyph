@@ -10,7 +10,7 @@ tags:
   - layered layout
   - crossing minimisation
 motivation: Coordinating many workers and machines without a shared clock depends on it.
-complexity: "crossing minimisation is NP-hard; each barycentre sweep sorts every layer, O(N log N) for N vertices and dummy nodes"
+complexity: "crossing minimisation is NP-hard; each barycentre sweep sorts every layer, O(N log N) for N vertices and dummy nodes, and counts the crossings by testing pairs of segments, O(S²) for S segments"
 related:
   - topological-sort
 ---

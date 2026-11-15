@@ -21,4 +21,4 @@ Repulsion between all vertices, attraction along edges and gravity to the centre
 
 Vertices start scattered at random and every iteration moves all of them; the outer rings show the input’s known groups where it has them. On the three-communities input the rings sort themselves into clusters, since attraction grows linearly with distance while repulsion falls off only as 1/d.
 
-The chart shows the total swing, which falls as vertices stop oscillating. Raise gravity to pull the clusters closer together.
+The chart shows the total swing, the plain unweighted sum of every vertex’s swing (the speed rule weighs each vertex’s swing by its degree + 1), which falls as vertices stop oscillating. Raise gravity to pull the clusters closer together.
