@@ -1405,3 +1405,15 @@ sources:
     year: 1966
     kind: paper
     url: https://doi.org/10.1109/TAP.1966.1138693
+  - id: alder-wainwright-1959
+    title: Studies in Molecular Dynamics. I. General Method (Journal of Chemical Physics 31, 459)
+    author: B. J. Alder, T. E. Wainwright
+    year: 1959
+    kind: paper
+    url: https://doi.org/10.1063/1.1730376
+  - id: henderson-1975
+    title: A Simple Equation of State for Hard Discs (Molecular Physics 30, 971)
+    author: Douglas Henderson
+    year: 1975
+    kind: paper
+    url: https://doi.org/10.1080/00268977500102511
