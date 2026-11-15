@@ -93,6 +93,30 @@ sources:
     year: 1873
     kind: paper
     url: https://doi.org/10.1007/BF01442866
+  - id: jacomy-2014-forceatlas2
+    title: 'ForceAtlas2, a Continuous Graph Layout Algorithm for Handy Network Visualization Designed for the Gephi Software (PLoS ONE 9(6), e98679)'
+    author: M. Jacomy, T. Venturini, S. Heymann, M. Bastian
+    year: 2014
+    kind: paper
+    url: https://doi.org/10.1371/journal.pone.0098679
+  - id: sugiyama-tagawa-toda-1981
+    title: 'Methods for Visual Understanding of Hierarchical System Structures (IEEE Transactions on Systems, Man, and Cybernetics 11(2), 109–125)'
+    author: K. Sugiyama, S. Tagawa, M. Toda
+    year: 1981
+    kind: paper
+    url: https://doi.org/10.1109/TSMC.1981.4308636
+  - id: fruchterman-reingold-1991
+    title: 'Graph drawing by force-directed placement (Software: Practice and Experience 21(11), 1129–1164)'
+    author: T. Fruchterman, E. Reingold
+    year: 1991
+    kind: paper
+    url: https://doi.org/10.1002/spe.4380211102
+  - id: gonzalez-2010-fibonacci-lattice
+    title: 'Measurement of Areas on a Sphere Using Fibonacci and Latitude–Longitude Lattices (Mathematical Geosciences 42(1), 49–64)'
+    author: Á. González
+    year: 2010
+    kind: paper
+    url: https://doi.org/10.1007/s11004-009-9257-x
   - id: shinbrot-1992-double-pendulum
     title: 'Chaos in a double pendulum (American Journal of Physics 60(6), 491–499)'
     author: T. Shinbrot, C. Grebogi, J. Wisdom, J. A. Yorke

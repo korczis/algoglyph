@@ -5,6 +5,8 @@ taxonomy: graphs/layout
 status: live
 engine: graph
 sources:
+  - id: gonzalez-2010-fibonacci-lattice
+    purpose: algorithm-reference
   - id: practice-investigation
 tags:
   - sphere

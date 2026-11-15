@@ -5,6 +5,8 @@ taxonomy: graphs/layout
 status: live
 engine: graph
 sources:
+  - id: fruchterman-reingold-1991
+    purpose: algorithm-reference
   - id: practice-geo
 tags:
   - geospatial

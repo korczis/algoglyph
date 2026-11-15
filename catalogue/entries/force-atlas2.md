@@ -5,6 +5,8 @@ taxonomy: graphs/layout
 status: live
 engine: graph
 sources:
+  - id: jacomy-2014-forceatlas2
+    purpose: algorithm-reference
   - id: practice-investigation
 tags:
   - force-directed

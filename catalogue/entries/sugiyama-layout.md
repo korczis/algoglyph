@@ -5,6 +5,8 @@ taxonomy: graphs/layout
 status: live
 engine: graph
 sources:
+  - id: sugiyama-tagawa-toda-1981
+    purpose: algorithm-reference
   - id: practice-systems
 tags:
   - layered layout
