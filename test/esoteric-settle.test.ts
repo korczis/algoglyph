@@ -173,7 +173,10 @@ for (const s of SUBJECTS) {
     it('counts every finished run once while it runs on, never going back', () => {
       const h = headless(s.plate, { ...s.params, pace: TOP });
       let last = 0;
-      for (let f = 0; f < 4 * PER_RUN; f++) {
+      // until four runs have ended (three boundaries crossed while running on), within the
+      // bound: a fixed 4 * PER_RUN frames at the top pace took bogobogosort 26 s here and
+      // 123 s on the loaded self-hosted runner (Pages run 43674944625), most of it past the point
+      for (let f = 0; f < 4 * PER_RUN && last < 4; f++) {
         h.frames(1);
         const c = numbers(h.stats()[COMPLETED_RUNS])[0];
         expect(c, `${s.plate.id} frame ${f}`).toBeGreaterThanOrEqual(last);

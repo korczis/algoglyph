@@ -5,7 +5,7 @@
 //   rebuild   the frames after a run ends: a loop or a new input built inside draw()
 //   drag      a slider moved without a remount: params change between frames
 // The corners are derived from the plate's own controls, never listed per plate.
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { CATALOGUE, ENTRIES } from '../../src/core/catalogue';
@@ -116,9 +116,18 @@ function context(plate: Plate, params: Params, width: number): PlateContext {
  * is not in it. Wall-clock time read preemption as a slow plate: n-body measured 2.2 ms per
  * frame alone and 56 ms at a load average of 56; gray-scott 1.9 ms locally and 55 ms on CI's
  * runner while other test files ran (Pages run 43115536542).
+ *
+ * The main thread's CPU, not the process's: V8 marks and sweeps on helper threads in parallel,
+ * and process CPU adds their time to the frame they overlap although the main thread never waits
+ * for it. lzw-compression at 16384 characters read 34.3 ms of process CPU in a frame that took
+ * 16.2 ms of wall time (median 5.7 ms), and failed the local budget on 4d26f72 at load 12 while
+ * nothing it runs had changed. Pauses on the main thread itself are still counted.
+ * process.threadCpuUsage is Node 22.19+; older runtimes fall back to the process.
  */
+const threadCpu = (process as { threadCpuUsage?: () => NodeJS.CpuUsage }).threadCpuUsage;
+
 function cpuMs(): number {
-  const u = process.cpuUsage();
+  const u = threadCpu ? threadCpu.call(process) : process.cpuUsage();
   return (u.user + u.system) / 1000;
 }
 
@@ -232,13 +241,13 @@ function drag(plate: Plate, params: Params, width: number): Reading {
  * machine) varies between runs, while a plate whose work is genuinely over budget is over it in
  * every run. The worst frame inside a run is kept: periodic heavy frames recur in every run.
  */
-function best(run: () => Reading): Reading {
+function best(run: () => Reading, every = false): Reading {
   let out: Reading = { create: Infinity, frame: Infinity, at: '' };
   for (let r = 0; r < budget.repeats; r++) {
     seed = 4242 + 7919 * r;
     const m = run();
     out = { create: Math.min(out.create, m.create), frame: Math.min(out.frame, m.frame), at: m.at || out.at };
-    if (out.create <= scaled().create && out.frame <= scaled().frame) break;
+    if (!every && out.create <= scaled().create && out.frame <= scaled().frame) break;
   }
   // a reading over budget recalibrates once more, after the runs: load that arrives during a long
   // check (a shared Mac moving the process to slower cores, frame 473 of a run) is then followed,
@@ -255,28 +264,70 @@ function judge(where: string, m: Reading) {
   const on = (factor > 1 ? `, this machine ${factor.toFixed(2)}× the reference` : '')
     + (headroom < 1 ? `, local headroom ${headroom}` : '');
   const b = scaled();
+  // BUDGET_REPORT=<file>: every reading, passing or not, as one JSON line (what each corner costs
+  // against its budget, so a margin below the budget can be measured before it is enforced)
+  if (process.env.BUDGET_REPORT) {
+    appendFileSync(process.env.BUDGET_REPORT, `${JSON.stringify({ where, at: m.at, frame: m.frame,
+      create: m.create, frameBudget: b.frame, createBudget: b.create })}\n`);
+  }
   expect(m.create, `${where}: ${m.create.toFixed(0)} ms to create${on}`).toBeLessThanOrEqual(b.create);
   expect(m.frame, `${where}: ${m.frame.toFixed(1)} ms per frame${at}${on}`).toBeLessThanOrEqual(b.frame);
 }
 
-const CHECKS: Record<string, (label: string, plate: Plate) => void> = {
-  settings(label, plate) {
+type Judge = (where: string, m: Reading) => void;
+const CHECKS: Record<string, (label: string, plate: Plate, verdict: Judge) => void> = {
+  settings(label, plate, verdict) {
     for (const width of budget.widths) {
       for (const params of corners(plate.params)) {
-        judge(`${label} at ${width} px ${JSON.stringify(params)}`, best(() => settings(plate, params, width)));
+        verdict(`${label} at ${width} px ${JSON.stringify(params)}`, best(() => settings(plate, params, width)));
       }
     }
   },
-  rebuild(label, plate) {
+  rebuild(label, plate, verdict) {
     for (const params of selects(plate.params)) {
-      judge(`${label} past the end of a run at ${widest} px ${JSON.stringify(params)}`, best(() => rebuild(plate, params, widest)));
+      verdict(`${label} past the end of a run at ${widest} px ${JSON.stringify(params)}`, best(() => rebuild(plate, params, widest)));
     }
   },
-  drag(label, plate) {
+  drag(label, plate, verdict) {
     const params = base(plate.params);
-    judge(`${label} during a slider drag at ${widest} px`, best(() => drag(plate, params, widest)));
+    verdict(`${label} during a slider drag at ${widest} px`, best(() => drag(plate, params, widest)));
   },
 };
+
+/** The machine's speed against the reference machine, as each check calibrates it. */
+function calibrate(): void {
+  factor = Math.max(1, referenceCpuMs() / budget.reference_cpu_ms);
+}
+
+/** A subject by its gate label: a plate's id, or `lab <id>`. */
+export function loadSubject(label: string): Promise<Plate | undefined> | undefined {
+  return label.startsWith('lab ') ? loadLab(label.slice(4)) : loadPlate(label);
+}
+
+/**
+ * Every check of a subject, run exactly as its budget file runs it (calibrated before each check)
+ * but judged by no one: the state a file leaves for the subjects after it
+ * (test/budget-isolation.test.ts).
+ */
+export async function exercise(label: string): Promise<void> {
+  const plate = (await loadSubject(label))!;
+  for (const check of Object.values(CHECKS)) {
+    calibrate();
+    check(label, plate, () => {});
+  }
+}
+
+/**
+ * The rebuild check's reading of one corner, in reference milliseconds (the frame divided by the
+ * machine's factor, calibrated just before): what test/budget-isolation.test.ts compares between
+ * a fresh process and one that ran other subjects first. The best of every repeat, never cut
+ * short by a reading within budget, so two readings differ by the context and not by the count.
+ */
+export async function rebuildReading(label: string, params: Params): Promise<number> {
+  const plate = (await loadSubject(label))!;
+  calibrate();
+  return best(() => rebuild(plate, params, widest), true).frame / factor;
+}
 
 type Subject = { label: string; load: () => Promise<Plate | undefined> | undefined };
 
@@ -305,8 +356,8 @@ export function budgetSuite(pick: { wing: string } | { labs: true }): void {
         for (const [name, check] of Object.entries(CHECKS)) {
           it(name, async () => {
             // calibrated before each check, so load that comes and goes on the runner is followed
-            factor = Math.max(1, referenceCpuMs() / budget.reference_cpu_ms);
-            check(s.label, (await s.load())!);
+            calibrate();
+            check(s.label, (await s.load())!, judge);
           }, 300000);
         }
       });

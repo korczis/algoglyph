@@ -1,10 +1,13 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
+import { RunCounter, runsParam } from '../_shared/settle/settle';
 import { EARTH_OMEGA, PrecessionMeter, rk4, type State } from './foucault';
 
 const PERIOD_S = 2.4;
 const W0 = (2 * Math.PI) / PERIOD_S;
 const DT = 1 / 240;
+/** Turning points (two a swing) in one measuring run: the fit of the plane's angle against time. */
+export const RUN_TURNS = 40;
 
 function hours(seconds: number): string {
   return Number.isFinite(seconds) ? `${(seconds / 3600).toFixed(1)} h` : '∞';
@@ -27,6 +30,7 @@ export const foucaultPendulum: PlateCode = {
     { kind: 'range', key: 'speed', label: 'Time per frame (×)', min: 0.25, max: 6, step: 0.25,
       value: 2 },
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate camera', value: false },
+    runsParam(),
     paletteParam('ember'),
   ],
   pace: { kind: 'stream', emergent: 'an integrator: its time factor sets simulated time per frame' },
@@ -40,6 +44,7 @@ export const foucaultPendulum: PlateCode = {
     let angle = 0;
     let lat = 0;
     let boost = 1;
+    let counter = new RunCounter(params);
 
     return {
       setup() {
@@ -53,13 +58,17 @@ export const foucaultPendulum: PlateCode = {
         meter = new PrecessionMeter();
         trail = [];
         angle = 0.5;
+        counter = new RunCounter(params);
       },
       draw() {
         const steps = Math.round((num(params, 'speed') * (ctx.thumbnail ? 4 : 1)) / (60 * DT));
-        for (let k = 0; k < steps; k++) {
+        // held once k measuring runs have completed (the `runs` control), so a claim can read them
+        for (let k = 0; k < steps && !counter.stopped; k++) {
           s = rk4(s, DT, W0, wz);
           t += DT;
-          meter.sample(t, s[0], s[1]);
+          if (meter.sample(t, s[0], s[1]) && meter.turns % RUN_TURNS === 0) {
+            counter.complete(`${(Math.abs(meter.rate()) * 1000).toFixed(2)} mrad/s over ${meter.turns} turning points`);
+          }
           if (k % 2 === 0) trail.push([s[0], s[1]]);
         }
         if (trail.length > 9000) trail.splice(0, trail.length - 9000);
@@ -129,6 +138,7 @@ export const foucaultPendulum: PlateCode = {
             : `${(measured * 1000).toFixed(2)} mrad/s${theory > 0 ? ` (${((100 * (measured - theory)) / theory).toFixed(2)} %)` : ''}` },
           { label: 'plane turned', value: `${((-meter.angle() * 180) / Math.PI).toFixed(1)}°` },
           { label: 'full turn on the real Earth', value: hours(realPeriod) },
+          ...counter.rows(),
         ]);
       },
     };
