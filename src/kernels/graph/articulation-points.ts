@@ -13,7 +13,8 @@ export const kernel: GraphKernel<ArticulationResult> = {
   pick: 's',
   endpoints: 's',
   names: { frontier: 'On the stack', done: 'Finished', marked: 'Articulation points', tree: 'DFS tree edges', value: 'Low point' },
-  readouts: ['scans', 'done', 'marked', 'tree'],
+  // No engine 'marked' row: the marks are set after the search ends, and the report counts them.
+  readouts: ['scans', 'done', 'tree'],
   chart: { title: 'Depth of the stack', y: 'vertices', series: ['frontier', 'done'] },
   *steps(ops, { s }) {
     const g = ops.g;
