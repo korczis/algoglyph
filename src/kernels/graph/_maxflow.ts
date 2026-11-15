@@ -1,6 +1,7 @@
 // Augmenting-path maximum flow, with the path search chosen by the caller: depth-first for
 // Ford-Fulkerson, breadth-first (shortest paths) for Edmonds-Karp. Capacities are integers, so
 // every augmentation adds at least one unit and the loop ends.
+import { MAX_CAPACITY } from '../../engines/graph/graph';
 import { V, type GraphKernel, type GraphOps } from '../../engines/graph/trace';
 import { arcs, augment, minCut, value, type Arc, type FlowResult } from './_flow';
 
@@ -48,9 +49,19 @@ export function* augmentingPaths(ops: GraphOps, s: number, t: number, order: 'df
   return { flow: f, value: value(ops, f, s), side };
 }
 
-export const FLOW_VIEW: Pick<GraphKernel, 'inputs' | 'n' | 'view' | 'names' | 'endpoints' | 'report'> = {
+export const FLOW_VIEW: Pick<GraphKernel, 'inputs' | 'n' | 'params' | 'view' | 'names' | 'endpoints' | 'report'> = {
   inputs: ['flow'],
   n: { min: 4, max: 150, value: 40 },
+  // the engine draws each capacity as int(1, maxCapacity) (graph.ts GraphInput). At 1 every
+  // residual room is 0 or 1, so an augmentation carries exactly one unit; the top end is where the
+  // main-thread budget ends it, measured on min-cost-flow at its largest network (test/budget/)
+  params: [
+    {
+      kind: 'range', key: 'maxCapacity', label: 'Largest capacity', min: 1, max: 1000, step: 1,
+      value: MAX_CAPACITY, rebuild: true,
+      hint: 'Each edge’s capacity is drawn from 1 to this; at 1 every augmenting path carries one unit.',
+    },
+  ],
   view: { flow: true },
   endpoints: 'st',
   names: { frontier: 'Searched', done: 'Source side of the cut' },

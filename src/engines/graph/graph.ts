@@ -78,6 +78,9 @@ export const MAX_DURATION = 9;
  * kernel's own control sets it. */
 export const FAN_IN = 0.7;
 
+/** The largest capacity the flow input draws, unless the kernel's own control sets it. */
+export const MAX_CAPACITY = 12;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -85,10 +88,13 @@ export interface GraphInput {
   /** The reasoning conclusion draws max(1, round(fanIn × claims below)) supports, with
    * replacement; it is drawn last among the edges, so every edge below it stays as it was. */
   fanIn?: number;
+  /** Flow capacities are int(1, maxCapacity): the same single draw in the same place at every
+   * value, so the network but its capacities stays as it was. */
+  maxCapacity?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
-export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn'];
+export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -308,6 +314,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
   const rnd = mulberry32(seed);
   const longest = input.maxDuration ?? MAX_DURATION;
   const fanIn = input.fanIn ?? FAN_IN;
+  const capacity = input.maxCapacity ?? MAX_CAPACITY;
   n = Math.max(2, Math.floor(n));
   switch (shape) {
     case 'geometric': case 'digraph': case 'signed': case 'negative-cycle': {
@@ -475,9 +482,9 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       const edges: Edge[] = []; const cost: number[] = [];
       for (const [i, j] of pairs) {
         const [u, v] = x[i] <= x[j] ? [i, j] : [j, i];
-        if (v === 0 || u === n - 1) { edges.push([v, u, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9)); continue; }
-        edges.push([u, v, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9));
-        if (rnd() < 0.25 && u !== 0 && v !== n - 1) { edges.push([v, u, int(rnd, 1, 12)]); cost.push(int(rnd, 1, 9)); }
+        if (v === 0 || u === n - 1) { edges.push([v, u, int(rnd, 1, capacity)]); cost.push(int(rnd, 1, 9)); continue; }
+        edges.push([u, v, int(rnd, 1, capacity)]); cost.push(int(rnd, 1, 9));
+        if (rnd() < 0.25 && u !== 0 && v !== n - 1) { edges.push([v, u, int(rnd, 1, capacity)]); cost.push(int(rnd, 1, 9)); }
       }
       return build(shape, x, y, edges, true, { s: 0, t: n - 1, cap: edges.map((e) => e[2]), cost }, rnd, longest);
     }
