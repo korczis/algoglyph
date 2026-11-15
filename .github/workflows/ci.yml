@@ -96,9 +96,10 @@ jobs:
     # a hung browser long before the 6 h default. Re-measure when the catalogue grows again.
     # At 372 plates a hosted ubuntu-latest runner no longer fits: run 43298143648 passed steps
     # 1-12 in 20 min and was cut at 90 min with its browser gate 70 min in (lundra: about 55 min
-    # for the whole job, run 43297581949). 150 min covers the hosted runner until the browser
-    # gate is sharded by wing.
-    timeout-minutes: 150
+    # for the whole job, run 43297581949). The browser gate is now the browser job below, in
+    # parts on a hosted runner; without it this job is steps 1-12 (20 min hosted, run
+    # 43298143648), and 90 min leaves the budget gate on lundra its room.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -125,10 +126,40 @@ jobs:
         run: node scripts/build-readme.mjs --check
       - name: Build (stamps dist/revision.txt with the commit)
         run: npx vite build
+      - name: Upload the site
+        uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: dist
+          if-no-files-found: error
+
+  # The browser gate judges the site validate built, as its own job so a hosted runner can run it
+  # in parts side by side (scripts/audit-ui.mjs --shard): the whole gate took a hosted runner
+  # over 130 min, cut at validate's 150 min bound (run 43674866608, 388 plates). The
+  # self-hosted runner, a single machine, runs it whole, as before. A deploy needs every part.
+  browser:
+    name: Browser gate ${{ matrix.shard }}/${{ strategy.job-total }}
+    needs: validate
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON((inputs.runner || 'ubuntu-latest') == 'ubuntu-latest' && '[1, 2, 3, 4]' || '[1]') }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Download the site validate built
+        uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: dist
       # Hosted runners install Playwright's Chromium with its system dependencies; the
       # self-hosted lundra runner uses the Google Chrome already installed there and installs
       # nothing system-wide (ADR 0003).
       - name: Browser gate (axe WCAG 2.2 AA, console errors, overflow, every plate renders)
+        env:
+          SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
         run: |
           if [ "$RUNNER_ENVIRONMENT" = github-hosted ]; then
             npx playwright-core install --with-deps chromium
@@ -136,17 +167,11 @@ jobs:
           else
             export AUDIT_CHANNEL=chrome
           fi
-          node scripts/audit-ui.mjs --screenshots "$RUNNER_TEMP/screenshots"
+          node scripts/audit-ui.mjs --shard "$SHARD" --screenshots "$RUNNER_TEMP/screenshots"
       - name: Upload the browser gate screenshots (gallery and every plate, both themes)
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: screenshots
+          name: screenshots-${{ matrix.shard }}
           path: ${{ runner.temp }}/screenshots
           if-no-files-found: warn
-      - name: Upload the site
-        uses: actions/upload-artifact@v7
-        with:
-          name: site
-          path: dist
-          if-no-files-found: error
