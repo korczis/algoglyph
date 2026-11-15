@@ -86,7 +86,7 @@ export function recordGalperin(ratio: number, d: number): Recorded & { count: nu
   const g = r.gas;
   // the heavy disk moves right at least as fast as the light one will after any bounce still due
   const over = () => g.vx[1] >= 0 && g.vx[1] >= Math.abs(g.vx[0]);
-  for (let guard = 0; !over() && guard < 1e7; guard++) {
+  for (let guard = 0; !over() && guard < 2e6; guard++) {
     const before = g.collisions + g.bounces;
     g.advance(Infinity, 1);
     if (g.collisions + g.bounces > before) snap(r);
