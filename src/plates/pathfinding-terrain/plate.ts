@@ -5,11 +5,23 @@ import { mulberry32 } from '../../core/random';
 import { Search, terrain, type Kind, type Terrain } from './search';
 import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
+/**
+ * Map-building work one frame may do past the end of a run, counted, never timed: the cells of
+ * each terrain drawn plus the cells the build's two searches expand (the Dijkstra that proves a
+ * path exists, and the copy that counts the run's expansions for the pacer). At 4 px cells a
+ * 1440 px map is 360 × 225 cells, and built inside one frame it took 34.4 ms there; at this count
+ * it builds over the frames of the end-of-run hold while the finished map stays on screen. A
+ * default map (66 × 41 cells at 800 px, 120 × 75 at 1440 px) still builds inside one frame.
+ */
+export const BUILD_UNITS = 40_000;
+
 const LABELS: Record<Kind, string> = {
   dijkstra: 'Dijkstra',
   astar: 'A*',
   greedy: 'Greedy best-first',
 };
+
+type Build = Generator<undefined, void, undefined>;
 
 export const pathfinding: PlateCode = {
   id: 'pathfinding-terrain',
@@ -51,50 +63,86 @@ export const pathfinding: PlateCode = {
     let generation = 0;
     let hold = 0;
     let cell = 7;
+    // the work left in this frame's share; a build pauses before work once it is used up
+    let left = Infinity;
+    // the next map, built over the frames of the end-of-run hold; null when none is under way
+    let next: Build | null = null;
 
     const passable = (i: number) => Number.isFinite(map.cost[i]);
 
-    const build = () => {
-      cell = num(params, 'cell');
-      const w = Math.max(8, Math.floor(ctx.width / cell));
-      const h = Math.max(6, Math.floor(ctx.height / cell));
+    /**
+     * One map: up to 20 terrains until one has a passable start, goal and a path between. It is
+     * built into locals and installed at its end, so the finished map stays on screen meanwhile.
+     */
+    function* build(): Build {
+      const size = num(params, 'cell');
+      const w = Math.max(8, Math.floor(ctx.width / size));
+      const h = Math.max(6, Math.floor(ctx.height / size));
       const rnd = mulberry32(ctx.seed + generation * 15485863);
-      search = null;
+      let t: Terrain | undefined;
+      let hs: Float64Array | undefined;
+      let found: { search: Search; optimum: number; steps: number } | null = null;
       for (let attempt = 0; attempt < 20; attempt++) {
-        ({ heights, terrain: map } = terrain(w, h, rnd, num(params, 'rough'), num(params, 'wall')));
+        if (left <= 0) yield;
+        ({ heights: hs, terrain: t } = terrain(w, h, rnd, num(params, 'rough'), num(params, 'wall')));
+        left -= w * h;
+        const m = t;
         // start on the left, goal on the right: the cheapest cells of their columns
         const pick = (x: number) => {
           let best = -1;
           for (let y = 1; y < h - 1; y++) {
             const i = y * w + x;
-            if (passable(i) && (best < 0 || map.cost[i] < map.cost[best])) best = i;
+            if (Number.isFinite(m.cost[i]) && (best < 0 || m.cost[i] < m.cost[best])) best = i;
           }
           return best;
         };
         const start = pick(1);
         const goal = pick(w - 2);
         if (start < 0 || goal < 0) continue;
-        const reference = new Search(map, start, goal, 'dijkstra');
-        if (reference.run() !== 'found') continue;
-        optimum = reference.g[goal];
+        const reference = new Search(m, start, goal, 'dijkstra');
+        while (reference.status === 'running') {
+          if (left <= 0) yield;
+          reference.step();
+          left--;
+        }
+        if (reference.status !== 'found') continue;
         const kind = (str(params, 'algorithm') in LABELS ? str(params, 'algorithm') : 'astar') as Kind;
-        search = new Search(map, start, goal, kind, num(params, 'weight'));
         // the expansions the whole search makes, counted on a copy
-        const copy = new Search(map, start, goal, kind, num(params, 'weight'));
+        const copy = new Search(m, start, goal, kind, num(params, 'weight'));
         let steps = 0;
-        while (copy.status === 'running') { copy.step(); steps++; }
-        pacer.start(steps);
+        while (copy.status === 'running') {
+          if (left <= 0) yield;
+          copy.step();
+          steps++;
+          left--;
+        }
+        found = {
+          search: new Search(m, start, goal, kind, num(params, 'weight')),
+          optimum: reference.g[goal],
+          steps,
+        };
         break;
       }
-      if (!search) pacer.start(0);
+      cell = size;
+      map = t!;
+      heights = hs!;
+      search = found ? found.search : null;
+      if (found) optimum = found.optimum;
+      pacer.start(found ? found.steps : 0);
       raster = new Raster(w, h);
       hold = 0;
+    }
+
+    /** Resume a build for at most `units` of work; true once its map is installed. */
+    const advance = (job: Build, units: number) => {
+      left = units;
+      return job.next().done === true;
     };
 
     return {
       pace: () => pacer.report(!search || search.status !== 'running', params),
       setup() {
-        build();
+        advance(build(), Infinity);
       },
       draw() {
         const running = () => search?.status === 'running';
@@ -103,8 +151,11 @@ export const pathfinding: PlateCode = {
         if (!running()) {
           hold++;
           if (bool(params, 'loop') && hold > HOLD_FRAMES && !ctx.thumbnail) {
-            generation++;
-            build();
+            if (!next) {
+              generation++;
+              next = build();
+            }
+            if (advance(next, BUILD_UNITS)) next = null;
           }
         }
 

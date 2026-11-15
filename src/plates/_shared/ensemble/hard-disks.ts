@@ -3,8 +3,10 @@
 // predicted event (the earliest collision with another disk or a wall) in an indexed binary heap;
 // a prediction is a lower bound on the disk's true next event, so a stale one only costs a
 // re-prediction when it reaches the top (it is recognised by the collision counts it was made
-// with). Collisions are elastic: momentum is exchanged along the line of centres, and a wall
-// reverses the normal velocity. Nothing here knows the gas laws; the box only counts what happens
+// with). Collisions are elastic unless a coefficient of restitution e < 1 is given: momentum is
+// exchanged along the line of centres, the normal relative speed leaving e times the one it came in
+// with (e = 1, the default, is the elastic impulse, arithmetic unchanged), and a wall reverses the
+// normal velocity. Nothing here knows the gas laws; the box only counts what happens
 // at its walls and between its disks: the impulse delivered to the walls, the disk–disk
 // collisions and the distance flown. Initial speeds use Box–Muller from the generator passed in.
 import { gaussian } from '../../../core/random';
@@ -153,7 +155,8 @@ export class DiskGas {
   /** Σ|v|, kept with every velocity change, so the distance flown costs nothing per flight. */
   private speedSum = 0;
 
-  constructor(s: DiskInit, readonly d: number) {
+  /** @param e the coefficient of restitution of disk–disk collisions (1: elastic) */
+  constructor(s: DiskInit, readonly d: number, readonly e = 1) {
     this.n = s.x.length;
     this.x = Float64Array.from(s.x);
     this.y = Float64Array.from(s.y);
@@ -279,8 +282,8 @@ export class DiskGas {
     const b = dx * dvx + dy * dvy;
     const mi = this.m[i];
     const mj = this.m[j];
-    // the impulse along the line of centres that keeps momentum and kinetic energy
-    const J = (2 * mi * mj * b) / ((mi + mj) * dist);
+    // the impulse along the line of centres that keeps momentum and, for e = 1, kinetic energy
+    const J = ((1 + this.e) * mi * mj * b) / ((mi + mj) * dist);
     const jx = (J * dx) / dist;
     const jy = (J * dy) / dist;
     this.speedSum -= Math.hypot(this.vx[i], this.vy[i]) + Math.hypot(this.vx[j], this.vy[j]);

@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { CATALOGUE, ENTRIES } from '../../src/core/catalogue';
 import { optionId, tableOf, type DataTable } from '../../src/core/data';
+import { PACE_KEY } from '../../src/core/pace';
 import { palette as lookupPalette, GROUNDS } from '../../src/core/palette';
 import type { ParamDef, Params, Plate, PlateContext, Sim } from '../../src/core/plate';
 import { mulberry32 } from '../../src/core/random';
@@ -25,22 +26,6 @@ interface Budget {
 }
 const budget = parse(readFileSync('config/budgets.yaml', 'utf8')) as Budget;
 export const widest = Math.max(...budget.widths);
-
-/**
- * The all-maximum base, then one variant per option of each select that changes the work: a
- * select can switch the whole run (a lab's "all kernels" group traced one kernel per frame), and
- * its cost shows only past the first frames (review of feature/sorting-wasm: 30-32 ms at frames
- * 45-260 of the sorting lab's "all" group, unseen by the settings window).
- */
-function selects(defs: ParamDef[]): Params[] {
-  const b = base(defs);
-  const out = [b];
-  for (const d of defs) {
-    if (d.kind !== 'select' || d.cosmetic) continue;
-    for (const o of d.options) if (o.value !== b[d.key]) out.push({ ...b, [d.key]: o.value });
-  }
-  return out;
-}
 
 /** Every range at its maximum, with the defaults for everything else. */
 function base(defs: ParamDef[]): Params {
@@ -66,6 +51,22 @@ export function corners(defs: ParamDef[]): Params[] {
     }
   }
   return out;
+}
+
+/**
+ * The corners read past the end of a run: those of `corners`, so every range at both of its ends
+ * (the all-maximum base holds each at its maximum, a variant each at its minimum) and every select
+ * option (a select can switch the whole run, and its cost shows only past the first frames: 30-32 ms
+ * at frames 45-260 of the sorting lab's "all" group, review of feature/sorting-wasm). A range whose
+ * heavy end is its minimum builds its heaviest next run there:
+ * pathfinding-terrain built a map at cell 4 in a 34.4 ms frame at 1440 px, while this check read
+ * only cell 16, the all-maximum base. The pace control at its minimum is left out: pace sets how
+ * many steps a frame takes, so its slowest run ends later, never with a heavier rebuild, and inside
+ * the horizon not at all.
+ */
+function pastTheEnd(defs: ParamDef[]): Params[] {
+  const pace = base(defs)[PACE_KEY];
+  return corners(defs).filter((c) => c[PACE_KEY] === pace);
 }
 
 /**
@@ -284,7 +285,7 @@ const CHECKS: Record<string, (label: string, plate: Plate, verdict: Judge) => vo
     }
   },
   rebuild(label, plate, verdict) {
-    for (const params of selects(plate.params)) {
+    for (const params of pastTheEnd(plate.params)) {
       verdict(`${label} past the end of a run at ${widest} px ${JSON.stringify(params)}`, best(() => rebuild(plate, params, widest)));
     }
   },
