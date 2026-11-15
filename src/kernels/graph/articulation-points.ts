@@ -39,10 +39,20 @@ export const kernel: GraphKernel<ArticulationResult> = {
     for (let v = 0; v < g.n; v++) if (cut[v]) ops.vertex(v, V.mark);
     return { cut, block };
   },
-  report(r) {
+  report(r, g) {
+    // a cut vertex lies on a cycle when one of its blocks has two edges or more: a block that is
+    // not a single bridge holds a cycle through each of its vertices
+    const size = new Map<number, number>();
+    for (const b of r.block) if (b >= 0) size.set(b, (size.get(b) ?? 0) + 1);
+    const onCycle = new Array<boolean>(g.n).fill(false);
+    for (let e = 0; e < g.m; e++) {
+      if ((size.get(r.block[e]) ?? 0) < 2) continue;
+      onCycle[g.eu[e]] = true; onCycle[g.ev[e]] = true;
+    }
     return [
       { label: 'Articulation points', value: String(r.cut.filter(Boolean).length) },
-      { label: 'Biconnected blocks', value: String(new Set(r.block.filter((b) => b >= 0)).size) },
+      { label: 'Biconnected blocks', value: String(size.size) },
+      { label: 'Articulation points on a cycle', value: String(r.cut.filter((c, v) => c && onCycle[v]).length) },
     ];
   },
 };
