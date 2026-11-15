@@ -4,6 +4,7 @@
 //   #/c/<taxonomy path>    a node of the taxonomy
 //   #/p/<id>?seed=…&…      a plate; the query carries its seed and changed parameters
 //   #/lab/<id>?seed=…&…    a lab, the same query format
+//   #/flow?g=…|preset=…     the flow editor (docs/rfc/0001-typed-reactive-dag.md); g is a graph
 //   #/<collection>                       a figure collection (ADR 0009), e.g. #/feynman
 //   #/<collection>/<vol>/<ch>            one chapter of it, e.g. #/feynman/III/01
 //   #/<collection>/<vol>/<ch>/<fig>?…    a figure page on its plate, the plate's query format
@@ -15,7 +16,7 @@ import {
 } from './catalogue';
 import { parseSeed } from './share';
 
-export type View = 'browse' | 'plate' | 'lab' | 'figures' | 'figure';
+export type View = 'browse' | 'plate' | 'lab' | 'figures' | 'figure' | 'flow';
 
 export interface Route {
   view: View;
@@ -51,10 +52,11 @@ export function parseRoute(hash: string,
   if (parts[0] === 'p' && parts[1] && entry(parts[1])) {
     return { view: 'plate', key: '', id: parts[1], seed, query };
   }
+  if (parts[0] === 'flow' && parts.length === 1) return { view: 'flow', key: '', id: '', query };
   if (parts[0] === 'lab' && parts[1] && findLab(parts[1])) {
     return { view: 'lab', key: '', id: parts[1], seed, query };
   }
-  const coll = parts[0] && !['p', 'c', 'lab'].includes(parts[0])
+  const coll = parts[0] && !['p', 'c', 'lab', 'flow'].includes(parts[0])
     ? figures.collections.find((c) => c.id === parts[0]) : undefined;
   if (coll && parts.length === 4) {
     const key = parts.join('/');

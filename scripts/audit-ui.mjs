@@ -43,9 +43,9 @@ const opt = (name, fallback) => {
 const DIST = resolve(opt('--dist', 'dist'));
 const SHOTS = opt('--screenshots', '');
 const PREVIEWS = opt('--previews', '');
-// --only collection,wings,planned,plates,data,labs,figures: run those sections alone (each still
+// --only collection,wings,planned,plates,data,labs,figures,flow: run those sections alone (each still
 // in both themes and both widths). The default runs every section; CI and verify never pass it.
-const SECTIONS = ['collection', 'wings', 'planned', 'plates', 'data', 'labs', 'figures'];
+const SECTIONS = ['collection', 'wings', 'planned', 'plates', 'data', 'labs', 'figures', 'flow'];
 const ONLY = opt('--only', '').split(',').filter(Boolean);
 for (const s of ONLY) {
   if (!SECTIONS.includes(s)) { console.error(`audit-ui: --only ${s}: not one of ${SECTIONS.join(', ')}`); process.exit(2); }
@@ -456,6 +456,86 @@ try {
         await p.waitForSelector('#figures-title');
         await overflow(p, where);
         if (i === 0) await axe(p, where);
+      }
+      // the flow editor (docs/rfc/0001-typed-reactive-dag.md): every example the page offers mounts
+      // and runs with no node failing; a refused connection says why; a point moved with the
+      // keyboard changes the fit's readout and Undo brings it back; a reader's table reaches the
+      // chart under the schema they approve, with no request leaving the page and no value in the link
+      if (section('flow') && first) {
+        const where = `${label} flow`;
+        log(where);
+        const settled = () => p.waitForFunction(() => {
+          const b = [...document.querySelectorAll('[data-flow] [data-flow-badge]')];
+          return b.length > 0 && b.every((x) => x.dataset.status && x.dataset.status !== 'idle');
+        }, null, { timeout: 30000 }).then(() => true, () => false);
+        await p.goto(`${base}#/flow`, { waitUntil: 'load' });
+        if (!(await settled())) fail(where, 'the first example did not run');
+        const presets = await p.evaluate(() => [...document.querySelectorAll('#flow-preset option')].map((o) => o.value));
+        if (presets.length < 2) fail(where, `${presets.length} example(s) offered`);
+        for (const id of presets) {
+          await p.goto(`${base}#/flow?preset=${id}`, { waitUntil: 'load' });
+          if (!(await settled())) { fail(`${where} ${id}`, 'did not run'); continue; }
+          const bad = await p.evaluate(() => [...document.querySelectorAll('[data-flow] [data-node]')]
+            .filter((n) => n.querySelector('[data-flow-badge]')?.dataset.status === 'error')
+            .map((n) => `${n.dataset.node}: ${n.querySelector('p')?.textContent}`));
+          for (const b of bad) fail(`${where} ${id}`, `node failed: ${b}`);
+          await overflow(p, `${where} ${id}`);
+          await axe(p, `${where} ${id}`);
+          if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `flow-${theme}-${id}.png`), fullPage: true });
+        }
+        // bidirectional: a point moved from the keyboard reaches the fit, and Undo restores it
+        await p.goto(`${base}#/flow?preset=fit`, { waitUntil: 'load' });
+        await settled();
+        const r2 = () => p.evaluate(() => [...document.querySelectorAll('[data-flow-readout] tr')]
+          .find((tr) => tr.querySelector('th')?.textContent === 'R²')?.querySelector('td')?.dataset.value ?? '');
+        const before = await r2();
+        await p.focus('[data-flow-scatter] circle[data-i="3"]');
+        await p.keyboard.press('Shift+ArrowUp');
+        const moved = await p.waitForFunction((b) => {
+          const v = [...document.querySelectorAll('[data-flow-readout] tr')]
+            .find((tr) => tr.querySelector('th')?.textContent === 'R²')?.querySelector('td')?.dataset.value;
+          return v && v !== b;
+        }, before, { timeout: 10000 }).then(() => true, () => false);
+        if (!before || !moved) fail(where, `moving a point did not change the fit's R² (${before})`);
+        await p.click('text=Undo');
+        const back = await p.waitForFunction((b) => [...document.querySelectorAll('[data-flow-readout] tr')]
+          .find((tr) => tr.querySelector('th')?.textContent === 'R²')?.querySelector('td')?.dataset.value === b, before, { timeout: 10000 })
+          .then(() => true, () => false);
+        if (!back) fail(where, 'Undo did not restore the fit');
+        // a refused connection: a spectrum in Hz into a chart of a signal in seconds
+        await p.goto(`${base}#/flow?preset=spectrum`, { waitUntil: 'load' });
+        await settled();
+        await p.click('[data-port="fft.out"][data-dir="out"]');
+        await p.click('[data-port="wave.b"][data-dir="in"]');
+        const said = await p.textContent('[data-flow-status]');
+        if (!/^Refused: .*Hz where s is expected/.test(said ?? '')) fail(where, `the refused connection said: ${said}`);
+        if (await p.evaluate(() => document.querySelectorAll('[data-flow] [data-edge]').length) !== 3) fail(where, 'a refused connection was drawn');
+        // a reader's table: pasted, its schema approved, run, with nothing sent and nothing in the link
+        await p.goto(`${base}#/flow?preset=table`, { waitUntil: 'load' });
+        await settled();
+        const sent = [];
+        const watch = (req) => { if (!req.url().startsWith(base) && !req.url().startsWith('data:') && !req.url().startsWith('blob:')) sent.push(req.url()); };
+        p.on('request', watch);
+        await p.click('[data-node="csv"]');
+        await p.fill('#flow-csv-csv', 'time,level\n0,4.75\n1,2.5\n2,9.125\n3,1.0625\n');
+        await p.click('text=Attach pasted text');
+        await p.fill('#flow-unit-csv-0', 's');
+        await p.fill('#flow-unit-csv-1', 'm');
+        await p.click('text=Approve schema');
+        const ran = await p.waitForFunction(() => document.querySelector('[data-node="chart"] [data-flow-badge]')?.dataset.status === 'done', null, { timeout: 15000 })
+          .then(() => true, () => false);
+        if (!ran) fail(where, 'the attached table did not reach the chart');
+        await p.waitForTimeout(500);
+        const link = await p.evaluate(() => {
+          const g = new URLSearchParams(location.hash.split('?')[1] ?? '').get('g') ?? '';
+          try { return atob(g.replace(/-/g, '+').replace(/_/g, '/')); } catch { return ''; }
+        });
+        if (!link.includes('"unit":"m"')) fail(where, 'the link does not carry the approved schema');
+        // the inspector with a node's controls open (a form of its own) passes axe too
+        await axe(p, `${where} inspector`);
+        for (const v of ['4.75', '9.125', '1.0625']) if (link.includes(v)) fail(where, `the link carries the value ${v}`);
+        p.off('request', watch);
+        for (const r of sent) fail(where, `a request left the page while it held a reader's data: ${r}`);
       }
       await context.close();
     }
