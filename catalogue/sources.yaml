@@ -1429,3 +1429,9 @@ sources:
     year: 1952
     kind: paper
     url: https://doi.org/10.6028/jres.049.044
+  - id: galperin-2003
+    title: Playing Pool with π (the Number π from a Billiard Point of View) (Regular and Chaotic Dynamics 8, 375)
+    author: Gregory Galperin
+    year: 2003
+    kind: paper
+    url: https://doi.org/10.1070/RD2003v008n04ABEH000252
