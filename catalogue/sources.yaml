@@ -1458,3 +1458,15 @@ sources:
     year: 2003
     kind: paper
     url: https://doi.org/10.1070/RD2003v008n04ABEH000252
+  - id: gerlach-stern-1922
+    title: Der experimentelle Nachweis der Richtungsquantelung im Magnetfeld (Zeitschrift für Physik 9, 349)
+    author: Walther Gerlach, Otto Stern
+    year: 1922
+    kind: paper
+    url: https://doi.org/10.1007/BF01326983
+  - id: wigner-1931
+    title: Gruppentheorie und ihre Anwendung auf die Quantenmechanik der Atomspektren
+    author: Eugene P. Wigner
+    publisher: Vieweg
+    year: 1931
+    kind: book
