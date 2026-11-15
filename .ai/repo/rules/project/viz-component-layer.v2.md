@@ -52,7 +52,12 @@ hand can no longer disagree with the code, and a family of algorithms shares one
   each range at its maximum and, in turn, its minimum, and each select option), and nowhere
   sooner: a setting that only costs more than the default, or more than the plate's heaviest run
   before the control existed, stays in the range. A corner over that margin is made cheaper or
-  its range ends there. A range that ends sooner
+  its range ends there. Measured 2026-11-15 (`test/budget-isolation.test.ts`, opt-in with
+  `BUDGET_ISOLATION=1`, on the main thread's CPU clock): a reading after heavier subjects still
+  differs from the same reading alone (lorenz-attractor up to x1.9 in 3 of 6 rounds; the sorting
+  targets only in a cold first round), and load moves readings up to x7 between runs, so the
+  margin is advisory, not enforced by the gate, until a per-subject process split exists.
+  A range that ends sooner
   for another reason (its inputs cannot fill the plate, or the run no longer means what the
   plate shows) says why in a comment at its declaration.
   The gate counts CPU time, calibrated against a fixed reference workload before each check and
