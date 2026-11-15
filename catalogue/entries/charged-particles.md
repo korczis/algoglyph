@@ -108,12 +108,15 @@ claims:
       Two thousand particles started isotropically at a mirror's centre escape in the adiabatic
       share 1 − √(1 − B₀/B_max) within 0.033 when the gyroradius is an eighth of the field's length:
       four standard deviations over the calibration seeds 101–130 (0.029) plus the offset the finite
-      gyroradius leaves on the same seeds (0.004), at every seed of 1–5.
+      gyroradius leaves on the same seeds (0.004), at seed 1. The band is derived in
+      test/charged-particles-claims.test.ts: a particle is kept exactly when |cos α| is at most one
+      threshold, found by bisection on the plate's own orbit, so each calibration seed's share is
+      counted from its launches; a loss cone 5° wider or narrower reads outside the band.
     readout: escaping share, measured
     expect: { against: 'adiabatic loss cone sin²α_c = B₀/B_max, escaping share 1 − √(1 − B₀/B_max)', tolerance: 0.033 }
     setup:
       params: { scenario: mirror, particles: 2000 }
-      seeds: [1, 2, 3, 4, 5]
+      seed: 1
 data:
   - id: velocities
     title: Your particles
