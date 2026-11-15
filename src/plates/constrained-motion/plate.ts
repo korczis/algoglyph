@@ -13,6 +13,13 @@ type Shape = 'cycloid' | 'circle' | 'parabola';
 /** Samples of a run (the counted changes); RATTLE steps between two samples come from `substeps`. */
 export const SAMPLES = 600;
 export const MAX_PER_FRAME = 20;
+/** RATTLE steps of all beads together a frame may take: the default corner's (five beads of 40 steps,
+ * 20 samples) at the pace control's top. More beads or a finer step show fewer samples a frame there,
+ * so the heaviest corner costs what the default does and only its top pace is slower. */
+export const STEPS_PER_FRAME = 4000;
+/** Samples a frame may show for `beads` beads of `sub` steps a sample. */
+export const samplesPerFrame = (beads: number, sub: number): number =>
+  Math.max(1, Math.min(MAX_PER_FRAME, Math.floor(STEPS_PER_FRAME / (beads * sub))));
 /** Units: g = 1 and the cycloid's rolling circle R = 1; the circle and the parabola share the
  * cycloid's radius of curvature at the bottom, 4R, so the three bowls agree for small swings. */
 const G = 1;
@@ -66,14 +73,14 @@ export const constrainedMotion: PlateCode = {
     { kind: 'range', key: 'mu', label: 'Friction coefficient μ', min: 0, max: 1, step: 0.05, value: 0.2,
       rebuild: true, when: when('incline') },
     { kind: 'range', key: 'resolution', label: 'RATTLE steps per sample', min: 4, max: 120, step: 1, value: 40,
-      rebuild: true, hint: 'The step is the run time over 600 samples of this many steps; the error is second order in it. The top is what a frame of eight beads affords.' },
+      rebuild: true, hint: 'The step is the run time over 600 samples of this many steps; the error is second order in it. A frame takes at most 4000 bead steps, so a finer step shows fewer samples a frame at the fastest pace; the top keeps that run of eight beads under three seconds.' },
     paceParam(),
     paletteParam('spectral'),
   ],
   pace: { kind: 'replay', unit: 'samples' },
   create(p, ctx) {
     const params = ctx.params;
-    const pacer = new Pacer('replay', 'samples', MAX_PER_FRAME);
+    let pacer = new Pacer('replay', 'samples', MAX_PER_FRAME);
     let experiment: Experiment = 'release';
     let shape: Shape = 'cycloid';
     let track: Track = cycloid(R);
@@ -120,6 +127,7 @@ export const constrainedMotion: PlateCode = {
         // a little over one small-swing period of the cycloid, 4π√(R/g): every bead reaches the bottom
         T = 1.1 * 4 * Math.PI * Math.sqrt(R / G);
       }
+      pacer = new Pacer('replay', 'samples', samplesPerFrame(beads.length, sub));
       e0 = beads.map((b) => energy(b, G));
       start = beads.map((b) => b.x);
       arrive = beads.map(() => Number.NaN);

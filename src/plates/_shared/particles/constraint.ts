@@ -103,12 +103,14 @@ export interface Bead {
   maxNormalSpeed: number;
   /** Newton iterations of the position projection, over every step. */
   iterations: number;
+  /** The last step's position multiplier: the next step's first guess, since it changes little. */
+  lambda: number;
 }
 
 export function bead(track: Track, x: number, g: number): Bead {
   const s = track.df(x);
   // at rest the normal force is the normal component of gravity: g / √(1 + f′²)
-  return { x, y: track.f(x), vx: 0, vy: 0, normal: g / Math.sqrt(1 + s * s), maxGap: 0, maxNormalSpeed: 0, iterations: 0 };
+  return { x, y: track.f(x), vx: 0, vy: 0, normal: g / Math.sqrt(1 + s * s), maxGap: 0, maxNormalSpeed: 0, iterations: 0, lambda: 0 };
 }
 
 /** The tangential friction acceleration on a bead moving with (vx, vy) at slope s, or the one that
@@ -146,7 +148,7 @@ export function rattle(b: Bead, track: Track, h: number, g: number, mu: number):
   const px = b.x + h * ux;
   const py = b.y + h * uy;
   const k = 0.5 * h * h;
-  let lambda = 0;
+  let lambda = b.lambda;
   let x = px;
   let y = py;
   for (let it = 0; it < 30; it++) {
@@ -165,6 +167,7 @@ export function rattle(b: Bead, track: Track, h: number, g: number, mu: number):
     }
   }
   const slack = 1e-9 * (1 + track.hi - track.lo);
+  b.lambda = lambda;
   if (x < track.lo - slack || x > track.hi + slack) return false;
   // put y exactly on the track (the Newton residual is round-off) and kick to the half velocity
   y = track.f(x);
