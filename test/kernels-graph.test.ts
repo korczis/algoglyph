@@ -953,3 +953,18 @@ it('the shapes are what their names say', () => {
     expect(count(compsOf(g.n, edgeList(g))), shape).toBe(1);
   }
 });
+
+it('the negative-cycle shape refuses fewer than three vertices, naming the shape and the minimum', () => {
+  // the planted cycle is a three-cycle; below three vertices it cannot be planted
+  for (const n of [0, 1, 2, 2.9]) {
+    for (const seed of [1, 5, 4242]) {
+      expect(() => makeGraph('negative-cycle', n, seed), `n=${n} seed=${seed}`)
+        .toThrow(/negative-cycle.*at least 3 vertices/);
+    }
+  }
+  // from three up it plants its cycle, reachable from the source
+  for (const seed of [1, 5, 4242]) {
+    const g = makeGraph('negative-cycle', 3, seed);
+    expect(bellman(g, g.s).negative, `n=3 seed=${seed}`).toBe(true);
+  }
+});
