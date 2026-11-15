@@ -1,4 +1,5 @@
 import { E, V, type GraphKernel } from '../../engines/graph/trace';
+import { CROSS_HOLDINGS_ON_OWNERSHIP } from './_holdings';
 
 export interface CyclesResult { cycles: number[][]; edges: number[][] }
 
@@ -9,6 +10,7 @@ export const kernel: GraphKernel<CyclesResult> = {
   goal: 'cycles',
   inputs: ['ownership', 'digraph', 'dag'],
   n: { min: 6, max: 240, value: 60 },
+  params: [CROSS_HOLDINGS_ON_OWNERSHIP],
   names: { frontier: 'Grey (on the stack)', done: 'Black (finished)', marked: 'On a cycle found', tree: 'DFS tree edges' },
   readouts: ['scans', 'frontier', 'done', 'marked'],
   chart: { title: 'Grey and black vertices', y: 'vertices', series: ['frontier', 'done'] },
