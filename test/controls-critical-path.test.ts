@@ -179,9 +179,11 @@ describe('the graph engine at the defaults is what it was before the control', (
     // controls added after the fingerprint was recorded, each proved by its own test:
     // centrality-comparison's power-iteration round cap (wave 7b C3,
     // test/controls-centrality-comparison.test.ts); geo-graph's iterations and cooling (wave 7b
-    // C4, test/controls-geo-graph.test.ts)
+    // C4, test/controls-geo-graph.test.ts); force-atlas2's scaling kr (wave 7b C5,
+    // test/controls-force-atlas2.test.ts)
     const added = (id: string, d: ParamDef) => (id === 'centrality-comparison' && d.key === 'powerRounds')
-      || (id === 'geo-graph' && (d.key === 'iterations' || d.key === 'cooling'));
+      || (id === 'geo-graph' && (d.key === 'iterations' || d.key === 'cooling'))
+      || (id === 'force-atlas2' && d.key === 'scaling');
     const defs = live.map((e) => [e.id, plateOf(e.id).params
       .filter((d) => !(INPUT_KEYS as readonly string[]).includes(d.key) && !added(e.id, d))
       .map((d) => option(e.id, d))]);
