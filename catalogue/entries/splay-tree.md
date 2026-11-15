@@ -29,6 +29,33 @@ algorithm:
 bounds:
   model: key comparisons
   worst: amortised O(lg n) per operation over any sequence of operations
+claims:
+  - id: ascending-rotations
+    statement: >-
+      With 31 ascending keys every insertion finds the largest key already at the root and rotates
+      nothing; all 101 rotations of the run come from splaying the 15 searches of the default seed,
+      recomputed by an independent bottom-up splay tree.
+    readout: Rotations
+    expect: { value: 101 }
+    setup:
+      params: { shape: ascending }
+  - id: ascending-height
+    statement: >-
+      After 31 ascending insertions (a path) and the default seed's 15 searches the splay tree is 9
+      levels high, levels, counting the nodes on the longest root-to-leaf path (a single node is 1),
+      recomputed by an independent splay tree.
+    readout: Height
+    expect: { value: 9 }
+    setup:
+      params: { shape: ascending }
+  - id: random-order-comparisons
+    statement: >-
+      With the 31 keys in the default seed's random order the run makes 299 key comparisons,
+      splaying and the one comparison at the root included, recomputed by an independent splay tree.
+    readout: Key comparisons
+    expect: { value: 299 }
+    setup:
+      params: { shape: random }
 ---
 
 Every access rotates the key to the root in pairs, which halves the path depth on the way.

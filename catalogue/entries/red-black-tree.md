@@ -29,6 +29,33 @@ pedagogy:
 bounds:
   model: levels
   worst: at most 2 lg(n+1)
+claims:
+  - id: ascending-height
+    statement: >-
+      With 31 ascending keys the left-leaning red-black tree is 5 levels high, levels, counting the
+      nodes on the longest root-to-leaf path (a single node is 1), recomputed by an independent
+      left-leaning red-black tree.
+    readout: Height
+    expect: { value: 5 }
+    setup:
+      params: { shape: ascending }
+  - id: ascending-rotations
+    statement: >-
+      With 31 ascending keys the insertions make 26 rotations, recomputed by an independent
+      left-leaning red-black tree (Sedgewick's 2-3-4 form: flip on the way down, rotate on the way
+      up).
+    readout: Rotations
+    expect: { value: 26 }
+    setup:
+      params: { shape: ascending }
+  - id: ascending-recolourings
+    statement: >-
+      With 31 ascending keys 122 nodes change colour over the run, counting only actual changes (a
+      new node is born red), recomputed by an independent left-leaning red-black tree.
+    readout: Recolourings
+    expect: { value: 122 }
+    setup:
+      params: { shape: ascending }
 ---
 
 A binary tree that encodes 2-3-4 nodes with red links and stays within 2 lg n deep.

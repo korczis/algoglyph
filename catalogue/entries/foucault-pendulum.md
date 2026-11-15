@@ -10,6 +10,35 @@ tags:
   - 3D
 complexity: RK4, constant per step
 interaction: Drag to orbit, scroll to zoom.
+experiments:
+  - id: pole
+    title: At the pole
+    params: { lat: 90 }
+    observe: The plane turns at the Earth's own rate, once a sidereal day on the real Earth.
+  - id: equator
+    title: On the equator
+    params: { lat: 0 }
+    observe: The plane does not turn at all; the vertical component of the Earth's rotation is zero.
+  - id: southern
+    title: In the southern hemisphere
+    params: { lat: -33.9 }
+    observe: The plane turns the other way, anticlockwise seen from above.
+claims:
+  - id: precession-rate
+    statement: >-
+      Swinging at 0.05 rope lengths in Paris, its plane turns at Ω sin φ within 0.5 %, fitted over twenty
+      swings; at this amplitude the elliptic swing's own (Airy) turning, about (3/8)a² of it, is under 0.1 %.
+    readout: precession, measured
+    expect: { against: 'precession, theory Ω·sin φ', tolerance: 0.8 }
+    setup:
+      params: { amp: 0.05, runs: 1 }
+  - id: pole-rate
+    statement: >-
+      At the pole the plane turns at the full Ω, again within 0.5 %.
+    readout: precession, measured
+    expect: { against: 'precession, theory Ω·sin φ', tolerance: 1.1 }
+    setup:
+      params: { amp: 0.05, lat: 90, runs: 1 }
 ---
 
 A pendulum in the Panthéon, with the Earth spun up a few thousand times: its swing plane turns under it and its shadow draws a rosette on the floor. Drag to orbit.

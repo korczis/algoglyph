@@ -1,6 +1,7 @@
 import { str } from '../../core/plate';
 import { gaussian } from '../../core/random';
 import { mulberry32 } from '../../engines/signal/input';
+import { Rk4, type Deriv } from '../../plates/_shared/ode/ode';
 import type { Meter, SignalKernel, View } from '../../engines/signal/trace';
 
 export const EVAL = 'Derivative evaluations';
@@ -14,26 +15,16 @@ export function order(theta: Float64Array): { r: number; psi: number } {
   return { r: Math.hypot(c, s), psi: Math.atan2(s, c) };
 }
 
-/** dθ_i/dt = ω_i + (K/N) Σ_j sin(θ_j − θ_i), in its exact mean-field form K·r·sin(ψ − θ_i). */
-function deriv(theta: Float64Array, omega: Float64Array, K: number, out: Float64Array, meter?: Meter): void {
-  const { r, psi } = order(theta);
-  for (let i = 0; i < theta.length; i++) out[i] = omega[i] + K * r * Math.sin(psi - theta[i]);
-  meter?.add(EVAL, theta.length);
-}
-
-/** One classical Runge–Kutta step of length dt, in place. */
-export function rk4(theta: Float64Array, omega: Float64Array, K: number, dt = DT, meter?: Meter): void {
-  const n = theta.length;
-  const k1 = new Float64Array(n); const k2 = new Float64Array(n); const k3 = new Float64Array(n); const k4 = new Float64Array(n);
-  const tmp = new Float64Array(n);
-  deriv(theta, omega, K, k1, meter);
-  for (let i = 0; i < n; i++) tmp[i] = theta[i] + 0.5 * dt * k1[i];
-  deriv(tmp, omega, K, k2, meter);
-  for (let i = 0; i < n; i++) tmp[i] = theta[i] + 0.5 * dt * k2[i];
-  deriv(tmp, omega, K, k3, meter);
-  for (let i = 0; i < n; i++) tmp[i] = theta[i] + dt * k3[i];
-  deriv(tmp, omega, K, k4, meter);
-  for (let i = 0; i < n; i++) theta[i] += (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
+/**
+ * dθ_i/dt = ω_i + (K/N) Σ_j sin(θ_j − θ_i), in its exact mean-field form K·r·sin(ψ − θ_i), as
+ * the derivative the library's Rk4 (src/plates/_shared/ode) steps; each call is N evaluations.
+ */
+export function derivOf(omega: Float64Array, K: number, meter?: Meter): Deriv {
+  return (_t, theta, out) => {
+    const { r, psi } = order(theta);
+    for (let i = 0; i < theta.length; i++) out[i] = omega[i] + K * r * Math.sin(psi - theta[i]);
+    meter?.add(EVAL, theta.length);
+  };
 }
 
 /** Natural frequencies: Lorentzian by quantiles (critical coupling 2γ) or seeded Gaussian. */
@@ -50,7 +41,8 @@ export function simulate(n: number, K: number, width: number, steps: number, see
   const { omega } = frequencies(n, dist, width, rnd);
   const theta = Float64Array.from({ length: n }, () => 2 * Math.PI * rnd());
   const r: number[] = [];
-  for (let s = 0; s < steps; s++) { rk4(theta, omega, K, DT, meter); r.push(order(theta).r); }
+  const rk = new Rk4(n); const f = derivOf(omega, K, meter);
+  for (let s = 0; s < steps; s++) { rk.step(f, 0, theta, DT); r.push(order(theta).r); }
   const tail = r.slice(steps >> 1);
   return { r, mean: tail.reduce((a, b) => a + b, 0) / tail.length };
 }
@@ -63,13 +55,16 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'n', label: 'Oscillators', min: 16, max: 512, step: 16, value: 192, rebuild: true },
     { kind: 'range', key: 'K', label: 'Coupling K', min: 0, max: 6, step: 0.05, value: 2 },
     { kind: 'select', key: 'dist', label: 'Natural frequencies', value: 'lorentz', options: [
-      { value: 'lorentz', label: 'Lorentzian, width 0.5' }, { value: 'gauss', label: 'Gaussian, σ 0.5' }] },
+      { value: 'lorentz', label: 'Lorentzian, half-width γ' }, { value: 'gauss', label: 'Gaussian, σ = γ' }] },
+    // the critical coupling is 2γ (Lorentzian) or 1.6γ (Gaussian): γ ends at 2, where K_c = 4,
+    // so the coupling's range up to 6 still reaches well above it and the plate shows locking
+    { kind: 'range', key: 'gamma', label: 'Frequency width γ', min: 0.1, max: 2, step: 0.05, value: 0.5 },
   ],
   *run(params, seed, meter): Generator<View | null> {
     const rnd = mulberry32(seed);
     const n = Number(params.n); const K = Number(params.K);
     const dist = str(params, 'dist');
-    const width = 0.5;
+    const width = Number(params.gamma ?? 0.5);
     const { omega, kc } = frequencies(n, dist, width, rnd);
     const theta = Float64Array.from({ length: n }, () => 2 * Math.PI * rnd());
     // each oscillator's rank by natural frequency, by one sort of the indices
@@ -81,9 +76,10 @@ export const kernel: SignalKernel = {
     const unwrapped = Float64Array.from(theta);
     const lim = Math.min(3, Math.max(...omega.map(Math.abs)) * 1.05);
     const history: Float64Array[] = [];
+    const rk = new Rk4(n); const f = derivOf(omega, K, meter);
     for (let s = 1; s <= steps; s++) {
       const before = Float64Array.from(theta);
-      rk4(theta, omega, K, DT, meter);
+      rk.step(f, 0, theta, DT);
       for (let i = 0; i < n; i++) {
         let d = theta[i] - before[i];
         d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
@@ -99,7 +95,9 @@ export const kernel: SignalKernel = {
       const span = (history.length - 1 - Math.max(0, history.length - 1 - Math.round(20 / (every * DT)))) * every * DT;
       const eff = Float64Array.from(unwrapped, (u, i) => (span > 0 ? (u - back[i]) / span : omega[i]));
       const meanEff = eff.reduce((a, b) => a + b, 0) / n;
-      const locked = span > 0 ? eff.filter((w) => Math.abs(w - meanEff) < 0.02).length : 0;
+      // the oscillators turning at the mean effective frequency, to 0.02: the locked cluster once
+      // the transient has passed (a count of a tolerance, not a test of locking)
+      const near = span > 0 ? eff.filter((w) => Math.abs(w - meanEff) < 0.02).length : 0;
       const tail = rs.slice(rs.length >> 1);
       const avg = tail.reduce((a, b) => a + b, 0) / tail.length;
       const pts: number[] = [];
@@ -123,7 +121,7 @@ export const kernel: SignalKernel = {
           { label: 'Coupling K / critical K_c', value: `${K.toFixed(2)} / ${kc.toFixed(3)} = ${(K / kc).toFixed(2)}` },
           ...(dist === 'lorentz' ? [{ label: 'Theory for N → ∞, √(1 − K_c/K)', value: K > kc ? Math.sqrt(1 - kc / K).toFixed(3) : '0 (incoherent)' }] : []),
           { label: 'Incoherent level 1/√N', value: (1 / Math.sqrt(n)).toFixed(3) },
-          { label: 'Locked to the mean frequency (measured)', value: `${locked} of ${n}` },
+          { label: 'Effective frequency within 0.02 of the mean (measured)', value: `${near} of ${n}` },
         ],
         counts: meter.snapshot(),
         chart: { title: 'Order parameter over time', x: { label: 'time' }, y: { label: 'r' }, series: [

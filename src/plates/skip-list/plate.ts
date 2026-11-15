@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import { mulberry32 } from '../../core/random';
 import { SkipList } from './skiplist';
 import { Pacer, paceParam } from '../../core/pace';
@@ -23,6 +24,7 @@ export const skipList: PlateCode = {
     },
     paceParam(),
     paletteParam('spectral'),
+    runsParam({ unit: 'operations', max: 100_000, note: 'An operation is one search, insertion or removal, the build included.' }),
   ],
   pace: { kind: 'stream', unit: 'comparisons' },
   create(p, ctx) {
@@ -44,8 +46,11 @@ export const skipList: PlateCode = {
     const window: number[] = [];
     const curve: [number, number][] = [];
     const gate = chartGate();
+    // one run is one operation, the build's included: the stream stops after the k-th (ADR 0007)
+    const stop = new StreamStop(params, 1);
 
     const operate = () => {
+      stop.advance(1);
       let op: Op;
       if (sl.size < target) op = 'insert';
       else op = ctx.rnd() < 0.7 ? 'search' : ctx.rnd() < 0.5 ? 'remove' : 'insert';
@@ -81,13 +86,15 @@ export const skipList: PlateCode = {
       pace: () => pacer.report(false, params),
       setup() {
         const first = ctx.thumbnail ? target + 6 : Math.ceil(target / 2);
-        for (let k = 0; k < first; k++) operate();
+        stop.reset();
+        for (let k = 0; k < first && !stop.stopped; k++) operate();
       },
       draw() {
         if (!ctx.thumbnail) {
           // an operation lights its whole search path at once: it shows that many changes
           acc += pacer.perFrame(params);
           while (acc >= 1) {
+            if (stop.stopped) { acc = 0; break; }
             operate();
             acc -= Math.max(1, last ? last.cmp : 1);
           }
@@ -161,6 +168,13 @@ export const skipList: PlateCode = {
           { label: 'Mean comparisons per insert', value: inserts ? (insertCmp / inserts).toFixed(2) : '–' },
           { label: 'Comparisons of the last walk', value: last ? String(last.cmp) : '–' },
           pacer.row(params),
+          // integer totals and the mean height, after the readouts the plate had, then the settle signal
+          ...((links) => [
+            { label: 'Links in all', value: String(links) },
+            { label: 'Links per node', value: sl.size ? (links / sl.size).toFixed(2) : '–' },
+          ])(perLevel.reduce((sum, c) => sum + Number(c), 0)),
+          { label: 'Comparisons in all', value: String(sl.comparisons) },
+          ...stop.rows(),
         ]);
         if (curve.length > 1 && gate.open()) {
           ctx.chart({

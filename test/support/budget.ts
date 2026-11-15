@@ -24,7 +24,7 @@ interface Budget {
   reference_cpu_ms: number; local_headroom: number;
 }
 const budget = parse(readFileSync('config/budgets.yaml', 'utf8')) as Budget;
-const widest = Math.max(...budget.widths);
+export const widest = Math.max(...budget.widths);
 
 /**
  * The all-maximum base, then one variant per option of each select that changes the work: a
@@ -116,9 +116,18 @@ function context(plate: Plate, params: Params, width: number): PlateContext {
  * is not in it. Wall-clock time read preemption as a slow plate: n-body measured 2.2 ms per
  * frame alone and 56 ms at a load average of 56; gray-scott 1.9 ms locally and 55 ms on CI's
  * runner while other test files ran (Pages run 43115536542).
+ *
+ * The main thread's CPU, not the process's: V8 marks and sweeps on helper threads in parallel,
+ * and process CPU adds their time to the frame they overlap although the main thread never waits
+ * for it. lzw-compression at 16384 characters read 34.3 ms of process CPU in a frame that took
+ * 16.2 ms of wall time (median 5.7 ms), and failed the local budget on 4d26f72 at load 12 while
+ * nothing it runs had changed. Pauses on the main thread itself are still counted.
+ * process.threadCpuUsage is Node 22.19+; older runtimes fall back to the process.
  */
+const threadCpu = (process as { threadCpuUsage?: () => NodeJS.CpuUsage }).threadCpuUsage;
+
 function cpuMs(): number {
-  const u = process.cpuUsage();
+  const u = threadCpu ? threadCpu.call(process) : process.cpuUsage();
   return (u.user + u.system) / 1000;
 }
 
@@ -170,7 +179,7 @@ function frame(sim: Sim): number {
   return cpuMs() - t;
 }
 
-interface Reading { create: number; frame: number; at: string }
+export interface Reading { create: number; frame: number; at: string }
 
 function start(plate: Plate, params: Params, width: number): { sim: Sim; create: number } {
   const t0 = cpuMs();
@@ -190,9 +199,10 @@ function settings(plate: Plate, params: Params, width: number): Reading {
 
 /**
  * Frames well past the first window, until a run has ended and been rebuilt: up to
- * `horizon_frames` frames or `horizon_cpu_ms` of CPU, whichever comes first.
+ * `horizon_frames` frames or `horizon_cpu_ms` of CPU, whichever comes first. Exported for
+ * test/sorting-max-n.test.ts: a derived max_n must measure the frame this gate judges.
  */
-function rebuild(plate: Plate, params: Params, width: number): Reading {
+export function rebuild(plate: Plate, params: Params, width: number): Reading {
   const { sim } = start(plate, params, width);
   let worst = 0;
   let at = 0;

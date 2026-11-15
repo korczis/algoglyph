@@ -27,6 +27,55 @@ algorithm:
 bounds:
   model: key comparisons
   average: 'expected about (1/p) log_{1/p} n, which is 2 lg n for p = 1/2 and for p = 1/4'
+claims:
+  - id: links-in-all
+    statement: >-
+      After 300 operations at p = 1/2 (the build of 48 keys, then searches, insertions and removals)
+      the default seed's list holds 97 links over its nodes, recomputed by a skip list written in
+      the test from the same coin flips.
+    readout: Links in all
+    expect: { value: 97 }
+    setup:
+      params: { runs: 300 }
+  - id: keys-after-300-operations
+    statement: >-
+      After the same 300 operations the list holds 51 keys: past the target of 48 a removal and an
+      insertion are equally likely, so the size drifts, recomputed by a skip list written in the
+      test.
+    readout: Keys
+    expect: { value: 51 }
+    setup:
+      params: { runs: 300 }
+  - id: comparisons-in-all
+    statement: >-
+      The same 300 operations make 4390 key comparisons in all, each operation's lookup and an
+      insertion's or removal's second walk included, recomputed by Pugh's level-by-level walk
+      written in the test.
+    readout: Comparisons in all
+    expect: { value: 4390 }
+    setup:
+      params: { runs: 300 }
+  - id: links-per-node-half
+    statement: >-
+      A node rises a level with chance p, so its height is geometric with mean 1 / (1 − p) = 2 at p
+      = 1/2. After 300 operations the mean height stays within [1.58, 2.42] at every seed of the
+      fixed seed set 1–5: the band is 2 ± 3 SD, the SD 0.135 of the per-run mean over the disjoint
+      seeds 101–130 (fixed before they were run; their mean 1.99), widened by display rounding.
+    readout: Links per node
+    expect: { range: [1.58, 2.42] }
+    setup:
+      params: { runs: 300 }
+      seeds: [1, 2, 3, 4, 5]
+  - id: links-per-node-quarter
+    statement: >-
+      At p = 1/4 the mean height is 1 / (1 − p) = 4/3. After 300 operations it stays within [1.05,
+      1.61] at every seed of the fixed seed set 1–5: 4/3 ± 3 SD, the SD 0.090 of the per-run mean
+      over the disjoint seeds 101–130 (their mean 1.34), widened by display rounding.
+    readout: Links per node
+    expect: { range: [1.05, 1.61] }
+    setup:
+      params: { runs: 300, p: '0.25' }
+      seeds: [1, 2, 3, 4, 5]
 ---
 
 Linked lists stacked in levels, each node promoted by a coin flip: search skips ahead.

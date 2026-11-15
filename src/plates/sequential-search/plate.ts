@@ -1,6 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { chartGate } from '../_shared/publish';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
 import { shuffle } from '../../core/random';
 import { SequentialList, draw as drawRank, zipf, type Strategy } from './sequential';
 import { Pacer, paceParam } from '../../core/pace';
@@ -28,6 +29,7 @@ export const sequentialSearch: PlateCode = {
       step: 0.05, value: 0.9 },
     paceParam(),
     paletteParam('phosphor'),
+    runsParam({ unit: 'searches', max: 100_000, note: 'A search is one key looked up, found or not.' }),
   ],
   pace: { kind: 'stream', unit: 'probes' },
   create(p, ctx) {
@@ -46,6 +48,8 @@ export const sequentialSearch: PlateCode = {
     const recent: number[] = [];
     const curve: [number, number][] = [];
     const gate = chartGate();
+    // one run is one search: the stream stops after the k-th has completed (ADR 0007)
+    const stop = new StreamStop(params, 1);
 
     const begin = () => {
       const hit = ctx.rnd() < num(params, 'hit');
@@ -74,6 +78,7 @@ export const sequentialSearch: PlateCode = {
     return {
       pace: () => pacer.report(false, params),
       setup() {
+        stop.reset();
         n = num(params, 'n');
         cdf = zipf(n, num(params, 'skew'));
         list = new SequentialList(shuffle(Array.from({ length: n }, (_, k) => k), ctx.rnd));
@@ -91,10 +96,16 @@ export const sequentialSearch: PlateCode = {
           acc += pacer.perFrame(params);
           while (acc >= 1) {
             acc -= 1;
-            if (!current) begin();
+            if (!current) {
+              if (stop.stopped) { acc = 0; break; }
+              begin();
+            }
             const c = current!;
             if (c.shown < c.probes) c.shown++;
-            else complete();
+            else {
+              complete();
+              stop.advance(1);
+            }
           }
         }
         const pal = ctx.palette();
@@ -136,6 +147,9 @@ export const sequentialSearch: PlateCode = {
           { label: `Mean probes, last ${recent.length}`, value: recent.length ? mean.toFixed(2) : '–' },
           { label: 'Probes of the search shown', value: current ? `${current.shown} of ${current.probes}` : '–' },
           pacer.row(params),
+          // an integer total, after the readouts the plate had, then the settle signal
+          { label: 'Probes in all', value: String(probes) },
+          ...stop.rows(),
         ]);
         if (curve.length > 1 && gate.open()) {
           ctx.chart({

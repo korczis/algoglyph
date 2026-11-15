@@ -22,6 +22,51 @@ algorithm:
 bounds:
   model: probes
   worst: 'n probes on a miss; a hit at position i costs i'
+claims:
+  - id: misses-scan-the-whole-list
+    statement: >-
+      A miss looks at every key: 50 searches for keys never stored, on a list of 96, take exactly 50
+      · 96 = 4800 probes, whatever the list's order.
+    readout: Probes in all
+    expect: { value: 4800 }
+    setup:
+      params: { n: 96, strategy: static, hit: 0, runs: 50 }
+  - id: uniform-popularity-static
+    statement: >-
+      With every key equally popular (skew 0) and the list left alone, 1000 hits on 96 keys take
+      49310 probes, a mean of about 49.3 near the (n + 1) / 2 = 48.5 of a uniformly placed key,
+      recomputed by a list search written in the test.
+    readout: Probes in all
+    expect: { value: 49310 }
+    setup:
+      params: { n: 96, strategy: static, skew: 0, hit: 1, runs: 1000 }
+  - id: zipf-popularity-static
+    statement: >-
+      With Zipf popularity (skew 1) and the list left alone, 1000 hits take 43139 probes: popular
+      keys are no nearer the front than the shuffle put them, recomputed by a list search written in
+      the test.
+    readout: Probes in all
+    expect: { value: 43139 }
+    setup:
+      params: { n: 96, strategy: static, skew: 1, hit: 1, runs: 1000 }
+  - id: zipf-popularity-move-to-front
+    statement: >-
+      With the same Zipf queries and moving each key found to the front, the 1000 hits take 26657
+      probes, about 62 % of the static list's 43139, recomputed by a list search written in the
+      test.
+    readout: Probes in all
+    expect: { value: 26657 }
+    setup:
+      params: { n: 96, strategy: move-to-front, skew: 1, hit: 1, runs: 1000 }
+  - id: zipf-popularity-transpose
+    statement: >-
+      With the same Zipf queries and swapping each key found one place forward, the 1000 hits take
+      33393 probes: transposition drifts popular keys forward more slowly than moving them to the
+      front, recomputed by a list search written in the test.
+    readout: Probes in all
+    expect: { value: 33393 }
+    setup:
+      params: { n: 96, strategy: transpose, skew: 1, hit: 1, runs: 1000 }
 ---
 
 Look at every key until the one wanted turns up, or the list ends.
