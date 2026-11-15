@@ -35,7 +35,10 @@ export const kernel: GraphKernel<LayoutResult> = {
     // the default 250 iterations (every input at n 10, 70 and 100, seeds 4242, 7, 1 and 2; 60
     // runs per kr) no run ends with a vertex still moving at the cap up to kr 10, while 1 does at
     // 20, 5 at 30 and 20 at 100: the last positions then show the cap, not the forces' balance.
-    { kind: 'range', key: 'scaling', label: 'Scaling kr', min: 0.1, max: 10, step: 0.1, value: 2, rebuild: true },
+    {
+      kind: 'range', key: 'scaling', label: 'Scaling kr', min: 0.1, max: 10, step: 0.1, value: 2, rebuild: true,
+      hint: 'Ends at 10, where every run still settles: of 60 runs per kr at 250 iterations, none ends with a vertex at the step cap up to kr 10, 1 does at 20 and 20 at 100.',
+    },
   ],
   view: { truth: true },
   names: { value: 'Swing', total: 'Total swing' },
