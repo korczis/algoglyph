@@ -1,4 +1,5 @@
 import { E, type GraphKernel } from '../../engines/graph/trace';
+import { CROSS_HOLDINGS_ON_OWNERSHIP } from './_holdings';
 
 export interface LayeredResult {
   /** Layer of every node: the graph's vertices, then the dummy nodes of long edges. */
@@ -42,7 +43,10 @@ export const kernel: GraphKernel<LayeredResult> = {
   goal: 'layered',
   inputs: ['dag', 'reasoning', 'ownership'],
   n: { min: 4, max: 160, value: 40 },
-  params: [{ kind: 'range', key: 'sweeps', label: 'Sweeps (down and up)', min: 1, max: 24, step: 1, value: 8, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'sweeps', label: 'Sweeps (down and up)', min: 1, max: 24, step: 1, value: 8, rebuild: true },
+    CROSS_HOLDINGS_ON_OWNERSHIP,
+  ],
   view: { colour: 'group' },
   names: { groups: 'Layers', done: 'Layered' },
   readouts: ['rounds', 'places', 'groups', 'scans'],

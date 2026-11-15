@@ -12,14 +12,23 @@ export const kernel: GraphKernel<ActivationResult> = {
   inputs: ['communities', 'small-world', 'links', 'geometric'],
   n: { min: 3, max: 300, value: 80 },
   params: [
-    { kind: 'range', key: 'decay', label: 'Decay d', min: 0.1, max: 0.95, step: 0.05, value: 0.7, rebuild: true },
+    // Ends at 0.85, before the budget does, because a longer run no longer finishes: at threshold
+    // 0 every round scans each edge twice while the pulse mass falls only by d, and at n 300
+    // (every input, seeds 4242, 7 and 1-29; 124 runs) the worst run took 368,563 events at 0.85
+    // and 575,793 at 0.90 (96 % of the 600,000-event cap), while 0.95 stopped at the cap in 19
+    // of 20 runs. A kernel that is not mayStop must finish at its extremes (trace.ts).
+    {
+      kind: 'range', key: 'decay', label: 'Decay d', min: 0.1, max: 0.85, step: 0.05, value: 0.7, rebuild: true,
+      hint: 'Ends at 0.85, where a run at threshold 0 still finishes: 368,563 events at 0.85; 0.95 truncates 19 of 20 runs.',
+    },
     { kind: 'range', key: 'threshold', label: 'Firing threshold (per mille)', min: 0, max: 50, step: 1, value: 2, rebuild: true },
   ],
   pick: 's',
   endpoints: 's',
   view: { colour: 'value', size: true },
-  names: { frontier: 'Firing', done: 'Activated', value: 'Activation' },
-  readouts: ['rounds', 'scans', 'frontier', 'done', 'change'],
+  // the sum of the activations: 1 / (1 - d) at threshold 0, as each round passes on d of the pulse
+  names: { frontier: 'Firing', done: 'Activated', value: 'Activation', total: 'Total activation' },
+  readouts: ['rounds', 'scans', 'frontier', 'done', 'change', 'total'],
   chart: { title: 'Vertices firing, round by round', x: 'rounds', y: 'vertices', series: ['frontier', 'done'] },
   *steps(ops, { s, p }) {
     const g = ops.g;
@@ -33,9 +42,10 @@ export const kernel: GraphKernel<ActivationResult> = {
     ops.value(s, 1);
     ops.discover(s);
     let pulses = 0;
+    let firing = true;
     for (let round = 0; round < 10000; round++) {
       const next = new Array<number>(g.n).fill(0);
-      let firing = false;
+      firing = false;
       for (let u = 0; u < g.n; u++) {
         if (pulse[u] <= 0) continue;
         if (pulse[u] < th || !strength[u]) { if (act[u] > 0) ops.settle(u); continue; }
@@ -63,6 +73,11 @@ export const kernel: GraphKernel<ActivationResult> = {
       yield;
       if (biggest < 1e-13) break;
     }
+    // Left by the cut or the round cap (a zero threshold re-discovers every recipient, so it
+    // never stops firing): the pulses still held are negligible, so their vertices are settled
+    // as the next round would settle a pulse below the threshold. A run that stopped firing has
+    // settled every vertex already and does nothing here.
+    if (firing) for (let u = 0; u < g.n; u++) if (pulse[u] > 0) ops.settle(u);
     return { act, pulses };
   },
   report(r, _g, { s }) {
@@ -70,7 +85,7 @@ export const kernel: GraphKernel<ActivationResult> = {
     let top = -1;
     for (let v = 0; v < r.act.length; v++) if (v !== s && (top < 0 || r.act[v] > r.act[top])) top = v;
     return [
-      { label: 'Activated', value: `${reached} vertices, ${r.pulses} firings` },
+      { label: 'Reach and firings', value: `${reached} vertices, ${r.pulses} firings` },
       { label: 'Most activated', value: top < 0 ? 'none' : `vertex ${top}: ${r.act[top].toPrecision(3)}` },
     ];
   },

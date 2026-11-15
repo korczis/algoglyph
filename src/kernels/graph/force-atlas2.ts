@@ -28,6 +28,17 @@ export const kernel: GraphKernel<LayoutResult> = {
   params: [
     { kind: 'range', key: 'iterations', label: 'Iterations', min: 20, max: 500, step: 10, value: 250, rebuild: true },
     { kind: 'range', key: 'gravity', label: 'Gravity kg', min: 0.1, max: 5, step: 0.1, value: 1, rebuild: true },
+    // The repulsion's scaling ratio kr. It costs nothing: every iteration is the same all-pairs
+    // pass whatever kr is. Starts at 0.1, as gravity does: at 0 no pair repels, the layout falls
+    // into the centre and the force balance divides by zero. Ends at 10 for what the run shows: a
+    // larger kr pushes vertices apart at the step cap (10 units an iteration) for longer, and at
+    // the default 250 iterations (every input at n 10, 70 and 100, seeds 4242, 7, 1 and 2; 60
+    // runs per kr) no run ends with a vertex still moving at the cap up to kr 10, while 1 does at
+    // 20, 5 at 30 and 20 at 100: the last positions then show the cap, not the forces' balance.
+    {
+      kind: 'range', key: 'scaling', label: 'Scaling kr', min: 0.1, max: 10, step: 0.1, value: 2, rebuild: true,
+      hint: 'Ends at 10, where every run still settles: of 60 runs per kr at 250 iterations, none ends with a vertex at the step cap up to kr 10, 1 does at 20 and 20 at 100.',
+    },
   ],
   view: { truth: true },
   names: { value: 'Swing', total: 'Total swing' },
@@ -38,7 +49,8 @@ export const kernel: GraphKernel<LayoutResult> = {
     const n = g.n;
     const iters = Number(p.iterations);
     const kg = Number(p.gravity);
-    const kr = 2;
+    // a run that passes no value takes the constant: the default run is the run before the control
+    const kr = Number(p.scaling ?? 2);
     const deg = new Array<number>(n).fill(0);
     for (let e = 0; e < g.m; e++) { deg[g.eu[e]]++; deg[g.ev[e]]++; }
     const x: number[] = []; const y: number[] = [];

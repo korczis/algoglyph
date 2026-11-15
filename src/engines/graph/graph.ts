@@ -97,6 +97,13 @@ export const CYCLE_WEIGHT = -40;
  * control sets it. */
 export const MIN_CONFIDENCE = 0.3;
 
+/** The ownership input's cross-holdings per 12 companies, unless the kernel's own control sets
+ * it. */
+export const CROSS_HOLDINGS = 1;
+
+/** The random input's edges per vertex, unless the kernel's own control sets it. */
+export const EDGES_PER_VERTEX = 1.2;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -118,11 +125,19 @@ export interface GraphInput {
   /** Link confidences are round(lo + u · (99 − lo)) / 100 with lo = round(100 · minConfidence):
    * the same single draw in the same place, and at 0.30 the old round(30 + u · 69) / 100. */
   minConfidence?: number;
+  /** The ownership input asks for max(1, round(n · crossHoldings / 12)) cross-holdings, none at
+   * 0 (a DAG). A count, so a setting off the default shifts the draws after them (the share
+   * weights and the free floats); the default 1 is the old max(1, round(n / 12)). */
+  crossHoldings?: number;
+  /** The random input draws min(n(n − 1)/2, round(edgesPerVertex · n)) distinct pairs, each
+   * weight just after its pair: the list at a lower value is a prefix of the list at a higher
+   * one, and off the default only the draws after the edges (the vertex weights) shift. */
+  edgesPerVertex?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
 export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
-  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence'];
+  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence', 'crossHoldings', 'edgesPerVertex'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -415,7 +430,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         return true;
       };
       if (shape === 'random') {
-        const want = Math.min((n * (n - 1)) / 2, Math.round(1.2 * n));
+        const perVertex = input.edgesPerVertex ?? EDGES_PER_VERTEX;
+        const want = Math.min((n * (n - 1)) / 2, Math.round(perVertex * n));
         while (edges.length < want) add(Math.floor(rnd() * n), Math.floor(rnd() * n));
       } else {
         for (let v = 0; v < n; v++) {
@@ -527,7 +543,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       // closes an ownership cycle
       const preds: number[][] = Array.from({ length: n }, () => []);
       for (const [u, v] of pairs) preds[v].push(u);
-      const back = Math.max(1, Math.round(n / 12));
+      const perTwelve = input.crossHoldings ?? CROSS_HOLDINGS;
+      const back = perTwelve === 0 ? 0 : Math.max(1, Math.round((n * perTwelve) / 12));
       const seen = new Set(pairs.map(([u, v]) => `${u},${v}`));
       for (let k = 0, tries = 0; k < back && tries < 50 * back; tries++) {
         const u = Math.floor(rnd() * n);

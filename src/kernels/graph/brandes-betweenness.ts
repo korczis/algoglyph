@@ -13,8 +13,9 @@ export const kernel: GraphKernel<BetweennessResult> = {
   inputs: ['communities', 'small-world', 'geometric', 'grid', 'random'],
   n: { min: 4, max: 160, value: 50 },
   view: { colour: 'value', size: true },
-  names: { frontier: 'In the search', done: 'Searched', value: 'Betweenness' },
-  readouts: ['rounds', 'scans', 'values'],
+  // the sum of every vertex's betweenness: each joined pair adds its interior hops, d(s, t) - 1
+  names: { frontier: 'In the search', done: 'Searched', value: 'Betweenness', total: 'Sum of betweenness' },
+  readouts: ['rounds', 'scans', 'values', 'total'],
   chart: { title: 'Change in betweenness from each source', x: 'rounds', y: 'total change', series: ['change'] },
   *steps(ops) {
     const g = ops.g;

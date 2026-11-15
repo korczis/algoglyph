@@ -1,5 +1,6 @@
 import { V, type GraphKernel } from '../../engines/graph/trace';
 import { lowLink } from './_lowlink';
+import { EDGES_PER_VERTEX_PARAM } from './_density';
 
 export interface ArticulationResult { cut: boolean[]; block: number[] }
 
@@ -10,6 +11,7 @@ export const kernel: GraphKernel<ArticulationResult> = {
   goal: 'articulation',
   inputs: ['geometric', 'small-world', 'random', 'islands'],
   n: { min: 6, max: 300, value: 70 },
+  params: [EDGES_PER_VERTEX_PARAM],
   pick: 's',
   endpoints: 's',
   names: { frontier: 'On the stack', done: 'Finished', marked: 'Articulation points', tree: 'DFS tree edges', value: 'Low point' },
