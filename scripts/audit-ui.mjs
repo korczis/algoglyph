@@ -20,6 +20,7 @@
 // built from, never from a list kept here.
 //
 //   node scripts/audit-ui.mjs [--dist dist] [--screenshots <dir>] [--previews <dir>] [--only data,plates,...]
+//                             [--shard k/n]
 //
 // --previews also writes the published preview images in the same browser launch: every
 // plate's canvas at desktop width as <id>.jpg (dark) and <id>-light.jpg, the landing page as
@@ -50,6 +51,31 @@ for (const s of ONLY) {
   if (!SECTIONS.includes(s)) { console.error(`audit-ui: --only ${s}: not one of ${SECTIONS.join(', ')}`); process.exit(2); }
 }
 const section = (s) => ONLY.length === 0 || ONLY.includes(s);
+// --shard k/n: the k-th of n parts, so CI can run the gate as n jobs side by side. Plates, wings,
+// data pages and labs are dealt round-robin (each part gets every n-th), the wing pages by their
+// cards (the thumbnails each proves), heaviest first to the lightest part; the collection, the planned page and the figure pages run in part 1 alone. The n parts
+// together judge exactly what one run judges, except that each part's first plate and lab also get
+// axe. A hosted runner needed over 130 min for the whole gate at 388 plates (run 43674866608, cut at
+// its 150 min bound); the self-hosted runner and verify run it whole (1/1).
+const SHARD = opt('--shard', '1/1');
+const [K, N] = SHARD.split('/').map(Number);
+if (!(Number.isInteger(K) && Number.isInteger(N) && K >= 1 && K <= N)) {
+  console.error(`audit-ui: --shard ${SHARD}: not k/n with 1 <= k <= n`);
+  process.exit(2);
+}
+const share = (list) => list.filter((_, i) => i % N === K - 1);
+/** The items of part k when each item weighs `weight`: heaviest first, each to the lightest part. */
+const shareBy = (list, weight) => {
+  const load = Array(N).fill(0);
+  const part = new Map();
+  for (const x of [...list].sort((u, v) => weight(v) - weight(u))) {
+    const j = load.indexOf(Math.min(...load));
+    load[j] += weight(x);
+    part.set(x, j);
+  }
+  return list.filter((x) => part.get(x) === K - 1);
+};
+const first = K === 1;
 // The data section runs with the page's CPU slowed this many times (Chrome DevTools throttling), so
 // a fast machine meets the timing a slow runner has: Lundra's x86 runner failed plates of the
 // data loop that every fast machine passed (run 43317023187), and 8× here reproduced it.
@@ -234,7 +260,7 @@ try {
       });
       const p = await page(context, `${label} collection`);
       await p.goto(base, { waitUntil: 'load' });
-      if (section('collection')) {
+      if (section('collection') && first) {
       if (PREVIEWS && desktop) {
         await p.waitForFunction(() => [...document.querySelectorAll('main [data-thumb] img')]
           .every((i) => i.getAttribute('src')?.startsWith('data:image')), null, { timeout: 300000, polling: 500 })
@@ -259,7 +285,7 @@ try {
       // the wings: each page audited for overflow; axe on the first; thumbnails proven card by
       // card in the dark desktop pass, so the wait is bounded per card and not per collection
       const proveThumbs = theme === 'dark' && desktop;
-      for (const [i, wing] of (section('wings') ? model.roots : []).entries()) {
+      for (const [i, wing] of (section('wings') ? shareBy(model.roots, (r) => live.filter((e) => e.path[0] === r).length) : []).entries()) {
         const where = `${label} wing ${wing}`;
         await p.goto(`${base}#/c/${wing}`, { waitUntil: 'load' });
         await p.waitForSelector('#browse-title');
@@ -288,7 +314,7 @@ try {
       }
 
       // a planned entry: its page states what it will be
-      if (section('planned') && planned.length) {
+      if (section('planned') && first && planned.length) {
         const where = `${label} planned ${planned[0].id}`;
         await p.goto(`${base}#/p/${planned[0].id}`, { waitUntil: 'load' });
         await p.waitForSelector('#plate-title');
@@ -297,7 +323,7 @@ try {
       }
 
       // the plates: each mounts, draws and reports; axe on the first one
-      const only = desktop ? live : live.slice(0, 2);
+      const only = desktop ? share(live) : share(live).slice(0, 2);
       for (const [i, e] of (section('plates') ? only : []).entries()) {
         const where = `${label} plate ${e.id}`;
         log(where);
@@ -332,7 +358,7 @@ try {
       // a reader's own data (ADR 0010): refused with its row named, attached, run on, announced as
       // carried by the link, restored from the link alone, and never sent anywhere. Every declaring
       // plate in the dark desktop pass, the first one elsewhere.
-      const declaring = live.filter((e) => e.data?.length);
+      const declaring = share(live.filter((e) => e.data?.length));
       const slow = section('data') && declaring.length ? await context.newCDPSession(p) : null;
       const throttle = (rate) => slow?.send('Emulation.setCPUThrottlingRate', { rate });
       for (const [i, e] of (section('data') ? (theme === 'dark' && desktop ? declaring : declaring.slice(0, 1)) : []).entries()) {
@@ -393,7 +419,7 @@ try {
       await slow?.detach();
 
       // the labs: each runs its kernels side by side and reports per kernel
-      for (const [i, l] of (section('labs') ? labs : []).entries()) {
+      for (const [i, l] of (section('labs') ? share(labs) : []).entries()) {
         const where = `${label} lab ${l.id}`;
         log(where);
         const url = `${base}#/lab/${l.id}?seed=4242`;
@@ -405,7 +431,7 @@ try {
       }
 
       // the figure pages: each mounts its plate with the figure's setup and reports
-      for (const [i, f] of (section('figures') ? figures : []).entries()) {
+      for (const [i, f] of (section('figures') && first ? figures : []).entries()) {
         const where = `${label} figure ${f.route}`;
         log(where);
         const url = `${base}${f.route}?seed=4242`;
@@ -424,7 +450,7 @@ try {
         if (!(await p.evaluate(() => location.hash)).endsWith('?seed=99')) fail(where, 'did not keep the seed of its link');
         if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `figure-${theme}-${f.route.replace(/[#/]/g, '_')}.png`), fullPage: false });
       }
-      for (const [i, route] of (section('figures') ? indexes : []).entries()) {
+      for (const [i, route] of (section('figures') && first ? indexes : []).entries()) {
         const where = `${label} figures ${route}`;
         await p.goto(`${base}${route}`, { waitUntil: 'load' });
         await p.waitForSelector('#figures-title');
@@ -434,7 +460,7 @@ try {
       await context.close();
     }
   }
-  console.log(`audit-ui: ${live.length} plates, ${labs.length} lab(s), ${figures.length} figure page(s), ${model.roots.length} wings, 2 themes, 2 widths`);
+  console.log(`audit-ui: ${N > 1 ? `shard ${SHARD} of ` : ''}${live.length} plates, ${labs.length} lab(s), ${figures.length} figure page(s), ${model.roots.length} wings, 2 themes, 2 widths`);
 } finally {
   await browser.close();
   server.close();
