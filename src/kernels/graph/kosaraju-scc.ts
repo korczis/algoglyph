@@ -1,4 +1,5 @@
 import { V, type GraphKernel } from '../../engines/graph/trace';
+import { RECIPROCITY_PARAM } from './_reciprocity';
 
 export interface SccResult { comp: number[] }
 
@@ -9,6 +10,7 @@ export const kernel: GraphKernel<SccResult> = {
   goal: 'scc',
   inputs: ['digraph', 'ownership', 'dag'],
   n: { min: 6, max: 300, value: 70 },
+  params: [RECIPROCITY_PARAM],
   view: { colour: 'group' },
   names: { frontier: 'On the stack', done: 'Finished', groups: 'Strong components' },
   readouts: ['scans', 'done', 'groups', 'rounds'],

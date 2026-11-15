@@ -24,10 +24,13 @@ export function spearman(a: number[], b: number[]): number {
   return saa && sbb ? sab / Math.sqrt(saa * sbb) : NaN;
 }
 
+/** The power iteration's round cap; a vector still moving then is reported as stopped at it. */
+export const POWER_ROUNDS = 300;
+
 // Three passes, each leaving its scores on the vertices. Degree: incident edges. Closeness: a
 // breadth-first search from each vertex, (r - 1) / (sum of hop distances) over the r vertices
 // it reaches. Eigenvector: power iteration on A + I (the same eigenvectors as A, and it cannot
-// oscillate on bipartite graphs) until no score moves by 1e-10 (or for at most 300 rounds, which the readouts then say), normalised to unit length.
+// oscillate on bipartite graphs) until no score moves by 1e-10 (or for at most POWER_ROUNDS rounds, which the readouts then name), normalised to unit length.
 export const kernel: GraphKernel<CentralityResult> = {
   goal: 'centrality',
   inputs: ['communities', 'small-world', 'geometric', 'grid'],
@@ -70,7 +73,7 @@ export const kernel: GraphKernel<CentralityResult> = {
     for (let v = 0; v < n; v++) ops.vertex(v, V.unseen);
     let x = new Array<number>(n).fill(1 / Math.sqrt(n));
     let lambda = 0; let iterations = 0; let converged = false;
-    for (let it = 0; it < 300; it++) {
+    for (let it = 0; it < POWER_ROUNDS; it++) {
       iterations = it + 1;
       const y = x.slice();
       for (let e = 0; e < g.m; e++) {
@@ -93,7 +96,10 @@ export const kernel: GraphKernel<CentralityResult> = {
     const top = (a: number[]) => a.reduce((b, x, i) => (x > a[b] ? i : b), 0);
     return [
       { label: 'Most central', value: `degree ${top(r.degree)}, closeness ${top(r.closeness)}, eigenvector ${top(r.eigen)}` },
-      { label: 'Power iteration', value: `${r.converged ? 'converged' : 'stopped'} after ${r.iterations} rounds, eigenvalue ${r.lambda.toFixed(3)}` },
+      {
+        label: 'Power iteration',
+        value: `${r.converged ? `converged after ${r.iterations} rounds` : `stopped at the ${POWER_ROUNDS}-round cap`}, eigenvalue ${r.lambda.toFixed(3)}`,
+      },
       { label: 'Rank agreement (Spearman)', value: `degree–closeness ${spearman(r.degree, r.closeness).toFixed(2)}, degree–eigenvector ${spearman(r.degree, r.eigen).toFixed(2)}` },
     ];
   },

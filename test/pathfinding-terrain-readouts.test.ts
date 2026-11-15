@@ -204,11 +204,12 @@ function scanDijkstra(t: Terrain, start: number): Float64Array {
   }
 }
 
-/** The map the plate draws for this seed and roughness: its first attempt with a path. */
-function plateMap(seed: number, rough: number) {
+/** The map the plate draws for this seed, roughness and wall height: its first attempt with a
+ * path. */
+function plateMap(seed: number, rough: number, wall = WALL) {
   const rnd = mulberry32(seed);
   for (let attempt = 0; attempt < 20; attempt++) {
-    const { terrain: t } = terrain(W, H, rnd, rough, WALL);
+    const { terrain: t } = terrain(W, H, rnd, rough, wall);
     const [start, goal] = endpoints(t);
     if (start < 0 || goal < 0) continue;
     const d = scanDijkstra(t, start);
@@ -251,7 +252,7 @@ describe('pathfinding-terrain: every claim literal is what the heap-free Dijkstr
       const kind = String(p.algorithm ?? 'astar');
       expect(Number(p.weight ?? 1), 'the claims are about A* at weight 1 and Dijkstra').toBe(1);
       expect(['astar', 'dijkstra']).toContain(kind);
-      const m = plateMap(c.setup?.seed ?? 4242, Number(p.rough ?? 1.2));
+      const m = plateMap(c.setup?.seed ?? 4242, Number(p.rough ?? 1.2), Number(p.wall ?? WALL));
       const x = c.expect;
       if (c.readout === 'vs optimum') {
         // optimal at weight 1: 0 % above, within half the printed decimal

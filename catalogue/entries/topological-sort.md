@@ -93,8 +93,29 @@ claims:
     expect: { value: 1 }
     setup:
       seed: 7
+  - id: a-cycle-points-some-edge-backward
+    statement: >-
+      On the directed input with cycles no order puts every edge forward: of the vertices on a
+      cycle, whichever comes last has an edge back to an earlier one. The breadth-first search
+      from every vertex in the test finds a cycle in this input, so the count is above 0, a hard
+      bound.
+    readout: Edges pointing backward
+    expect: { above: 0 }
+    setup:
+      params: { shape: digraph }
+  - id: a-cycle-points-some-edge-backward-at-seed-7
+    statement: >-
+      On the cyclic input seed 7 draws the test finds a cycle as well, and some edge points
+      backward: above 0.
+    readout: Edges pointing backward
+    expect: { above: 0 }
+    setup:
+      params: { shape: digraph }
+      seed: 7
 ---
 
 Reverse postorder of a DFS puts every edge pointing forward.
 
 Vertices are coloured by their place in the final order as they finish. A vertex finishes only after everything it points to, so the last places fill first, and the root of the last search finishes last and takes place 0. Every edge then runs from an earlier place to a later one.
+
+The last input, a directed graph with cycles, has no such order: whichever vertex of a cycle comes last points back to an earlier one, and the readouts count the edges pointing backward.

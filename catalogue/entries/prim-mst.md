@@ -112,6 +112,39 @@ claims:
     expect: { value: 288 }
     setup:
       params: { shape: random }
+  - id: unit-weights-tree-weighs-its-edges-on-the-grid
+    statement: >-
+      At largest edge weight 1 every edge of the 120-vertex grid weighs 1, so every spanning tree
+      weighs its edge count, V − 1 = 119 on the connected grid; dense Prim in the test agrees,
+      exactly.
+    readout: Weight of the tree edges
+    expect: { value: 119 }
+    setup:
+      params: { shape: grid, maxWeight: 1 }
+  - id: unit-weights-tree-weighs-its-edges-on-the-small-world
+    statement: >-
+      On the small-world graph at largest edge weight 1 the tree weighs V − 1 = 119 as well: the
+      graph is connected (dense Prim finds one tree), exactly.
+    readout: Weight of the tree edges
+    expect: { value: 119 }
+    setup:
+      params: { shape: small-world, maxWeight: 1 }
+  - id: weight-is-dense-prims-at-weight-99-on-the-grid
+    statement: >-
+      At largest edge weight 99 dense Prim finds a minimum spanning tree of weight 3,657 on the
+      grid at seed 4242, and so does the plate, exactly.
+    readout: Weight of the tree edges
+    expect: { value: 3657 }
+    setup:
+      params: { shape: grid, maxWeight: 99 }
+  - id: weight-is-dense-prims-at-weight-99-on-the-small-world
+    statement: >-
+      At largest edge weight 99 dense Prim finds 3,123 on the small-world graph, and so does the
+      plate, exactly.
+    readout: Weight of the tree edges
+    expect: { value: 3123 }
+    setup:
+      params: { shape: small-world, maxWeight: 99 }
 ---
 
 Grow one tree, always adding the cheapest edge leaving it.

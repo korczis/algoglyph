@@ -91,10 +91,43 @@ claims:
     expect: { range: [1, 25650] }
     setup:
       params: { n: 150 }
+  - id: unit-capacities-one-unit-per-round
+    statement: >-
+      At largest capacity 1 every residual room is 0 or 1, so each augmentation carries exactly
+      one unit and the rounds equal the flow value: rounds minus flow value is 0 (tolerance 0).
+    readout: Rounds
+    expect: { against: Flow value, tolerance: 0 }
+    setup:
+      params: { maxCapacity: 1 }
+  - id: unit-capacities-one-unit-per-round-at-seed-7
+    statement: >-
+      On the unit-capacity network seed 7 draws the rounds equal the flow value as well, exactly.
+    readout: Rounds
+    expect: { against: Flow value, tolerance: 0 }
+    setup:
+      params: { maxCapacity: 1 }
+      seed: 7
+  - id: max-flow-is-dinics-at-unit-capacity
+    statement: >-
+      At largest capacity 1 the flow value counts edge-disjoint source–sink paths: Dinic's
+      algorithm in test/flows-claims.test.ts finds 2 on the default network, and the plate reads
+      2, exactly.
+    readout: Flow value
+    expect: { value: 2 }
+    setup:
+      params: { maxCapacity: 1 }
+  - id: max-flow-is-dinics-at-capacity-1000
+    statement: >-
+      At largest capacity 1,000 Dinic's algorithm finds a maximum flow of 760 on the default
+      network, and the plate reads 760, exactly (integer capacities, tolerance 0).
+    readout: Flow value
+    expect: { value: 760 }
+    setup:
+      params: { maxCapacity: 1000 }
 ---
 
 Augment along the shortest path each time, which bounds the rounds by VE/2.
 
 The same drawing as Ford–Fulkerson, but each search is breadth-first, so every augmenting path has as few edges as possible. In the max-flow lab both run on one network: the final flow value agrees, while the paths taken and the number of rounds generally differ.
 
-Each edge can be the bottleneck of a shortest augmenting path at most ⌊V/2⌋ times, since the path through it grows by two edges between one time and the next, so there are at most E·⌊V/2⌋ rounds whatever the capacities; with these integer capacities, 1 to 12, every round also adds at least one unit, so the rounds never exceed the flow value. The readouts give the capacity of the final cut beside the flow value.
+Each edge can be the bottleneck of a shortest augmenting path at most ⌊V/2⌋ times, since the path through it grows by two edges between one time and the next, so there are at most E·⌊V/2⌋ rounds whatever the capacities; with these integer capacities, 1 to the largest capacity (12 by default), every round also adds at least one unit, so the rounds never exceed the flow value. The readouts give the capacity of the final cut beside the flow value.

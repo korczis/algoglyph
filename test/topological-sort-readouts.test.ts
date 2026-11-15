@@ -62,6 +62,21 @@ describe('topological-sort claims, from an independent computation', () => {
     expect(checked).toBeGreaterThanOrEqual(2);
   });
 
+  it('claims a backward edge only on an input with a cycle, found by BFS from every vertex', () => {
+    let checked = 0;
+    for (const c of entryClaims('topological-sort')) {
+      if (c.readout !== BACKWARD || c.setup?.params?.shape !== 'digraph') continue;
+      const g = claimGraph(kernel, c);
+      const reach = reachability(g);
+      // an edge u → v with v reaching u back closes a cycle
+      const closing = Array.from({ length: g.m }, (_, e) => e).filter((e) => reach[g.ev[e]][g.eu[e]]);
+      expect(closing.length, c.id).toBeGreaterThan(0);
+      expect(c.expect, c.id).toEqual({ above: 0 });
+      checked++;
+    }
+    expect(checked).toBeGreaterThanOrEqual(2);
+  });
+
   it('finds every input of the sweep acyclic, so 0 backward edges is the claim on each', () => {
     for (const shape of ['dag', 'signed-dag', 'reasoning'] as const) {
       for (const n of [6, 60, 300]) for (const seed of [DEFAULT_SEED, 7, 1, 2, 3]) {

@@ -111,6 +111,31 @@ claims:
     expect: { against: Graph, against_number: 2, tolerance: 0 }
     setup:
       params: { shape: dag }
+  - id: one-component-when-every-edge-is-two-way
+    statement: >-
+      At two-way share 1 every edge runs both ways and the input is connected, so every vertex
+      reaches every other: exactly one strong component, which the breadth-first search from
+      every vertex in the test confirms.
+    readout: Strong components
+    expect: { value: 1 }
+    setup:
+      params: { reciprocity: 1 }
+  - id: the-one-component-holds-every-vertex
+    statement: >-
+      That one component holds all 70 vertices, exactly.
+    readout: Largest
+    expect: { value: 70 }
+    setup:
+      params: { reciprocity: 1 }
+  - id: components-when-no-edge-is-two-way
+    statement: >-
+      At two-way share 0 every pair is one-way, and only cycles of one-way edges join vertices:
+      the breadth-first search from every vertex in the test finds 45 classes of mutual
+      reachability, so 45 components, exactly.
+    readout: Strong components
+    expect: { value: 45 }
+    setup:
+      params: { reciprocity: 0 }
 ---
 
 One DFS with a stack and low links pops each strong component as it completes.
