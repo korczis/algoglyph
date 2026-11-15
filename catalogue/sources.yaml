@@ -81,6 +81,18 @@ sources:
     year: 2019
     kind: paper
     url: https://doi.org/10.1038/s41598-019-41695-z
+  - id: tarjan-1972-dfs
+    title: 'Depth-First Search and Linear Graph Algorithms (SIAM Journal on Computing 1(2), 146–160)'
+    author: R. Tarjan
+    year: 1972
+    kind: paper
+    url: https://doi.org/10.1137/0201010
+  - id: hierholzer-wiener-1873
+    title: 'Ueber die Möglichkeit, einen Linienzug ohne Wiederholung und ohne Unterbrechung zu umfahren (Mathematische Annalen 6(1), 30–32)'
+    author: C. Hierholzer, C. Wiener
+    year: 1873
+    kind: paper
+    url: https://doi.org/10.1007/BF01442866
   - id: shinbrot-1992-double-pendulum
     title: 'Chaos in a double pendulum (American Journal of Physics 60(6), 491–499)'
     author: T. Shinbrot, C. Grebogi, J. Wisdom, J. A. Yorke
