@@ -51,6 +51,12 @@ sources:
     year: 1971
     kind: paper
     url: https://doi.org/10.1287/mnsc.17.11.712
+  - id: tarjan-1972-dfs
+    title: 'Depth-First Search and Linear Graph Algorithms (SIAM Journal on Computing 1(2), 146–160)'
+    author: R. Tarjan
+    year: 1972
+    kind: paper
+    url: https://doi.org/10.1137/0201010
   - id: shinbrot-1992-double-pendulum
     title: 'Chaos in a double pendulum (American Journal of Physics 60(6), 491–499)'
     author: T. Shinbrot, C. Grebogi, J. Wisdom, J. A. Yorke
