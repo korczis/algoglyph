@@ -3,7 +3,7 @@ import { mulberry32 } from '../src/core/random';
 import { DT, RANGES, Scattering, type RunSpec } from '../src/plates/quantum-tunnelling/experiment';
 import {
   Fft, packetTransmission, potential, transmission, Wave, type Potential,
-} from '../src/plates/quantum-tunnelling/schrodinger';
+} from '../src/plates/_shared/quantum/schrodinger';
 
 /**
  * Textbook single rectangular barrier of height v0 and width a (Griffiths, Introduction to

@@ -3,7 +3,7 @@
 // slider setting measures exactly what the plate shows.
 import {
   packetTransmission, potential, transmission, Wave, type Potential, type Preset,
-} from './schrodinger';
+} from '../_shared/quantum/schrodinger';
 
 export const N = 2048;
 export const DX = 0.1;

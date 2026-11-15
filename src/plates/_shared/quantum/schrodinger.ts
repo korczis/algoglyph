@@ -3,8 +3,8 @@
 // phase, the exact kinetic phase in k-space, half a potential phase. The FFT is a radix-2
 // Cooley–Tukey transform (src/plates/_shared/fft/); plane-wave transmission comes from transfer
 // matrices.
-import { flush, TINY } from '../../core/budget';
-import { Fft } from '../_shared/fft/fft';
+import { flush, TINY } from '../../../core/budget';
+import { Fft } from '../fft/fft';
 
 // the FFT is shared with the two-slit wall: one implementation, re-exported where it was
 export { Fft };
