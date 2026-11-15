@@ -1429,3 +1429,15 @@ sources:
     year: 1952
     kind: paper
     url: https://doi.org/10.6028/jres.049.044
+  - id: marsden-west-2001
+    title: Discrete Mechanics and Variational Integrators (Acta Numerica 10, 357)
+    author: Jerrold E. Marsden, Matthew West
+    year: 2001
+    kind: paper
+    url: https://doi.org/10.1017/S096249290100006X
+  - id: gray-taylor-2007
+    title: When Action Is Not Least (American Journal of Physics 75, 434)
+    author: C. G. Gray, Edwin F. Taylor
+    year: 2007
+    kind: paper
+    url: https://doi.org/10.1119/1.2710480
