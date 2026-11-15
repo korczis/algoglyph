@@ -1,6 +1,27 @@
 import { paletteParam, ramp, scale } from '../../core/palette';
-import { bool, num, str, type PlateCode } from '../../core/plate';
-import { cloth, step, type Cloth, type Scene } from './cloth';
+import { bool, num, str, type PlateCode, type Stat } from '../../core/plate';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
+import { cloth, freeCount, freeFall, step, type Cloth, type Scene } from './cloth';
+
+/** Gravity and wind per step², as the sliders scale them. */
+const GRAVITY_PER_STEP = 0.012;
+const WIND_PER_STEP = 0.004;
+/** Time steps a frame. */
+const STEPS_PER_FRAME = 2;
+
+/** The readouts of the momentum book (cloth.ts): who carries the weight, and the fall. */
+function weightRows(sheet: Cloth, free: number, a: number): Stat[] {
+  const w = free * a;
+  const share = (j: number) => (w > 0 ? (-j / w).toFixed(6) : '– (no gravity)');
+  let pins = 0;
+  for (let k = 0; k < sheet.pinned.length; k++) if (sheet.pinned[k]) pins += sheet.held[k];
+  return [
+    { label: 'weight on the pins', value: share(pins) },
+    { label: 'weight on the sphere and floor', value: share(sheet.contact) },
+    { label: 'centre of mass falls', value: `${sheet.fall.toPrecision(10)} per step` },
+    { label: 'free fall a(1 − γⁿ)/(1 − γ)', value: `${freeFall(a, sheet.t).toPrecision(10)} per step` },
+  ];
+}
 
 export const verletCloth: PlateCode = {
   id: 'verlet-cloth',
@@ -24,6 +45,8 @@ export const verletCloth: PlateCode = {
     { kind: 'range', key: 'wind', label: 'Wind', min: 0, max: 3, step: 0.05, value: 0.6 },
     { kind: 'toggle', key: 'wire', label: 'Wireframe', value: false },
     paletteParam('riso'),
+    runsParam({ unit: 'steps', max: 20000,
+      note: 'Two steps a frame: 20000 steps are nearly three minutes, past which a reader wants the cloth to run on.' }),
   ],
   pace: { kind: 'stream', emergent: 'a Verlet integrator: the cloth moves in simulated time, one step per frame' },
   create(p, ctx) {
@@ -33,6 +56,8 @@ export const verletCloth: PlateCode = {
     let rows = 40;
     let normals: Float64Array;
     let angle = 0;
+    let free = 0;
+    const stop = new StreamStop(params, 1);
 
     const idx = (i: number, j: number) => j * cols + i;
 
@@ -69,14 +94,18 @@ export const verletCloth: PlateCode = {
         rows = sheet.rows;
         normals = new Float64Array(cols * rows * 3);
         angle = 0.6;
+        free = freeCount(sheet);
+        stop.reset();
       },
       draw() {
         const forces = {
-          gravity: num(params, 'gravity') * 0.012,
-          wind: num(params, 'wind') * 0.004,
+          gravity: num(params, 'gravity') * GRAVITY_PER_STEP,
+          wind: num(params, 'wind') * WIND_PER_STEP,
           iterations: num(params, 'iterations'),
         };
-        for (let s = 0; s < 2; s++) step(sheet, forces);
+        const steps = stop.allow(STEPS_PER_FRAME);
+        for (let s = 0; s < steps; s++) step(sheet, forces);
+        stop.advance(steps);
 
         p.background(...ctx.bg);
         if (!ctx.thumbnail) p.orbitControl(1, 1, 0.3);
@@ -144,6 +173,8 @@ export const verletCloth: PlateCode = {
           { label: 'links', value: sheet.rest.length.toLocaleString('en') },
           { label: 'mean strain', value: `${(sheet.strain * 100).toFixed(2)} %` },
           { label: 'pinned', value: String(sheet.pinned.reduce((s, v) => s + v, 0)) },
+          ...weightRows(sheet, free, forces.gravity),
+          ...stop.rows(),
         ]);
       },
     };

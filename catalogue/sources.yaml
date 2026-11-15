@@ -1387,6 +1387,17 @@ sources:
     year: 1911
     kind: paper
     url: https://doi.org/10.1080/14786440508637080
+  - id: jakobsen-2001
+    title: Advanced Character Physics (Game Developers Conference 2001)
+    author: Thomas Jakobsen
+    year: 2001
+    kind: paper
+  - id: verlet-1967
+    title: 'Computer "Experiments" on Classical Fluids. I. Thermodynamical Properties of Lennard-Jones Molecules (Physical Review 159, 98–103)'
+    author: Loup Verlet
+    year: 1967
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.159.98
   - id: hairer-lubich-wanner
     title: Geometric Numerical Integration (second edition)
     author: Ernst Hairer, Christian Lubich, Gerhard Wanner
