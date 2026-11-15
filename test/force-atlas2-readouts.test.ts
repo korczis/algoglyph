@@ -6,7 +6,10 @@
 // so a step along them goes downhill. Everything here is computed by the test from the Graph's
 // edge lists and the positions the run recorded: the energy, its analytic gradient (checked by
 // central differences), and the force read back from the run (the direction of every move and
-// the swing |F_t - F_{t-1}| the kernel publishes for every vertex).
+// the swing |F_t - F_{t-1}| the kernel publishes for every vertex). And "Force balance", the
+// virial ratio (sum over edges d^2 + kg sum m |x|) / (kr sum over pairs m_u m_v): at a fixed point
+// sum x . F = 0, which makes it 1. The plate stops short of one, so only the ratio of its final
+// positions is checked, recomputed here; no tolerance on its value is claimed.
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SEED } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
@@ -19,6 +22,7 @@ import { installBrowserStubs } from './support/p5-stub';
 installBrowserStubs();
 
 const ENERGY = 'Layout energy';
+const BALANCE = 'Force balance';
 const KR = 2;
 const SHAPES = kernel.inputs as Shape[];
 const SEEDS = [DEFAULT_SEED, 7];
@@ -168,4 +172,38 @@ describe('force-atlas2: "Layout energy" at the start and the end of the run (G4)
       expect(moves).toBeGreaterThan(0);
     }
   });
+});
+
+function balance(g: Graph, kg: number, x: number[], y: number[]): number {
+  const m = masses(g);
+  let attract = 0; let gravity = 0; let repel = 0;
+  for (let e = 0; e < g.m; e++) {
+    attract += (x[g.eu[e]] - x[g.ev[e]]) ** 2 + (y[g.eu[e]] - y[g.ev[e]]) ** 2;
+  }
+  for (let u = 0; u < g.n; u++) {
+    gravity += kg * m[u] * Math.hypot(x[u], y[u]);
+    for (let v = u + 1; v < g.n; v++) repel += KR * m[u] * m[v];
+  }
+  return (attract + gravity) / repel;
+}
+
+describe('force-atlas2: "Force balance", the virial ratio of the final positions', () => {
+  const settings: [Shape, number, Record<string, number>][] = [
+    ...SHAPES.flatMap((shape) => SEEDS.map((seed) => [shape, seed, {}] as [Shape, number, Record<string, number>])),
+    ['communities', DEFAULT_SEED, { iterations: 500, gravity: 5 }], ['grid', 7, { iterations: 20, gravity: 0.1 }],
+  ];
+  for (const [shape, seed, p] of settings) {
+    it(`is the ratio recomputed from the run's last positions: ${shape}, seed ${seed} ${JSON.stringify(p)}`,
+      async () => {
+        const { g, kg, r } = run(shape, seed, p);
+        const rows = await settledRows('force-atlas2', { shape, ...p } as never, seed);
+        const shown = rows.map((s) => `${s.label}: ${s.value}`).join(' | ');
+        expect(repeatedLabels(rows)).toEqual([]);
+        const text = value(rows, BALANCE);
+        expect(text, shown).toBeDefined();
+        // shown to four decimals
+        expect(Math.abs((nthNumber(text!, 1) as number) - balance(g, kg, r.x, r.y)), text)
+          .toBeLessThanOrEqual(5e-5 + 1e-12);
+      });
+  }
 });

@@ -5,6 +5,8 @@ export interface LayoutResult {
   x: number[]; y: number[]; swing: number[];
   /** The layout energy whose negative gradient is the force applied, before and after the run. */
   energy: [number, number];
+  /** The virial ratio of the last positions: 1 at a fixed point, where sum x . F = 0. */
+  balance: number;
 }
 
 /** An energy to six significant digits at least: digit groups for a large one. */
@@ -16,7 +18,9 @@ const energyText = (e: number) => (Math.abs(e) >= 1e5 ? count(Math.round(e)) : e
 // (how much its force changed direction) against the graph's global traction, so oscillating
 // vertices slow down and steady ones speed up. The forces are minus the gradient of the energy
 // E = sum over edges d^2/2 - kr sum over pairs (deg u + 1)(deg v + 1) ln d + kg sum (deg + 1)|x|,
-// shown at the start and the end of the run.
+// shown at the start and the end of the run. At a fixed point sum x . F = 0, so the work of
+// attraction and gravity, sum over edges d^2 + kg sum (deg + 1)|x|, equals the repulsion's,
+// kr sum over pairs (deg u + 1)(deg v + 1); their ratio is the force balance of the last positions.
 export const kernel: GraphKernel<LayoutResult> = {
   goal: 'force-layout',
   inputs: ['communities', 'small-world', 'grid', 'geometric', 'random'],
@@ -102,7 +106,15 @@ export const kernel: GraphKernel<LayoutResult> = {
     }
     const after = energy();
     yield (n * (n - 1)) / 2;
-    return { x, y, swing, energy: [before, after] };
+    let held = 0; let mass = 0; let squares = 0;
+    for (let e = 0; e < g.m; e++) held += (x[g.eu[e]] - x[g.ev[e]]) ** 2 + (y[g.eu[e]] - y[g.ev[e]]) ** 2;
+    for (let v = 0; v < n; v++) {
+      held += kg * (deg[v] + 1) * Math.hypot(x[v], y[v]);
+      mass += deg[v] + 1; squares += (deg[v] + 1) ** 2;
+    }
+    // sum over pairs of m_u m_v, from the sums of m and of m^2
+    const balance = held / ((kr * (mass * mass - squares)) / 2);
+    return { x, y, swing, energy: [before, after], balance };
   },
   report(r, g) {
     let edge = 0;
@@ -112,6 +124,7 @@ export const kernel: GraphKernel<LayoutResult> = {
     return [
       { label: 'Edge length / mean distance', value: g.m && pairs ? (edge / g.m / (all / pairs)).toFixed(3) : 'n/a' },
       { label: 'Layout energy', value: `${energyText(r.energy[0])} at the start, ${energyText(r.energy[1])} at the end` },
+      { label: 'Force balance', value: r.balance.toFixed(4) },
     ];
   },
 };
