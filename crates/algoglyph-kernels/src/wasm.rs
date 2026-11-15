@@ -4,6 +4,7 @@
 //! ```text
 //!   h = ag_fluid_new(n); ag_fluid_add(h, i, j, dye, du, dv); ag_fluid_step(h, dt, visc, diff, iters)
 //!   ag_fluid_density(h) -> *f32, (n+2)² cells   ag_fluid_stats(h) -> *f32, 4 values
+//!   ag_fluid_u(h), ag_fluid_v(h) -> *f32, (n+2)² cells each, the velocity after the last step
 //!   ag_fluid_checksum(h) -> f64                  ag_fluid_free(h)
 //! ```
 //!
@@ -49,6 +50,24 @@ pub unsafe extern "C" fn ag_fluid_step(h: *mut Fluid, dt: f32, visc: f32, diff: 
 #[no_mangle]
 pub unsafe extern "C" fn ag_fluid_density(h: *mut Fluid) -> *const f32 {
     (*h).dens.as_ptr()
+}
+
+/// The horizontal velocity, (n+2)² cells, row by row like the density.
+///
+/// # Safety
+/// `h` must be a live handle.
+#[no_mangle]
+pub unsafe extern "C" fn ag_fluid_u(h: *mut Fluid) -> *const f32 {
+    (*h).u.as_ptr()
+}
+
+/// The vertical velocity, (n+2)² cells, row by row like the density.
+///
+/// # Safety
+/// `h` must be a live handle.
+#[no_mangle]
+pub unsafe extern "C" fn ag_fluid_v(h: *mut Fluid) -> *const f32 {
+    (*h).v.as_ptr()
 }
 
 /// # Safety
