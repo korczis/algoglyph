@@ -1,5 +1,6 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
-import { bool, num, str, type PlateCode } from '../../core/plate';
+import { bool, num, str, type PlateCode, type Stat } from '../../core/plate';
+import { RunCounter, runsParam } from '../_shared/settle/settle';
 import { gaussian, mulberry32 } from '../../core/random';
 import {
   bodies, directAccel, QuadTree, SlicedStep, treeAccel, type Bodies,
@@ -99,6 +100,10 @@ export function populate(scene: string, n: number, rnd: () => number): Scene {
   return { b, born, view };
 }
 
+/** Steps in one measuring run, and the stride of the bodies its force error is read over. */
+export const RUN_STEPS = 10;
+const RUN_STRIDE = 15;
+
 export const barnesHut: PlateCode = {
   id: 'barnes-hut',
   mode: '2d',
@@ -120,6 +125,7 @@ export const barnesHut: PlateCode = {
       value: 0.003 },
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 4, step: 1, value: 1 },
     { kind: 'toggle', key: 'tree', label: 'Show tree', value: true },
+    runsParam(),
     paletteParam('abyss'),
   ],
   pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
@@ -139,6 +145,11 @@ export const barnesHut: PlateCode = {
     let primed = false;
     let framesThisStep = 0;
     let framesLastStep = 1;
+    let counter = new RunCounter(params);
+    let stepsTotal = 0;
+    /** The force error of the last completed run, over every RUN_STRIDE-th body: the same bodies each time. */
+    let runError = Number.NaN;
+    let frozen: Stat[] | null = null;
 
     /** Advance by up to `steps` steps within `budget` interactions; returns the steps taken. */
     const advance = (theta: number, dt: number, steps: number, budget: number): number => {
@@ -178,6 +189,10 @@ export const barnesHut: PlateCode = {
         primed = false;
         interactions = 0;
         t = 0;
+        counter = new RunCounter(params);
+        stepsTotal = 0;
+        runError = Number.NaN;
+        frozen = null;
         p.background(...ctx.bg);
       },
       draw() {
@@ -189,8 +204,24 @@ export const barnesHut: PlateCode = {
           if (pass.open) pass.restart();
           else primed = false;
         }
-        if (ctx.thumbnail) advance(theta, dt, 3, Infinity);
-        else advance(theta, dt, num(params, 'speed'), INTERACTIONS_PER_FRAME);
+        // held once k measuring runs have completed (the `runs` control): no step, and the readouts stay still
+        let took = 0;
+        if (ctx.thumbnail) took = advance(theta, dt, 3, Infinity);
+        else if (!counter.stopped) took = advance(theta, dt, num(params, 'speed'), INTERACTIONS_PER_FRAME);
+        if (took > 0 && Math.floor((stepsTotal + took) / RUN_STEPS) > Math.floor(stepsTotal / RUN_STEPS)) {
+          // a run ends every RUN_STEPS steps: the tree against direct summation on a fixed set of bodies
+          let e = 0;
+          let count = 0;
+          for (let i = 0; i < b.n; i += RUN_STRIDE) {
+            treeAccel(tree, b, i, theta, G, EPS, a);
+            directAccel(b, i, G, EPS, ref);
+            e += Math.hypot(a[0] - ref[0], a[1] - ref[1]) / Math.hypot(ref[0], ref[1]);
+            count++;
+          }
+          runError = e / count;
+          counter.complete(`force error ${(100 * runError).toExponential(3)} % over ${count} bodies`);
+        }
+        stepsTotal += took;
 
         const W = ctx.width;
         const H = ctx.height;
@@ -259,6 +290,7 @@ export const barnesHut: PlateCode = {
         g.restore();
 
         if (ctx.thumbnail || tree.nodes === 0) return;
+        if (frozen) { ctx.stats(frozen); return; }
         let err = 0;
         for (let s = 0; s < SAMPLE; s++) {
           const i = Math.floor(probe() * b.n);
@@ -277,7 +309,14 @@ export const barnesHut: PlateCode = {
           { label: 'frames per step', value: pass.open && framesThisStep > framesLastStep
             ? `${framesThisStep} so far (${Math.round((100 * pass.next) / b.n)} % of the force pass)`
             : String(framesLastStep) },
+          { label: 'force error at the last completed run, every 15th body', value: Number.isNaN(runError) ? 'running' : `${(100 * runError).toExponential(3)} %` },
+          ...counter.rows(),
         ]);
+        if (counter.stopped) frozen = [
+          { label: 'force error at the last completed run, every 15th body', value: `${(100 * runError).toExponential(3)} %` },
+          { label: 'simulated time', value: t.toFixed(2) },
+          ...counter.rows(),
+        ];
       },
     };
   },

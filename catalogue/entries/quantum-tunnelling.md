@@ -19,6 +19,52 @@ complexity: Split-step Fourier, O(N log N) per step, N = 2048
 related:
   - ripple-tank
   - fft-butterfly
+experiments:
+  - id: resonance
+    title: Two barriers
+    params: { preset: double }
+    observe: Between the barriers the packet rings; only the momenta near a resonance get through.
+  - id: step
+    title: A potential step
+    params: { preset: step }
+    observe: Part of the packet reflects though it has the energy to climb, a wave's behaviour.
+  - id: narrow-packet
+    title: A narrow packet
+    params: { sigma: 2 }
+    observe: A wider spread of momenta; the transmission averages over more of them and the plane-wave value says less.
+claims:
+  - id: packet-transmission
+    statement: >-
+      A Gaussian packet on the single barrier transmits the probability its plane waves' transfer-matrix
+      transmission averages to over its momentum spread, within 0.25 percentage points: the split-step run and
+      the matrix product share no code. (The gap measured at the default grid is 0.07 points.)
+    readout: 'last run: transmitted / inside'
+    expect: { against: 'packet-averaged T', tolerance: 0.25 }
+    setup:
+      params: { runs: 1 }
+  - id: resonant-transmission
+    statement: >-
+      On the double barrier the same holds within 0.25 points, through the resonance's sharp peak.
+    readout: 'last run: transmitted / inside'
+    expect: { against: 'packet-averaged T', tolerance: 0.25 }
+    setup:
+      params: { preset: double, runs: 1 }
+  - id: step-transmission
+    statement: >-
+      Over a potential step the transmitted share matches the packet average of the step's transmission
+      within 0.25 points.
+    readout: 'last run: transmitted / inside'
+    expect: { against: 'packet-averaged T', tolerance: 0.25 }
+    setup:
+      params: { preset: step, runs: 1 }
+  - id: norm-kept
+    statement: >-
+      (numerics) The probability on the grid plus what the absorbing edges took stays 1 within 1e−9 through
+      the run: the split-step propagator is unitary.
+    readout: norm, grid + absorbed
+    expect: { value: 1, tolerance: 0.000000001 }
+    setup:
+      params: { runs: 1 }
 ---
 
 A Gaussian wave packet runs into a barrier it classically cannot climb, and part of it comes out the other side. Below it, the whole history streams down as a space-time ribbon.

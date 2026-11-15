@@ -3,6 +3,10 @@ import { bool, num, str, type PlateCode } from '../../core/plate';
 import { gaussian } from '../../core/random';
 import { accelerate, bodies, energy, leapfrog, momentum, type Bodies } from './gravity';
 import { stepsWithin } from '../../core/budget';
+import { RunCounter, runsParam } from '../_shared/settle/settle';
+
+/** Simulated time in one measuring run: the energy error's largest excursion is read over it. */
+export const RUN_TIME = 2;
 
 const G = 1;
 const EPS = 0.04;
@@ -60,6 +64,7 @@ export const nBody: PlateCode = {
       value: 0.003 },
     { kind: 'range', key: 'speed', label: 'Steps per frame', min: 1, max: 6, step: 1, value: 2 },
     { kind: 'toggle', key: 'spin', label: 'Auto-rotate', value: true },
+    runsParam(),
     paletteParam('abyss'),
   ],
   pace: { kind: 'stream', emergent: 'an integrator: its steps per frame set simulated time per frame, not counted events' },
@@ -71,6 +76,10 @@ export const nBody: PlateCode = {
     let angle = 0;
     let frames = 0;
     let lastSteps = 0;
+    let counter = new RunCounter(params);
+    let worst = 0;
+    let p0 = 0;
+    let runStart = 0;
 
     return {
       setup() {
@@ -91,14 +100,20 @@ export const nBody: PlateCode = {
         }
         accelerate(b, G, EPS);
         e0 = energy(b, G, EPS);
+        p0 = momentum(b);
         t = 0;
         angle = 0;
+        counter = new RunCounter(params);
+        worst = 0;
+        runStart = 0;
+        frames = 0;
       },
       draw() {
         const dt = num(params, 'dt');
         // direct summation costs n² pair forces per step: the steps per frame are bounded by a
         // pair budget so a frame never outgrows the main thread (test/budget/)
-        const steps = stepsWithin(num(params, 'speed'), b.n * b.n, PAIRS_PER_FRAME);
+        // held once k measuring runs have completed (the `runs` control), so a claim can read them
+        const steps = counter.stopped ? 0 : stepsWithin(num(params, 'speed'), b.n * b.n, PAIRS_PER_FRAME);
         lastSteps = steps;
         for (let s = 0; s < steps; s++) {
           leapfrog(b, dt, G, EPS);
@@ -123,14 +138,23 @@ export const nBody: PlateCode = {
         p.endShape();
 
         // energy is O(n²): measure it only as often as the readout refreshes
-        if (!ctx.thumbnail && frames++ % 10 === 0) {
+        if (!ctx.thumbnail && (frames++ % 10 === 0 || t - runStart >= RUN_TIME)) {
           const e = energy(b, G, EPS);
+          const rel = Math.abs((e - e0) / e0);
+          if (steps > 0) worst = Math.max(worst, rel);
+          if (steps > 0 && t - runStart >= RUN_TIME) {
+            counter.complete(`largest energy error ${(100 * worst).toExponential(2)} % over t = ${runStart.toFixed(2)} to ${t.toFixed(2)}`);
+            runStart = t;
+          }
           ctx.stats([
             { label: 'bodies', value: String(b.n) },
             { label: 'simulated time', value: t.toFixed(2) },
             { label: 'steps this frame', value: `${lastSteps} of ${num(params, 'speed')} asked` },
             { label: 'energy error', value: `${((100 * (e - e0)) / Math.abs(e0)).toExponential(2)} %` },
             { label: '|total momentum|', value: momentum(b).toExponential(2) },
+            { label: 'largest energy error since the start, sampled every ten frames', value: `${(100 * worst).toExponential(2)} %` },
+            { label: 'change of |total momentum| since the start', value: Math.abs(momentum(b) - p0).toExponential(2) },
+            ...counter.rows(),
           ]);
         }
       },
