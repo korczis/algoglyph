@@ -25,6 +25,9 @@ const kernelOf = (id: string) => kernels[`../src/kernels/graph/${id}.ts`];
 const live = ENTRIES.filter((e) => e.engine === 'graph' && e.status === 'live');
 const labs = CATALOGUE.labs.filter((l) => (l as { engine?: string }).engine === 'graph');
 const SEEDS = [1, 7, 4242];
+/** The ids the per-plate and per-lab tests are generated from (proved complete below). */
+const PLATE_IDS = live.map((e) => e.id);
+const LAB_IDS = labs.map((l) => l.id);
 
 /** The new input keys with their defaults: the old constants of graph.ts. */
 const DEFAULTS = { maxCapacity: 12, reciprocity: 0.35, maxWeight: 9, cycleWeight: -40, minConfidence: 0.3 };
@@ -43,6 +46,36 @@ async function registry(old: boolean) {
   const R = await import('../src/registry');
   const G = await import('../src/engines/graph/graph');
   return { R, makeGraph: G.makeGraph };
+}
+
+type Side = {
+  makeGraph: typeof NEW.makeGraph; plates: Map<string, Plate>; labs: Map<string, Plate | undefined>;
+};
+
+/**
+ * Both sides, built once for the whole file: the new registry with every graph plate and lab
+ * loaded on it, then the old registry with every one loaded on it. Each side is loaded in full
+ * before the next registry resets the modules, because a lazy plate import resolves through the
+ * module cache current at the time of the import: a plate the new registry loaded after the old
+ * one was built would be drawn by the old generator, and the comparison would prove nothing.
+ */
+let both: Promise<{ after: Side; before: Side }> | undefined;
+function sides() {
+  both ??= (async () => {
+    const load = async (old: boolean): Promise<Side> => {
+      const { R, makeGraph } = await registry(old);
+      const plates = new Map<string, Plate>();
+      for (const id of PLATE_IDS) plates.set(id, (await R.loadPlate(id))!);
+      const labs = new Map<string, Plate | undefined>();
+      for (const id of LAB_IDS) labs.set(id, await R.loadLab(id));
+      return { makeGraph, plates, labs };
+    };
+    const after = await load(false);
+    const before = await load(true);
+    vi.doUnmock(GRAPH);
+    return { after, before };
+  })();
+  return both;
 }
 
 const digest = (x: string) => createHash('sha256').update(x).digest('hex');
@@ -135,36 +168,50 @@ describe('the graph engine at its defaults is the engine before the controls', (
     }
   });
 
-  it('every graph plate draws the same calls and settles on the same readouts', async () => {
-    const after = await registry(false);
-    const before = await registry(true);
+  it('the old registry draws on the fixture\'s generator and the new one does not', async () => {
+    const { after, before } = await sides();
     // the mock took: the old registry's generator is the fixture's, not the new one
     expect(before.makeGraph).not.toBe(after.makeGraph);
     expect(before.makeGraph('flow', 40, 1, 16 / 9, { maxCapacity: 1 } as object))
       .toEqual(OLD.makeGraph('flow', 40, 1, 16 / 9));
     expect(after.makeGraph('flow', 40, 1, 16 / 9, { maxCapacity: 1 } as object))
       .not.toEqual(OLD.makeGraph('flow', 40, 1, 16 / 9));
-    expect(live.length).toBeGreaterThan(0);
-    for (const e of live) {
-      const a = picture((await after.R.loadPlate(e.id))!, 90);
-      const b = picture((await before.R.loadPlate(e.id))!, 90);
-      expect(a.settled, `${e.id} settles`).not.toBe('');
-      expect(a.frames, `${e.id}: the draw calls and readouts of each frame`).toEqual(b.frames);
-      expect(a.settled, `${e.id}: the settled readouts`).toBe(b.settled);
-    }
-    vi.doUnmock(GRAPH);
-  }, 600_000);
+  });
 
-  it('every graph lab draws the same calls', async () => {
-    const after = await registry(false);
-    const before = await registry(true);
-    expect(labs.length).toBeGreaterThan(0);
-    for (const l of labs) {
-      const a = await after.R.loadLab(l.id);
-      if (!a) continue;
-      const b = (await before.R.loadLab(l.id))!;
-      expect(picture(a, 90, false).frames, `lab ${l.id}`).toEqual(picture(b, 90, false).frames);
-    }
-    vi.doUnmock(GRAPH);
-  }, 600_000);
+  // One test per plate and per lab, so that no single test carries the whole catalogue; each
+  // draws its plate on both sides in this run.
+  it.each(PLATE_IDS)('plate %s draws the same calls and settles on the same readouts', async (id) => {
+    const { after, before } = await sides();
+    const a = picture(after.plates.get(id)!, 90);
+    const b = picture(before.plates.get(id)!, 90);
+    expect(a.settled, `${id} settles`).not.toBe('');
+    expect(a.frames, `${id}: the draw calls and readouts of each frame`).toEqual(b.frames);
+    expect(a.settled, `${id}: the settled readouts`).toBe(b.settled);
+  });
+
+  it.each(LAB_IDS)('lab %s draws the same calls', async (id) => {
+    const { after, before } = await sides();
+    const lab = after.labs.get(id);
+    const old = before.labs.get(id);
+    // a lab with fewer live kernels than the catalogue's minimum is not runnable, on either side
+    if (!lab) return void expect(old).toBeUndefined();
+    expect(picture(lab, 90, false).frames, `lab ${id}`).toEqual(picture(old!, 90, false).frames);
+  });
+
+  it('the generated tests are one per live graph plate and one per graph lab, none dropped', ({ task }) => {
+    // read back the tests this suite actually registered, not the list they were generated from
+    const names = task.suite!.tasks.map((t) => t.name);
+    const ran = (re: RegExp) => names.flatMap((n) => re.exec(n)?.[1] ?? []).sort();
+    const plates = ran(/^plate (\S+) draws the same calls/);
+    const labIds = ran(/^lab (\S+) draws the same calls/);
+    // the catalogue, read again here: every live entry of the graph engine, every graph lab
+    const wantPlates = CATALOGUE.entries
+      .filter((e) => e.engine === 'graph' && e.status === 'live').map((e) => e.id).sort();
+    const wantLabs = CATALOGUE.labs
+      .filter((l) => (l as { engine?: string }).engine === 'graph').map((l) => l.id).sort();
+    expect(wantPlates.length).toBeGreaterThan(0);
+    expect(wantLabs.length).toBeGreaterThan(0);
+    expect(plates).toEqual(wantPlates);
+    expect(labIds).toEqual(wantLabs);
+  });
 });
