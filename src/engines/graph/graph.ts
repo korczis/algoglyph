@@ -81,6 +81,10 @@ export const FAN_IN = 0.7;
 /** The largest capacity the flow input draws, unless the kernel's own control sets it. */
 export const MAX_CAPACITY = 12;
 
+/** The share of the directed input's edges drawn with their reverse, unless the kernel's own
+ * control sets it (the 'digraph' shape only; signed and negative-cycle keep it). */
+export const RECIPROCITY = 0.35;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -91,10 +95,14 @@ export interface GraphInput {
   /** Flow capacities are int(1, maxCapacity): the same single draw in the same place at every
    * value, so the network but its capacities stays as it was. */
   maxCapacity?: number;
+  /** A 'digraph' edge gets its reverse when its draw falls below reciprocity: the same draw at
+   * every value, so the vertices, the pairs and their first directions stay as they were. */
+  reciprocity?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
-export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity'];
+export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
+  'reciprocity'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -326,11 +334,12 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         return build(shape, x, y, pairs.map(([i, j]) => [i, j, lengthOf(x, y, i, j, aspect)]), false, { s, t: farthest(x, y, s) }, rnd, longest);
       }
       const edges: Edge[] = [];
+      const twoWay = shape === 'digraph' ? input.reciprocity ?? RECIPROCITY : RECIPROCITY;
       for (const [i, j] of pairs) {
         const [u, v] = rnd() < 0.5 ? [i, j] : [j, i];
         const len = lengthOf(x, y, u, v, aspect);
         edges.push([u, v, len]);
-        if (rnd() < 0.35) edges.push([v, u, len]);
+        if (rnd() < twoWay) edges.push([v, u, len]);
       }
       if (shape !== 'digraph') {
         // potentials keep every cycle's weight as it was (positive) while some edges go negative
