@@ -145,6 +145,19 @@ describe('a reader\'s data composes with every control', () => {
     };
     const sim = plate!.create(p5Stub(), ctx);
     sim.setup();
+    if (plate!.pace?.kind === 'still') {
+      // a still has no run to end: it is driven until its readouts stay the same for 30 frames
+      let last = '';
+      let same = 0;
+      for (let i = 0; i < 20000 && same < 30; i++) {
+        sim.draw();
+        const now = JSON.stringify(rows);
+        same = now === last ? same + 1 : 0;
+        last = now;
+      }
+      expect(same, `${id} ${JSON.stringify(params)} settles`).toBe(30);
+      return rows;
+    }
     for (let i = 0; i < 20000; i++) {
       sim.draw();
       if (sim.pace?.().done) break;
