@@ -51,6 +51,36 @@ sources:
     year: 1971
     kind: paper
     url: https://doi.org/10.1287/mnsc.17.11.712
+  - id: brin-page-1998
+    title: 'The anatomy of a large-scale hypertextual Web search engine (Computer Networks and ISDN Systems 30(1–7), 107–117)'
+    author: S. Brin, L. Page
+    year: 1998
+    kind: paper
+    url: https://doi.org/10.1016/S0169-7552(98)00110-X
+  - id: brandes-2001
+    title: 'A faster algorithm for betweenness centrality (The Journal of Mathematical Sociology 25(2), 163–177)'
+    author: U. Brandes
+    year: 2001
+    kind: paper
+    url: https://doi.org/10.1080/0022250X.2001.9990249
+  - id: raghavan-albert-kumara-2007
+    title: 'Near linear time algorithm to detect community structures in large-scale networks (Physical Review E 76(3), 036106)'
+    author: U. N. Raghavan, R. Albert, S. Kumara
+    year: 2007
+    kind: paper
+    url: https://doi.org/10.1103/PhysRevE.76.036106
+  - id: blondel-2008-louvain
+    title: 'Fast unfolding of communities in large networks (Journal of Statistical Mechanics 2008(10), P10008)'
+    author: V. D. Blondel, J.-L. Guillaume, R. Lambiotte, E. Lefebvre
+    year: 2008
+    kind: paper
+    url: https://doi.org/10.1088/1742-5468/2008/10/P10008
+  - id: traag-waltman-van-eck-2019
+    title: 'From Louvain to Leiden: guaranteeing well-connected communities (Scientific Reports 9, 5233)'
+    author: V. A. Traag, L. Waltman, N. J. van Eck
+    year: 2019
+    kind: paper
+    url: https://doi.org/10.1038/s41598-019-41695-z
   - id: shinbrot-1992-double-pendulum
     title: 'Chaos in a double pendulum (American Journal of Physics 60(6), 491–499)'
     author: T. Shinbrot, C. Grebogi, J. Wisdom, J. A. Yorke
