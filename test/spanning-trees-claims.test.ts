@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import type { Claim } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
-import type { GraphKernel } from '../src/engines/graph/trace';
+import type { Params } from '../src/core/plate';
+import { graphInput } from '../src/engines/graph';
+import { defaultParams, type GraphKernel } from '../src/engines/graph/trace';
 import { kernel as boruvka } from '../src/kernels/graph/boruvka-mst';
 import { kernel as kruskal } from '../src/kernels/graph/kruskal-mst';
 import { kernel as prim } from '../src/kernels/graph/prim-mst';
@@ -19,11 +21,13 @@ const { model } = loadCatalogue(process.cwd()) as { model: { entries: Entry[] } 
 const DEFAULT_SEED = 4242;
 const WEIGHT = 'Weight of the tree edges';
 
-/** The graph a claim's setup draws, as the plate draws it (16:9, the kernel's default size). */
+/** The graph a claim's setup draws, as the plate draws it (16:9, the kernel's default size,
+ * the kernel's own input controls such as the largest edge weight, src/engines/graph/index.ts). */
 function graphOf(kernel: GraphKernel, c: Claim): Graph {
   const p = (c.setup?.params ?? {}) as Record<string, unknown>;
   const shape = (p.shape ?? kernel.inputs[0]) as Shape;
-  return makeGraph(shape, Number(p.n ?? kernel.n!.value), c.setup?.seed ?? DEFAULT_SEED, 16 / 9);
+  const input = graphInput(kernel, { ...defaultParams(kernel), ...(p as Params) });
+  return makeGraph(shape, Number(p.n ?? kernel.n!.value), c.setup?.seed ?? DEFAULT_SEED, 16 / 9, input);
 }
 
 type Check = (c: Claim, g: Graph) => void;
@@ -31,6 +35,12 @@ type Check = (c: Claim, g: Graph) => void;
 /** A literal claim on the tree's weight: dense Prim's minimum spanning forest weight. */
 const weight: Check = (c, g) => {
   expect(c.expect.value, c.id).toBe(densePrim(g).weight);
+  // at largest edge weight 1 every edge weighs 1, so a spanning forest of c trees weighs its
+  // n − c edges: the analytic value, n − 1 on a connected graph
+  if (c.setup?.params?.maxWeight === 1) {
+    expect(g.w.every((w) => w === 1), `${c.id}: every weight is 1`).toBe(true);
+    expect(c.expect.value, c.id).toBe(g.n - densePrim(g).trees);
+  }
 };
 
 /** A literal claim on the tree edges: a spanning forest of c trees has n − c edges, n − 1 when

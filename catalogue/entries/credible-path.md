@@ -80,10 +80,27 @@ claims:
       above it.
     readout: Product of confidences
     expect: { below: 0.003885 }
+  - id: log-rule-reaches-the-maximum-at-the-lowest-confidence
+    statement: >-
+      At lowest link confidence 0.01 the links run from 0.01 to 0.99 and the −ln c rule still
+      reaches the largest product over all paths: 0.0000795143 by the Floyd–Warshall over −ln c in
+      the test, printed 0.0000795, within half a unit of the last digit, 0.00000005.
+    readout: Product of confidences
+    expect: { value: 0.0000795, tolerance: 0.00000005 }
+    setup:
+      params: { cost: log, minConfidence: 0.01 }
+  - id: log-rule-reaches-the-maximum-at-the-highest-confidence
+    statement: >-
+      At lowest link confidence 0.98 every link is 0.98 or 0.99 and the largest product is
+      0.79329 by the same Floyd–Warshall: 0.793 within half a unit of the last digit, 0.0005.
+    readout: Product of confidences
+    expect: { value: 0.793, tolerance: 0.0005 }
+    setup:
+      params: { cost: log, minConfidence: 0.98 }
 ---
 
 Dijkstra over edge costs of one minus confidence: the best-supported link between two entities.
 
-Each link carries a confidence between 0.30 and 0.99. Dijkstra runs from the circled source to the boxed target, stops once the target is settled, and draws the chosen path in the foreground colour.
+Each link carries a confidence between the lowest link confidence (0.30 by default) and 0.99. Dijkstra runs from the circled source to the boxed target, stops once the target is settled, and draws the chosen path in the foreground colour.
 
 The default cost 1 − c adds up doubts, which favours paths of few strong links. Switch the edge cost to −ln c to maximise the product of the confidences, the probability that every link holds if they fail independently. The readouts give that product either way, so the two rules can be compared on one graph. Adding doubts is not the same as multiplying confidences: on some graphs the 1 − c rule picks a path whose product is below the best one.

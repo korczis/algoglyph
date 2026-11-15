@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
 import type { Claim } from '../src/core/claims';
 import { makeGraph, type Graph, type Shape } from '../src/engines/graph/graph';
-import type { GraphKernel } from '../src/engines/graph/trace';
+import type { Params } from '../src/core/plate';
+import { graphInput } from '../src/engines/graph';
+import { defaultParams, type GraphKernel } from '../src/engines/graph/trace';
 import { kernel as bipartiteMatching } from '../src/kernels/graph/bipartite-matching';
 import { kernel as edmondsKarp } from '../src/kernels/graph/edmonds-karp';
 import { kernel as fordFulkerson } from '../src/kernels/graph/ford-fulkerson';
@@ -21,11 +23,13 @@ interface Entry { id: string; claims: Claim[] }
 const { model } = loadCatalogue(process.cwd()) as { model: { entries: Entry[] } };
 const DEFAULT_SEED = 4242;
 
-/** The network a claim's setup draws, as the plate draws it (16:9, the kernel's default size). */
+/** The network a claim's setup draws, as the plate draws it (16:9, the kernel's default size,
+ * the kernel's own input controls such as the largest capacity, src/engines/graph/index.ts). */
 function graphOf(kernel: GraphKernel, c: Claim): Graph {
   const p = (c.setup?.params ?? {}) as Record<string, unknown>;
   const shape = (p.shape ?? kernel.inputs[0]) as Shape;
-  return makeGraph(shape, Number(p.n ?? kernel.n!.value), c.setup?.seed ?? DEFAULT_SEED, 16 / 9);
+  const input = graphInput(kernel, { ...defaultParams(kernel), ...(p as Params) });
+  return makeGraph(shape, Number(p.n ?? kernel.n!.value), c.setup?.seed ?? DEFAULT_SEED, 16 / 9, input);
 }
 
 /** How a claim on a readout is checked: a literal against a reference, a bound against its
@@ -44,8 +48,17 @@ const exactAgainst = (other: string): Check => (c) => {
 
 /** Each augmentation pushes its bottleneck, at least one unit with integer capacities, so the
  * augmentations are at most the flow value: Rounds − Flow value < 1, an integer at most 0. */
-const roundsAtMostFlow: Check = (c) => {
+const roundsAtMostFlow: Check = (c, g) => {
+  if (c.setup?.params?.maxCapacity === 1) return roundsEqualFlow(c, g);
   expect(c.expect, c.id).toEqual({ against: 'Flow value', below: 1 });
+};
+
+/** At largest capacity 1 every capacity is 1, so every residual room, forward cap − f or
+ * backward f, is 0 or 1 (f stays an integer in [0, 1]) and every augmentation's bottleneck is
+ * exactly 1: the augmentations are the flow value, Rounds − Flow value = 0, tolerance 0. */
+const roundsEqualFlow: Check = (c, g) => {
+  expect(g.cap.every((x) => x === 1), `${c.id}: every capacity is 1`).toBe(true);
+  expect(c.expect, c.id).toEqual({ against: 'Flow value', tolerance: 0 });
 };
 
 /**

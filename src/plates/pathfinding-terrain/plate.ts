@@ -25,6 +25,13 @@ export const pathfinding: PlateCode = {
       value: 1, rebuild: true },
     { kind: 'range', key: 'rough', label: 'Cost of climbing', min: 0, max: 3, step: 0.1, value: 1.2,
       rebuild: true },
+    // a cell at or above this normalised height is a wall. Down to 0.55, measured where the 20 map
+    // attempts start failing: at 0.5, 20 of 1,935 builds (widths 390, 800 and 1440 px, cells 4 to
+    // 16 px, 43 seeds, 3 generations) found no map with a passable start, goal and path between,
+    // and at 0.55 none of 18,135 did (403 seeds), one of them on its 20th attempt (2026-11-15).
+    // Up to 1, since the heights are normalised to [0, 1]: there only the highest cell is a wall
+    { kind: 'range', key: 'wall', label: 'Wall height', min: 0.55, max: 1, step: 0.05, value: 0.8,
+      rebuild: true, hint: 'Cells at least this high are walls; lower walls close more of the map.' },
     { kind: 'range', key: 'cell', label: 'Cell size (px)', min: 4, max: 16, step: 1, value: 12,
       rebuild: true },
     paceParam(),
@@ -54,7 +61,7 @@ export const pathfinding: PlateCode = {
       const rnd = mulberry32(ctx.seed + generation * 15485863);
       search = null;
       for (let attempt = 0; attempt < 20; attempt++) {
-        ({ heights, terrain: map } = terrain(w, h, rnd, num(params, 'rough'), 0.8));
+        ({ heights, terrain: map } = terrain(w, h, rnd, num(params, 'rough'), num(params, 'wall')));
         // start on the left, goal on the right: the cheapest cells of their columns
         const pick = (x: number) => {
           let best = -1;
