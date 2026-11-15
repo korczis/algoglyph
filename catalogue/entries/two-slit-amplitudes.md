@@ -91,6 +91,14 @@ experiments:
     title: A wall pinned in place
     params: { scenario: recoil, spread: 1 }
     observe: Its momentum is so uncertain that the kick reveals nothing, and the fringes stay.
+  - id: aharonov-bohm
+    title: A flux the electrons never touch
+    params: { scenario: flux, flux: 0.25 }
+    observe: The fringes move a quarter of a period, though the magnetic field is zero on both paths.
+  - id: one-slit
+    title: One slit alone
+    params: { scenario: single }
+    observe: Nine-tenths of the electrons land within the first zeros, ±λL/a.
 claims:
   - id: de-broglie-wavelength-at-50-ev
     statement: >-
@@ -336,6 +344,35 @@ claims:
     expect: { above: 0.99 }
     setup:
       params: { n: 20000, scenario: recoil, spread: -1.3 }
+  - id: aharonov-bohm-phase-from-a
+    statement: >-
+      The vector potential of a thin solenoid between the paths, integrated along each by the midpoint
+      rule, encloses the solenoid's flux: (e/h)(∫₁A·dl − ∫₂A·dl) is a quarter of a flux quantum within
+      10⁻⁵, though A is not zero anywhere on the paths and B is.
+    readout: enclosed flux from ∮A·dl between the paths, in Φ₀
+    expect: { value: 0.25, tolerance: 1.0e-5 }
+    setup:
+      params: { scenario: flux, flux: 0.25, n: 50 }
+  - id: aharonov-bohm-shift
+    statement: >-
+      Twenty thousand electrons with that phase between the slits, against as many without, show
+      fringes shifted by Φ/Φ₀ = 0.25 of a period within 0.0105, four standard deviations of the fitted
+      shift over the calibration seeds 101–130, at every seed of 1–5.
+    readout: fringe shift with the flux, fitted, in periods
+    expect: { against: 'Aharonov–Bohm shift Φ/Φ₀, wrapped to ±½', tolerance: 0.0105 }
+    setup:
+      params: { scenario: flux, flux: 0.25, n: 20000 }
+      seeds: [1, 2, 3, 4, 5]
+  - id: single-slit-lobe
+    statement: >-
+      Of the electrons one slit passes, the share landing within its first diffraction zeros ±λL/a is
+      the share of sinc² inside its central lobe, 0.903, within 0.016: four standard deviations of the
+      share over the calibration seeds 101–130, at every seed of 1–5.
+    readout: share within the first zeros, of the electrons the slit passes
+    expect: { against: 'share of sinc² within its first zeros, by Simpson', tolerance: 0.016 }
+    setup:
+      params: { scenario: single, n: 20000 }
+      seeds: [1, 2, 3, 4, 5]
 ---
 
 Electrons fired one at a time at two slits arrive as single lumps, yet pile up into fringes. Four apparatus share one amplitude model: plain electrons, electrons watched by a light, fringes too fine for a detector, and a slit wall free to recoil.
@@ -351,3 +388,7 @@ Electrons fired one at a time at two slits arrive as single lumps, yet pile up i
 **The recoiling wall.** If the wall holding the slits is free, an electron reaching a point on the screen through one slit or the other leaves it with momenta differing by Δq = pd/L. The wall's two final states overlap by γ = ⟨φ|e^{iΔqX/ħ}|φ⟩, which is also the contrast of the fringe pattern smeared by the wall's position spread; both are computed numerically, from the wall's state on an FFT grid, and compared with the closed form exp(−Δq²σₓ²/2ħ²) for a Gaussian wall. Reading the wall's momentum distinguishes the paths by D = erf(Δq/2√2σₚ), and Englert's inequality D² + V² ≤ 1 holds, with equality only for the optimal measurement, which a momentum reading is not. A chirped wall, above the minimum σₓσₚ = ħ/2, has the same D and less V. The spreads here are standard deviations, bounded by σₓσₚ ≥ ħ/2; the lecture's ΔxΔp ≈ h is an order-of-magnitude statement, and its heuristic estimate of the surviving contrast (about e^{−1/8} at the minimum) is a heuristic, not this calculation.
 
 **The default run is a demonstration.** It emits 450 particles per run, about two dozen a second, so a pattern can be watched emerging from a few hundred single hits: scattered dots at first, then fringes, then the curve. That emergence is the lesson; a full histogram is not. The claims are not computed from the demonstration: each is run at its own size, 20,000 or 60,000 particles per run, named on its Run line, so its margin is the one its statistics need.
+
+**A flux the electrons never touch.** A long, thin solenoid behind the wall between the slits keeps its magnetic field inside; on both paths the field is zero. Its vector potential A is not, and quantum mechanics gives each path the phase (e/ħ)∫A·dl. The plate integrates A along both paths, leg by leg, and their difference is the flux the paths enclose, Φ, whatever their shape (Stokes's theorem). That phase, 2πΦ/Φ₀ with Φ₀ = h/e, moves the fringes by Φ/Φ₀ of a period: the plate runs the electrons without the flux and with it, fits each run's fringes for their phase, and compares the shift with Φ/Φ₀. This is the Aharonov–Bohm effect.
+
+**One slit alone.** With one slit shut the pattern is the slit's own diffraction, the envelope sinc²(πax/λL), with its first zeros at ±λL/a; nine-tenths of what the slit passes lands between them, which the plate counts among the electrons that get through and compares with the integral of sinc² over the central lobe.
