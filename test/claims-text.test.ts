@@ -1,7 +1,9 @@
 // The expectation and run of a claim in words (src/core/claims.ts): one formatter, shown on the
 // plate page and used in the instrument's failure messages, so the two can never disagree.
 import { describe, expect, it } from 'vitest';
-import { type Claim, expectationText, setupText } from '../src/core/claims';
+// @ts-expect-error -- plain ESM shared with the node tooling
+import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
+import { type Claim, claimSeeds, expectationText, setupText } from '../src/core/claims';
 import { expected } from './support/claims';
 
 const c = (expect: Claim['expect'], setup?: Claim['setup']): Claim => ({
@@ -44,5 +46,49 @@ describe('a claim in words', () => {
 
   it('is the formatter the instrument reports with', () => {
     expect(expected).toBe(expectationText);
+  });
+});
+
+/** The seeds a statement names: "at every seed of 1–5", "… of 1 and 2", "… of 1, 2, 3", or
+ * "at seed 7"; null when it names none. */
+function statedSeeds(statement: string): number[] | null {
+  const every = statement.match(/\bat every seed of (\d+(?:\s*[–-]\s*\d+|(?:,\s*(?:and\s+)?|\s+and\s+)\d+)*)/);
+  if (every) {
+    return every[1].split(/,\s*(?:and\s+)?|\s+and\s+/).flatMap((part) => {
+      const range = part.match(/^(\d+)\s*[–-]\s*(\d+)$/);
+      if (!range) return [Number(part)];
+      return Array.from({ length: Number(range[2]) - Number(range[1]) + 1 }, (_, i) => Number(range[1]) + i);
+    });
+  }
+  const one = statement.match(/\bat seed (\d+)/);
+  return one ? [Number(one[1])] : null;
+}
+
+describe('a claim\'s statement names the seeds it runs at', () => {
+  it('reads the forms statements use', () => {
+    expect(statedSeeds('… at every seed of 1–5.')).toEqual([1, 2, 3, 4, 5]);
+    expect(statedSeeds('… at every seed of 1 and 2.')).toEqual([1, 2]);
+    expect(statedSeeds('… at every seed of 1, 2, and 7.')).toEqual([1, 2, 7]);
+    expect(statedSeeds('On the grid at seed 4242, 217 edges')).toEqual([4242]);
+    expect(statedSeeds('over the calibration seeds 101–130')).toBeNull();
+  });
+
+  it('every statement that names seeds names the ones its setup runs', () => {
+    const { model } = loadCatalogue(process.cwd()) as {
+      model: { entries: { id: string; claims: Claim[] }[]; chapters?: { key: string; figures: { id: string; claims: Claim[] }[] }[] };
+    };
+    const all = [
+      ...model.entries.flatMap((e) => e.claims.map((c) => [`${e.id}/${c.id}`, c] as const)),
+      ...(model.chapters ?? []).flatMap((ch) => ch.figures.flatMap((f) => f.claims.map((c) => [`${ch.key}/${f.id}/${c.id}`, c] as const))),
+    ];
+    let named = 0;
+    for (const [at, c] of all) {
+      const stated = statedSeeds(c.statement);
+      if (!stated) continue;
+      named++;
+      expect(stated, `${at}: "${c.statement}"`).toEqual(claimSeeds(c));
+    }
+    // the check reads something: the catalogue's statements do name seeds
+    expect(named).toBeGreaterThan(0);
   });
 });
