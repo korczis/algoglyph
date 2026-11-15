@@ -20,6 +20,6 @@ related:
 
 The vertices whose removal disconnects the graph, and the blocks they separate.
 
-Thick edges form the DFS tree and edges in the frontier colour are back edges. When the search ends, the articulation points are filled with the foreground colour and ringed. A vertex is one exactly when some child’s subtree has no back edge climbing above it, which is why the joints of a chain and the only link to a pendant cluster light up while vertices on cycles do not.
+Thick edges form the DFS tree and edges in the frontier colour are back edges. When the search ends, the articulation points are filled with the foreground colour and ringed. A vertex is one exactly when some child’s subtree has no back edge climbing above it, which is why the joints of a chain and the only link to a pendant cluster light up. Lying on a cycle does not spare a vertex: one where a cycle meets a branch or another cycle is still the only way between them, and lights up too.
 
 The readouts give the number of articulation points and of biconnected blocks: the pieces that stay connected when any single vertex is removed, which share at most one vertex with each other, always an articulation point.
