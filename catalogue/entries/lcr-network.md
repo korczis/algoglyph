@@ -25,6 +25,9 @@ relations:
   - type: analogue_of
     target: driven-oscillator
     reason: 'The series RLC is the driven oscillator under a renaming: charge q for x, inductance L for the mass m, resistance R for mγ, 1/C for the spring constant k, the source voltage for the force.'
+  - type: analogue_of
+    target: maxwell-1d
+    reason: 'The LC ladder is Maxwell''s equations on a line, discretised: the telegrapher''s ∂V/∂x = −L ∂I/∂t and ∂I/∂x = −C ∂V/∂t are ∂E/∂x = −μ ∂H/∂t and ∂H/∂x = −ε ∂E/∂t with the voltage for E, the current for H, each section''s series inductance for μ and its shunt capacitance for ε of one cell; the ladder''s ω = (2/√(LC)) sin(k/2) is the dispersion of the grid''s space-discrete waves, and its cutoff 2/√(LC) the grid''s 2c/Δx.'
   - type: uses
     target: gaussian-elimination
     reason: Both solutions are linear systems of the MNA matrix, eliminated with partial pivoting; the phasor one over complex numbers.
