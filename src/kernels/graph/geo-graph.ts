@@ -16,7 +16,24 @@ export const kernel: GraphKernel<GeoResult> = {
   goal: 'geo-layout',
   inputs: ['geometric', 'communities', 'grid'],
   n: { min: 4, max: 150, value: 60 },
-  params: [{ kind: 'range', key: 'pull', label: 'Pull to the map', min: 0, max: 1, step: 0.05, value: 0.3, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'pull', label: 'Pull to the map', min: 0, max: 1, step: 0.05, value: 0.3, rebuild: true },
+    // Ends at 410, before the budget does, because a longer run no longer fits the memory bound
+    // of 300,000 recorded events (12 MB, test/kernels-graph.test.ts): an iteration records a place
+    // and a value for every vertex, a scan for every edge and a round, 2n + m + 1 events on the n
+    // places of the starting circle. At n 150 the most edges of seeds 1-300 on every input is 413
+    // (communities, seed 137): 292,890 events at 410 and 300,030 at 420. A frame does one
+    // iteration at n 150 whatever the count (its all-pairs repulsion outweighs FRAME_UNITS).
+    {
+      kind: 'range', key: 'iterations', label: 'Iterations', min: 20, max: 410, step: 10, value: 200, rebuild: true,
+      hint: 'Ends at 410, where a run at n 150 still fits the 300,000 events a trace may hold: 292,890 at 410, 300,030 at 420.',
+    },
+    // The temperature (the longest step a vertex may take) is multiplied by this after each
+    // iteration; the cost does not change. Both ends are the ends of what cooling means: at 0 the
+    // vertices take one step and freeze, at 1 the temperature never falls, and above 1 the steps
+    // would grow.
+    { kind: 'range', key: 'cooling', label: 'Cooling per iteration', min: 0, max: 1, step: 0.01, value: 0.98, rebuild: true },
+  ],
   view: { anchors: true },
   names: { value: 'Distance from the map', total: 'Total distance from the map' },
   readouts: ['rounds', 'places', 'total'],
@@ -25,6 +42,9 @@ export const kernel: GraphKernel<GeoResult> = {
     const g = ops.g;
     const n = g.n;
     const pull = Number(p.pull);
+    // a run that passes no value takes the constants: the default run is the run before the controls
+    const iters = Number(p.iterations ?? 200);
+    const cooling = Number(p.cooling ?? 0.98);
     let cx = 0; let cy = 0;
     for (let v = 0; v < n; v++) { cx += g.x[v] / n; cy += g.y[v] / n; }
     let span = 0;
@@ -36,7 +56,6 @@ export const kernel: GraphKernel<GeoResult> = {
       x.push(cx + span * Math.cos(a)); y.push(cy + span * Math.sin(a));
       ops.place(v, x[v], y[v]);
     }
-    const iters = 200;
     let temp = span / 4;
     let offset = 0;
     for (let it = 0; it < iters; it++) {
@@ -69,7 +88,7 @@ export const kernel: GraphKernel<GeoResult> = {
         offset += off;
         ops.value(v, off);
       }
-      temp *= 0.98;
+      temp *= cooling;
       ops.round();
       // the iteration’s all-pairs repulsion, which records nothing
       yield (n * (n - 1)) / 2;
