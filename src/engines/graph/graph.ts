@@ -1,6 +1,7 @@
 // The graph engine's input: one graph type and a seeded generator for every input shape a
 // kernel may declare. Pure: the same shape, size, seed and aspect give the same graph.
 import { gaussian, mulberry32 } from '../../core/random';
+import { UnionFind } from '../../kernels/graph/_uf';
 
 export interface Graph {
   shape: Shape;
@@ -216,30 +217,29 @@ export function knn(x: number[], y: number[], k: number, among?: number[]): [num
   return pairs;
 }
 
-function find(p: number[], a: number): number {
-  while (p[a] !== a) { p[a] = p[p[a]]; a = p[a]; }
-  return a;
-}
+// connect() and joinWithin() join through the kernels' union-find (src/kernels/graph/_uf.ts).
+// They only ask whether two vertices share a root and scan vertices in index order, so which
+// root a union keeps never reaches a pair (test/graph-engine-union-find.test.ts).
 
 /** Add the shortest pair between components until the pairs connect every point. */
 export function connect(x: number[], y: number[], pairs: [number, number][]): void {
   const n = x.length;
-  const p = x.map((_, i) => i);
-  for (const [a, b] of pairs) p[find(p, a)] = find(p, b);
+  const uf = new UnionFind(n);
+  for (const [a, b] of pairs) uf.union(a, b);
   for (;;) {
-    const root = find(p, 0);
+    const root = uf.find(0);
     let best = Infinity; let bi = -1; let bj = -1;
     for (let i = 0; i < n; i++) {
-      if (find(p, i) !== root) continue;
+      if (uf.find(i) !== root) continue;
       for (let j = 0; j < n; j++) {
-        if (find(p, j) === root) continue;
+        if (uf.find(j) === root) continue;
         const d = d2(x, y, i, j);
         if (d < best) { best = d; bi = i; bj = j; }
       }
     }
     if (bi < 0) return;
     pairs.push([Math.min(bi, bj), Math.max(bi, bj)]);
-    p[find(p, bi)] = find(p, bj);
+    uf.union(bi, bj);
   }
 }
 
@@ -248,16 +248,17 @@ export function connect(x: number[], y: number[], pairs: [number, number][]): vo
 export function joinWithin(x: number[], y: number[], ids: number[],
   local: [number, number][]): void {
   if (ids.length <= 1) return;
-  const sub = ids.map((i) => i);
-  const p = new Map(sub.map((i) => [i, i]));
-  const f = (a: number): number => { while (p.get(a) !== a) a = p.get(a)!; return a; };
-  for (const [a, b] of local) p.set(f(a), f(b));
-  for (const i of sub) {
-    if (f(i) === f(sub[0])) continue;
-    let best = sub[0];
-    for (const j of sub) if (f(j) === f(sub[0]) && d2(x, y, i, j) < d2(x, y, i, best)) best = j;
+  const uf = new UnionFind(x.length);
+  for (const [a, b] of local) uf.union(a, b);
+  const home = ids[0];
+  for (const i of ids) {
+    if (uf.find(i) === uf.find(home)) continue;
+    let best = home;
+    for (const j of ids) {
+      if (uf.find(j) === uf.find(home) && d2(x, y, i, j) < d2(x, y, i, best)) best = j;
+    }
     local.push([Math.min(i, best), Math.max(i, best)]);
-    p.set(f(i), f(sub[0]));
+    uf.union(i, home);
   }
 }
 
