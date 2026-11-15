@@ -4,7 +4,7 @@ import { DEFAULT_SEED } from '../src/core/claims';
 import { makeGraph, other, type Graph, type Shape } from '../src/engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace, type GraphKernel } from '../src/engines/graph/trace';
 import { kernel, type ActivationResult } from '../src/kernels/graph/spreading-activation';
-import { repeatedLabels, settledRows } from './support/digraph-oracles';
+import { repeatedLabels, settledRows, settledRowsWith } from './support/digraph-oracles';
 import { installBrowserStubs } from './support/p5-stub';
 
 installBrowserStubs();
@@ -138,6 +138,75 @@ describe('spreading-activation finishes at its own extreme (D3)', () => {
       const t = trace(kernel, g, { s: g.s, t: g.t, p: { decay: top, threshold: 0 } }, seed,
         EVENT_CAP, false);
       expect(t.truncated, `${t.length} events`).toBe(false);
+    });
+  }
+});
+
+// G2. Every round a vertex holding a pulse at or above the threshold passes on exactly d of it,
+// so at threshold 0 the pulse mass is d^k in round k and the total activation is the geometric
+// series 1 + d + d^2 + ... = 1 / (1 - d), whatever the graph; above it pulses only die, so the
+// total falls short of that. The expectation is the series, never the plate's run. The readout
+// is the engine's sum of the values written, printed to four significant figures.
+const TOTAL = 'Total activation';
+const series = (d: number) => 1 / (1 - d);
+const halfUnit = (x: number) => 0.5 * 10 ** (Math.floor(Math.log10(x)) - 3);
+const totalOf = (r: ActivationResult) => r.act.reduce((a, x) => a + x, 0);
+
+describe('spreading-activation reads its total activation (G2)', () => {
+  const decay = kernel.params?.find((d) => d.key === 'decay');
+  const top = decay?.kind === 'range' ? decay.max : NaN;
+  const dflt = Number(decay?.value);
+  const AT_ZERO: [string, Record<string, unknown>][] = [
+    ...kernel.inputs.map((shape): [string, Record<string, unknown>] => [shape, { shape }]),
+    ['decay 0.1', { decay: 0.1 }], [`decay ${top}`, { decay: top }],
+    [`decay ${top} at ${kernel.n?.max}`, { decay: top, n: kernel.n?.max }],
+  ];
+  for (const [what, set] of AT_ZERO) for (const seed of [DEFAULT_SEED, 7]) {
+    it(`threshold 0, ${what}, seed ${seed}: 1 / (1 - d)`, async () => {
+      const d = Number(set.decay ?? dflt);
+      const rows = await settledRows(ID, { ...set, threshold: 0 } as never, seed);
+      expect(repeatedLabels(rows), rows.map((r) => r.label).join(' | ')).toEqual([]);
+      const row = rows.find((r) => r.label === TOTAL);
+      expect(row, rows.map((r) => r.label).join(' | ')).toBeDefined();
+      expect(Math.abs(Number(row?.value) - series(d)), `${row?.value} against ${series(d)}`)
+        .toBeLessThanOrEqual(halfUnit(series(d)) * (1 + 1e-9));
+      const g = makeGraph((set.shape ?? kernel.inputs[0]) as Shape, Number(set.n ?? kernel.n?.value),
+        seed, 16 / 9);
+      const r = run(g, { ...set, threshold: 0 } as never, seed).result as ActivationResult;
+      expect(Math.abs(totalOf(r) - series(d))).toBeLessThanOrEqual(1e-9);
+    });
+  }
+
+  for (const shape of kernel.inputs) for (const seed of [DEFAULT_SEED, 7]) {
+    it(`the default threshold, ${shape}, seed ${seed}: below 1 / (1 - d)`, async () => {
+      const rows = await settledRows(ID, { shape } as never, seed);
+      const row = rows.find((r) => r.label === TOTAL);
+      expect(row, rows.map((r) => r.label).join(' | ')).toBeDefined();
+      expect(Number(row?.value)).toBeLessThan(series(dflt));
+      const g = makeGraph(shape as Shape, Number(kernel.n?.value), seed, 16 / 9);
+      expect(totalOf(run(g, {}, seed).result as ActivationResult)).toBeLessThan(series(dflt));
+    });
+  }
+});
+
+// The new row is readout-only: the kernel without it, run in the same plate, publishes every
+// other row exactly as the kernel with it does, within one run.
+const base: GraphKernel<ActivationResult> = {
+  ...kernel,
+  names: { ...kernel.names, total: undefined },
+  readouts: kernel.readouts?.filter((k) => k !== 'total'),
+};
+
+describe('spreading-activation: the total is the only row that changes', () => {
+  const SET: [string, Record<string, unknown>][] = [
+    ['communities', {}], ['links', { shape: 'links' }], ['threshold 0', { threshold: 0 }],
+  ];
+  for (const [what, set] of SET) for (const seed of [DEFAULT_SEED, 7]) {
+    it(`${what}, seed ${seed}`, async () => {
+      const now = await settledRows(ID, set as never, seed);
+      const then = await settledRowsWith(ID, base as GraphKernel, set as never, seed);
+      expect(now.filter((r) => r.label !== TOTAL)).toEqual(then);
+      expect(now.length).toBe(then.length + 1);
     });
   }
 });

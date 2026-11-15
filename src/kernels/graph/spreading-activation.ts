@@ -26,8 +26,9 @@ export const kernel: GraphKernel<ActivationResult> = {
   pick: 's',
   endpoints: 's',
   view: { colour: 'value', size: true },
-  names: { frontier: 'Firing', done: 'Activated', value: 'Activation' },
-  readouts: ['rounds', 'scans', 'frontier', 'done', 'change'],
+  // the sum of the activations: 1 / (1 - d) at threshold 0, as each round passes on d of the pulse
+  names: { frontier: 'Firing', done: 'Activated', value: 'Activation', total: 'Total activation' },
+  readouts: ['rounds', 'scans', 'frontier', 'done', 'change', 'total'],
   chart: { title: 'Vertices firing, round by round', x: 'rounds', y: 'vertices', series: ['frontier', 'done'] },
   *steps(ops, { s, p }) {
     const g = ops.g;
