@@ -84,6 +84,22 @@ claims:
     expect: { range: [150, 44402] }
     setup:
       params: { n: 150 }
+  - id: max-flow-is-dinics-at-unit-capacity
+    statement: >-
+      At largest capacity 1 Dinic's algorithm in test/flows-claims.test.ts finds a maximum flow
+      of 3 on the default 24-vertex network, and the plate reads 3, exactly.
+    readout: Flow value
+    expect: { value: 3 }
+    setup:
+      params: { maxCapacity: 1 }
+  - id: max-flow-is-dinics-at-capacity-1000
+    statement: >-
+      At largest capacity 1,000 Dinic's algorithm finds 952 on the default network, and the plate
+      reads 952, exactly.
+    readout: Flow value
+    expect: { value: 952 }
+    setup:
+      params: { maxCapacity: 1000 }
 ---
 
 Flood the network from the source and push excess downhill until it drains.

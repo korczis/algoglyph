@@ -53,8 +53,11 @@ export const FLOW_VIEW: Pick<GraphKernel, 'inputs' | 'n' | 'params' | 'view' | '
   inputs: ['flow'],
   n: { min: 4, max: 150, value: 40 },
   // the engine draws each capacity as int(1, maxCapacity) (graph.ts GraphInput). At 1 every
-  // residual room is 0 or 1, so an augmentation carries exactly one unit; the top end is where the
-  // main-thread budget ends it, measured on min-cost-flow at its largest network (test/budget/)
+  // residual room is 0 or 1, so an augmentation carries exactly one unit. The budget does not end
+  // the range (min-cost-flow at 80 vertices and 1000 costs 2.4 ms a frame against 24): it ends at
+  // 1000 because past it the runs no longer change but in scale. Ford–Fulkerson and Edmonds–Karp
+  // traced the same events at 1000, 10^4, 10^5 and 10^6 on the largest networks of seeds 1, 7 and
+  // 4242, and min-cost-flow the same 196,024 events at seed 4242 (2026-11-15)
   params: [
     {
       kind: 'range', key: 'maxCapacity', label: 'Largest capacity', min: 1, max: 1000, step: 1,

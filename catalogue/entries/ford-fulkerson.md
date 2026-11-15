@@ -99,6 +99,39 @@ claims:
     expect: { against: Flow value, below: 1 }
     setup:
       params: { n: 4 }
+  - id: unit-capacities-one-unit-per-round
+    statement: >-
+      At largest capacity 1 every residual room is 0 or 1, so each augmentation carries exactly
+      one unit and the rounds equal the flow value: rounds minus flow value is 0 (tolerance 0).
+    readout: Rounds
+    expect: { against: Flow value, tolerance: 0 }
+    setup:
+      params: { maxCapacity: 1 }
+  - id: unit-capacities-one-unit-per-round-at-seed-7
+    statement: >-
+      On the unit-capacity network seed 7 draws the rounds equal the flow value as well, exactly.
+    readout: Rounds
+    expect: { against: Flow value, tolerance: 0 }
+    setup:
+      params: { maxCapacity: 1 }
+      seed: 7
+  - id: max-flow-is-dinics-at-unit-capacity
+    statement: >-
+      At largest capacity 1 the flow value counts edge-disjoint source–sink paths: Dinic's
+      algorithm in test/flows-claims.test.ts finds 2 on the default network, and the plate reads
+      2, exactly.
+    readout: Flow value
+    expect: { value: 2 }
+    setup:
+      params: { maxCapacity: 1 }
+  - id: max-flow-is-dinics-at-capacity-1000
+    statement: >-
+      At largest capacity 1,000 Dinic's algorithm finds a maximum flow of 760 on the default
+      network, and the plate reads 760, exactly (integer capacities, tolerance 0).
+    readout: Flow value
+    expect: { value: 760 }
+    setup:
+      params: { maxCapacity: 1000 }
 ---
 
 Push flow along any path with spare capacity until none is left; the saturated edges form a cut.
@@ -107,4 +140,4 @@ The source is circled on the left, the sink boxed on the right; an edge’s thic
 
 When no such path is left, the vertices still reachable are filled: one side of a minimum cut, and the saturated edges leaving it are drawn as the cut. The flow value equals the cut’s capacity, the max-flow min-cut theorem.
 
-Capacities are integers from 1 to 12, so every augmentation adds at least one unit to the flow and the rounds never exceed the flow value. The readouts give the flow value and the capacity of the final cut side by side.
+Capacities are integers from 1 to the largest capacity (12 by default), so every augmentation adds at least one unit to the flow and the rounds never exceed the flow value; at largest capacity 1 every augmentation adds exactly one, and the rounds equal the flow value. The readouts give the flow value and the capacity of the final cut side by side.
