@@ -127,7 +127,7 @@ claims:
   - id: middle-share-binomial
     statement: >-
       The share of particles the middle analyser passes lies within four binomial standard errors of
-      |d₁₁(60°)|² = 9/16, at every seed of 1 to 5.
+      |d₁₁(60°)|² = 9/16, at every seed of 1–5.
     readout: middle analyser, measured share in binomial standard errors from |d|²
     expect: { range: [-4, 4] }
     setup:
@@ -135,7 +135,7 @@ claims:
   - id: born-rule-chi2
     statement: >-
       The last analyser's counts pass a χ² test against Born's rule at the 99.9 % point for their degrees
-      of freedom, at every seed of 1 to 5.
+      of freedom, at every seed of 1–5.
     readout: χ² of the last analyser’s counts against Born’s rule
     expect: { against: 'χ² 99.9 % point for the channels reached less one', below: 0 }
     setup:
@@ -143,7 +143,7 @@ claims:
   - id: born-rule-chi2-three-halves
     statement: >-
       Twenty thousand spin-3/2 particles through a filter at 60° on its top channel also pass the χ² test
-      at the 99.9 % point, at every seed of 1 to 5.
+      at the 99.9 % point, at every seed of 1–5.
     readout: χ² of the last analyser’s counts against Born’s rule
     expect: { against: 'χ² 99.9 % point for the channels reached less one', below: 0 }
     setup:
