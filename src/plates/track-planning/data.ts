@@ -39,10 +39,37 @@ const end = (v: unknown, name: string, needDir: boolean, w: number, h: number): 
   return { x: v.x, y: v.y, ...(v.dir !== undefined ? { dir: v.dir as Heading } : {}) };
 };
 
+/**
+ * The game's own answers, read as they are served: openttd://map (`heights`, `types`) and
+ * openttd://map/ways (`roads`, and `occupancy`, the tiles a train, road vehicle or ship stands on
+ * now), so a caller forwards two resources and nothing is translated outside this file. Occupied
+ * tiles join `blocked`; the rest of the form is unchanged.
+ */
+function fromGame(raw: Record<string, unknown>): Record<string, unknown> | string {
+  const { map, ways, ...rest } = raw;
+  if (map === undefined) return raw;
+  if (!record(map)) return 'map must be openttd://map\'s data ({width, height, heights, types, ...})';
+  const out: Record<string, unknown> = { ...rest, heights: map.heights, types: map.types };
+  if (ways !== undefined) {
+    if (!record(ways)) return 'ways must be openttd://map/ways\' data ({roads, occupancy, ...})';
+    if (ways.roads !== undefined) out.roads = ways.roads;
+    if (ways.occupancy !== undefined) {
+      if (!Array.isArray(ways.occupancy)) return 'ways.occupancy must list {x, y, ...} tiles';
+      const taken = ways.occupancy.map((o) => (record(o) ? [o.x, o.y] : null));
+      if (taken.some((t) => t === null)) return 'ways.occupancy must list {x, y, ...} tiles';
+      out.blocked = [...(Array.isArray(rest.blocked) ? rest.blocked : []), ...(taken as unknown[])];
+    }
+  }
+  return out;
+}
+
 export const data: DataForm = {
-  input: '{heights: string[] (2 hex digits a tile, openttd://map) | number[][], types?: string[], roads?: string[] (1 hex digit a tile), blocked?: [x, y][], from: {x, y, dir: NE|SE|SW|NW}, to: {x, y, dir?}, costs?, rules?, meta?: boolean}',
-  solve(raw) {
-    if (!record(raw)) return 'the input must be an object {heights, types?, roads?, blocked?, from, to, costs?, rules?, meta?}';
+  input: '{map?: openttd://map data, ways?: openttd://map/ways data | heights: string[] (2 hex digits a tile, openttd://map) | number[][], types?: string[], roads?: string[] (1 hex digit a tile), blocked?: [x, y][], from: {x, y, dir: NE|SE|SW|NW}, to: {x, y, dir?}, costs?, rules?, meta?: boolean}',
+  solve(input) {
+    if (!record(input)) return 'the input must be an object {heights, types?, roads?, blocked?, from, to, costs?, rules?, meta?} or {map, ways?, from, to, ...}';
+    if (input.map !== undefined && input.heights !== undefined) return 'give either map (openttd://map) or heights, not both';
+    const raw = fromGame(input);
+    if (typeof raw === 'string') return raw;
     const extra = unknownKeys(raw, ['heights', 'types', 'roads', 'blocked', 'from', 'to', 'costs', 'rules', 'meta']);
     if (extra) return extra;
     if (!rowsOf(raw.heights)) return 'heights must list the map\'s rows';

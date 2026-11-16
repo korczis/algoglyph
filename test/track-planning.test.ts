@@ -336,6 +336,22 @@ describe('track planning: the data form reads the research export as it comes', 
     expect(meta.gradients[3]).toBe('000010010000');
   });
 
+  it('reads openttd://map and openttd://map/ways as the game serves them, vehicles on the line as taken tiles', () => {
+    const map = { width: 13, height: 7, tile_index: 'y * width + x', heights: river.heights, types: river.types, owners: Array(7).fill('N'.repeat(13)) };
+    const ways = { schema: 'map-ways/v1', roads: Array(7).fill('0'.repeat(13)), rails: Array(7).fill('00'.repeat(13)), crossings: [], occupancy: [] as { x: number; y: number; vehicles: number[] }[] };
+    const free = data.solve({ map, ways, from: river.from, to: river.to });
+    if (typeof free === 'string') throw new Error(free);
+    expect(free).toMatchObject({ status: 'found', counts: { bridges: 1 } });
+    // a train standing on the first tile of the line: the plan goes round it, never through it
+    const first = (free.pieces as { kind: string; x: number; y: number }[]).find((q) => q.kind === 'track')!;
+    ways.occupancy.push({ x: first.x, y: first.y, vehicles: [7] });
+    const round = data.solve({ map, ways, from: river.from, to: river.to });
+    if (typeof round === 'string') throw new Error(round);
+    expect((round.pieces as { kind: string; x: number; y: number }[]).some((q) => q.kind === 'track' && q.x === first.x && q.y === first.y)).toBe(false);
+    expect(data.solve({ map, heights: river.heights, from: river.from, to: river.to })).toMatch(/either map/);
+    expect(data.solve({ map, ways: { occupancy: [3] }, from: river.from, to: river.to })).toMatch(/ways.occupancy/);
+  });
+
   it('refuses malformed maps and ends with the field named', () => {
     expect(data.solve({ ...river, heights: ['0g'] })).toMatch(/heights/);
     expect(data.solve({ ...river, types: Array(7).fill('CCCCCZWCCCCCC') })).toMatch(/types/);

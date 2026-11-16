@@ -5,7 +5,7 @@ kind: feature
 title: A railway planned by OpenTTD's construction rules, for the fork's planner and player
 short_title: Track planner
 headline: Hand it the game's exported map and two stations; it returns the cheapest line the game would build, bridges and tunnels included.
-summary: src/plates/track-planning/plan.ts searches tile, heading, motion and edge height with straight and corner pieces, inclines, foundations, bridges, tunnels and level crossings; data.ts reads the export's layers as they are and returns TrackBits per tile and compact runs; a validator in test/track-planning.test.ts re-walks every plan.
+summary: src/plates/track-planning/plan.ts searches tile, heading, motion and edge height with straight and corner pieces, inclines, foundations, bridges, tunnels and level crossings; data.ts reads the export's layers as they are, or the game's openttd://map and openttd://map/ways answers whole (vehicles standing on a tile make it taken) and returns TrackBits per tile and compact runs; a validator in test/track-planning.test.ts re-walks every plan.
 status: stable
 weight: 20
 featured: true

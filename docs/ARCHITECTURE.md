@@ -258,7 +258,8 @@ result, counts, report and optionally its operation trace; a grid kernel that de
 (`GridKernel.fromData`, knapsack-dp first) takes its own data the same way, and so does any other
 kernel that declares a `DataForm` (`src/core/solve.ts`: simplex-method reads `{A, b, c}`,
 pert-monte-carlo a task network, bayes-update its evidence), and so does a custom plate with a
-`data.ts` beside it: `track-planning` plans a railway on a caller's OpenTTD map (ADR 0012, rule
+`data.ts` beside it: `track-planning` plans a railway on a caller's OpenTTD map (its layers, or the game's
+`openttd://map` and `openttd://map/ways` answers forwarded whole) (ADR 0012, rule
 `project.planner-plays-by-the-rules`). `human-pointing` moves a pointer the way a hand does (Fitts'
 law, minimum jerk, overshoot, tremor), seeded bit for bit with the OpenTTD fork's `motion.rs` so its
 player and the plate move alike. `kernels` lists every form with the
