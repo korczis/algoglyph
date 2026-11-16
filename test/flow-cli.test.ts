@@ -264,8 +264,15 @@ describe('flow cli: numeric and stochastic kernels on caller data (src/core/solv
     expect(await runKernel('action-plan', JSON.stringify({ actions: [{ id: 'buy', kind: 'buy_vehicle', cost: 9 }], cash: 5 }))).toMatchObject({ ok: false, errors: [expect.stringContaining('overdraws')] });
   });
 
+  it('transport-investment ranks a demand\'s routes by ROI and refuses a demand to nowhere', async () => {
+    const bus = { mode: 'bus', build_per_tile: 60, terminal: 1000, vehicle: { name: 'bus', price: 8000, running_per_year: 1500, capacity: 31, speed_kmh: 56 }, overhead_periods: 1 };
+    const r = await ok('transport-investment', { places: [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 30, y: 0 }], demands: [{ id: 'd', from: 'A', to: 'B', cargo: 'passengers', volume: 300, payment: 3185, td1: 0, td2: 24, two_way: true }], modes: [bus] });
+    expect(r.why).toMatchObject([{ demand: 'd', mode: 'bus' }]);
+    expect(await runKernel('transport-investment', JSON.stringify({ places: [{ id: 'A', x: 0, y: 0 }], demands: [{ id: 'd', from: 'A', to: 'Z', cargo: 'c', volume: 1, payment: 1, td1: 0, td2: 0 }], modes: [bus] }))).toMatchObject({ ok: false, errors: [expect.stringContaining('two different places')] });
+  });
+
   it('lists every declared data form, with the shape it reads', async () => {
     const list = await runnable();
-    for (const id of ['simplex-method', 'pert-monte-carlo', 'bayes-update', 'track-planning', 'human-pointing', 'action-plan']) expect(list.find((k) => k.id === id)).toMatchObject({ input: expect.stringContaining('{') });
+    for (const id of ['simplex-method', 'pert-monte-carlo', 'bayes-update', 'track-planning', 'human-pointing', 'action-plan', 'transport-investment']) expect(list.find((k) => k.id === id)).toMatchObject({ input: expect.stringContaining('{') });
   });
 });
