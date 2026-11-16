@@ -1,5 +1,5 @@
 // transport-investment (src/plates/transport-investment) against references outside its code: the
-// game's income formula at the values openttd-80's planner pins (tools/research/mcp-rhai plan.rs);
+// game's income formula at the values the OpenTTD fork's planner pins (tools/research/mcp-rhai plan.rs);
 // the routes Yen's kernel enumerates on the multimodal graph against every route listed by hand;
 // the mode that wins by ROI on hand-built worlds; and the budgeted portfolio against every subset.
 import { describe, expect, it } from 'vitest';

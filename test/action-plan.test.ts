@@ -44,7 +44,7 @@ describe('action-plan: the owner\'s example and the refusals', () => {
     expect(schedule([{ id: 'a', kind: 'x', amount: 25_000, step: 10_000 }], { cash: 0 })).toMatch(/whole number of steps/);
   });
 
-  it('moves cash and loan for a repay or borrow given only its amount and step (openttd-80\'s case)', () => {
+  it('moves cash and loan for a repay or borrow given only its amount and step (a planner\'s reported case)', () => {
     const r = schedule([{ id: 'repay', kind: 'repay', amount: 50_000, step: 10_000 }], { cash: 120_000, loan: 300_000 });
     if (typeof r === 'string') throw new Error(r);
     expect(r.steps.map((s) => [s.cash, s.loan])).toEqual([[110_000, 290_000], [100_000, 280_000], [90_000, 270_000], [80_000, 260_000], [70_000, 250_000]]);

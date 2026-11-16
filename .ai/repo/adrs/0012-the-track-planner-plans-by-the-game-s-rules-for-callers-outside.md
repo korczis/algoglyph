@@ -24,8 +24,7 @@ detail than its topology — slope, height, material, surroundings, gradients, c
 occupancy for every tile, kept current — all of it enforced and documented through `.ai/`.
 
 What existed: the fork's Squirrel AI laid track with its own A* over four neighbours, turning
-only on flat land, never building a bridge or a tunnel (`openttd-prismatic-bridge`
-`ai/PrismaticAI/rail.nut`); the fork's planner in Rust (`tools/research/mcp-rhai`) called
+only on flat land, never building a bridge or a tunnel; the fork's planner in Rust (`tools/research/mcp-rhai`) called
 AlgoGlyph once, for `knapsack-dp`, through the flow's command line (`npm run flow -- kernel`);
 the fork exports the map as layers (`openttd://map` heights, types and owners,
 `openttd://map/ways` road and rail bits). The collection's own terrain search (the Cartographer,
