@@ -38,7 +38,11 @@ export interface Mode {
 }
 export interface Params {
   payback_months: number; load_factor: number; transfer_periods: number; transfer_cost_per_unit: number; max_legs: 1 | 2; k: number; budget?: number;
-  /** At most one line per (cargo, source) in the portfolio: two lines from one mine would each count its whole production. */
+  /**
+   * At most one line per (cargo, source) among one-way demands: two lines from one mine would each
+   * count its whole production. Two-way demands (passengers, mail) are supplied per pair of towns,
+   * not by one producer's output, so lines that share a town are all admitted.
+   */
   one_per_source: boolean;
 }
 export const DEFAULT_PARAMS: Params = { payback_months: 24, load_factor: 0.8, transfer_periods: 2, transfer_cost_per_unit: 0, max_legs: 2, k: 32, one_per_source: true };
@@ -194,13 +198,13 @@ export function invest(places: Place[], demands: Demand[], modes: Mode[], hubs: 
     // one whose best route scores highest enters the portfolio
     const top = new Map<string, number>();
     demands.forEach((d, i) => {
-      if (!best[i]) return;
+      if (!best[i] || d.two_way) return;
       const key = `${d.cargo}|${d.from}`;
       const j = top.get(key);
       if (j === undefined || best[i]!.score > best[j]!.score) top.set(key, i);
     });
     const keep = new Set(top.values());
-    best.forEach((_, i) => { if (!keep.has(i)) best[i] = undefined; });
+    best.forEach((_, i) => { if (!demands[i].two_way && !keep.has(i)) best[i] = undefined; });
   }
   const items = best.map((o, i) => (o ? i : -1)).filter((i) => i >= 0);
   let picked: number[] = items;

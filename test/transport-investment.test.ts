@@ -135,6 +135,14 @@ describe('transport-investment: one line per source', () => {
     const better = [both.options[0][0], both.options[1][0]].sort((x, y) => y.score - x.score)[0];
     expect(one.chosen[0].demand).toBe(better.demand);
   });
+
+  it('admits every passenger line from one town: two-way supply is per pair of towns, not one producer\'s output', () => {
+    const places: Place[] = [{ id: 'T', x: 0, y: 0 }, { id: 'U', x: 60, y: 0 }, { id: 'V', x: 0, y: 90 }];
+    const pax = (id: string, to: string): Demand => ({ id, from: 'T', to, cargo: 'Passengers', volume: 300, payment: 3_185, td1: 0, td2: 24, two_way: true });
+    const r = invest(places, [pax('a', 'U'), pax('b', 'V')], [rail], [], [], DEFAULT_PARAMS);
+    if (typeof r === 'string') throw new Error(r);
+    expect(r.chosen.map((c) => c.demand).sort()).toEqual(['a', 'b']);
+  });
 });
 
 describe('transport-investment: vehicles by cargo', () => {
