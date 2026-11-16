@@ -8,7 +8,7 @@ import { schedule, type Action } from './plan';
 export const LIMITS = { actions: 2000, presses: 20_000 };
 
 export const data: DataForm = {
-  input: '{actions: [{id, kind, label?, cost?, income?, loan?, repeat? | amount?+step?, after?: [ids]}], cash, loan?, max_loan?, loan_step? (openttd://companies loan_step: fills step, cost, income and loan of repay_loan and borrow)}',
+  input: '{actions: [{id, kind, label?, cost?, income?, loan?, repeat? | amount?+step?, after?: [ids]}], cash, loan?, max_loan?, loan_step? (openttd://companies loan_step: the step of repay/repay_loan/borrow actions that give none)}',
   solve(raw) {
     if (!record(raw)) return 'the input must be an object {actions, cash, loan?, max_loan?}';
     const extra = unknownKeys(raw, ['actions', 'cash', 'loan', 'max_loan', 'loan_step']);
@@ -33,16 +33,10 @@ export const data: DataForm = {
       const presses = a.amount !== undefined ? (a.amount as number) / ((a.step as number | undefined) ?? (a.amount as number)) : ((a.repeat as number | undefined) ?? 1);
       total += Number.isFinite(presses) ? presses : 0;
       if (total > LIMITS.presses) return `the plan would take more than ${LIMITS.presses} presses`;
-      // the game's loan actions, filled from its loan step where the caller left them out
       const act = { ...a } as unknown as Action;
-      if (raw.loan_step !== undefined && (act.kind === 'repay_loan' || act.kind === 'borrow')) {
-        const step = raw.loan_step as number;
-        act.step ??= step;
-        if (act.kind === 'repay_loan') act.loan ??= -step; else { act.loan ??= step; act.income ??= step; }
-      }
       actions.push(act);
     }
-    const r = schedule(actions, { cash: raw.cash, loan: raw.loan as number | undefined, maxLoan: raw.max_loan as number | undefined });
+    const r = schedule(actions, { cash: raw.cash, loan: raw.loan as number | undefined, maxLoan: raw.max_loan as number | undefined, loanStep: raw.loan_step as number | undefined });
     return typeof r === 'string' ? r : { ...r };
   },
 };

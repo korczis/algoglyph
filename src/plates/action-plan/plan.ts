@@ -47,7 +47,28 @@ export interface ActionPlan {
   lowest: { cash: number; at: number };
 }
 
-export interface Limits { cash: number; loan?: number; maxLoan?: number }
+export interface Limits { cash: number; loan?: number; maxLoan?: number; loanStep?: number }
+
+/** The kinds that move the loan, and the sign of one press (repay lowers it, borrow raises it). */
+const LOAN_KINDS: Record<string, -1 | 1> = { repay: -1, repay_loan: -1, borrow: 1, borrow_loan: 1 };
+
+/**
+ * A loan action with its effects filled in from its step (or the game's loan step): a repay press
+ * lowers the loan and the cash, a borrow press raises both; anything the caller wrote stays.
+ * Refused when a loan action has no step to go by, so it can never silently do nothing.
+ */
+export function withLoanEffects(a: Action, loanStep?: number): Action | string {
+  const sign = LOAN_KINDS[a.kind];
+  if (!sign) return a;
+  const step = a.step ?? loanStep;
+  if (step === undefined) {
+    if (a.loan !== undefined) return a;
+    return `${a.id}: a ${a.kind} action needs its step or the game's loan_step to know what one press moves`;
+  }
+  const out: Action = { ...a, step: a.step ?? step, loan: a.loan ?? sign * step };
+  if (sign > 0) out.income ??= step;
+  return out;
+}
 
 /** How many presses an action takes. */
 export function presses(a: Action): number | string {
@@ -88,6 +109,11 @@ export function schedule(actions: Action[], lim: Limits): ActionPlan | string {
   if (res.order.length < n) {
     const stuck = actions.filter((_, i) => res.wave[i] < 0).map((a) => a.id);
     return `the dependencies hold a cycle: ${stuck.join(', ')} each wait for one another`;
+  }
+  for (const [i, a] of actions.entries()) {
+    const filled = withLoanEffects(a, lim.loanStep);
+    if (typeof filled === 'string') return filled;
+    actions[i] = filled;
   }
   const counts: number[] = [];
   for (const a of actions) {

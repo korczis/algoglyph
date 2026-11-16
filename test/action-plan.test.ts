@@ -44,6 +44,20 @@ describe('action-plan: the owner\'s example and the refusals', () => {
     expect(schedule([{ id: 'a', kind: 'x', amount: 25_000, step: 10_000 }], { cash: 0 })).toMatch(/whole number of steps/);
   });
 
+  it('moves cash and loan for a repay or borrow given only its amount and step (openttd-80\'s case)', () => {
+    const r = schedule([{ id: 'repay', kind: 'repay', amount: 50_000, step: 10_000 }], { cash: 120_000, loan: 300_000 });
+    if (typeof r === 'string') throw new Error(r);
+    expect(r.steps.map((s) => [s.cash, s.loan])).toEqual([[110_000, 290_000], [100_000, 280_000], [90_000, 270_000], [80_000, 260_000], [70_000, 250_000]]);
+    const chain = schedule([
+      { id: 'borrow', kind: 'borrow', amount: 20_000, step: 10_000 },
+      { id: 'build', kind: 'build_rail', cost: 25_000, after: ['borrow'] },
+      { id: 'repay', kind: 'repay', amount: 10_000, after: ['build'] },
+    ], { cash: 30_000, loan: 0, loanStep: 10_000 });
+    if (typeof chain === 'string') throw new Error(chain);
+    expect(chain.final).toEqual({ cash: 15_000, loan: 10_000 });
+    expect(schedule([{ id: 'r', kind: 'repay', amount: 50_000 }], { cash: 1e6, loan: 1e6 })).toMatch(/needs its step or the game's loan_step/);
+  });
+
   it('repays as the game does: a press takes min(loan, step) from cash', () => {
     const r = schedule([{ id: 'r', kind: 'repay_loan', repeat: 2, loan: -10_000 }], { cash: 50_000, loan: 15_000 });
     if (typeof r === 'string') throw new Error(r);
