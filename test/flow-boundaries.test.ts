@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 const DIR = 'src/flow';
 const files = readdirSync(DIR).filter((f) => f.endsWith('.ts'));
 const src = (f: string) => readFileSync(`${DIR}/${f}`, 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-const HEADLESS = ['types.ts', 'node.ts', 'graph.ts', 'store.ts', 'runtime.ts', 'nodes.ts', 'presets.ts'];
+const HEADLESS = ['types.ts', 'node.ts', 'graph.ts', 'store.ts', 'runtime.ts', 'nodes.ts', 'presets.ts', 'derive.ts', 'adapters.ts'];
 
 describe('flow boundaries', () => {
   it('knows every file of the flow as headless or as the editor', () => {

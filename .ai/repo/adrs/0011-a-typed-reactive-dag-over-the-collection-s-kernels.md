@@ -53,10 +53,22 @@ keep their state inside their closures behind mouse hooks.
 6. **The editor is custom DOM and SVG** (`src/flow/studio.ts`): Flowbite cards over one cable
    layer, ports as buttons, a per-input menu listing what `canConnect` accepts, lazy ECharts
    previews through `src/core/charts.ts`. Route `#/flow`, lazy-loaded.
-7. **A reader's table stays in the tab.** It never enters the document or a link; the link
+7. **Kernels are derived, never listed.** `src/flow/derive.ts` connects the catalogue to the
+   flow generically: one adapter per engine (array in `nodes.ts`; grid and graph in
+   `src/flow/adapters.ts`) turns every live entry of its engine into a choice of one family node,
+   run by that engine's headless runner and reporting that engine's measurement. Every live
+   entry is computed into one level — declared, derived or inferred — and an inferred entry
+   carries its reason (and a proposed node where the source tree shows a headless runner) and is
+   never runnable. Adding an adapter promotes an engine's entries; no kernel id is typed in code.
+8. **A reader's table stays in the tab.** It never enters the document or a link; the link
    carries the approved schema. Rule `project.user-data-stays-local` applies unchanged.
 
 ## Alternatives rejected
+
+- **A node definition per kernel, or flow ports declared in each entry's frontmatter** — the
+  ports are the engine's, not the entry's: every kernel of an engine shares them, so declaring
+  them per entry would repeat one fact hundreds of times and drift; the catalogue keeps what is
+  per entry (title, taxonomy, status), the adapter what is per engine.
 
 - **Rete.js v2 with its Lit renderer** — typed sockets would be a second compatibility table
   beside `unify`, keyboard access is undocumented, and the core's last release was 2025-06;
@@ -75,6 +87,8 @@ keep their state inside their closures behind mouse hooks.
 ## Consequences
 
 - New code lives under `src/flow/`; no plate, engine, kernel or the stage changed.
+- An entry that goes live under an adapted engine is in the flow with no edit; its kernel test
+  proves its result, `test/flow-derive.test.ts` proves its node forwards the engine's numbers.
 - `project.typed-flow` makes the invariants blocking; `test/flow-*.test.ts` and the browser
   gate's `flow` section are its proof.
 - Engines that return drawings join only after their kernels are split into compute and draw

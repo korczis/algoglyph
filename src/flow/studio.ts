@@ -13,7 +13,8 @@ import {
   type Edge, type GraphDoc, type NodeInstance,
 } from './graph';
 import type { AnyNodeDef, Category, PortDecl } from './node';
-import { inferSchema, POINT_BOX, REGISTRY, seriesCsv, type PointSet, type Schema } from './nodes';
+import { coverage, tally, type Level } from './derive';
+import { ADAPTERS, DECLARED, inferSchema, POINT_BOX, REGISTRY, seriesCsv, type PointSet, type Schema } from './nodes';
 import { cardHeight, HEAD_H, layout, NODE_W, PORT_H, PRESETS, instance } from './presets';
 import { Runtime, type Execution, type NodeTrace } from './runtime';
 import { FlowStore, type Commit, type Intent, type Origin } from './store';
@@ -66,6 +67,17 @@ const BADGE: Record<NodeTrace['status'] | 'idle', string> = {
   idle: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 const CAT: Record<Category, string> = { provider: 'Source', processor: 'Processor', sink: 'View' };
+/** Badges of the provenance levels (RFC §5); the level is always written out, never colour alone. */
+const LEVEL: Record<Level, string> = {
+  declared: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  derived: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  inferred: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+};
+const LEVEL_TEXT: Record<Level, string> = {
+  declared: 'a node written for it names it',
+  derived: 'an engine adapter runs it from the catalogue',
+  inferred: 'not runnable yet: the reason, read from the code',
+};
 /** Cable dash by kind of value, so a cable's type does not rest on colour alone. */
 const DASH: Record<PortType['kind'], string> = { series: '', points: '6 4', table: '2 4', record: '10 3 2 3' };
 
@@ -141,10 +153,40 @@ export function mountStudio(host: HTMLElement, opt: StudioOptions): Studio {
   }, inner);
   const inspector = h('section', { class: `${CARD} p-4`, 'aria-labelledby': 'flow-inspector-title', 'data-flow-inspector': true });
 
+  const coverageCard = coveragePanel();
+
   const root = h('div', { class: 'flow-studio', 'data-flow': true },
     toolbar, status,
-    h('div', { class: 'grid gap-4 md:grid-cols-2 2xl:grid-cols-[15rem_minmax(0,1fr)_19rem] items-start' }, paletteCard, canvas, inspector));
+    h('div', { class: 'grid gap-4 md:grid-cols-2 2xl:grid-cols-[15rem_minmax(0,1fr)_19rem] items-start' }, paletteCard, canvas, inspector),
+    coverageCard);
   host.replaceChildren(root);
+
+  // ---- catalogue coverage (derived on each open, never stored) ---------------------------------
+  function coveragePanel(): HTMLElement {
+    const rows = coverage(DECLARED, ADAPTERS);
+    const t = tally(rows);
+    const list = h('ul', { class: 'space-y-1 text-sm', 'data-flow-coverage-list': true });
+    const scroller = h('div', { class: 'mt-3 max-h-96 overflow-y-auto', tabindex: 0, role: 'region', 'aria-label': 'Entries by level' }, list);
+    const filter = h('select', { id: 'flow-coverage-level', class: `${INPUT} w-auto`, onchange: () => fill() },
+      ...(['inferred', 'derived', 'declared'] as Level[]).map((l) => h('option', { value: l }, `${l[0].toUpperCase()}${l.slice(1)} (${t[l]})`)));
+    function fill() {
+      const level = filter.value as Level;
+      list.replaceChildren(...rows.filter((r) => r.level === level).map((r) => h('li', { class: 'py-1 border-b border-gray-100 dark:border-gray-700', 'data-flow-coverage': r.level },
+        h('a', { href: `#/p/${r.id}`, class: 'font-medium text-primary-700 hover:underline dark:text-primary-500' }, r.title),
+        h('span', { class: 'ms-2 text-xs text-gray-600 dark:text-gray-400' }, `${r.engine} engine`),
+        h('span', { class: 'block text-xs text-gray-700 dark:text-gray-300' }, r.node ? `${r.reason} (node ${r.node})` : r.reason),
+        r.proposal ? h('span', { class: 'block text-xs text-gray-600 dark:text-gray-400' }, `Proposed: ${r.proposal}`) : '')));
+    }
+    const details = h('details', { class: `${CARD} p-4 mt-4`, 'data-flow-coverage-panel': true, ontoggle: () => { if (details.open && !list.childElementCount) fill(); } },
+      h('summary', { class: 'cursor-pointer text-base font-semibold text-gray-900 dark:text-white' }, 'Catalogue coverage'),
+      h('p', { class: 'mt-2 text-sm text-gray-700 dark:text-gray-300' },
+        'Every live entry of the catalogue, at the level the flow can run it. Nodes are derived from the catalogue by one adapter per engine; an entry no adapter runs is inferred, with the reason.'),
+      h('ul', { class: 'mt-2 flex flex-wrap gap-2' }, ...(['declared', 'derived', 'inferred'] as Level[]).map((l) =>
+        h('li', { class: `text-xs font-medium px-2 py-0.5 rounded-sm ${LEVEL[l]}`, title: LEVEL_TEXT[l], 'data-flow-tally': l }, `${l}: ${t[l]}`))),
+      h('div', { class: 'mt-3 flex items-center gap-2' }, h('label', { for: 'flow-coverage-level', class: 'text-sm font-medium text-gray-900 dark:text-white' }, 'Level'), filter),
+      scroller);
+    return details;
+  }
 
   // ---- store → view ----------------------------------------------------------------------------
   function announce(r: { ok: true } | { ok: false; reason: string }, ok = '') {
@@ -206,7 +248,9 @@ export function mountStudio(host: HTMLElement, opt: StudioOptions): Studio {
             onclick: () => addNode(d), 'data-flow-add': d.type,
           },
           h('span', { class: 'block text-sm font-medium text-gray-900 dark:text-white' }, h('span', { class: 'sr-only' }, 'Add '), d.title),
-          h('span', { class: 'block text-xs text-gray-600 dark:text-gray-400' }, d.summary))))));
+          h('span', { class: 'block text-xs text-gray-600 dark:text-gray-400' }, d.summary),
+          d.origin ? h('span', { class: `mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-sm ${LEVEL.derived}`, 'data-flow-derived': d.origin.entries.length },
+            `Derived from the catalogue: ${d.origin.entries.length} kernels`) : '')))));
     }));
   }
 
@@ -770,7 +814,7 @@ export function mountStudio(host: HTMLElement, opt: StudioOptions): Studio {
     }
     const d = reg.get(n.type) as AnyNodeDef;
     const t = exec?.nodes.get(n.id);
-    const linked = d.entry ?? (n.type === 'sort' ? String(n.params.kernel) : undefined);
+    const linked = d.entry ?? (d.origin ? String(n.params[d.origin.param]) : undefined);
     const e = linked ? entry(linked) : undefined;
     inspector.replaceChildren(
       h('div', { class: 'flex items-start justify-between gap-2 mb-2' },

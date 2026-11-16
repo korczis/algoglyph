@@ -75,7 +75,7 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a measured claim on a page | `claims:` in the entry (`statement`, `readout`, `expect`, `setup`), ADR 0007 | `test/claims.test.ts` runs the plate and reads the readout |
 | a control that applies in one mode | `when: { key: <select>, values: [...] }` on the parameter | the controls panel hides it otherwise; `test/registry.test.ts` checks the select and its values |
 | a figure of a cited work | a figure in `catalogue/figures/<coll>-<vol>-<ch>.yaml` naming a live entry's plate and a `setup` of its parameters (ADR 0009) | routed once the chapter has a `review` and the plate is live and tested; `test/figures.test.ts` checks the setup; its `claims` (an entry claim's form) run in `test/claims.test.ts` with the setup under each claim's own |
-| a node of the flow editor | a `NodeDef` in `src/flow/nodes.ts` that adapts an existing kernel or helper, with a reference test in `test/flow-runtime.test.ts` (ADR 0011, rule `project.typed-flow`) | the node library's `library()`; the palette lists it |
+| a node of the flow editor | for a whole engine: an `Adapter` in `src/flow/adapters.ts` added to `ADAPTERS`, with a test that its node reports the engine's own measurement (`test/flow-derive.test.ts`); for one helper: a `NodeDef` in `src/flow/nodes.ts` naming its entry, with a reference test in `test/flow-runtime.test.ts` (ADR 0011, rule `project.typed-flow`) | derived from the catalogue: an entry going live under an adapted engine needs no edit; the palette and the coverage panel list it |
 | a task | a recipe in `justfile` with `[group]` and `[doc]` | `just --list` |
 
 ### Engine and kernel
@@ -239,7 +239,14 @@ graph.ts    the document, check(), canConnect(),      store.ts    intents → va
             parseGraph(), links                                   undo/redo, provenance
 runtime.ts  finite, incremental, cancellable run      nodes.ts    the node library over kernels
 presets.ts  the examples and the layout               studio.ts   the editor (DOM + SVG)
+derive.ts   catalogue → family nodes, coverage         adapters.ts grid and graph engine adapters
 ```
+
+Kernels reach the flow by derivation, not by a list: one adapter per engine turns every live
+entry of that engine into a choice of one family node, run by the engine's headless runner and
+reporting the engine's own measurement. Every live entry is declared (a node names it), derived
+(an adapter runs it) or inferred (the reason, and a proposed node where the engine has a
+headless runner); the editor's *Catalogue coverage* panel computes the levels on each open.
 
 A port carries a series (values in a unit along an axis in a unit), points, a table or
 readouts; units compare exactly, `$` variables bind per node, and a conversion is a node. A
@@ -247,7 +254,8 @@ view never writes back along an edge: dragging a point sends a `move` intent to 
 owns the points, the store validates and commits it, and the runtime re-runs exactly the nodes
 whose fingerprints changed. A reader's table stays in the tab: the document and its link carry
 the approved schema, never a value. The browser gate's `flow` section (`--only flow`) runs
-every example, a refused connection, a keyboard move with Undo, and an attached table.
+every example, a refused connection, a keyboard move with Undo, an attached table, a second
+derived kernel chosen and run, and the coverage panel against its tally.
 
 ## Tooling
 

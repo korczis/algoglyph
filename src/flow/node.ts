@@ -74,6 +74,12 @@ export interface NodeDef<S = unknown> {
   view?: View;
   /** Its result depends on the graph's seed, which then joins its fingerprint. */
   seeded?: boolean;
+  /**
+   * Set by derivation (src/flow/derive.ts) on a family node an engine adapter builds from the
+   * catalogue: the entries it runs, chosen by the select parameter `param`. A node without it is
+   * declared, written in nodes.ts.
+   */
+  origin?: { level: 'derived'; adapter: string; entries: readonly string[]; param: string };
   run(ctx: RunContext<S>): Outputs | Promise<Outputs>;
 }
 
