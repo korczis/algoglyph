@@ -2,6 +2,7 @@
 // only through these operations, every draw and evaluation is counted, and the run is
 // recorded as frames the plate replays. Nothing here draws on a canvas; a frame is a
 // declarative picture (histograms, plots, bars) plus readouts measured at that point.
+import type { DataForm } from '../../core/solve';
 import { mulberry32 } from '../../core/random';
 import type { ParamDef, Params, Stat } from '../../core/plate';
 
@@ -110,6 +111,8 @@ export interface StochasticKernel<R = unknown> {
   /** The run as a generator: it yields between bounded pieces of work, so the engine can spread
    * a run over frames and never block one; its return value is the run's result. */
   run(ops: StochasticOps, cfg: Params): Generator<void, R, void>;
+  /** The kernel on a caller's own data (src/core/solve.ts), read by the flow's command line. */
+  data?: DataForm;
 }
 
 export interface Run<R = unknown> {

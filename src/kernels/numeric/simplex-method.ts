@@ -2,6 +2,7 @@
 // from the slack basis at the origin and pivoting to a neighbouring vertex while some reduced
 // cost is positive. Dantzig's rule takes the largest, Bland's the first (it cannot cycle).
 import { mulberry32 } from '../../core/random';
+import { finite, record, unknownKeys, type DataForm } from '../../core/solve';
 import { fmt, int, type Layer, type NumericKernel, type XY } from '../../engines/numeric/trace';
 import type { Mat } from './_linalg';
 
@@ -100,7 +101,41 @@ export function outcome(lp: LP): string {
   }
 }
 
+/** The largest program the data form takes: rows, columns and the pivot limit. */
+export const LIMITS = { rows: 200, cols: 200, pivots: 5000 };
+
+/**
+ * A caller's program {A, b, c, rule?}: maximise c·x subject to A x <= b and x >= 0, with b >= 0
+ * so the slack basis at the origin is feasible (the method here has no phase one).
+ */
+export const data: DataForm = {
+  input: '{A: number[][], b: number[] (each >= 0), c: number[], rule?: "bland" | "dantzig"}: maximise c·x, A x <= b, x >= 0',
+  solve(raw) {
+    if (!record(raw)) return 'the input must be an object {A, b, c, rule?}';
+    const extra = unknownKeys(raw, ['A', 'b', 'c', 'rule']);
+    if (extra) return extra;
+    const { A, b, c, rule = 'bland' } = raw;
+    if (!Array.isArray(c) || !c.length || c.length > LIMITS.cols || !c.every(finite)) return `c must be 1 to ${LIMITS.cols} finite numbers`;
+    if (!Array.isArray(A) || !A.length || A.length > LIMITS.rows) return `A must have 1 to ${LIMITS.rows} rows`;
+    for (const [i, r] of A.entries()) {
+      if (!Array.isArray(r) || r.length !== c.length || !r.every(finite)) return `A[${i}] must have ${c.length} finite numbers, one per entry of c`;
+    }
+    if (!Array.isArray(b) || b.length !== A.length || !b.every((v) => finite(v) && v >= 0)) return 'b must list one non-negative number per row of A (the origin must be feasible)';
+    if (rule !== 'bland' && rule !== 'dantzig') return 'rule must be "bland" or "dantzig"';
+    const lp = simplex(A as Mat, b as number[], c as number[], rule, LIMITS.pivots);
+    return {
+      status: lp.status,
+      x: lp.x,
+      value: Number.isFinite(lp.value) ? lp.value : null,
+      pivots: lp.pivots.length - 1,
+      rule,
+      outcome: outcome(lp),
+    };
+  },
+};
+
 export const kernel: NumericKernel = {
+  data,
   params: [
     { kind: 'range', key: 'constraints', label: 'Constraints', min: 3, max: 24, step: 1, value: 12, rebuild: true },
     { kind: 'select', key: 'rule', label: 'Entering variable', value: 'bland', rebuild: true,

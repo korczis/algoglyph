@@ -45,6 +45,10 @@ that patches a value in place, a node that re-implements a kernel "just for the 
 - What an addition owes is read from the tree, not from a list: every adapter in `ADAPTERS` has
   a test that runs its node against its engine and a derived row in the RFC's migration matrix,
   and every command of `scripts/flow.mjs` is in its help and in docs/ARCHITECTURE.md.
+- A kernel reads a caller's data only through a form it declares (a graph kernel the graph form,
+  a grid kernel `fromData`, any other a `DataForm` of `src/core/solve.ts`): the kernel validates
+  the data itself, refuses with the field named and answers with the plate's own code. The
+  command line finds every form from the kernels; each one owes a reference test.
 
 # Failure behaviour
 
@@ -57,7 +61,7 @@ runnable, an added adapter promotes its engine, every grid, graph, tree, string,
 stochastic kernel reporting its engine's own measurement, every selection kernel against a sorted
 copy) `test/flow-obligations.test.ts` (an engine adapter without a test that runs its node, or
 without a derived row in the RFC's migration matrix; a command-line command missing from its help
-or from docs/ARCHITECTURE.md), `test/flow-cli.test.ts` (the command line accepts and refuses exactly what the
+or from docs/ARCHITECTURE.md; a kernel with a data form that `test/flow-cli.test.ts` never runs), `test/flow-cli.test.ts` (the command line accepts and refuses exactly what the
 editor does and exits non-zero on a refusal) or `test/flow-boundaries.test.ts` (DOM, network, storage and markup
 boundaries; views write only intents). `node scripts/audit-ui.mjs` fails its `flow` section when
 an example does not run or a node fails, a refused connection is drawn or not explained, a
