@@ -44,6 +44,14 @@ describe('flow cli', () => {
     expect(fit.outputs.curve).toMatchObject({ kind: 'points', n: expect.any(Number) });
   });
 
+  it('writes an answer larger than a pipe\'s buffer whole when its standard output is a pipe', () => {
+    // process.exit() used to drop what the pipe had not read yet, cutting answers at 64 KiB
+    const out = spawnSync('node', ['scripts/flow.mjs', 'coverage'], { encoding: 'utf8', maxBuffer: 1 << 26 });
+    expect(out.status, out.stderr).toBe(0);
+    expect(out.stdout.length).toBeGreaterThan(65_536);
+    expect(JSON.parse(out.stdout).entries.length).toBe(ENTRIES.filter((e) => e.status === 'live').length);
+  });
+
   it('exits 0 for an accepted graph and 1 for a refused one, read from standard input', () => {
     const ok = spawnSync('node', ['scripts/flow.mjs', 'check', '-'], { input: preset('sorting') as string, encoding: 'utf8' });
     expect(ok.status, ok.stderr).toBe(0);
