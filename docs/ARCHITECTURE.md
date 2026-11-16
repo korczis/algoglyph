@@ -249,9 +249,12 @@ reporting the engine's own measurement. Every live entry is declared (a node nam
 (an adapter runs it) or inferred (the reason, and a proposed node where the engine has a
 headless runner); the editor's *Catalogue coverage* panel computes the levels on each open.
 
-`npm run flow -- <nodes|coverage|preset|check|run>` answers from the same registry, validator
+`npm run flow -- <nodes|coverage|preset|check|run|kernel|kernels>` answers from the same registry, validator
 and runtime without a browser: `check -` reads a proposed document from standard input and
 exits 1 when it is refused, so an agent's graph is decided exactly as an import in the page.
+`kernel <id> <file|-> [--trace]` runs one catalogue kernel on a caller's own graph (`{n, edges:
+[{u, v, w, cap, cost}], s, t, side?, params?}`), with the plate's code and engine, and returns its
+result, counts, report and optionally its operation trace; another repository uses it as a backend.
 
 A port carries a series (values in a unit along an axis in a unit), points, a table or
 readouts; units compare exactly, `$` variables bind per node, and a conversion is a node. A

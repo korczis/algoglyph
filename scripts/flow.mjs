@@ -8,6 +8,8 @@
 //   npm run flow -- preset [id]            the example ids, or one example as a graph document
 //   npm run flow -- check <file|->         parse and check a graph document (exit 1 when refused)
 //   npm run flow -- run <file|->           run it; each node's status and summarised outputs (exit 1 on a failed node)
+//   npm run flow -- kernel <id> <file|-> [--trace]   one catalogue kernel on your data (graph kernels: {n, edges, s, t, side?, params?})
+//   npm run flow -- kernels                the kernels `kernel` reads caller data for, with their parameters
 //   npm run flow -- help
 //
 // A graph is the editor's document (schema algoglyph.graph/v1, its "Export JSON"); `-` reads it
@@ -30,7 +32,7 @@ async function input(arg) {
 const print = (v) => process.stdout.write(`${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}\n`);
 
 if (cmd === 'help' || cmd === '--help') {
-  print(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 13).map((l) => l.slice(3)).join('\n'));
+  print(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 15).map((l) => l.slice(3)).join('\n'));
   process.exit(0);
 }
 
@@ -43,6 +45,8 @@ try {
     case 'coverage': print(cli.entries(opt('--level'))); break;
     case 'preset': print(cli.preset(rest[0])); break;
     case 'check': { const r = cli.validate(await input(rest[0])); print(r); code = r.ok ? 0 : 1; break; }
+    case 'kernel': { const r = await cli.runKernel(rest[0], await input(rest[1]), { trace: rest.includes('--trace') }); print(r); code = r.ok ? 0 : 1; break; }
+    case 'kernels': print(await cli.runnable()); break;
     case 'run': { const r = await cli.run(await input(rest[0])); print(r); code = r.ok ? 0 : 1; break; }
     default: throw new Error(`unknown command ${cmd}; try: npm run flow -- help`);
   }
