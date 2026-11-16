@@ -229,6 +229,10 @@ Ordered by dependency; each step leaves every standalone page working.
    appears.
 10. **AI-native authoring** (natural language → graph, MCP). Only on top of 1–3: a model may
     *propose* a `GraphDoc`; `parseGraph` and `check` decide, exactly as for an import.
+    The gate it goes through is built: `npm run flow -- check -` (`src/flow/cli.ts`) parses and
+    checks a proposed document from standard input and exits 1 with the refusals; `nodes`,
+    `coverage` and `preset` give a model the registry, the catalogue's levels and starting
+    documents as JSON; `run` executes a graph headless (`test/flow-cli.test.ts`).
 
 ## I. Minimal viable architecture
 

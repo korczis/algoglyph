@@ -240,6 +240,7 @@ graph.ts    the document, check(), canConnect(),      store.ts    intents → va
 runtime.ts  finite, incremental, cancellable run      nodes.ts    the node library over kernels
 presets.ts  the examples and the layout               studio.ts   the editor (DOM + SVG)
 derive.ts   catalogue → family nodes, coverage         adapters.ts engine adapters (one per engine)
+cli.ts      the same, headless, answering in JSON      (scripts/flow.mjs, npm run flow)
 ```
 
 Kernels reach the flow by derivation, not by a list: one adapter per engine turns every live
@@ -247,6 +248,10 @@ entry of that engine into a choice of one family node, run by the engine's headl
 reporting the engine's own measurement. Every live entry is declared (a node names it), derived
 (an adapter runs it) or inferred (the reason, and a proposed node where the engine has a
 headless runner); the editor's *Catalogue coverage* panel computes the levels on each open.
+
+`npm run flow -- <nodes|coverage|preset|check|run>` answers from the same registry, validator
+and runtime without a browser: `check -` reads a proposed document from standard input and
+exits 1 when it is refused, so an agent's graph is decided exactly as an import in the page.
 
 A port carries a series (values in a unit along an axis in a unit), points, a table or
 readouts; units compare exactly, `$` variables bind per node, and a conversion is a node. A

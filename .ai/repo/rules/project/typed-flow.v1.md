@@ -52,7 +52,8 @@ references, table privacy), `test/flow-derive.test.ts` (every live entry at one 
 equal to the catalogue's, an entry going live joins and one parked leaves, inferred never
 runnable, an added adapter promotes its engine, every grid, graph, tree, string, hash, signal and
 stochastic kernel reporting its engine's own measurement, every selection kernel against a sorted
-copy) or `test/flow-boundaries.test.ts` (DOM, network, storage and markup
+copy) `test/flow-cli.test.ts` (the command line accepts and refuses exactly what the
+editor does and exits non-zero on a refusal) or `test/flow-boundaries.test.ts` (DOM, network, storage and markup
 boundaries; views write only intents). `node scripts/audit-ui.mjs` fails its `flow` section when
 an example does not run or a node fails, a refused connection is drawn or not explained, a
 keyboard move does not change the fit or Undo does not restore it, a request leaves the page
