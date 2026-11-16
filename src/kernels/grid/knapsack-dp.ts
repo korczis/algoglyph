@@ -14,6 +14,57 @@ export interface KnapsackResult {
   items: number[];
 }
 
+/** Items a caller may hand in, and the table cells that bounds: past them the run is refused. */
+const MAX_ITEMS = 200;
+const MAX_CELLS = 250_000;
+
+/** The DP table of one instance, seeded or a caller's own: the same run either way. */
+function table(weights: number[], values: number[], capacity: number) {
+  const n = weights.length;
+  return {
+    rows: n + 1,
+    cols: capacity + 1,
+    rowLabels: ['-', ...weights.map((w, i) => `${w}/${values[i]}`)],
+    colLabels: range(capacity + 1).map(String),
+    input: `${n} items (weight/value) ${weights.map((w, i) => `${w}/${values[i]}`).join(' ')}, capacity ${capacity}`,
+    data: { weights, values, capacity },
+    *run(g: GridOps) {
+      for (let w = 0; w <= capacity; w++) g.write(0, w, 0);
+      for (let i = 1; i <= n; i++) {
+        const wt = weights[i - 1];
+        for (let w = 0; w <= capacity; w++) {
+          g.visit(i, w);
+          const skip = g.read(i - 1, w);
+          let best = skip;
+          if (wt <= w) {
+            const take = g.read(i - 1, w - wt) + values[i - 1];
+            if (g.less(skip, take)) best = take;
+          }
+          g.write(i, w, best);
+          yield;
+        }
+      }
+      const best = g.read(n, capacity);
+      const items: number[] = [];
+      let w = capacity;
+      for (let i = n; i >= 1; i--) {
+        g.mark(i, w);
+        yield;
+        if (!g.equal(g.read(i, w), g.read(i - 1, w))) {
+          items.push(i - 1);
+          w -= weights[i - 1];
+        }
+      }
+      g.mark(0, w);
+      items.reverse();
+      return {
+        result: { best, items },
+        summary: `best value ${best}, items ${items.map((i) => i + 1).join(', ') || 'none'}`,
+      };
+    },
+  };
+}
+
 // 0/1 knapsack. Row i, column w holds the best value of the first i items within capacity w:
 // either item i is left out (the cell above) or it is taken (the cell above, w_i to the left,
 // plus its value). The traceback walks up from the corner, stepping left whenever an item was
@@ -34,48 +85,15 @@ export const kernel: GridKernel<KnapsackData, KnapsackResult> = {
     const rnd = mulberry32(seed);
     const weights = range(n).map(() => between(rnd, 1, 8));
     const values = range(n).map(() => between(rnd, 1, 20));
-    const capacity = Math.max(4, Math.round(n * (opts.capacityPerItem ?? 2.5)));
-    return {
-      rows: n + 1,
-      cols: capacity + 1,
-      rowLabels: ['-', ...weights.map((w, i) => `${w}/${values[i]}`)],
-      colLabels: range(capacity + 1).map(String),
-      input: `${n} items (weight/value) ${weights.map((w, i) => `${w}/${values[i]}`).join(' ')}, capacity ${capacity}`,
-      data: { weights, values, capacity },
-      *run(g: GridOps) {
-        for (let w = 0; w <= capacity; w++) g.write(0, w, 0);
-        for (let i = 1; i <= n; i++) {
-          const wt = weights[i - 1];
-          for (let w = 0; w <= capacity; w++) {
-            g.visit(i, w);
-            const skip = g.read(i - 1, w);
-            let best = skip;
-            if (wt <= w) {
-              const take = g.read(i - 1, w - wt) + values[i - 1];
-              if (g.less(skip, take)) best = take;
-            }
-            g.write(i, w, best);
-            yield;
-          }
-        }
-        const best = g.read(n, capacity);
-        const items: number[] = [];
-        let w = capacity;
-        for (let i = n; i >= 1; i--) {
-          g.mark(i, w);
-          yield;
-          if (!g.equal(g.read(i, w), g.read(i - 1, w))) {
-            items.push(i - 1);
-            w -= weights[i - 1];
-          }
-        }
-        g.mark(0, w);
-        items.reverse();
-        return {
-          result: { best, items },
-          summary: `best value ${best}, items ${items.map((i) => i + 1).join(', ') || 'none'}`,
-        };
-      },
-    };
+    return table(weights, values, Math.max(4, Math.round(n * (opts.capacityPerItem ?? 2.5))));
+  },
+  fromData(raw) {
+    const d = raw as Partial<KnapsackData> | null;
+    const ints = (xs: unknown, lo: number) => Array.isArray(xs) && xs.every((x) => Number.isInteger(x) && x >= lo);
+    if (!d || typeof d !== 'object') return 'the input must be an object {weights, values, capacity}';
+    if (!ints(d.weights, 1) || !d.weights!.length || d.weights!.length > MAX_ITEMS) return `weights must be 1 to ${MAX_ITEMS} positive integers`;
+    if (!Array.isArray(d.values) || d.values.length !== d.weights!.length || !d.values.every((v) => Number.isFinite(v) && v >= 0)) return 'values must list one non-negative number per weight';
+    if (!Number.isInteger(d.capacity) || d.capacity! < 0 || (d.capacity! + 1) * (d.weights!.length + 1) > MAX_CELLS) return `capacity must be a non-negative integer with (capacity + 1)(items + 1) at most ${MAX_CELLS} cells`;
+    return table(d.weights!, d.values, d.capacity!);
   },
 };

@@ -10,7 +10,7 @@ import { apply, DELETED, EMPTY, KIND, OP, STRIDE, Table, trace, tracer, type Has
   type Step, type Tracer,
   type Trace } from './table';
 import { ADVERSARIAL_BITS, adversarialParam, scalingWorkload, STREAM_LABELS, STREAMS, workload,
-  type Stream } from './workload';
+  type Stream, PLATE } from './workload';
 import { count } from '../../core/format';
 import { fits, HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
 
@@ -375,19 +375,19 @@ function params(kernels: HashKernel[], n: number, nMax: number, plate = false): 
       options: STREAMS.map((s) => ({ value: s, label: STREAM_LABELS[s] })),
     },
     ...(plate ? [adversarialParam()] : []),
-    { kind: 'range', key: 'n', label: 'Keys inserted', min: 8, max: nMax, step: 8, value: n, rebuild: true },
+    { kind: 'range', key: 'n', label: 'Keys inserted', min: PLATE.nMin, max: nMax, step: 8, value: n, rebuild: true },
   ];
   if (loads.length) {
     const max = Math.min(...loads);
     out.push({ kind: 'range', key: 'load', label: 'Fill to load factor (percent)', min: 25, max,
-      step: 5, value: Math.min(75, max), rebuild: true,
+      step: 5, value: Math.min(PLATE.load, max), rebuild: true,
       hint: 'A fixed-size table gets n divided by this load factor, rounded up, as its slots or chains' });
   }
   if (kernels.some((k) => k.layout === 'pages')) {
-    out.push({ kind: 'range', key: 'page', label: 'Keys per page', min: 4, max: 16, step: 1, value: 4, rebuild: true });
+    out.push({ kind: 'range', key: 'page', label: 'Keys per page', min: 4, max: 16, step: 1, value: PLATE.page, rebuild: true });
   }
   out.push(
-    { kind: 'range', key: 'deletes', label: 'Keys deleted at the end (percent)', min: 0, max: 90, step: 5, value: 50, rebuild: true },
+    { kind: 'range', key: 'deletes', label: 'Keys deleted at the end (percent)', min: 0, max: 90, step: 5, value: PLATE.deletes, rebuild: true },
     ...own,
     paceParam(),
     { kind: 'toggle', key: 'loop', label: 'New keys when done', value: true },
@@ -563,7 +563,7 @@ function plate(info: KernelInfo, kernel: HashKernel): PlateCode {
     mode: '2d',
     aspect: 16 / 9,
     thumbnailFrames: 2,
-    params: params([kernel], 96, 512, true),
+    params: params([kernel], PLATE.n, PLATE.nMax, true),
     pace: { kind: 'replay', unit: 'events, or key operations for a long run' },
     create(p, ctx) {
       let generation = 0;

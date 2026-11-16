@@ -97,6 +97,9 @@ export interface Outcome {
   chart?: Chart;
 }
 
+/** The size control a kernel without its own `n` gets: its plate's slider and the flow read it. */
+export const DEFAULT_N: NonNullable<GeometryKernel['n']> = { min: 3, max: 1000, value: 120, step: 1 };
+
 export interface GeometryKernel {
   task: Task;
   input: InputKind;

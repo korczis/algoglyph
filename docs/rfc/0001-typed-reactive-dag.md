@@ -119,94 +119,39 @@ and `NodeTrace` (status, reason, cached, ms, fingerprint); ProviderDefinition an
 RendererDefinition = a `NodeDef` of category provider or sink. No separate type exists where a
 category of one suffices.
 
-**Frontmatter (proposed, not built).** Port types follow from the *engine* contract, not the
-entry: every array kernel is `Series<$U> → Series<$U, axis 1> + Counts`. Writing ports into each
-entry would copy that fact into every file. The extension `catalogue/schema/entry.yaml` needs is
-therefore small and only for deviations, behind schema `algoglyph.entry/v3`:
+**The generic connection (built).** Port types follow from the *engine* contract, not the
+entry: every grid kernel is `seeded instance → readouts + cells computed by row`, every graph
+kernel `seeded graph → counts`, every sorting kernel `Series<$U> → Series<$U, axis 1> + Counts`.
+So the connection is one adapter per engine (`src/flow/derive.ts`, `src/flow/adapters.ts`, the
+array adapter in `src/flow/nodes.ts`): it reads the live catalogue and makes every entry of its
+engine a choice of one family node, run by the engine's own headless runner, reporting the
+engine's own measurement. An entry that goes live joins with no edit; no kernel id is typed in
+code. Writing ports into each entry's frontmatter would copy one engine fact into every file, so
+the frontmatter carries nothing new; a `flow:` key is added only when an entry has to deviate
+from its engine's projection, and none does yet.
 
-```yaml
-flow:                      # optional; absent means "the engine's projection, if it has one"
-  node: false              # opt out (a kernel whose run means nothing outside its plate)
-  requires: integer-keys   # a precondition the node checks (today: tag non-comparison)
-```
+Declared / derived / inferred / validated / enforced, as built, for every live entry
+(`coverage()` in `src/flow/derive.ts`, shown in the editor's *Catalogue coverage* panel, computed
+on each open and never stored):
 
-Declared / derived / inferred / validated / enforced, as built: the catalogue entry and the node
-definition are **declared**; the sort node's kernel menu, its titles and the catalogue links are
-**derived** from live array entries (`sortEntries()` in `src/flow/nodes.ts`); a CSV schema read
-from a header is **inferred** and shown as a proposal with every unit `1` until the reader
-approves it (`inferSchema`, then the `schema` intent); output types are **validated** by `check`
-and again by the runtime against each produced value; cycles, unit mismatches, malformed
-imports and invalid intents are **enforced** by refusal (tests in §14).
+- **declared** — a node written in `nodes.ts` names the entry it runs (`entry`): the spectrum
+  node runs the FFT entry, the fit node the least-squares entry;
+- **derived** — an engine adapter accepts the entry: the sort node (array) and the table and
+  board (grid), graph, tree and heap (tree), string and text (string) and hash table (hash)
+  kernel nodes, the signal processing and the stochastic kernel nodes, each a select over the
+  catalogue's own entries, linking the chosen entry's plate;
+- **inferred** — no adapter runs it. The reason is computed: a bespoke plate keeps its
+  computation inside its drawing; an adapter refuses it (a selection kernel has no `k` port);
+  or the engine has a headless runner in the source tree (`src/engines/*/{trace,sim,table}.ts`, read
+  by glob), in which case a node is *proposed* (seeded provider → counts) but not built. An
+  inferred entry is never runnable; adding an adapter promotes its engine's entries, and the
+  tests then validate every promoted run.
 
-## D. Architecture
-
-```text
- catalogue/ (declared) ──derive──▶ node library src/flow/nodes.ts ◀── kernels, engines (reused)
-                                         │ Registry
-  ┌──────────── persisted ────────────┐  ▼
-  │ GraphDoc (canonical JSON, link)   │──check()──▶ order + resolved types       (pure)
-  └──────────────▲────────────────────┘                │
-                 │ commit (revision, origin, txn)      ▼
-  FlowStore ─────┘  ◀── Intent ──┐            Runtime.run(doc)                   (headless)
-   validate, undo/redo           │             memo by fingerprint, cancel stale
-                                 │                     │ Execution (values, traces)
-  user ──▶ editor / views ───────┘                     ▼
-           (src/flow/studio.ts)  ◀──────────── renderer adapters: ECharts chart,
-            ports, inspector,                   SVG scatter, readout table, CSV export
-            keyboard paths
-```
-
-The only arrow from views back to the model is an `Intent` into the store. The scatter's moved
-point is addressed to the node that owns the points (`PointsValue.owner`); there is no edge from
-a sink to a source, so the computation stays a DAG. Governance sits beside it: `.ai/` rule
-`project.typed-flow`, ADR 0011, the unit tests and the browser gate's `flow` section.
-
-## E. Technology decision
-
-Responsibilities are separated: **editor** (custom DOM + SVG, `src/flow/studio.ts`),
-**layout** (longest-path layering, `layout()` in `src/flow/presets.ts`), **renderers** (the
-site's ECharts layer `src/core/charts.ts`, SVG for the scatter, the stage for plates later),
-**graph analysis and execution** (`src/flow/graph.ts`, `src/flow/runtime.ts`). Evidence gathered
-2026-11-15 from the npm registry, npm download counts, bundlephobia and the GitHub API:
-
-| Candidate | Version (date) | Licence | Framework | gzip | Typed-port support | Keyboard a11y evidence | Maintenance |
-|---|---|---|---|---|---|---|---|
-| Rete.js v2 + `@retejs/lit-plugin` | rete 2.0.6 (2025-06-30), lit-plugin 2.0.8 (2026-07-10) | MIT | none + lit | ~41 KB for core, area, connection, lit plugin and engine, plus lit | `Socket.isCompatibleWith`, `connectioncreate` veto | none documented | core last released 2025-06; connection plugin 2024-08; few maintainers |
-| React Flow `@xyflow/react` | 12.12.1 (2026-11-02) | MIT | React | 60 KB + React | `isValidConnection` callback | best documented (focusable nodes, aria-live) | company-backed |
-| Svelte Flow `@xyflow/svelte` | 1.7.1 (2026-11-02) | MIT | Svelte 5 compiler | unconfirmed | `isValidConnection` | `ariaLabelConfig` | company-backed |
-| `@xyflow/system` | 0.0.84 | MIT | none | 35 KB | handles only | own job | 0.x API |
-| LiteGraph.js / ComfyUI fork | 0.7.18 (2024-01) / archived 2025-08 | MIT | none (canvas) | 121 / 85 KB | string slot types | none (canvas) | stale / archived |
-| Cytoscape.js | 3.35.0 | MIT | none (canvas) | 139 KB | none (node-level edgehandles, last commit 2022) | none documented | active, but a viewer; banned by owner policy |
-| Custom DOM + SVG | — | — | none | 21 KB for the whole studio chunk, runtime included (Vite build) | `canConnect` in the model | native buttons and selects: proven by axe in the gate | owned |
-| ELK.js (layout) | 0.12.1 | EPL-2.0 | none | 447 KB | port-aware layered layout | — | active |
-| `@dagrejs/dagre` (layout) | 3.1.3 | MIT | none | 16 KB | no ports (unconfirmed) | — | active |
-
-Weights (judgement, stated so they can be argued with): accessibility under the blocking axe
-gate 25 — the rule `project.ui-quality-gate` fails the merge on any WCAG 2.2 AA violation, so
-an editor whose ports are canvas pixels or undocumented ARIA is a cost we pay in full;
-architecture fit (no second framework, Alpine untouched) 20; ownership risk 15; typed-port
-validation in the model, not the widget 15; bundle 10; visual quality and theming with Flowbite
-10; touch 5.
-
-| | a11y 25 | fit 20 | risk 15 | typed 15 | bundle 10 | look 10 | touch 5 | **score / 5** |
-|---|---|---|---|---|---|---|---|---|
-| Custom DOM + SVG | 5 | 5 | 4 | 5 | 5 | 4 | 3 | **4.70** |
-| Rete v2 + Lit | 2 | 4 | 2 | 4 | 3 | 4 | 2 | **3.00** |
-| React Flow island | 5 | 1 | 5 | 3 | 2 | 4 | 4 | **3.40** |
-| Svelte Flow | 4 | 2 | 4 | 3 | 3 | 4 | 4 | **3.35** |
-| LiteGraph | 1 | 3 | 1 | 2 | 2 | 3 | 2 | **1.90** |
-
-**Winner: custom DOM + SVG**, because every port is a real `<button>` and every connection has
-a keyboard and a menu path, which the browser gate proves in both themes and both widths rather
-than a library's documentation promising it; and because validation lives in `canConnect`, so
-the widget never decides compatibility. This is not "maximum control" for its own sake: Rete's
-typed sockets would duplicate `unify` (two compatibility tables), and its a11y would still be
-ours to build. **Runner-up: React Flow** as an island, *if* the editor outgrows the custom
-surface (falsifiable trigger: a graph of `LIMITS.nodes` nodes fails `config/budgets.yaml`'s
-frame budget while panning, or multi-select/minimap cost more than a library adoption).
-**Fallback: Rete v2 + Lit** if a React island is refused. Layout: the current layering is
-deterministic and tested; adopt `@dagrejs/dagre` (MIT, small) when crossings become a real
-complaint, ELK (EPL, large) only in a worker and only for port-constrained layouts.
+A CSV schema read from a header is inferred the same way: a proposal with every unit `1` until
+the reader approves it (`inferSchema`, then the `schema` intent). Output types are **validated**
+by `check` and again by the runtime against each produced value; cycles, unit mismatches,
+malformed imports, invalid intents, a family node whose type is not its adapter's and two
+adapters for one engine are **enforced** by refusal (tests in §14).
 
 ## F. Compatibility and migration matrix
 
@@ -215,12 +160,17 @@ written here (rule `project.derived-facts`); list them with `npm run catalogue -
 
 | Family | Core API | Category | Strategy | First node |
 |---|---|---|---|---|
-| array (incl. compiled sorting kernels via sidecar) | `ArrayKernel.run(ops)`, `trace()` | **typed processor now** | adapter: `sortNode()` (done) | Sort, every live sorting entry |
-| numeric | `NumericKernel.run(inp) → NumericRun` (drawing) | extraction | split algorithm from run builder; helpers already pure (`_linalg`, `_functions`) | Polynomial fit (done, via `_linalg`) |
-| signal | `_fft.ts`, windows | processor via helpers | adapter over helpers (done for FFT) | Magnitude spectrum (done) |
-| geometry | trace + worker | extraction | expose hull/Voronoi as `points → points` | convex hull |
-| graph, tree, string, hash, grid | engine-specific traces | extraction, per engine | a graph/text value kind is needed first (not built) | BFS over an edge table |
-| stochastic, systems | time-stepped sims | simulation mode (§7 below) | not in the finite runtime | — |
+| array (incl. compiled sorting kernels via sidecar) | `ArrayKernel.run(ops)`, `trace()` | **derived processor** | array adapter (done); selection kernels inferred until a `k` port exists | Sort, every live sorting entry |
+| grid | `GridKernel.instance(n, seed)`, `run()`, `Measure` readouts | **derived provider** | grid adapter (done) | Table and board kernel, every live grid entry |
+| graph | `GraphKernel.steps`, `makeGraph`, `trace()`, `Counts` | **derived provider** | graph adapter (done); a graph value kind for graph *inputs* is still not built | Graph kernel, every live graph entry |
+| numeric | `NumericKernel.run(inp) → NumericRun` (drawing); `probe.measure` for lab kernels | **derived provider** for lab kernels; extraction for the rest | numeric adapter: a lab kernel's probe series (done); the rest need compute split from run (§H step 2) | Numeric kernel probe, every numeric entry in a lab; polynomial fit via `_linalg` |
+| signal | `_fft.ts`, windows; `SignalKernel.run(params, seed, meter)` | processor via helpers, **derived provider** | spectrum over `_fft.ts` (declared); signal adapter: the metered counts of the whole run (done) | Magnitude spectrum; Signal processing kernel, every live signal entry |
+| geometry | `GeometryKernel.run` generator, `makeInput`, `record()`, its counters | **derived provider** | geometry adapter: the kernel's own counters on its default input shape (done); `points → points` processors still need a point-set input port | Computational geometry kernel, every live geometry entry |
+| tree | `TreeKernel.run`, `workload()`, `trace()`, `Counts` | **derived provider** | tree adapter (done) | Tree and heap kernel, every live tree entry |
+| string | `StringKernel.run`, `input()`, `trace()`, its own counters | **derived provider** | string adapter (done) | String and text kernel, every live string entry |
+| hash | `HashKernel`, the shared `workload()`, `trace()`, `Counts` | **derived provider** | hash adapter (done); the plate's defaults are one exported constant both read | Hash table kernel, every live hash entry |
+| stochastic | `StochasticKernel.run` generator, `trace()`, draws/evals, chart series | **derived provider** | stochastic adapter: counts and the run's own chart series as points (done) | Stochastic kernel, every live stochastic entry |
+| systems | `SystemsKernel` on a simulated `Net`, `simulate()`, its readouts | **derived provider** (run to its horizon, finite) | systems adapter: the kernel's own readouts over the whole simulated run (done); live stepping is the simulation mode (§H step 7) | Distributed systems kernel, every live systems entry |
 | bespoke plates | `PlateCode.create` closure | sink now; bidirectional after state lift | per plate, by ADR | `least-squares`-style plates first |
 
 Standalone pages, gallery, links, seeds, claims, pacing and budgets are untouched: the flow
@@ -256,8 +206,13 @@ Ordered by dependency; each step leaves every standalone page working.
    Acceptance: the plate's claims and budget tests unchanged; a flow node per extracted kernel
    whose output matches the plate's readout. Risk: pacing depends on run shape — keep `build()`
    generators intact.
-3. **Catalogue facet** `flow:` (schema v3, opt-out and preconditions only). Acceptance:
-   `npm run catalogue -- --check` refuses an unknown precondition; palette derived from it.
+3. **Done — generic derivation.** Engine adapters derive family nodes from the catalogue; every
+   live entry is declared, derived or inferred (`test/flow-derive.test.ts`, gate `flow`): array,
+   grid, graph, tree, string, hash, signal, stochastic, systems, geometry and the numeric kernels that take part in a lab. Next: the other numeric kernels and the bespoke plates,
+   whose kernels return drawings or run as time-stepped simulations — each needs its compute
+   split from its run (step 2) or the simulation mode (step 7) before an adapter can report a
+   measurement rather than a picture. A frontmatter `flow:` facet
+   only when an entry must deviate from its engine's projection.
 4. **Plate as sink.** A sink node that mounts an existing plate through the stage with
    parameters bound from a record input. Acceptance: one stage-owned canvas per visible preview,
    at most one live preview animating (WebGL context budget).
@@ -274,6 +229,10 @@ Ordered by dependency; each step leaves every standalone page working.
    appears.
 10. **AI-native authoring** (natural language → graph, MCP). Only on top of 1–3: a model may
     *propose* a `GraphDoc`; `parseGraph` and `check` decide, exactly as for an import.
+    The gate it goes through is built: `npm run flow -- check -` (`src/flow/cli.ts`) parses and
+    checks a proposed document from standard input and exits 1 with the refusals; `nodes`,
+    `coverage` and `preset` give a model the registry, the catalogue's levels and starting
+    documents as JSON; `run` executes a graph headless (`test/flow-cli.test.ts`).
 
 ## I. Minimal viable architecture
 
@@ -323,14 +282,14 @@ Pages. "—" means not reached; nothing is marked without its evidence.
 
 | Gate | State | Evidence |
 |---|---|---|
-| G01 authority (no manual node list duplicating the catalogue) | TESTED | sort menu derived by `sortEntries()`; `test/flow-runtime.test.ts` runs every derived kernel |
+| G01 authority (no manual node list duplicating the catalogue) | ENFORCED | family nodes derived by engine adapters (`src/flow/derive.ts`); `test/flow-derive.test.ts`: choices equal the catalogue's, an entry going live joins, every live entry at one level; gate `flow`: a derived node runs a second kernel and links its plate |
 | G02 stable identity | ENFORCED | id pattern, duplicate refusal: `test/flow-graph.test.ts` |
 | G03 structural validity | ENFORCED | bytes/depth/counts/params: `test/flow-graph.test.ts` "refuses malicious or malformed" |
 | G04 type safety, units | ENFORCED | `unify` matrix, Hz vs s: `test/flow-graph.test.ts`; browser: gate `flow` refusal check |
 | G05 direction, single input | ENFORCED | `input-taken`, self-loop: `test/flow-graph.test.ts` |
 | G06 acyclic, deterministic order | ENFORCED | 200 seeded DAGs, named cycle: `test/flow-graph.test.ts` |
 | G07 runtime isolation | ENFORCED | headless runs in vitest; no DOM in headless files: `test/flow-boundaries.test.ts` |
-| G08 reuse of real kernels | TESTED | sort vs `Float64Array.sort`, FFT vs direct DFT, fit vs normal equations |
+| G08 reuse of real kernels | TESTED | sort vs `Float64Array.sort`, FFT vs direct DFT, fit vs normal equations; every grid and graph kernel reports its engine's own measurement (`test/flow-derive.test.ts`) |
 | G09 provider stays local | VERIFIED | gate `flow`: no request leaves the page; no value in the link |
 | G10 provider bounded | TESTED | shared parser, row/column errors: `test/flow-runtime.test.ts`; byte cap before read in `studio.ts` |
 | G11 HTTP safety | — | not built (§H step 8) |

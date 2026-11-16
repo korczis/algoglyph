@@ -536,6 +536,33 @@ try {
         for (const v of ['4.75', '9.125', '1.0625']) if (link.includes(v)) fail(where, `the link carries the value ${v}`);
         p.off('request', watch);
         for (const r of sent) fail(where, `a request left the page while it held a reader's data: ${r}`);
+        // derived from the catalogue: a family node offers the catalogue's kernels, a second one
+        // chosen in the inspector runs, and the coverage panel lists every level with its reasons
+        await p.goto(`${base}#/flow?preset=kernels`, { waitUntil: 'load' });
+        await settled();
+        const offered = await p.evaluate(() => Number(document.querySelector('[data-flow-add="grid"] [data-flow-derived]')?.dataset.flowDerived ?? 0));
+        if (offered < 2) fail(where, `the grid node offers ${offered} derived kernel(s)`);
+        await p.click('[data-node="grid"]');
+        const kernelSel = '#flow-p-grid-kernel';
+        const choices = await p.evaluate((sel) => [...document.querySelectorAll(`${sel} option`)].map((o) => o.value), kernelSel);
+        const other = choices[1];
+        if (!other) fail(where, 'the grid node offers one kernel only');
+        else {
+          await p.selectOption(kernelSel, other);
+          const rerun = await p.waitForFunction(() => document.querySelector('[data-node="grid"] [data-flow-badge]')?.dataset.status === 'done', null, { timeout: 15000 })
+            .then(() => true, () => false);
+          if (!rerun) fail(where, `the derived kernel ${other} did not run`);
+          const link = await p.getAttribute('[data-flow-inspector] a[href^="#/p/"]', 'href');
+          if (link !== `#/p/${other}`) fail(where, `the inspector links ${link}, not the chosen kernel's plate`);
+        }
+        await p.click('[data-flow-coverage-panel] summary');
+        const levels = await p.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-flow-tally]')]
+          .map((x) => [x.dataset.flowTally, Number(x.textContent.split(': ')[1])])));
+        if (!(levels.derived > 0 && levels.inferred > 0 && levels.declared > 0)) fail(where, `coverage levels ${JSON.stringify(levels)}`);
+        await p.waitForFunction(() => document.querySelectorAll('[data-flow-coverage]').length > 0, null, { timeout: 5000 }).catch(() => {});
+        const listed = await p.evaluate(() => document.querySelectorAll('[data-flow-coverage="inferred"]').length);
+        if (listed !== levels.inferred) fail(where, `${listed} inferred entries listed, the tally says ${levels.inferred}`);
+        await axe(p, `${where} coverage`);
       }
       await context.close();
     }

@@ -69,6 +69,11 @@ plan *args:
 readme *args:
     npm run readme -- "$@"
 
+[group('catalogue')]
+[doc('The typed flow headless: nodes, coverage, check, run, kernel <id> on your data, serve (see scripts/flow.mjs)')]
+flow *args:
+    npm run flow -- "$@"
+
 # ---- site ---------------------------------------------------------------------------------
 
 [group('site')]

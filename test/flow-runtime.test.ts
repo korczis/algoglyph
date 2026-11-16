@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import { check, serialiseGraph, type GraphDoc } from '../src/flow/graph';
 import { registry, Wait, type NodeDef } from '../src/flow/node';
-import { declOf, inferSchema, library, REGISTRY, schemaError, seriesCsv, sortEntries, sortNode } from '../src/flow/nodes';
+import { declOf, inferSchema, library, REGISTRY, schemaError, seriesCsv } from '../src/flow/nodes';
 import { instance, PRESETS } from '../src/flow/presets';
 import { Runtime, type Execution } from '../src/flow/runtime';
 import { FlowStore, type Commit } from '../src/flow/store';
@@ -173,11 +173,12 @@ describe('incremental, cancellable execution', () => {
 
 describe('nodes against independent references', () => {
   it('every sorting kernel the catalogue lists sorts like Float64Array.prototype.sort', async () => {
-    const choices = sortEntries();
+    const node = REGISTRY.get('sort')!;
+    // the kernels are the catalogue's, derived by the array adapter (src/flow/derive.ts)
+    const choices = node.origin!.entries.map((id) => ({ id }));
     expect(choices.length).toBeGreaterThan(0);
     const keys = Float64Array.from({ length: 48 }, (_, i) => 1 + ((i * 37) % 48));
     const want = Array.from(keys.slice().sort());
-    const node = sortNode();
     for (const e of choices) {
       const r = await node.run({
         nodeId: 's', params: { kernel: e.id }, state: undefined, seed: 1, signal: new AbortController().signal,
@@ -201,7 +202,7 @@ describe('nodes against independent references', () => {
   });
 
   it('a non-comparison kernel refuses keys that are not non-negative integers', async () => {
-    const r = sortNode().run({
+    const r = REGISTRY.get('sort')!.run({
       nodeId: 's', params: { kernel: 'lsd-radix-sort' }, state: undefined, seed: 1, signal: new AbortController().signal,
       inputs: { in: { kind: 'series', values: Float64Array.of(0.5, 0.25), unit: '1', index: { unit: '1', start: 0, step: 1 }, label: 'k' } },
     });

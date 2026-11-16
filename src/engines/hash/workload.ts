@@ -19,6 +19,13 @@ const RUN = 16;
 export const ADVERSARIAL_BITS = 6;
 
 /**
+ * What a hash plate opens with: keys inserted (and the slider's range), the load factor a
+ * fixed-size table is filled to, keys per page and the share deleted at the end. The plate's
+ * controls and the flow's hash node read these; neither copies them.
+ */
+export const PLATE = { n: 96, nMin: 8, nMax: 512, load: 75, page: 4, deletes: 50 } as const;
+
+/**
  * The control every hash plate shares, so they stay in step: the adversarial keys' h1 values
  * share their leading b bits, a band of 2^(32 − b) hash values. Past 6 the chained table at its
  * top load crowds every key into one chain and extendible hashing meets its depth cap; the range

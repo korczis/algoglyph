@@ -3,7 +3,7 @@
 // lists, the FFT is the signal kernels' shared radix-2 transform, the fit is the least-squares
 // plate's Householder QR, a table is read by the shared validator of src/core/data.ts. Nothing
 // here re-implements an algorithm a plate already has; the nodes adapt inputs and outputs.
-import { ENTRIES, entry, type Entry } from '../core/catalogue';
+import { ENTRIES, type Entry } from '../core/catalogue';
 import { parseData, type DataDecl } from '../core/data';
 import type { ParamDef, Params } from '../core/plate';
 import { mulberry32 } from '../core/random';
@@ -11,6 +11,8 @@ import { input, SHAPE_LABELS, SHAPES, trace, type ArrayKernel, type Shape } from
 import { lstsq, polyval, vandermonde } from '../kernels/numeric/_linalg';
 import { fft, nextPow2 } from '../kernels/signal/_fft';
 import { kernelLoader } from '../registry';
+import { deriveNodes, type Adapter, type KernelLoad } from './derive';
+import { geometryAdapter, gridAdapter, graphAdapter, hashAdapter, numericAdapter, signalAdapter, stochasticAdapter, stringAdapter, systemsAdapter, treeAdapter } from './adapters';
 import { registry, Wait, type AnyNodeDef, type NodeDef, type Registry } from './node';
 import type { PointsValue, PortType, RecordValue, SeriesValue, TableValue, Unit } from './types';
 
@@ -250,21 +252,67 @@ const normalize: NodeDef = {
   },
 };
 
-/** Live array-engine entries that sort (selection kernels place one key and are left out). */
-export function sortEntries(entries: readonly Entry[] = ENTRIES): Entry[] {
-  return entries.filter((e) => e.engine === 'array' && e.status === 'live' && !e.taxonomy.startsWith('sorting/selection'))
-    .sort((a, b) => a.title.localeCompare(b.title));
-}
+/** Selection kernels place one key; the sort node's sorted output would misstate them. */
+const SELECTION = 'sorting/selection';
 
-type KernelLoad = (id: string) => Promise<ArrayKernel>;
-const loadKernel: KernelLoad = async (id) => {
-  const e = entry(id);
-  if (!e) throw new Error(`no catalogue entry ${id}`);
-  return (await kernelLoader(e)()) as ArrayKernel;
+const loadKernel: KernelLoad = (e) => kernelLoader(e)();
+
+/**
+ * The array engine's adapter: every live array kernel that sorts is a choice of the sort node,
+ * derived from the catalogue (RFC §5); a selection kernel is refused with its reason.
+ */
+export const arrayAdapter: Adapter = {
+  engine: 'array', type: 'sort',
+  signature: 'keys (series) in; sorted keys by rank (series) and the trace\'s counts (record) out',
+  refuse: (e) => (e.taxonomy.startsWith(SELECTION) ? 'a selection kernel places one key, not a sorted series' : null),
+  node: (es, load) => sortNode(es, load),
 };
 
-/** The sort node over the given kernels; the default is every sorting kernel the catalogue lists. */
-export function sortNode(choices: Entry[] = sortEntries(), load: KernelLoad = loadKernel): NodeDef {
+/** The array engine's second adapter: the selection kernels, which place the k-th smallest key. */
+export const selectAdapter: Adapter = {
+  engine: 'array', type: 'select',
+  signature: 'keys (series) and a rank k in; the k-th smallest key and the trace\'s counts (record) out',
+  refuse: (e) => (e.taxonomy.startsWith(SELECTION) ? null : 'a sorting kernel orders every key; the select node runs only kernels that place one'),
+  node: (es, load): NodeDef => ({
+    type: 'select', title: 'Select the k-th smallest', category: 'processor',
+    summary: 'Any selection kernel of the collection, run by the array engine\'s instrumented trace: the k-th smallest key, every compare and write counted.',
+    params: [
+      { kind: 'select', key: 'kernel', label: 'Kernel', value: es[0]?.id ?? '', options: es.map((e) => ({ value: e.id, label: e.title })) },
+      range('rank', 'Rank k (1 = smallest)', 1, 1024, 1, 1),
+    ],
+    inputs: [{ id: 'in', label: 'Keys', type: { kind: 'series', unit: '$U', index: '$I' }, required: true }],
+    outputs: [{ id: 'selected', label: 'Selected', type: { kind: 'record' } }],
+    run: async ({ params, inputs }) => {
+      const id = String(params.kernel);
+      const e = es.find((x) => x.id === id);
+      if (!e) throw new Error(`${id} is not a selection kernel of the catalogue`);
+      const s = inputs.in as SeriesValue;
+      const keys = Array.from(s.values);
+      const rank = n(params, 'rank');
+      if (rank > keys.length) throw new Error(`rank ${rank} is past the ${keys.length} keys`);
+      const k = (await load(e)) as ArrayKernel;
+      if (k.goal !== 'select') throw new Error(`${e.title} sorts; it does not select`);
+      if (k.maxN !== undefined && keys.length > k.maxN) throw new Error(`${e.title} plays at most ${k.maxN} keys, these are ${keys.length}`);
+      const t = trace(k, keys, rank - 1);
+      if (t.truncated) throw new Error(`${e.title}: the run reached the trace's event cap`);
+      return {
+        selected: {
+          kind: 'record',
+          rows: [
+            { label: 'Rank k', value: rank, unit: '1' },
+            { label: 'Selected key', value: t.output[rank - 1], unit: s.unit },
+            { label: 'Compares', value: t.counts.compares, unit: '1' },
+            { label: 'Writes', value: t.counts.writes, unit: '1' },
+            { label: 'Swaps', value: t.counts.swaps, unit: '1' },
+          ],
+        },
+      };
+    },
+  }),
+};
+
+/** The sort node over the given kernels (the array adapter derives them from the catalogue). */
+export function sortNode(choices: readonly Entry[], load: KernelLoad = loadKernel): NodeDef {
   const first = choices.find((e) => e.id === 'quicksort') ?? choices[0];
   return {
     type: 'sort', title: 'Sort', category: 'processor',
@@ -285,7 +333,7 @@ export function sortNode(choices: Entry[] = sortEntries(), load: KernelLoad = lo
       if (e.tags.includes('non-comparison') && !keys.every((v) => Number.isInteger(v) && v >= 0)) {
         throw new Error(`${e.title} sorts non-negative integer keys; these are not (normalize them first, or pick a comparison sort)`);
       }
-      const k = await load(id);
+      const k = (await load(e)) as ArrayKernel;
       if (k.goal === 'select') throw new Error(`${e.title} selects one key, it does not sort`);
       if (k.maxN !== undefined && keys.length > k.maxN) throw new Error(`${e.title} plays at most ${k.maxN} keys, these are ${keys.length}`);
       const t = trace(k, keys);
@@ -446,8 +494,16 @@ export function seriesCsv(s: SeriesValue): string {
   return `${lines.join('\n')}\n`;
 }
 
-export function library(sort: NodeDef = sortNode()): AnyNodeDef[] {
-  return [keys, signal, csv, points, column, normalize, sort, spectrum, stats, fit, chart, scatter, readout, exporter];
+/** Nodes written here; each that runs a catalogue entry names it (`entry`). */
+export const DECLARED: AnyNodeDef[] = [keys, signal, csv, points, column, normalize, spectrum, stats, fit, chart, scatter, readout, exporter];
+
+/** One adapter per engine whose kernels the flow can run; every other engine's entries are inferred. */
+export const ADAPTERS: Adapter[] = [arrayAdapter, selectAdapter, gridAdapter, graphAdapter, treeAdapter, stringAdapter, hashAdapter, signalAdapter, stochasticAdapter, numericAdapter, systemsAdapter, geometryAdapter];
+
+/** Declared nodes and the family nodes derived from the catalogue, in palette order. */
+export function library(adapters: readonly Adapter[] = ADAPTERS, entries: readonly Entry[] = ENTRIES, load: KernelLoad = loadKernel): AnyNodeDef[] {
+  const derived = deriveNodes(adapters, load, entries);
+  return [...DECLARED.slice(0, 6), ...derived, ...DECLARED.slice(6)];
 }
 
 export const REGISTRY: Registry = registry(library());

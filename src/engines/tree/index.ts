@@ -7,7 +7,7 @@ import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, str, type ParamDef, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import type { Engine, KernelInfo } from '../types';
 import { drawArray, drawOutputs, drawScene, Motion, Replay, shape, type Box } from './scene';
-import { costOf, MAX_SYMBOLS, NIL, opGroups, SHAPES, trace, workload, type InputKind, type OpKind, type Trace,
+import { costOf, NIL, opGroups, SHAPES, SIZE, trace, workload, type InputKind, type OpKind, type Trace,
   type TreeKernel } from './trace';
 import { count } from '../../core/format';
 import { downFrom, fitSize, HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
@@ -19,13 +19,6 @@ const LAB_MAX_N = 128;
 const fmt = count;
 const fix2 = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : '?');
 
-const SIZE: Record<InputKind, { min: number; max: number; value: number; label: string }> = {
-  keys: { min: 2, max: 255, value: 31, label: 'Keys' },
-  bits: { min: 2, max: 255, value: 24, label: 'Keys' },
-  words: { min: 2, max: 120, value: 20, label: 'Words' },
-  pairs: { min: 2, max: 200, value: 24, label: 'Sites' },
-  weights: { min: 2, max: MAX_SYMBOLS, value: 14, label: 'Symbols' },
-};
 
 function baseParams(kind: InputKind, extra: ParamDef[] = [], n?: number): ParamDef[] {
   const sz = SIZE[kind];
