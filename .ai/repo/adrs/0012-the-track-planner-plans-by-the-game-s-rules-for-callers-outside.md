@@ -75,3 +75,21 @@ the fork exports the map as layers (`openttd://map` heights, types and owners,
 - A per-tile layer the fork does not export yet (foundations already built, occupancy by
   vehicles, bridge and tunnel extents) arrives through the same form as an added field, its
   reading derived here.
+
+## Owner confirmation
+
+The owner, in session 823ff4b3-9e36-4df2-8d64-581f79040afd on 2026-11-16 at 20:25 CET, answered two
+questions, recorded verbatim (a peer session's label is replaced by its role):
+
+- Q: "The integrator ([the integrator session]) is holding my planner branches until you confirm
+  them: flow-solve, track-planning (bridges, tunnels, curves), human-pointing, openttd-map-input
+  (per-tile meta), action-plan (the repay-50k-as-5-presses DAG), transport-investment (multimodal
+  ROI), exact-prices. 22 commits on top of main, all pushed, and the OpenTTD sessions already use
+  them live. Should they land on main and deploy?" A: "Land all of them (Recommended)".
+- Q: "algoglyph's last Pages deploy (b3dee95, with the flow editor and flow CLI) failed in CI's
+  browser gate: the step ended after 25 min with no result and no log, which looks like a lost
+  runner. The same gate passes locally (399 plates, #/flow, both themes). Should I re-run that Pages
+  workflow now, or leave it to the integrator session?" A: "Re-run it now (Recommended)".
+
+The stack lands through the integrator after hosted x86 CI, as every branch does; the confirmation
+releases the hold, it does not skip a gate.
