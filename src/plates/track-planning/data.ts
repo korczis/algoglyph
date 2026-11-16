@@ -88,6 +88,14 @@ function fromGame(raw: Record<string, unknown>): Record<string, unknown> | strin
     const types = bridges === undefined ? undefined : record(bridges) && Array.isArray(bridges.types) ? bridges.types.filter((b): b is Record<string, unknown> => record(b) && b.available !== false && finite(b.price) && finite(b.min_length) && finite(b.max_length)) : null;
     if (types === null) return 'bridges must be openttd://bridges\' data ({types: [{price, min_length, max_length, available}]})';
     out.priced = { unit: 'build_rail', build_rail: rail, derived: Object.keys(derived), prices: pr, ...(types ? { bridge_types: types } : {}) };
+    // the game's own span limits (openttd://bridges max_bridge_length, max_tunnel_length) set the
+    // planner's, unless the caller's rules say otherwise
+    if (types && record(bridges)) {
+      const lim: Record<string, unknown> = {};
+      if (integer(bridges.max_bridge_length) && bridges.max_bridge_length >= 0) lim.maxBridge = Math.min(bridges.max_bridge_length, 4096);
+      if (integer(bridges.max_tunnel_length) && bridges.max_tunnel_length >= 0) lim.maxTunnel = Math.min(bridges.max_tunnel_length, 4096);
+      out.rules = { ...lim, ...(record(rest.rules) ? rest.rules : {}) };
+    }
   }
   return out;
 }

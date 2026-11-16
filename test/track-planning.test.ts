@@ -413,6 +413,11 @@ describe('track planning: the data form reads the research export as it comes', 
     // no type spans the river: no bridge can be built, so there is no route
     expect(data.solve({ map, prices, bridges: { types: [{ type: 0, price: 128, min_length: 9, max_length: 10, available: true }] }, from: river.from, to: river.to })).toMatchObject({ status: 'unreachable' });
     expect(data.solve({ map, prices, bridges: { kinds: [] }, from: river.from, to: river.to })).toMatch(/bridges must be/);
+    // the game's span limits become the planner's: a game that allows no bridge over 1 tile leaves no route
+    const short = data.solve({ map, prices, bridges: { types, max_bridge_length: 1, max_tunnel_length: 64 }, from: river.from, to: river.to }) as { status: string; rules: { maxBridge: number; maxTunnel: number } };
+    expect(short.rules).toMatchObject({ maxBridge: 1, maxTunnel: 64 });
+    expect(short.status).toBe('unreachable');
+    expect((data.solve({ map, prices, bridges: { types, max_bridge_length: 1 }, rules: { maxBridge: 8 }, from: river.from, to: river.to }) as { rules: { maxBridge: number } }).rules.maxBridge).toBe(8);
     // an electrified rail type (multiplier 12) makes every track tile cost 300, not 200
     const elec = data.solve({ map, prices, railtype: { cost_multiplier: 12 }, from: river.from, to: river.to }) as { priced: { build_rail: number } };
     expect(elec.priced.build_rail).toBe(300);
