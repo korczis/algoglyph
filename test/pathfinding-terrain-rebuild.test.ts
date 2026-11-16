@@ -6,7 +6,7 @@
 //   1. No frame past the end of a run expands more than BUILD_UNITS cells for the next map, at the
 //      budget gate's corner (every range at its maximum, cell at its minimum, 1440 px).
 //   2. The default run is unchanged: its draw calls and readouts, frame by frame across two new
-//      maps, equal those of the plate as it was (test/support/pathfinding-terrain-before.ts), both
+//      maps at 800 px and one at 1440 px, equal those of the plate as it was (test/support/pathfinding-terrain-before.ts), both
 //      run here, in this run.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PACING } from '../src/core/pace';
@@ -62,37 +62,50 @@ describe('pathfinding-terrain: the next map is built over frames', () => {
     expect(building).toBeGreaterThan(2);
   });
 
+  // How many new maps each width runs through: at 1440 px the default run needs 27,078 frames for
+  // two maps, about 3.4 ms of drawing a frame for each plate (180 s, over the 120 s test limit on
+  // the self-hosted runner, Pages run 43748620021); one map there still crosses the over-frames
+  // build, and 800 px keeps the full two.
+  const MAPS: Record<number, number> = { 800: 2, 1440: 1 };
   for (const width of [800, 1440]) {
     it(`draws and reads out the default run at ${width} px exactly as the plate did before`, () => {
-      const run = (plate: PlateCode) => {
+      // both plates step in lockstep and each frame is compared as it is drawn, so no frame is kept
+      let sink: string[] = [];
+      // the map's pixels, as each blit hands them over: an integer fold of the bytes, compared
+      // with the other plate's in this run and never recorded
+      vi.spyOn(Raster.prototype, 'blit').mockImplementation(function blit(this: Raster, _p, smooth, x, y, w, h) {
+        let fold = 0;
+        for (let i = 0; i < this.data.length; i++) fold = (Math.imul(fold, 31) + this.data[i]) | 0;
+        sink.push(`blit(${this.w}x${this.h},${smooth},${x},${y},${w},${h},${fold})`);
+      });
+      const mount = (plate: PlateCode) => {
         const { p, calls } = drawRecorder();
-        // the map's pixels, as each blit hands them over: an integer fold of the bytes, compared
-        // with the other plate's in this run and never recorded
-        vi.spyOn(Raster.prototype, 'blit').mockImplementation(function blit(this: Raster, _p, smooth, x, y, w, h) {
-          let fold = 0;
-          for (let i = 0; i < this.data.length; i++) fold = (Math.imul(fold, 31) + this.data[i]) | 0;
-          calls.push(`blit(${this.w}x${this.h},${smooth},${x},${y},${w},${h},${fold})`);
-        });
-        const frames: string[] = [];
-        let rows: Stat[] = [];
-        const sim = plate.create(p, context(plate, defaults(plate), width, (r) => { rows = r; }));
-        sim.setup();
-        let maps = 0;
-        for (let f = 0; f < 40000 && maps < 2; f++) {
-          const ended = sim.pace!().done;
-          sim.draw();
-          if (ended && !sim.pace!().done) maps++;
-          frames.push(`${calls.join('\n')}\n${JSON.stringify(rows)}`);
-          calls.length = 0;
-        }
-        vi.restoreAllMocks();
-        return { frames, maps };
+        const run = { calls, rows: [] as Stat[], maps: 0, sim: undefined as unknown as ReturnType<PlateCode['create']> };
+        run.sim = plate.create(p, context(plate, defaults(plate), width, (r) => { run.rows = r; }));
+        run.sim.setup();
+        return run;
       };
-      const before = run(pathfindingBefore);
-      const now = run(pathfinding);
-      expect(before.maps, 'new maps in the default run').toBe(2);
-      expect(now.frames.length).toBe(before.frames.length);
-      for (let f = 0; f < before.frames.length; f++) expect(now.frames[f], `frame ${f}`).toBe(before.frames[f]);
+      const frame = (run: ReturnType<typeof mount>) => {
+        sink = run.calls;
+        const ended = run.sim.pace!().done;
+        run.sim.draw();
+        if (ended && !run.sim.pace!().done) run.maps++;
+        const out = `${run.calls.join('\n')}\n${JSON.stringify(run.rows)}`;
+        run.calls.length = 0;
+        return out;
+      };
+      const before = mount(pathfindingBefore);
+      const now = mount(pathfinding);
+      let f = 0;
+      for (; f < 40000 && before.maps < MAPS[width]; f++) {
+        const a = frame(before);
+        const b = frame(now);
+        if (a !== b) expect(b, `frame ${f}`).toBe(a);
+        if (now.maps !== before.maps) expect(now.maps, `new maps by frame ${f}`).toBe(before.maps);
+      }
+      expect(before.maps, 'new maps in the default run').toBe(MAPS[width]);
+      // the old plate finished its last map on this frame; the new one must not need more
+      expect(now.maps, `new maps after ${f} frames`).toBe(MAPS[width]);
     });
   }
 });

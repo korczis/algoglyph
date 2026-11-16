@@ -51,6 +51,72 @@ sources:
     year: 1971
     kind: paper
     url: https://doi.org/10.1287/mnsc.17.11.712
+  - id: brin-page-1998
+    title: 'The anatomy of a large-scale hypertextual Web search engine (Computer Networks and ISDN Systems 30(1–7), 107–117)'
+    author: S. Brin, L. Page
+    year: 1998
+    kind: paper
+    url: https://doi.org/10.1016/S0169-7552(98)00110-X
+  - id: brandes-2001
+    title: 'A faster algorithm for betweenness centrality (The Journal of Mathematical Sociology 25(2), 163–177)'
+    author: U. Brandes
+    year: 2001
+    kind: paper
+    url: https://doi.org/10.1080/0022250X.2001.9990249
+  - id: raghavan-albert-kumara-2007
+    title: 'Near linear time algorithm to detect community structures in large-scale networks (Physical Review E 76(3), 036106)'
+    author: U. N. Raghavan, R. Albert, S. Kumara
+    year: 2007
+    kind: paper
+    url: https://doi.org/10.1103/PhysRevE.76.036106
+  - id: blondel-2008-louvain
+    title: 'Fast unfolding of communities in large networks (Journal of Statistical Mechanics 2008(10), P10008)'
+    author: V. D. Blondel, J.-L. Guillaume, R. Lambiotte, E. Lefebvre
+    year: 2008
+    kind: paper
+    url: https://doi.org/10.1088/1742-5468/2008/10/P10008
+  - id: traag-waltman-van-eck-2019
+    title: 'From Louvain to Leiden: guaranteeing well-connected communities (Scientific Reports 9, 5233)'
+    author: V. A. Traag, L. Waltman, N. J. van Eck
+    year: 2019
+    kind: paper
+    url: https://doi.org/10.1038/s41598-019-41695-z
+  - id: tarjan-1972-dfs
+    title: 'Depth-First Search and Linear Graph Algorithms (SIAM Journal on Computing 1(2), 146–160)'
+    author: R. Tarjan
+    year: 1972
+    kind: paper
+    url: https://doi.org/10.1137/0201010
+  - id: hierholzer-wiener-1873
+    title: 'Ueber die Möglichkeit, einen Linienzug ohne Wiederholung und ohne Unterbrechung zu umfahren (Mathematische Annalen 6(1), 30–32)'
+    author: C. Hierholzer, C. Wiener
+    year: 1873
+    kind: paper
+    url: https://doi.org/10.1007/BF01442866
+  - id: jacomy-2014-forceatlas2
+    title: 'ForceAtlas2, a Continuous Graph Layout Algorithm for Handy Network Visualization Designed for the Gephi Software (PLoS ONE 9(6), e98679)'
+    author: M. Jacomy, T. Venturini, S. Heymann, M. Bastian
+    year: 2014
+    kind: paper
+    url: https://doi.org/10.1371/journal.pone.0098679
+  - id: sugiyama-tagawa-toda-1981
+    title: 'Methods for Visual Understanding of Hierarchical System Structures (IEEE Transactions on Systems, Man, and Cybernetics 11(2), 109–125)'
+    author: K. Sugiyama, S. Tagawa, M. Toda
+    year: 1981
+    kind: paper
+    url: https://doi.org/10.1109/TSMC.1981.4308636
+  - id: fruchterman-reingold-1991
+    title: 'Graph drawing by force-directed placement (Software: Practice and Experience 21(11), 1129–1164)'
+    author: T. Fruchterman, E. Reingold
+    year: 1991
+    kind: paper
+    url: https://doi.org/10.1002/spe.4380211102
+  - id: gonzalez-2010-fibonacci-lattice
+    title: 'Measurement of Areas on a Sphere Using Fibonacci and Latitude–Longitude Lattices (Mathematical Geosciences 42(1), 49–64)'
+    author: Á. González
+    year: 2010
+    kind: paper
+    url: https://doi.org/10.1007/s11004-009-9257-x
   - id: shinbrot-1992-double-pendulum
     title: 'Chaos in a double pendulum (American Journal of Physics 60(6), 491–499)'
     author: T. Shinbrot, C. Grebogi, J. Wisdom, J. A. Yorke
@@ -1458,3 +1524,45 @@ sources:
     year: 2003
     kind: paper
     url: https://doi.org/10.1070/RD2003v008n04ABEH000252
+  - id: gerlach-stern-1922
+    title: Der experimentelle Nachweis der Richtungsquantelung im Magnetfeld (Zeitschrift für Physik 9, 349)
+    author: Walther Gerlach, Otto Stern
+    year: 1922
+    kind: paper
+    url: https://doi.org/10.1007/BF01326983
+  - id: wigner-1931
+    title: Gruppentheorie und ihre Anwendung auf die Quantenmechanik der Atomspektren
+    author: Eugene P. Wigner
+    publisher: Vieweg
+    year: 1931
+    kind: book
+  - id: breit-rabi-1931
+    title: Measurement of Nuclear Spin (Physical Review 38, 2082)
+    author: G. Breit, I. I. Rabi
+    year: 1931
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.38.2082.2
+  - id: racah-1942
+    title: Theory of Complex Spectra. II (Physical Review 62, 438)
+    author: Giulio Racah
+    year: 1942
+    kind: paper
+    url: https://doi.org/10.1103/PhysRev.62.438
+  - id: condon-shortley-1935
+    title: The Theory of Atomic Spectra
+    author: E. U. Condon, G. H. Shortley
+    publisher: Cambridge University Press
+    year: 1935
+    kind: book
+  - id: ashcroft-mermin-1976
+    title: Solid State Physics
+    author: Neil W. Ashcroft, N. David Mermin
+    publisher: Holt, Rinehart and Winston
+    year: 1976
+    kind: book
+  - id: crank-nicolson-1947
+    title: A Practical Method for Numerical Evaluation of Solutions of Partial Differential Equations of the Heat-Conduction Type (Mathematical Proceedings of the Cambridge Philosophical Society 43, 50)
+    author: John Crank, Phyllis Nicolson
+    year: 1947
+    kind: paper
+    url: https://doi.org/10.1017/S0305004100023197

@@ -9,8 +9,12 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error -- plain ESM shared with the node tooling
 import { loadCatalogue } from '../scripts/lib/catalogue.mjs';
-import { trace, type StochasticKernel } from '../src/engines/stochastic/trace';
-import { kernel, type DriftResult } from '../src/kernels/stochastic/drift-divergence';
+import { mulberry32 } from '../src/core/random';
+import { Sampler } from '../src/engines/stochastic/sample';
+import { histogram, trace, type StochasticKernel } from '../src/engines/stochastic/trace';
+import {
+  kernel, kl as kernelKl, proportions, psi as kernelPsi, type DriftResult,
+} from '../src/kernels/stochastic/drift-divergence';
 import { nthNumber, read, type Claim } from './support/claims';
 import { installBrowserStubs } from './support/p5-stub';
 
@@ -94,7 +98,25 @@ describe('drift-divergence: the claims\' margins', () => {
 
   it('with no drift PSI and KL sit near 2χ²/n and χ²/n, far below the claims\' bounds', () => {
     const n = 2000;
-    const runs = SD_SEEDS.map((s) => trace(k, { drift: 0, widen: 0 }, s).result!.steps[80]);
+    // With no drift and no widening every step's window is drawn from the reference distribution,
+    // so the plate's step 80 is one null window against the reference: the same comparison is drawn
+    // here once per seed with the kernel's own histogram, proportions, PSI and KL. All 81 steps of
+    // 400 full runs took 174 s on the self-hosted runner (Pages run 43784659650), for step 80 alone.
+    const nullWindow = (seed: number) => {
+      const smp = new Sampler(mulberry32(seed));
+      const ref = Array.from({ length: n }, () => smp.normal());
+      const cur = Array.from({ length: n }, () => smp.normal());
+      const p = proportions(histogram(ref, LO, HI, BINS));
+      const q = proportions(histogram(cur, LO, HI, BINS));
+      return { psi: kernelPsi(p, q), kl: kernelKl(q, p) };
+    };
+    const runs = SD_SEEDS.map(nullWindow);
+    // and the plate itself on a subsample of the seeds: its step 80 within the same bounds
+    for (const s of SD_SEEDS.slice(0, 20)) {
+      const r = trace(k, { drift: 0, widen: 0 }, s).result!.steps[80];
+      expect(r.psi, `plate psi at seed ${s}`).toBeLessThan(claimById('no-drift-psi-is-small')!.expect.below as number);
+      expect(r.kl, `plate kl at seed ${s}`).toBeLessThan(claimById('no-drift-kl-is-small')!.expect.below as number);
+    }
     const [psiMean] = meanSd(runs.map((r) => r.psi));
     const [klMean] = meanSd(runs.map((r) => r.kl));
     // at most k − 1 = 21 degrees of freedom: E PSI ≤ 2·21/n, E KL ≤ 21/n

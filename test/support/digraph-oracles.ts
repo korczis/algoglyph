@@ -4,11 +4,11 @@
 // plates run. And the settled readouts of a plate, as test/support/claims.ts runs it.
 import { expect } from 'vitest';
 import { GROUNDS, palette as lookupPalette } from '../../src/core/palette';
-import { defaults, type Params, type PlateContext, type Stat } from '../../src/core/plate';
+import { defaults, type Params, type Plate, type PlateContext, type Stat } from '../../src/core/plate';
 import { DEFAULT_SEED } from '../../src/core/claims';
 import { mulberry32 } from '../../src/core/random';
 import { makeGraph, type Graph, type Shape } from '../../src/engines/graph/graph';
-import { graphInput } from '../../src/engines/graph';
+import { engine as graphEngine, graphInput } from '../../src/engines/graph';
 import { defaultParams, type GraphKernel } from '../../src/engines/graph/trace';
 // @ts-expect-error -- plain ESM shared with the node tooling
 import { loadCatalogue } from '../../scripts/lib/catalogue.mjs';
@@ -50,6 +50,21 @@ export function mutualClasses(g: Graph): number[] {
 export async function settledRows(id: string, set: Params, seed: number): Promise<Stat[]> {
   const plate = await loadPlate(id);
   if (!plate) throw new Error(`${id} has no plate`);
+  return settledRowsOf(plate, set, seed);
+}
+
+/** The settled rows of `id`'s live plate, its controls and entry, run on `kernel` in place of its
+ * own: a readout's base kernel, so a test compares within one run the rows a new readout keeps. */
+export async function settledRowsWith(id: string, kernel: GraphKernel, set: Params,
+  seed: number): Promise<Stat[]> {
+  const live = await loadPlate(id);
+  if (!live) throw new Error(`${id} has no plate`);
+  const code = graphEngine.plate({ id, title: live.title, group: '' }, kernel);
+  return settledRowsOf({ ...live, create: code.create }, set, seed);
+}
+
+function settledRowsOf(plate: Plate, set: Params, seed: number): Stat[] {
+  const id = plate.id;
   const params: Params = { ...defaults(plate), loop: false, ...set };
   const pace = plate.params.find((d) => d.key === 'pace');
   if (pace?.kind === 'range') params.pace = pace.max;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  advance, C2 as MODULE_C2, drop, tank, type Experiment, type Tank,
+  advance, C2 as MODULE_C2, drop, omega, SPONGE as MODULE_SPONGE, tank, type Experiment, type Tank,
 } from '../src/plates/ripple-tank/wave';
 import {
   CELL_STEPS_PER_FRAME as PLATE_CELL_STEPS, MAX_CELLS as PLATE_MAX_CELLS,
@@ -379,22 +379,56 @@ describe('ripple-tank: the wave equation integrated', () => {
     });
   }
 
+  // The run is as long as the physics needs and no longer. The plane wave leaves the driven
+  // column (x = 2) and crosses to the barrier at the stencil's group speed along x, the slowest
+  // direction; the slits' waves then reach every point of the arc read below. Part of the wave
+  // is reflected by the barrier, again by the driven column, and comes back through the slits
+  // one round trip later, changing their amplitude: the average is taken in between, over a
+  // whole number of half periods (the sum of cos 2ωt over them all but vanishes), ending one
+  // drive period before that second wave can reach the arc. The tank is just wide enough to keep
+  // two wavelengths between the arc and the right sponge; a shorter tank (340 rows) brings the
+  // top and bottom sponges near the outer orders and moves them, so its height stays.
   it("the double slit's time-averaged intensity peaks where sin θ = mλ/d", () => {
     const lambda = 10;
     const d = 40;
     const R = 220;
-    const w = 520;
+    const w = 380;
     const h = 420;
     const t = tank(w, h, 'double', d);
-    for (let s = 0; s < 1400; s++) advance(t, lambda);
-    // the time average of u² over about thirty drive periods, taken here
+    const ox = t.barrierX + 1.5;
+    const oy = Math.floor(h / 2);
+    const widest = 35; // the outer orders' search reaches asin(2λ/d) + 5°
+    expect(w - MODULE_SPONGE - (ox + R), 'clear of the right sponge').toBeGreaterThanOrEqual(2 * lambda);
+    expect(oy - R * Math.sin((widest * Math.PI) / 180) - MODULE_SPONGE, 'clear of the top and bottom sponges')
+      .toBeGreaterThanOrEqual(2 * lambda);
+    const c = Math.sqrt(MODULE_C2);
+    const om = omega(lambda);
+    const k = 2 * Math.asin(Math.sin(om / 2) / c);
+    const group = (c * Math.cos(k / 2)) / Math.cos(om / 2);
+    // nearest and farthest points of the arc from either slit
+    let near = Infinity;
+    let far = 0;
+    for (let deg = -widest; deg <= widest; deg += 0.25) {
+      const th = (deg * Math.PI) / 180;
+      for (const sy of [oy - d / 2, oy + d / 2]) {
+        const r = Math.hypot(R * Math.cos(th), oy + R * Math.sin(th) - sy);
+        near = Math.min(near, r);
+        far = Math.max(far, r);
+      }
+    }
+    const cross = (t.barrierX - 2) / group;
+    const arrived = cross + far / group;
+    const second = 3 * cross + near / group;
+    const period = (2 * Math.PI) / om;
+    const steps = Math.round((20 * Math.PI) / om); // twenty half periods
+    const start = Math.floor(second - steps - period);
+    expect(start, `the first wave reaches the arc at ${arrived.toFixed(0)}`).toBeGreaterThan(arrived + 4 * period);
+    for (let s = 0; s < start; s++) advance(t, lambda);
     const mean = new Float64Array(w * h);
-    for (let s = 0; s < 600; s++) {
+    for (let s = 0; s < steps; s++) {
       advance(t, lambda);
       for (let i = 0; i < mean.length; i++) mean[i] += t.u[i] * t.u[i];
     }
-    const ox = t.barrierX + 1.5;
-    const oy = Math.floor(h / 2);
     const at = (deg: number) => {
       const th = (deg * Math.PI) / 180;
       return bilinear(w, mean, ox + R * Math.cos(th), oy + R * Math.sin(th));

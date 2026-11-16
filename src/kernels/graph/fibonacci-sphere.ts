@@ -1,7 +1,12 @@
 import { other } from '../../engines/graph/graph';
 import type { GraphKernel } from '../../engines/graph/trace';
 
-export interface SphereResult { x: number[]; y: number[]; z: number[]; slot: number[]; meanChord: number }
+export interface SphereResult {
+  x: number[]; y: number[]; z: number[]; slot: number[]; meanChord: number;
+  /** The mean chord over the lattice's pairs of distinct points: the expected mean edge chord
+   * when the vertices take the points in a uniformly random order. */
+  randomChord: number;
+}
 
 /** The i-th of n points of the Fibonacci lattice on the unit sphere. */
 export function fibonacciPoint(i: number, n: number): [number, number, number] {
@@ -14,7 +19,10 @@ export function fibonacciPoint(i: number, n: number): [number, number, number] {
 // Point i sits at height 1 - (2i + 1)/n and turns by the golden angle pi (3 - sqrt 5) from the
 // last: equal heights mean equal areas (Archimedes), and the irrational turn keeps the spiral
 // from lining up. Vertices take the points in breadth-first order from the source, so a
-// vertex's neighbours land on nearby turns of the spiral.
+// vertex's neighbours land on nearby turns of the spiral. The baseline is a random assignment
+// of the vertices to the same points: a uniformly random bijection sends each edge to a uniform
+// pair of distinct points, so its expected edge chord is the lattice's mean pairwise chord. That
+// tends to 4/3, the mean distance between two random points of the sphere, only as n grows.
 export const kernel: GraphKernel<SphereResult> = {
   goal: 'sphere',
   inputs: ['small-world', 'communities', 'geometric', 'grid'],
@@ -55,9 +63,19 @@ export const kernel: GraphKernel<SphereResult> = {
     }
     let sum = 0;
     for (let e = 0; e < g.m; e++) sum += Math.hypot(x[g.eu[e]] - x[g.ev[e]], y[g.eu[e]] - y[g.ev[e]], z[g.eu[e]] - z[g.ev[e]]);
-    return { x, y, z, slot, meanChord: g.m ? sum / g.m : 0 };
+    // every vertex holds one point, so the pairs of vertices are the pairs of points
+    let pairSum = 0;
+    for (let u = 0; u < g.n - 1; u++) {
+      for (let v = u + 1; v < g.n; v++) pairSum += Math.hypot(x[u] - x[v], y[u] - y[v], z[u] - z[v]);
+      yield g.n - 1 - u;
+    }
+    const pairs = (g.n * (g.n - 1)) / 2;
+    return { x, y, z, slot, meanChord: g.m ? sum / g.m : 0, randomChord: pairs ? pairSum / pairs : 0 };
   },
   report(r) {
-    return [{ label: 'Mean edge chord', value: `${r.meanChord.toFixed(3)} (4/3 for random points)` }];
+    return [
+      { label: 'Mean edge chord', value: r.meanChord.toFixed(3) },
+      { label: 'Mean chord of a random assignment', value: r.randomChord.toFixed(3) },
+    ];
   },
 };

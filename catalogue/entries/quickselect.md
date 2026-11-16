@@ -35,7 +35,7 @@ algorithm:
 bounds:
   model: 'comparisons (each partition scans its range against the rightmost key) and array writes (exchanges, two each)'
   best: 'Reversed with k = 0: n comparisons and 2 array writes'
-  average: 'linear (Sedgewick); over Random permutations of 512 keys, seeds 1 to 400, a mean of 1.94n comparisons for k = 0 and 3.31n for the median; on Already sorted Σ (m + 1) over m = max(k + 1, 2)..n comparisons and 2(n − max(k, 1)) array writes'
+  average: 'linear (Sedgewick); over Random permutations of 512 keys, seeds 1–400, a mean of 1.94n comparisons for k = 0 and 3.31n for the median; on Already sorted Σ (m + 1) over m = max(k + 1, 2)..n comparisons and 2(n − max(k, 1)) array writes'
   worst: 'a partition of m keys at most m + 1 comparisons, so at most (n − 1)(n + 4)/2 in all for every k, on Already sorted with k = 0; Reversed with the median comes close, 131,582 against 131,838 at 512 keys'
 claims:
   - id: sorted-input-one-key-per-partition
