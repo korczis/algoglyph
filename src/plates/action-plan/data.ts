@@ -8,7 +8,7 @@ import { schedule, type Action } from './plan';
 export const LIMITS = { actions: 2000, presses: 20_000 };
 
 export const data: DataForm = {
-  input: '{actions: [{id, kind, label?, cost?, income?, loan?, repeat? | amount?+step?, after?: [ids]}], cash, loan?, max_loan?, loan_step? (openttd://companies loan_step: the step of repay/repay_loan/borrow actions that give none)}',
+  input: '{actions: [{id, kind, label?, cost?, income?, loan?, repeat? | amount?+step?, after?: [ids], params?: {the executor\'s arguments, carried onto each step}}], cash, loan?, max_loan?, loan_step? (openttd://companies loan_step: the step of repay/repay_loan/borrow actions that give none)}',
   solve(raw) {
     if (!record(raw)) return 'the input must be an object {actions, cash, loan?, max_loan?}';
     const extra = unknownKeys(raw, ['actions', 'cash', 'loan', 'max_loan', 'loan_step']);
@@ -22,7 +22,8 @@ export const data: DataForm = {
     let total = 0;
     for (const [i, a] of raw.actions.entries()) {
       if (!record(a)) return `actions[${i}] must be an object`;
-      const bad = unknownKeys(a, ['id', 'kind', 'label', 'cost', 'income', 'loan', 'repeat', 'amount', 'step', 'after']);
+      const bad = unknownKeys(a, ['id', 'kind', 'label', 'cost', 'income', 'loan', 'repeat', 'amount', 'step', 'after', 'params']);
+      if (a.params !== undefined && !record(a.params)) return `actions[${i}].params must be an object of the action's arguments`;
       if (bad) return `actions[${i}]: ${bad}`;
       if (typeof a.id !== 'string' || !a.id) return `actions[${i}].id must be a non-empty string`;
       if (typeof a.kind !== 'string' || !a.kind) return `actions[${i}].kind must be a non-empty string`;

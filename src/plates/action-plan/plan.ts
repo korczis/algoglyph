@@ -22,6 +22,8 @@ export interface Action {
   amount?: number;
   step?: number;
   after?: string[];
+  /** The action's own arguments for its executor (town ids, seconds, a site): carried onto every step. */
+  params?: Record<string, unknown>;
 }
 
 export interface Step {
@@ -35,6 +37,8 @@ export interface Step {
   wave: number;
   cash: number;
   loan: number;
+  /** The action's arguments, so an executor needs nothing but the step to carry it out. */
+  params?: Record<string, unknown>;
 }
 
 export interface ActionPlan {
@@ -147,7 +151,7 @@ export function schedule(actions: Action[], lim: Limits): ActionPlan | string {
         if (cash < 0) return `press ${k} of ${a.id} (step ${at}) would leave cash at ${cash}: the plan overdraws`;
         if (lim.maxLoan !== undefined && loan > lim.maxLoan) return `press ${k} of ${a.id} (step ${at}) would borrow beyond the limit ${lim.maxLoan} (loan ${loan})`;
         if (cash < lowest.cash) lowest = { cash, at };
-        steps.push({ n: at, action: a.id, kind: a.kind, press: k, presses: counts[i], wave: w, cash, loan });
+        steps.push({ n: at, action: a.id, kind: a.kind, press: k, presses: counts[i], wave: w, cash, loan, ...(a.params ? { params: a.params } : {}) });
       }
     }
   }

@@ -119,6 +119,11 @@ describe('action-plan: the data form', () => {
     if (typeof filled === 'string') throw new Error(filled);
     expect((filled.steps as { cash: number; loan: number }[]).map((x) => x.loan)).toEqual([40000, 30000, 20000, 10000, 0]);
     expect(data.solve({ actions: [{ id: 'a', kind: 'x' }], cash: 0, loan_step: 0 })).toMatch(/loan_step/);
+    // an action's own arguments ride on every one of its steps, for the executor
+    const withArgs = data.solve({ actions: [{ id: 'serve', kind: 'serve_towns', params: { a: 3, b: 7 } }, { id: 'look', kind: 'watch', repeat: 2, params: { seconds: 20 }, after: ['serve'] }], cash: 0 });
+    if (typeof withArgs === 'string') throw new Error(withArgs);
+    expect((withArgs.steps as { kind: string; params?: unknown }[]).map((x) => [x.kind, x.params])).toEqual([['serve_towns', { a: 3, b: 7 }], ['watch', { seconds: 20 }], ['watch', { seconds: 20 }]]);
+    expect(data.solve({ actions: [{ id: 'a', kind: 'x', params: 3 }], cash: 0 })).toMatch(/params must be an object/);
     expect(data.solve({ actions: [], cash: 0 })).toMatch(/actions must list/);
     expect(data.solve({ actions: [{ id: 'a' }], cash: 0 })).toMatch(/actions\[0\].kind/);
     expect(data.solve({ actions: [{ id: 'a', kind: 'x', repeat: 2, amount: 4 }], cash: 0 })).toMatch(/repeat or amount/);
