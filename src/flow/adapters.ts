@@ -8,6 +8,8 @@ import type { ParamDef, Params } from '../core/plate';
 import { makeGraph } from '../engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type Counts, type GraphKernel } from '../engines/graph/trace';
 import { run as gridRun, type GridKernel } from '../engines/grid/trace';
+import { trace as stochasticTrace, type StochasticKernel } from '../engines/stochastic/trace';
+import { Meter as SignalMeter, type SignalKernel, type View as SignalView } from '../engines/signal/trace';
 import { trace as hashTrace, type Counts as HashCounts, type HashKernel } from '../engines/hash/table';
 import { PLATE as HASH_PLATE, workload as hashWorkload } from '../engines/hash/workload';
 import { input as stringInput, KINDS as STRING_KINDS } from '../engines/string/inputs';
@@ -15,7 +17,7 @@ import { trace as stringTrace, type StringKernel } from '../engines/string/trace
 import { SHAPES as TREE_SHAPES, SIZE as TREE_SIZE, trace as treeTrace, workload, type Counts as TreeCounts, type TreeKernel } from '../engines/tree/trace';
 import type { Adapter, KernelLoad } from './derive';
 import type { NodeDef } from './node';
-import type { RecordValue, SeriesValue } from './types';
+import type { PointsValue, RecordValue, SeriesValue } from './types';
 
 /** The size a seeded instance is built at: the kernel's smallest, or the size its plate opens at. */
 const SIZE: ParamDef = {
@@ -186,6 +188,64 @@ export const hashAdapter: Adapter = {
       const rows: [string, number][] = [['Keys inserted', n]];
       for (const [key, label] of HASH_LABELS) if (t.counts[key] > 0) rows.push([label, t.counts[key]]);
       return { counts: record(rows) };
+    },
+  }),
+};
+
+/** The signal engine: the kernel's run on its own seeded signal, at its parameters' defaults, counted. */
+export const signalAdapter: Adapter = {
+  engine: 'signal', type: 'dsp',
+  signature: 'seeded signal in; the counts the kernel\'s meter recorded over its whole run (record) out',
+  refuse: () => null,
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'dsp', title: 'Signal processing kernel', category: 'provider', seeded: true,
+    summary: 'Any kernel of the signal engine run to its end on its own seeded signal: transforms, filters, codecs and estimators, every multiply and frame metered.',
+    params: [kernelParam(es)],
+    inputs: [],
+    outputs: [{ id: 'counts', label: 'Counts', type: { kind: 'record' } }],
+    run: async ({ params, seed, signal }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as SignalKernel;
+      const meter = new SignalMeter();
+      let last: SignalView | null = null;
+      let views = 0;
+      for (const v of k.run(Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value])), seed, meter)) {
+        if (signal.aborted) throw new Error('superseded');
+        if (v) { last = v; views++; }
+      }
+      if (!last) throw new Error(`${e.title} recorded no view`);
+      const counts = meter.snapshot();
+      return { counts: record([['Views recorded', views], ...Object.entries(counts).map(([label, value]): [string, number] => [label, value])]) };
+    },
+  }),
+};
+
+/** The stochastic engine: the kernel run to its end on a seeded generator, its draws, evaluations and chart. */
+export const stochasticAdapter: Adapter = {
+  engine: 'stochastic', type: 'mc',
+  signature: 'seeded generator in; draws and model evaluations counted (record) and the run\'s own chart series (points) out',
+  refuse: () => null,
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'mc', title: 'Stochastic kernel', category: 'provider', seeded: true,
+    summary: 'Any kernel of the stochastic engine run to its end on the graph\'s seed: Monte Carlo, sampling, estimation and optimisation, every draw and evaluation counted.',
+    params: [kernelParam(es)],
+    inputs: [],
+    outputs: [
+      { id: 'counts', label: 'Counts', type: { kind: 'record' } },
+      { id: 'series', label: 'Chart series', type: { kind: 'points', x: '1', y: '1' } },
+    ],
+    run: async ({ params, seed }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as StochasticKernel;
+      const t = stochasticTrace(k, {}, seed);
+      const last = t.frames[t.frames.length - 1];
+      const named = last?.series ?? [];
+      const pick = named.find(([n]) => n === k.labSeries) ?? named[0];
+      const pts = pick ? pick[1].slice(0, pick[2]) : [];
+      return {
+        counts: record([['Uniform draws', t.draws], ['Model evaluations', t.evals], ['Frames recorded', t.frames.length]]),
+        series: { kind: 'points', xs: Float64Array.from(pts, (p) => p[0]), ys: Float64Array.from(pts, (p) => p[1]), x: '1', y: '1' } as PointsValue,
+      };
     },
   }),
 };

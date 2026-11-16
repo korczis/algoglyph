@@ -239,7 +239,7 @@ graph.ts    the document, check(), canConnect(),      store.ts    intents → va
             parseGraph(), links                                   undo/redo, provenance
 runtime.ts  finite, incremental, cancellable run      nodes.ts    the node library over kernels
 presets.ts  the examples and the layout               studio.ts   the editor (DOM + SVG)
-derive.ts   catalogue → family nodes, coverage         adapters.ts grid, graph, tree, string, hash
+derive.ts   catalogue → family nodes, coverage         adapters.ts engine adapters (one per engine)
 ```
 
 Kernels reach the flow by derivation, not by a list: one adapter per engine turns every live

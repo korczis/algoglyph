@@ -54,8 +54,8 @@ keep their state inside their closures behind mouse hooks.
    layer, ports as buttons, a per-input menu listing what `canConnect` accepts, lazy ECharts
    previews through `src/core/charts.ts`. Route `#/flow`, lazy-loaded.
 7. **Kernels are derived, never listed.** `src/flow/derive.ts` connects the catalogue to the
-   flow generically: one adapter per engine (array in `nodes.ts`; grid, graph, tree, string and hash in
-   `src/flow/adapters.ts`) turns every live entry of its engine into a choice of one family node,
+   flow generically: adapters per engine (array sort and select in `nodes.ts`; grid, graph, tree, string, hash, signal and stochastic
+   in `src/flow/adapters.ts`) turns every live entry of its engine into a choice of one family node,
    run by that engine's headless runner and reporting that engine's measurement. Every live
    entry is computed into one level — declared, derived or inferred — and an inferred entry
    carries its reason (and a proposed node where the source tree shows a headless runner) and is

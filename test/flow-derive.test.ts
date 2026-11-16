@@ -9,6 +9,8 @@ import { makeGraph } from '../src/engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type GraphKernel } from '../src/engines/graph/trace';
 import { run as gridRun, type GridKernel } from '../src/engines/grid/trace';
 import { trace as hashTrace, type HashKernel } from '../src/engines/hash/table';
+import { Meter as SignalMeter, type SignalKernel } from '../src/engines/signal/trace';
+import { trace as stochasticTrace, type StochasticKernel } from '../src/engines/stochastic/trace';
 import { PLATE as HASH_PLATE, workload as hashWorkload } from '../src/engines/hash/workload';
 import { input as stringInput, KINDS as STRING_KINDS } from '../src/engines/string/inputs';
 import { trace as stringTrace, type StringKernel } from '../src/engines/string/trace';
@@ -17,7 +19,7 @@ import { gridAdapter } from '../src/flow/adapters';
 import { coverage, deriveNodes, headless, tally, type Adapter } from '../src/flow/derive';
 import type { NodeDef } from '../src/flow/node';
 import { ADAPTERS, DECLARED, library, REGISTRY } from '../src/flow/nodes';
-import type { RecordValue, SeriesValue } from '../src/flow/types';
+import type { PointsValue, RecordValue, SeriesValue } from '../src/flow/types';
 import { kernelLoader } from '../src/registry';
 
 const live = ENTRIES.filter((e) => e.status === 'live');
@@ -44,7 +46,8 @@ describe('derivation from the catalogue', () => {
       expect([...d.origin!.entries].sort(), a.type).toEqual(want);
       const sel = d.params.find((p) => p.key === d.origin!.param);
       expect(sel?.kind === 'select' && sel.options.map((o) => o.value).sort(), a.type).toEqual(want);
-      for (const id of d.origin!.entries) expect(rows.find((r) => r.id === id)?.level, id).toBe('derived');
+      // derived, unless a declared node also names it (declared is the more specific contract)
+      for (const id of d.origin!.entries) expect(['derived', 'declared'], id).toContain(rows.find((r) => r.id === id)?.level);
     }
   });
 
@@ -206,6 +209,38 @@ describe('selection kernels', () => {
       }
       await expect(d.run({ nodeId: 's', params: { kernel: id, rank: 41 }, state: undefined, seed: 1, signal: ctl(),
         inputs: { in: { kind: 'series', values: keys, unit: 'm', index: { unit: '1', start: 0, step: 1 }, label: 'k' } } })).rejects.toThrow(/past the 40 keys/);
+    }
+  });
+});
+
+describe('signal kernels run through their engine', () => {
+  it('every signal kernel reports the counts its own meter recorded over the same run', async () => {
+    const d = REGISTRY.get('dsp')!;
+    for (const id of d.origin!.entries) {
+      const k = (await kernelLoader(live.find((e) => e.id === id)!)()) as SignalKernel;
+      const m = new SignalMeter();
+      let views = 0;
+      for (const v of k.run(Object.fromEntries((k.params ?? []).map((p) => [p.key, p.value])), 7, m)) if (v) views++;
+      const r = rec((await runNode(d, { kernel: id }, 7)).counts);
+      expect(r['Views recorded'], id).toBe(views);
+      for (const [label, value] of Object.entries(m.snapshot())) expect(r[label], `${id} ${label}`).toBe(value);
+    }
+  });
+});
+
+describe('stochastic kernels run through their engine', () => {
+  it('every stochastic kernel reports its engine\'s draws, evaluations and chart series for the same seed', async () => {
+    const d = REGISTRY.get('mc')!;
+    for (const id of d.origin!.entries) {
+      const k = (await kernelLoader(live.find((e) => e.id === id)!)()) as StochasticKernel;
+      const t = stochasticTrace(k, {}, 7);
+      const out = await runNode(d, { kernel: id }, 7);
+      const r = rec(out.counts);
+      expect(r['Uniform draws'], id).toBe(t.draws);
+      expect(r['Model evaluations'], id).toBe(t.evals);
+      const named = t.frames[t.frames.length - 1].series;
+      const pick = named.find(([n]) => n === k.labSeries) ?? named[0];
+      expect(Array.from((out.series as PointsValue).ys), id).toEqual(pick ? pick[1].slice(0, pick[2]).map((p) => p[1]) : []);
     }
   });
 });
