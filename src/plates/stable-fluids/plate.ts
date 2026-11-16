@@ -4,6 +4,8 @@
 import { paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import init from '../../wasm/algoglyph_kernels.wasm?init';
+import { runsParam, StreamStop } from '../_shared/settle/settle';
+import { centredLoop, stokes } from './stokes';
 
 interface Fluids {
   memory: WebAssembly.Memory;
@@ -12,6 +14,8 @@ interface Fluids {
   ag_fluid_add(h: number, i: number, j: number, dye: number, du: number, dv: number): void;
   ag_fluid_step(h: number, dt: number, visc: number, diff: number, iters: number): void;
   ag_fluid_density(h: number): number;
+  ag_fluid_u(h: number): number;
+  ag_fluid_v(h: number): number;
   ag_fluid_stats(h: number): number;
 }
 
@@ -31,7 +35,12 @@ export const stableFluids: PlateCode = {
     { kind: 'range', key: 'visc', label: 'Viscosity (×10⁻⁵)', min: 0, max: 50, step: 1, value: 1 },
     { kind: 'range', key: 'diff', label: 'Dye diffusion (×10⁻⁵)', min: 0, max: 50, step: 1, value: 1 },
     { kind: 'toggle', key: 'emit', label: 'Seeded emitters', value: true },
+    { kind: 'range', key: 'loop', label: 'Circulation loop (share of the box)', min: 0.1, max: 0.9,
+      step: 0.05, value: 0.5,
+      hint: 'The dashed square: the circulation around it, and the vorticity flux through it.' },
     paletteParam('abyss'),
+    // a stop costs nothing, so its top is not a budget's: past 20000 steps a reader lets it run on
+    runsParam({ unit: 'steps', max: 20000, note: 'One step a frame.' }),
   ],
   pace: { kind: 'stream', emergent: 'a fluid solver: one time step per frame of simulated flow' },
   create(p, ctx) {
@@ -44,6 +53,7 @@ export const stableFluids: PlateCode = {
       x: 0.2 + 0.6 * ctx.rnd(), y: 0.2 + 0.6 * ctx.rnd(), a: ctx.rnd() * Math.PI * 2, w: 0.02 + 0.05 * ctx.rnd(),
     }));
     let stepMs = 0;
+    const stop = new StreamStop(ctx.params, 1);
     const history: [number, number, number][] = [];
     let t = 0;
     let last: [number, number] | null = null;
@@ -52,6 +62,8 @@ export const stableFluids: PlateCode = {
       Math.min(n, Math.max(1, 1 + Math.floor((y / ctx.height) * n))),
     ];
     const step = () => {
+      if (!stop.allow(1)) return;
+      stop.advance(1);
       if (bool(ctx.params, 'emit')) {
         for (const e of emitters) {
           const a = e.a + e.w * t;
@@ -80,15 +92,34 @@ export const stableFluids: PlateCode = {
       img.updatePixels();
       p.background(ctx.bg[0], ctx.bg[1], ctx.bg[2]);
       p.image(img, 0, 0, ctx.width, ctx.height);
+      // the loop the circulation runs along, on the cells' outer faces
+      const q = centredLoop(n, num(ctx.params, 'loop'));
+      const sx = ctx.width / n;
+      const sy = ctx.height / n;
+      p.push();
+      p.noFill();
+      p.stroke(ctx.fg[0], ctx.fg[1], ctx.fg[2], 90);
+      p.strokeWeight(1);
+      const g = p.drawingContext as CanvasRenderingContext2D;
+      g.setLineDash([4, 4]);
+      p.rect((q.a - 1) * sx, (q.c - 1) * sy, (q.b - q.a + 1) * sx, (q.d - q.c + 1) * sy);
+      g.setLineDash([]);
+      p.pop();
     };
     return {
       setup() {
         if (ctx.thumbnail) for (let s = 0; s < 60; s++) step();
+        // the thumbnail's warm-up is not the reader's run
+        stop.reset();
       },
       draw() {
         if (!ctx.thumbnail) step();
         draw();
         const s = new Float32Array(wasm.memory.buffer, wasm.ag_fluid_stats(h), 4);
+        const size = (n + 2) * (n + 2);
+        const st = stokes(n, new Float32Array(wasm.memory.buffer, wasm.ag_fluid_u(h), size),
+          new Float32Array(wasm.memory.buffer, wasm.ag_fluid_v(h), size),
+          centredLoop(n, num(ctx.params, 'loop')));
         if (!ctx.thumbnail && s[1] > 0) {
           history.push([t, s[1], s[2]]);
           if (history.length > 400) history.shift();
@@ -107,7 +138,11 @@ export const stableFluids: PlateCode = {
           { label: 'Max divergence before projection', value: s[1].toExponential(2) },
           { label: 'Max divergence after projection', value: s[2].toExponential(2) },
           { label: 'Kinetic energy', value: s[3].toExponential(2) },
+          { label: 'circulation ∮v·dl around the loop', value: st.circulation.toExponential(4) },
+          { label: 'vorticity flux ∬ω dA through it', value: st.flux.toExponential(4) },
+          { label: 'Stokes gap |∮ − ∬| / Σ|terms|', value: st.gap.toExponential(1) },
           { label: 'Solver step (wasm)', value: `${stepMs.toFixed(2)} ms for ${n}² cells` },
+          ...stop.rows(),
         ]);
       },
       dragged(x, y) {

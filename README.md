@@ -2367,7 +2367,7 @@ A point charge moving along a prescribed path, and its electric field computed f
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/stable-fluids">360 · Stable fluids</a></b><br>
 Diffuse, advect backwards along the velocity, and project out divergence: a fluid that never blows up.<br>
-<sub>Fluids · O(n² · sweeps) per step, unconditionally stable · fluids, advection, projection, webassembly</sub>
+<sub>Fluids · O(n² · sweeps) per step, unconditionally stable · fluids, advection, projection, webassembly, circulation</sub>
 <br><sub>Pointer: Drag across the box to push dye and momentum.</sub>
 </td>
 <td width="50%" valign="top">
