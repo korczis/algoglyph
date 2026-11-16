@@ -5,6 +5,7 @@
 // by hand — they are read from the registry and the script.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { runnable } from '../src/flow/cli';
 import { ADAPTERS } from '../src/flow/nodes';
 
 const read = (p: string) => readFileSync(p, 'utf8');
@@ -37,5 +38,16 @@ describe('every command of the flow command line is documented', () => {
     const help = cliScript.split('\n').filter((l) => l.startsWith('//')).join('\n');
     expect(help).toContain(`npm run flow -- ${cmd}`);
     expect(architecture).toMatch(new RegExp(`npm run flow -- <[^>]*\\b${cmd}\\b`));
+  });
+});
+
+describe('every data form has a reference test', () => {
+  // a kernel that reads a caller's data (a grid fromData, or a data form of src/core/solve.ts)
+  // owes a test that runs it on data whose answer is known independently
+  const cliTests = read('test/flow-cli.test.ts');
+  it('each kernel the command line reads data for, other than graph kernels, is run in test/flow-cli.test.ts', async () => {
+    const forms = (await runnable()).filter((k) => k.engine !== 'graph').map((k) => String(k.id));
+    expect(forms.length).toBeGreaterThan(0);
+    for (const id of forms) expect(cliTests, `${id} declares a data form but test/flow-cli.test.ts never runs it`).toContain(`runKernel('${id}'`);
   });
 });

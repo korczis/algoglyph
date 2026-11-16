@@ -8,8 +8,8 @@
 //   npm run flow -- preset [id]            the example ids, or one example as a graph document
 //   npm run flow -- check <file|->         parse and check a graph document (exit 1 when refused)
 //   npm run flow -- run <file|->           run it; each node's status and summarised outputs (exit 1 on a failed node)
-//   npm run flow -- kernel <id> <file|-> [--trace]   one catalogue kernel on your data (graph: {n, edges, s, t, side?, params?}; grid: its data form, e.g. knapsack {weights, values, capacity})
-//   npm run flow -- kernels                the kernels `kernel` reads caller data for, with their parameters
+//   npm run flow -- kernel <id> <file|-> [--trace]   one catalogue kernel on your data (graph: {n, edges, s, t, side?, params?}; any other: its data form, e.g. knapsack {weights, values, capacity}, simplex {A, b, c})
+//   npm run flow -- kernels                the kernels `kernel` reads caller data for, with the shape each reads
 //   npm run flow -- serve                  one long-lived process: a JSON request per stdin line, a JSON answer per stdout line
 //   npm run flow -- help
 //
@@ -65,11 +65,12 @@ async function serve(cli) {
 
 const print = (v) => process.stdout.write(`${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}\n`);
 
+// The process ends by itself once its output is written: process.exit() would drop what a pipe has
+// not read yet, cutting any answer past the pipe's buffer (64 KiB) mid-JSON, so the exit status is
+// set with process.exitCode and the event loop is left to drain.
 if (cmd === 'help' || cmd === '--help') {
   print(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 16).map((l) => l.slice(3)).join('\n'));
-  process.exit(0);
-}
-
+} else {
 const vite = await createServer({ root: ROOT, logLevel: 'error', appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false, watch: null } });
 let code = 0;
 try {
@@ -91,4 +92,5 @@ try {
 } finally {
   await vite.close();
 }
-process.exit(code);
+process.exitCode = code;
+}

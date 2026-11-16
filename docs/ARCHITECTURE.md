@@ -255,7 +255,19 @@ exits 1 when it is refused, so an agent's graph is decided exactly as an import 
 `kernel <id> <file|-> [--trace]` runs one catalogue kernel on a caller's own graph (`{n, edges:
 [{u, v, w, cap, cost}], s, t, side?, params?}`), with the plate's code and engine, and returns its
 result, counts, report and optionally its operation trace; a grid kernel that declares a data form
-(`GridKernel.fromData`, knapsack-dp first) takes its own data the same way. Another repository
+(`GridKernel.fromData`, knapsack-dp first) takes its own data the same way, and so does any other
+kernel that declares a `DataForm` (`src/core/solve.ts`: simplex-method reads `{A, b, c}`,
+pert-monte-carlo a task network, bayes-update its evidence), and so does a custom plate with a
+`data.ts` beside it: `track-planning` plans a railway on a caller's OpenTTD map (its layers, or the game's
+`openttd://map` and `openttd://map/ways` answers forwarded whole) (ADR 0012, rule
+`project.planner-plays-by-the-rules`). `human-pointing` moves a pointer the way a hand does (Fitts'
+law, minimum jerk, overshoot, tremor), seeded bit for bit with the OpenTTD fork's `motion.rs` so its
+player and the plate move alike. `action-plan` orders a plan's actions with Kahn's waves, expands each into
+the presses an executor makes and refuses a plan that would overdraw, before anything runs. `transport-investment` ranks every
+route of a demand by return on investment (Yen's kernel on a multimodal graph, priced as the game
+pays) and picks the portfolio within a budget with knapsack-dp. `kernels` lists every form with the
+shape it reads, found from the kernels themselves; each form owes a reference test
+(`test/flow-obligations.test.ts`). Another repository
 uses it as a backend; `serve` keeps one process for many requests, a JSON request per stdin line
 answered by a JSON line on stdout, so a planner that replans pays the start-up once.
 

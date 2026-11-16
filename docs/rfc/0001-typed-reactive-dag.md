@@ -232,7 +232,11 @@ Ordered by dependency; each step leaves every standalone page working.
     The gate it goes through is built: `npm run flow -- check -` (`src/flow/cli.ts`) parses and
     checks a proposed document from standard input and exits 1 with the refusals; `nodes`,
     `coverage` and `preset` give a model the registry, the catalogue's levels and starting
-    documents as JSON; `run` executes a graph headless (`test/flow-cli.test.ts`).
+    documents as JSON; `run` executes a graph headless (`test/flow-cli.test.ts`). `kernel <id>`
+    runs one catalogue kernel on the caller's data through the form the kernel declares (a graph,
+    a grid kernel's `fromData`, a `DataForm` of `src/core/solve.ts` for numeric and stochastic
+    kernels: simplex-method, pert-monte-carlo, bayes-update first), and `serve` answers JSON
+    lines, so another repository uses the catalogue as a backend.
 
 ## I. Minimal viable architecture
 

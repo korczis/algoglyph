@@ -3,6 +3,7 @@
 // DOM — scripts/flow.mjs hands it text and prints what it returns — so a graph an agent
 // proposes is decided by the one parser and checker exactly as an import in the page is.
 import { ENTRIES, type Entry } from '../core/catalogue';
+import type { DataForm } from '../core/solve';
 import { build, DIRECTED, type Graph } from '../engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type GraphKernel, type Options } from '../engines/graph/trace';
 import { trace as gridTrace, type GridKernel } from '../engines/grid/trace';
@@ -147,15 +148,16 @@ const plain = (v: unknown): unknown => JSON.parse(JSON.stringify(v, (_k, x) => (
 /**
  * Run one catalogue kernel on a caller's data with the engine and the code its plate runs: its
  * result, the engine's counts, its report, and with `trace` the recorded operations
- * ([op, a, b, x, y] per event) for an overlay. The graph engine first; other engines refuse.
+ * ([op, a, b, x, y] per event) for an overlay. A graph kernel reads a graph, a grid kernel its
+ * `fromData`, any other kernel the data form it declares (src/core/solve.ts); the rest refuse.
  */
 export async function runKernel(id: string, text: string, opt: { trace?: boolean; seed?: number } = {}) {
   const e = ENTRIES.find((x) => x.id === id && x.status === 'live');
   if (!e) return { ok: false as const, errors: [`no live catalogue entry ${id}`] };
-  if (e.engine !== 'graph' && e.engine !== 'grid') return { ok: false as const, errors: [`${id} runs on the ${e.engine} engine; caller data is read for graph and grid kernels so far`] };
   let raw: unknown;
   try { raw = JSON.parse(text); } catch (err) { return { ok: false as const, errors: [`the input is not JSON: ${(err as Error).message}`] }; }
   if (e.engine === 'grid') return gridKernel(e, (await kernelLoader(e)()) as GridKernel, raw);
+  if (e.engine !== 'graph') return solved(e, await loadOrNull(e), raw);
   const k = (await kernelLoader(e)()) as GraphKernel;
   const parsed = graphFromInput(raw, k);
   if (typeof parsed === 'string') return { ok: false as const, errors: [parsed] };
@@ -177,18 +179,41 @@ export async function runKernel(id: string, text: string, opt: { trace?: boolean
   };
 }
 
-/** The kernels `runKernel` reads caller data for: every graph kernel, and every grid kernel with a data form. */
+/**
+ * The kernels `runKernel` reads caller data for: every graph kernel, every grid kernel with a
+ * `fromData`, and every kernel of any other engine that declares a data form (src/core/solve.ts).
+ */
 export async function runnable() {
   const out: Record<string, unknown>[] = [];
-  for (const e of ENTRIES.filter((x) => x.engine === 'grid' && x.status === 'live').sort((a, b) => a.id.localeCompare(b.id))) {
-    const k = (await kernelLoader(e)()) as GridKernel;
-    if (k.fromData) out.push({ id: e.id, title: e.title, engine: 'grid', input: 'the kernel\'s data form (see its fromData)' });
+  for (const e of ENTRIES.filter((x) => x.engine !== 'graph' && x.status === 'live').sort((a, b) => a.id.localeCompare(b.id))) {
+    const k = await loadOrNull(e);
+    if (e.engine === 'grid' && (k as GridKernel | null)?.fromData) out.push({ id: e.id, title: e.title, engine: 'grid', input: 'the kernel\'s data form (see its fromData)' });
+    const form = (k as { data?: DataForm } | null)?.data;
+    if (form) out.push({ id: e.id, title: e.title, engine: e.engine, input: form.input });
   }
   for (const e of ENTRIES.filter((x) => x.engine === 'graph' && x.status === 'live').sort((a, b) => a.id.localeCompare(b.id))) {
     const k = (await kernelLoader(e)()) as GraphKernel;
     out.push({ id: e.id, title: e.title, engine: 'graph', goal: k.goal, shape: k.inputs[0], params: (k.params ?? []).map((d) => ({ key: d.key, value: d.value })) });
   }
   return out;
+}
+
+/** A custom plate's headless data form, next to its plate: src/plates/<id>/data.ts. */
+const PLATE_DATA = import.meta.glob('../plates/*/data.ts') as Record<string, () => Promise<{ data?: DataForm }>>;
+
+/** An entry's kernel module (a custom plate's data.ts), or null for an entry with neither. */
+async function loadOrNull(e: Entry): Promise<unknown> {
+  if (e.engine === 'custom') { const load = PLATE_DATA[`../plates/${e.id}/data.ts`]; return load ? load() : null; }
+  try { return await kernelLoader(e)(); } catch { return null; }
+}
+
+/** A kernel of any engine on a caller's data, through the data form it declares. */
+function solved(e: Entry, k: unknown, raw: unknown) {
+  const form = (k as { data?: DataForm } | null)?.data;
+  if (!form) return { ok: false as const, errors: [`${e.title} (${e.engine} engine) has no data form yet; it runs on its seeded instance only`] };
+  const r = form.solve(raw);
+  if (typeof r === 'string') return { ok: false as const, errors: [r] };
+  return { ok: true as const, kernel: { id: e.id, title: e.title, engine: e.engine, plate: `#/p/${e.id}` }, input: form.input, result: plain(r) };
 }
 
 /** A grid kernel on a caller's data, through the kernel's own `fromData`: result, readouts, work. */

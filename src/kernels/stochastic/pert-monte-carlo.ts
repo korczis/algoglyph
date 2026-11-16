@@ -1,4 +1,6 @@
 import { num } from '../../core/plate';
+import { mulberry32 } from '../../core/random';
+import { finite, integer, record, unknownKeys, type DataForm } from '../../core/solve';
 import { fmt, pm, Sampler, SortedSample } from '../../engines/stochastic/sample';
 import { taskNetwork, type Task } from '../../engines/stochastic/scenarios';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
@@ -37,10 +39,67 @@ export interface PertResult {
 
 const FRAMES = 140;
 
+/** The largest network and simulation the data form takes. */
+export const LIMITS = { tasks: 500, runs: 200_000, work: 5_000_000 };
+
+/** The q-quantile of an ascending sample, by the nearest rank. */
+const rank = (xs: number[], q: number) => xs[Math.min(xs.length - 1, Math.max(0, Math.ceil(q * xs.length) - 1))];
+
+/**
+ * A caller's project {tasks: [{name?, a, m, b, after}], runs?, lambda?, seed?}: tasks in
+ * topological order (each `after` names earlier tasks only), durations a <= m <= b with a < b.
+ * The same PERT-Beta draws and longest path as the plate, seeded, so a run is reproducible.
+ */
+export const data: DataForm = {
+  input: '{tasks: [{name?, a, m, b, after: number[]}] in topological order, runs? (default 10000), lambda? (default 4), seed? (default 1)}',
+  solve(raw) {
+    if (!record(raw)) return 'the input must be an object {tasks, runs?, lambda?, seed?}';
+    const extra = unknownKeys(raw, ['tasks', 'runs', 'lambda', 'seed']);
+    if (extra) return extra;
+    const { tasks: list, runs = 10_000, lambda = 4, seed = 1 } = raw;
+    if (!Array.isArray(list) || !list.length || list.length > LIMITS.tasks) return `tasks must list 1 to ${LIMITS.tasks} tasks`;
+    const tasks: Task[] = [];
+    for (const [i, t] of list.entries()) {
+      if (!record(t)) return `tasks[${i}] must be an object {name?, a, m, b, after}`;
+      const { a, m, b, after = [], name = `task ${i + 1}` } = t;
+      if (!finite(a) || !finite(m) || !finite(b) || a < 0 || !(a <= m && m <= b && a < b)) return `tasks[${i}]: durations must be finite with 0 <= a <= m <= b and a < b`;
+      if (!Array.isArray(after) || !after.every((p) => Number.isInteger(p) && p >= 0 && p < i)) return `tasks[${i}].after must name earlier tasks only, by index 0..${i - 1}`;
+      tasks.push({ name: String(name), a, m, b, after: after as number[], layer: 0 });
+    }
+    if (!integer(runs) || runs < 1 || runs > LIMITS.runs || runs * tasks.length > LIMITS.work) return `runs must be an integer 1..${LIMITS.runs} with runs × tasks at most ${LIMITS.work}`;
+    if (!finite(lambda) || lambda < 0 || lambda > 100) return 'lambda must be a number 0..100';
+    if (!integer(seed)) return 'seed must be an integer';
+    const s = new Sampler(mulberry32(seed));
+    const shapes = tasks.map((t) => pertShape(t, lambda));
+    const det = longestPath(tasks, tasks.map((t) => (t.a + lambda * t.m + t.b) / (lambda + 2)));
+    const finishes: number[] = [];
+    const critical = new Array<number>(tasks.length).fill(0);
+    for (let r = 0; r < runs; r++) {
+      const d = tasks.map((t, i) => t.a + (t.b - t.a) * s.beta(shapes[i][0], shapes[i][1]));
+      const run = longestPath(tasks, d);
+      finishes.push(run.finish);
+      for (const i of run.path) critical[i]++;
+    }
+    const mean = finishes.reduce((x, y) => x + y, 0) / runs;
+    const sd = Math.sqrt(finishes.reduce((x, y) => x + (y - mean) ** 2, 0) / Math.max(1, runs - 1));
+    finishes.sort((x, y) => x - y);
+    return {
+      runs, lambda, seed,
+      deterministic: det.finish,
+      criticalPath: det.path.map((i) => tasks[i].name),
+      mean, sd, stderr: sd / Math.sqrt(runs),
+      p50: rank(finishes, 0.5), p80: rank(finishes, 0.8), p90: rank(finishes, 0.9),
+      min: finishes[0], max: finishes[runs - 1],
+      criticality: tasks.map((t, i) => ({ task: t.name, share: critical[i] / runs })),
+    };
+  },
+};
+
 // Every run draws each task's duration from its PERT-Beta distribution (two Gamma draws per
 // task), pushes the durations through the network's precedence and records the project's
 // finish and which tasks were critical. The finishes' quantiles are the schedule's P50 to P90.
 export const kernel: StochasticKernel<PertResult> = {
+  data,
   palette: 'ember',
   params: [
     { kind: 'range', key: 'n', label: 'Simulated projects', min: 500, max: 40000, step: 500, value: 6000, rebuild: true },

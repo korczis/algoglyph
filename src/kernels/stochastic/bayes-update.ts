@@ -1,4 +1,5 @@
 import { num, str } from '../../core/plate';
+import { finite, integer, record, unknownKeys, type DataForm } from '../../core/solve';
 import { betaCdf, fmt, pm, Sampler } from '../../engines/stochastic/sample';
 import type { StochasticKernel } from '../../engines/stochastic/trace';
 
@@ -62,6 +63,47 @@ function betaQuantile(q: number, a: number, b: number): number {
   return (lo + hi) / 2;
 }
 
+/** The most trials the data form takes (the grid update is one pass, so this bounds nothing heavy). */
+export const MAX_TRIALS = 1e9;
+
+/**
+ * A caller's evidence {successes, failures, prior?, credible?, cells?}: the posterior of the rate
+ * in closed form, Beta(a + successes, b + failures), and the plate's own grid update beside it as
+ * the check (each cell multiplied by theta^s (1 - theta)^f at its midpoint, in logs).
+ */
+export const data: DataForm = {
+  input: '{successes, failures, prior?: "flat" | "jeffreys" | "sceptical" | "hopeful" | [a, b], credible?: 0.8 | 0.9 | 0.95 | 0.99, cells?: 100 | 200 | 400}',
+  solve(raw) {
+    if (!record(raw)) return 'the input must be an object {successes, failures, prior?, credible?, cells?}';
+    const extra = unknownKeys(raw, ['successes', 'failures', 'prior', 'credible', 'cells']);
+    if (extra) return extra;
+    const { successes: k, failures: f, prior = 'flat', credible = 0.9, cells = 400 } = raw;
+    if (!integer(k) || !integer(f) || k < 0 || f < 0 || k + f > MAX_TRIALS) return `successes and failures must be non-negative integers, at most ${MAX_TRIALS} in all`;
+    const ab = typeof prior === 'string' ? PRIORS[prior] : Array.isArray(prior) && prior.length === 2 && prior.every((v) => finite(v) && v > 0) ? (prior as [number, number]) : undefined;
+    if (!ab) return `prior must be one of ${Object.keys(PRIORS).join(', ')} or [a, b] with a, b > 0`;
+    const ci = CREDIBLE[String(credible)];
+    if (!ci) return `credible must be one of ${Object.keys(CREDIBLE).join(', ')}`;
+    if (!CELLS.includes(String(cells))) return `cells must be one of ${CELLS.join(', ')}`;
+    const [a, b] = ab; const s = k; const n = f;
+    const [ca, cb] = [a + s, b + n];
+    const G = Number(cells);
+    const grid = Array.from({ length: G }, (_, i) => (i + 0.5) / G);
+    const logs = grid.map((t, i) => Math.log(betaCdf((i + 1) / G, a, b) - betaCdf(i / G, a, b)) + s * Math.log(t) + n * Math.log(1 - t));
+    const top = Math.max(...logs);
+    const sm = summary(grid, normalise(logs.map((l) => Math.exp(l - top))), ci);
+    return {
+      prior: [a, b],
+      posterior: [ca, cb],
+      mean: ca / (ca + cb),
+      sd: Math.sqrt((ca * cb) / ((ca + cb) ** 2 * (ca + cb + 1))),
+      level: ci.name,
+      lower: betaQuantile(ci.lo, ca, cb),
+      upper: betaQuantile(ci.hi, ca, cb),
+      grid: { cells: G, mean: sm.mean, sd: sm.sd, lower: sm.lo, upper: sm.hi },
+    };
+  },
+};
+
 // The rate of an event, unknown, believed a priori to follow a Beta density. The belief is held
 // as the probability of each of G cells of the rate, the prior's taken exactly from the Beta
 // distribution function (so a prior that is infinite at an end, like Jeffreys', is still a
@@ -70,6 +112,7 @@ function betaQuantile(q: number, a: number, b: number): number {
 // That is generic Bayes; the Beta prior is chosen so that the closed form,
 // Beta(a + events, b + non-events), can check it.
 export const kernel: StochasticKernel<BayesResult> = {
+  data,
   palette: 'abyss',
   params: [
     {
