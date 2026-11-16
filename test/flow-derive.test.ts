@@ -11,6 +11,7 @@ import { run as gridRun, type GridKernel } from '../src/engines/grid/trace';
 import { trace as hashTrace, type HashKernel } from '../src/engines/hash/table';
 import { Meter as SignalMeter, type SignalKernel } from '../src/engines/signal/trace';
 import { trace as stochasticTrace, type StochasticKernel } from '../src/engines/stochastic/trace';
+import type { NumericKernel } from '../src/engines/numeric/trace';
 import { PLATE as HASH_PLATE, workload as hashWorkload } from '../src/engines/hash/workload';
 import { input as stringInput, KINDS as STRING_KINDS } from '../src/engines/string/inputs';
 import { trace as stringTrace, type StringKernel } from '../src/engines/string/trace';
@@ -74,7 +75,9 @@ describe('derivation from the catalogue', () => {
   it('reads which engines run without drawing from the source tree, and proposes a node only for those', () => {
     for (const a of ADAPTERS) expect(headless(a.engine), a.engine).toBe(true);
     expect(headless('custom')).toBe(false);
-    for (const r of rows.filter((x) => x.level === 'inferred' && x.engine !== 'array')) {
+    // an engine with an adapter states its refusal instead of a proposal
+    const adapted = new Set(ADAPTERS.map((a) => a.engine));
+    for (const r of rows.filter((x) => x.level === 'inferred' && !adapted.has(x.engine))) {
       expect(Boolean(r.proposal), r.id).toBe(headless(r.engine));
     }
   });
@@ -241,6 +244,26 @@ describe('stochastic kernels run through their engine', () => {
       const named = t.frames[t.frames.length - 1].series;
       const pick = named.find(([n]) => n === k.labSeries) ?? named[0];
       expect(Array.from((out.series as PointsValue).ys), id).toEqual(pick ? pick[1].slice(0, pick[2]).map((p) => p[1]) : []);
+    }
+  });
+});
+
+describe('numeric kernels run through their probes', () => {
+  const numeric = live.filter((e) => e.engine === 'numeric');
+  const load = (e: Entry) => kernelLoader(e)() as Promise<NumericKernel>;
+
+  it('accepts exactly the numeric kernels that declare a probe: those that take part in a lab', async () => {
+    for (const e of numeric) expect(Boolean((await load(e)).probe), e.id).toBe(e.labs.length > 0);
+  });
+
+  it('every accepted kernel reports its probe\'s own measured series for the same seed', async () => {
+    const d = REGISTRY.get('probe')!;
+    for (const id of d.origin!.entries) {
+      const k = await load(live.find((e) => e.id === id)!);
+      const want = k.probe!.measure({ seed: 7, params: Object.fromEntries((k.params ?? []).map((p) => [p.key, p.value])) });
+      const out = await runNode(d, { kernel: id }, 7);
+      expect(Array.from((out.series as PointsValue).ys), id).toEqual(want[0].points.map((p) => p[1]));
+      expect((out.sizes as RecordValue).rows.length, id).toBe(want.length);
     }
   });
 });

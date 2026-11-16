@@ -8,6 +8,7 @@ import type { ParamDef, Params } from '../core/plate';
 import { makeGraph } from '../engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type Counts, type GraphKernel } from '../engines/graph/trace';
 import { run as gridRun, type GridKernel } from '../engines/grid/trace';
+import type { NumericKernel } from '../engines/numeric/trace';
 import { trace as stochasticTrace, type StochasticKernel } from '../engines/stochastic/trace';
 import { Meter as SignalMeter, type SignalKernel, type View as SignalView } from '../engines/signal/trace';
 import { trace as hashTrace, type Counts as HashCounts, type HashKernel } from '../engines/hash/table';
@@ -245,6 +246,35 @@ export const stochasticAdapter: Adapter = {
       return {
         counts: record([['Uniform draws', t.draws], ['Model evaluations', t.evals], ['Frames recorded', t.frames.length]]),
         series: { kind: 'points', xs: Float64Array.from(pts, (p) => p[0]), ys: Float64Array.from(pts, (p) => p[1]), x: '1', y: '1' } as PointsValue,
+      };
+    },
+  }),
+};
+
+/** The numeric engine: a kernel's lab probe, the measured series its lab charts, on the graph's seed. */
+export const numericAdapter: Adapter = {
+  engine: 'numeric', type: 'probe',
+  signature: 'seeded run in; the kernel\'s own measured series (points) and their sizes (record) out',
+  // a numeric kernel measures a series exactly when it takes part in a lab: the lab charts its probe
+  refuse: (e) => (e.labs.length ? null : 'takes part in no lab, so its kernel measures no series; its run returns a drawing and formatted readouts only'),
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'probe', title: 'Numeric kernel probe', category: 'provider', seeded: true,
+    summary: 'Any numeric kernel that takes part in a lab, measured as its lab measures it: an error, a cost or a convergence curve, point by point.',
+    params: [kernelParam(es)],
+    inputs: [],
+    outputs: [
+      { id: 'series', label: 'First measured series', type: { kind: 'points', x: '1', y: '1' } },
+      { id: 'sizes', label: 'Series', type: { kind: 'record' } },
+    ],
+    run: async ({ params, seed }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as NumericKernel;
+      if (!k.probe) throw new Error(`${e.title} declares no probe`);
+      const measured = k.probe.measure({ seed, params: Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value])) });
+      const first = measured[0]?.points ?? [];
+      return {
+        series: { kind: 'points', xs: Float64Array.from(first, (p) => p[0]), ys: Float64Array.from(first, (p) => p[1]), x: '1', y: '1' } as PointsValue,
+        sizes: record(measured.map((m): [string, number] => [`${m.name}: points`, m.points.length])),
       };
     },
   }),
