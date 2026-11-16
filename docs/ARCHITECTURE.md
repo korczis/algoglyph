@@ -262,7 +262,8 @@ pert-monte-carlo a task network, bayes-update its evidence), and so does a custo
 `openttd://map` and `openttd://map/ways` answers forwarded whole) (ADR 0012, rule
 `project.planner-plays-by-the-rules`). `human-pointing` moves a pointer the way a hand does (Fitts'
 law, minimum jerk, overshoot, tremor), seeded bit for bit with the OpenTTD fork's `motion.rs` so its
-player and the plate move alike. `kernels` lists every form with the
+player and the plate move alike. `action-plan` orders a plan's actions with Kahn's waves, expands each into
+the presses an executor makes and refuses a plan that would overdraw, before anything runs. `kernels` lists every form with the
 shape it reads, found from the kernels themselves; each form owes a reference test
 (`test/flow-obligations.test.ts`). Another repository
 uses it as a backend; `serve` keeps one process for many requests, a JSON request per stdin line
