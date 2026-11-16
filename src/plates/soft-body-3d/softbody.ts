@@ -445,6 +445,79 @@ export function momentum(b: SoftBody): [number, number, number] {
 }
 
 /**
+ * Angular momentum about the mass centre, Σ m (x − X) × (v − V). Spring, damping and gas forces
+ * are central or sum to no torque over a closed surface, and gravity is uniform, so velocity
+ * Verlet keeps it to round-off while nothing touches the ground or is pinned: each half kick adds
+ * forces whose moments about X cancel, and the drift moves x − X along v − V.
+ */
+export function angularMomentum(b: SoftBody): [number, number, number] {
+  const { n, x, v, m } = b;
+  let mass = 0;
+  const X = [0, 0, 0];
+  const V = [0, 0, 0];
+  for (let i = 0; i < n; i++) {
+    mass += m[i];
+    for (let d = 0; d < 3; d++) {
+      X[d] += m[i] * x[i * 3 + d];
+      V[d] += m[i] * v[i * 3 + d];
+    }
+  }
+  for (let d = 0; d < 3; d++) {
+    X[d] /= mass;
+    V[d] /= mass;
+  }
+  const out: [number, number, number] = [0, 0, 0];
+  for (let i = 0; i < n; i++) {
+    const o = i * 3;
+    const rx = x[o] - X[0];
+    const ry = x[o + 1] - X[1];
+    const rz = x[o + 2] - X[2];
+    const ux = v[o] - V[0];
+    const uy = v[o + 1] - V[1];
+    const uz = v[o + 2] - V[2];
+    out[0] += m[i] * (ry * uz - rz * uy);
+    out[1] += m[i] * (rz * ux - rx * uz);
+    out[2] += m[i] * (rx * uy - ry * ux);
+  }
+  return out;
+}
+
+/** Total mass. */
+export function totalMass(b: SoftBody): number {
+  let mass = 0;
+  for (let i = 0; i < b.n; i++) mass += b.m[i];
+  return mass;
+}
+
+/**
+ * The Rayleigh quotient vᵀKv / vᵀMv of the velocities, K the springs' stiffness at the current
+ * positions: the energy-weighted mean of ω² over the normal modes the velocities excite. Velocity
+ * Verlet keeps ½vᵀMv + ½xᵀKx − (dt²/8)·|M^(−½)Kx|² exactly for a linear network, so a body
+ * released undeformed with velocities v gains energy above its release value, never loses it,
+ * and gains at most (dt²/4) times this quotient as a fraction of it (linear theory).
+ */
+export function rayleigh(b: SoftBody, w: World): number {
+  const { x, v, m } = b;
+  let num = 0;
+  for (let s = 0; s < b.springs; s++) {
+    const i = b.sa[s] * 3;
+    const j = b.sb[s] * 3;
+    const dx = x[j] - x[i];
+    const dy = x[j + 1] - x[i + 1];
+    const dz = x[j + 2] - x[i + 2];
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-12;
+    const along = ((v[j] - v[i]) * dx + (v[j + 1] - v[i + 1]) * dy + (v[j + 2] - v[i + 2]) * dz) / d;
+    num += w.stiffness * b.kw[s] * along * along;
+  }
+  let den = 0;
+  for (let i = 0; i < b.n; i++) {
+    const o = i * 3;
+    den += m[i] * (v[o] * v[o] + v[o + 1] * v[o + 1] + v[o + 2] * v[o + 2]);
+  }
+  return den > 0 ? num / den : 0;
+}
+
+/**
  * Rate bounds of the linearised network by Gershgorin's theorem: ω bounds the highest angular
  * frequency of M⁻¹K, γ the largest damping rate of M⁻¹C (each spring block bounded by √3
  * times its constant per row).
