@@ -103,10 +103,23 @@ export interface Span {
 }
 export type Piece = TrackPiece | Span;
 
+/** The eight directions a train moves in, clockwise from NE: a corner piece moves it E, S, W or N. */
+export const MOTIONS = ['NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'] as const;
+
+/**
+ * A plan said compactly: consecutive track pieces of one motion are one run (a straight line, or
+ * a diagonal of alternating corner pieces), rebuilt from its first tile, the heading it enters
+ * that tile by, its motion and its count; a bridge or tunnel is one span between its two heads.
+ */
+export type Run =
+  | { kind: 'track'; x: number; y: number; heading: Heading; motion: (typeof MOTIONS)[number]; count: number }
+  | { kind: 'bridge' | 'tunnel'; from: [number, number]; to: [number, number]; heading: Heading };
+
 export interface Plan {
   status: 'found' | 'unreachable' | 'budget';
   cost: number;
   pieces: Piece[];
+  runs: Run[];
   expanded: number;
   counts: { tiles: number; length: number; curves: number; sharp: number; foundations: number; inclines: number; crossings: number; cleared: number; bridges: number; tunnels: number };
 }
@@ -320,11 +333,56 @@ export function plan(m: TileMap, from: End & { dir: Heading }, to: End, costs: C
   const pieces: Piece[] = [];
   for (let k = found; via.has(k); k = via.get(k)!.prev) pieces.push(via.get(k)!.piece);
   pieces.reverse();
-  return { status: 'found', cost: g.get(found)!, pieces, expanded, counts: count(pieces) };
+  return { status: 'found', cost: g.get(found)!, pieces, runs: runs(pieces), expanded, counts: count(pieces) };
 }
 
 function empty(status: Plan['status'], expanded: number): Plan {
-  return { status, cost: Infinity, pieces: [], expanded, counts: count([]) };
+  return { status, cost: Infinity, pieces: [], runs: [], expanded, counts: count([]) };
+}
+
+/** The motion a track piece moves a train in (0..7, clockwise from NE). */
+function motionOf(p: TrackPiece): number {
+  const d = HEADINGS.indexOf(p.heading);
+  if (p.piece === 'x' || p.piece === 'y') return 2 * d;
+  return CORNER_NAME.indexOf(p.piece as (typeof CORNER_NAME)[number]) === (d + 2) % 4 ? 2 * d + 1 : (2 * d + 7) % 8;
+}
+
+/** The plan's pieces merged into runs of one motion, and its spans. */
+export function runs(pieces: Piece[]): Run[] {
+  const out: Run[] = [];
+  for (const p of pieces) {
+    if (p.kind !== 'track') { out.push({ kind: p.kind, from: p.from, to: p.to, heading: p.heading }); continue; }
+    const mo = MOTIONS[motionOf(p)];
+    const last = out[out.length - 1];
+    if (last?.kind === 'track' && last.motion === mo) last.count++;
+    else out.push({ kind: 'track', x: p.x, y: p.y, heading: p.heading, motion: mo, count: 1 });
+  }
+  return out;
+}
+
+/**
+ * Lay a plan's runs back out as pieces' tiles and TrackBits, the way a builder that holds only the
+ * runs would: a straight run continues its heading, a diagonal run alternates its two corner pieces.
+ */
+export function unrun(rs: Run[]): { x: number; y: number; track: number }[] {
+  const out: { x: number; y: number; track: number }[] = [];
+  for (const r of rs) {
+    if (r.kind !== 'track') continue;
+    let x = r.x; let y = r.y; let d = HEADINGS.indexOf(r.heading);
+    const mo = MOTIONS.indexOf(r.motion);
+    for (let i = 0; i < r.count; i++) {
+      let e: number;
+      if (mo % 2 === 0) { e = d; out.push({ x, y, track: d % 2 === 0 ? 1 : 2 }); } else {
+        // a diagonal motion between headings (mo - 1) / 2 and (mo + 1) / 2: enter by one, leave by the other
+        const h1 = (mo - 1) / 2; const h2 = ((mo + 1) / 2) % 4;
+        e = d === h1 ? h2 : h1;
+        const corner = e === (d + 1) % 4 ? (d + 2) % 4 : (d + 3) % 4;
+        out.push({ x, y, track: CORNER_TRACK[corner] });
+      }
+      d = e; x += DX[d]; y += DY[d];
+    }
+  }
+  return out;
 }
 
 function count(pieces: Piece[]): Plan['counts'] {

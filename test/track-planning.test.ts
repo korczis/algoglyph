@@ -5,7 +5,7 @@
 // heuristic) is the optimum A* must equal; and maps built by hand force each construct.
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { DEFAULT_COSTS, DEFAULT_RULES, plan, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
+import { DEFAULT_COSTS, DEFAULT_RULES, plan, unrun, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
 import { data } from '../src/plates/track-planning/data';
 import { terrain } from '../src/plates/track-planning/terrain';
 import { DEFAULT_SEED } from '../src/core/claims';
@@ -264,6 +264,17 @@ describe('track planning: optimality and occupancy on generated maps', () => {
       expect(validate(m, from, to, a), `seed ${s}`).toBeCloseTo(a.cost, 9);
     }
     expect(found).toBeGreaterThan(15);
+  });
+
+  it('says each plan compactly as runs, which lay back out as exactly its track pieces', () => {
+    for (let s = 1; s <= 30; s++) {
+      const m = randomMap(s, 26, 18, [[1, 8], [23, 9]]);
+      const p = plan(m, { x: 1, y: 8, dir: 'SW' }, { x: 23, y: 9 });
+      if (p.status !== 'found') continue;
+      const track = p.pieces.filter((q) => q.kind === 'track').map((q) => (q.kind === 'track' ? { x: q.x, y: q.y, track: q.track } : null));
+      expect(unrun(p.runs), `seed ${s}`).toEqual(track);
+      expect(p.runs.length, `seed ${s}`).toBeLessThanOrEqual(p.pieces.length);
+    }
   });
 
   it('replans around tiles taken since the export, never more cheaply', () => {

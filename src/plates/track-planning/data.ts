@@ -108,7 +108,7 @@ export const data: DataForm = {
     const m: TileMap = { w, h, heights, types, roads, blocked };
     const p = plan(m, from as { x: number; y: number; dir: Heading }, to, costs, rules);
     const out: Record<string, unknown> = {
-      status: p.status, cost: Number.isFinite(p.cost) ? p.cost : null, counts: p.counts, expanded: p.expanded, pieces: p.pieces, costs, rules,
+      status: p.status, cost: Number.isFinite(p.cost) ? p.cost : null, counts: p.counts, expanded: p.expanded, pieces: p.pieces, runs: p.runs, costs, rules,
     };
     if (raw.meta === true) {
       // the planner's reading of each tile, as rows: OpenTTD Slope (2 hex digits) and the
