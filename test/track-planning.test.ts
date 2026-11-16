@@ -417,6 +417,9 @@ describe('track planning: the data form reads the research export as it comes', 
     const elec = data.solve({ map, prices, railtype: { cost_multiplier: 12 }, from: river.from, to: river.to }) as { priced: { build_rail: number } };
     expect(elec.priced.build_rail).toBe(300);
     expect(data.solve({ map, prices, railtype: { cost_multiplier: 0 }, from: river.from, to: river.to })).toMatch(/railtype/);
+    // the game's own build_cost, when the openttd://railtypes entry carries it, wins over the multiplier
+    const mono = data.solve({ map, prices, railtype: { label: 'MONO', build_cost: 333, cost_multiplier: 12 }, from: river.from, to: river.to }) as { priced: { build_rail: number } };
+    expect(mono.priced.build_rail).toBe(333);
   });
 
   it('refuses malformed maps and ends with the field named', () => {

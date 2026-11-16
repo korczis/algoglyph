@@ -3,7 +3,7 @@
 // the routes Yen's kernel enumerates on the multimodal graph against every route listed by hand;
 // the mode that wins by ROI on hand-built worlds; and the budgeted portfolio against every subset.
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PARAMS, incomePerUnit, invest, routes, timeFactor, type Demand, type Mode, type Place } from '../src/plates/transport-investment/invest';
+import { DEFAULT_PARAMS, incomePerUnit, invest, legPeriods, perVehicle, routes, timeFactor, type Demand, type Mode, type Place } from '../src/plates/transport-investment/invest';
 import { data } from '../src/plates/transport-investment/data';
 import { MODES, world } from '../src/plates/transport-investment/demo';
 
@@ -74,13 +74,67 @@ describe('transport-investment: the mode that wins is the one that pays', () => 
 
   it('changes mode at a hub when no single mode reaches: a bus feeder into a train', () => {
     const places: Place[] = [{ id: 'A', x: 0, y: 0 }, { id: 'H', x: 15, y: 0 }, { id: 'B', x: 215, y: 0 }];
-    // the bus cannot go past 120 tiles and the train needs 20, so A-B is only bus then rail through H
-    const r = invest(places, [{ ...d, volume: 200 }], [bus, { ...rail, min_leg: 20 }], ['H'], [], DEFAULT_PARAMS);
+    // the bus cannot go past 120 tiles, the train needs 20 and reaches at most 205: A-B (215) is
+    // neither's alone, so the only way is a bus to H (15) and a train on (200)
+    const r = invest(places, [{ ...d, volume: 200 }], [bus, { ...rail, min_leg: 20, max_leg: 205 }], ['H'], [], DEFAULT_PARAMS);
     if (typeof r === 'string') throw new Error(r);
     const best = r.options[0][0];
     expect(best.legs.map((l) => l.mode)).toEqual(['bus', 'rail']);
     expect(best.transfers).toBe(1);
     expect(best.distance).toBe(215);
+  });
+});
+
+describe('transport-investment: the fleet that pays best, not the fleet that carries everything', () => {
+  // the OpenTTD fork's planner's case: one rail mode, passengers; its v4 tries every train count
+  const train: Mode = { mode: 'rail', build_per_tile: 100, terminal: 740, overhead_periods: 2, min_leg: 40, max_leg: 250, vehicle: { name: 'train', price: 28_053, running_per_year: 2_296, capacity: 188, speed_kmh: 128 } };
+  const places: Place[] = [{ id: 't1', x: 140, y: 204 }, { id: 't5', x: 55, y: 191 }, { id: 't9', x: 38, y: 22 }, { id: 't13', x: 16, y: 53 }, { id: 't25', x: 17, y: 141 }];
+  const pax = (id: string, from: string, to: string, volume: number): Demand => ({ id, from, to, cargo: 'Passengers', volume, payment: 3185, td1: 0, td2: 24, two_way: true });
+  const demands = [pax('t1-t25', 't1', 't25', 249), pax('t5-t13', 't5', 't13', 204), pax('t9-t25', 't9', 't25', 220), pax('t5-t9', 't5', 't9', 214)];
+  const params = { ...DEFAULT_PARAMS, k: 8, load_factor: 0.8, payback_months: 24 };
+
+  it('keeps the train count v4 keeps: the best score over every count from 1 to enough for the volume', () => {
+    const r = invest(places, demands, [train], [], [], params);
+    if (typeof r === 'string') throw new Error(r);
+    for (const d of demands) {
+      const o = r.options.flat().find((x) => x.demand === d.id && x.legs.length === 1)!;
+      const a = places.find((q) => q.id === d.from)!; const b = places.find((q) => q.id === d.to)!;
+      const tiles = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+      const periods = legPeriods(tiles, train.vehicle!, train);
+      const per = perVehicle(train.vehicle!, periods, true, 0.8);
+      const ipu = incomePerUnit(tiles, periods, 3185, 0, 24);
+      // v4's rule, written out here: n trains carry min(volume, n × per); keep the best score
+      let bestN = 0; let bestScore = -Infinity;
+      for (let n = 1; n <= Math.ceil(d.volume / per); n++) {
+        const carried = Math.min(d.volume, n * per);
+        const score = (carried * ipu - (n * 2_296) / 12) * 24 - (tiles * 100 + 2 * 740 + n * 28_053);
+        if (score > bestScore + 1e-9) { bestScore = score; bestN = n; }
+      }
+      expect(o.legs[0].vehicles.count, d.id).toBe(bestN);
+      expect(o.score, d.id).toBeCloseTo(bestScore, 6);
+    }
+  });
+
+  it('carries less than the volume when the last vehicle would not earn its price back', () => {
+    const r = invest(places, [pax('t5-t9', 't5', 't9', 214)], [train], [], [], params);
+    if (typeof r === 'string') throw new Error(r);
+    const o = r.options[0][0];
+    expect(o.carried).toBeLessThanOrEqual(214);
+  });
+});
+
+describe('transport-investment: vehicles by cargo', () => {
+  it('runs a mode only for the cargos it has a vehicle for, and lets one run carry several cargos', () => {
+    const lorry = { name: 'coal lorry', price: 9_000, running_per_year: 2_000, capacity: 20, speed_kmh: 48 };
+    const coachOnly: Mode = { mode: 'road', build_per_tile: 60, terminal: 1_000, overhead_periods: 1, vehicles: { Passengers: bus.vehicle!, Coal: lorry } };
+    const places: Place[] = [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 40, y: 0 }];
+    const coal: Demand = { id: 'coal', from: 'A', to: 'B', cargo: 'Coal', volume: 120, payment: 5_916, td1: 7, td2: 255 };
+    const wood: Demand = { id: 'wood', from: 'A', to: 'B', cargo: 'Wood', volume: 120, payment: 5_000, td1: 15, td2: 255 };
+    const r = invest(places, [coal, wood], [coachOnly], [], [], DEFAULT_PARAMS);
+    if (typeof r === 'string') throw new Error(r);
+    expect(r.options[0][0].legs[0].vehicles.name).toBe('coal lorry');
+    expect(r.options[1]).toEqual([]);
+    expect(data.solve({ places, demands: [coal], modes: [{ mode: 'x', build_per_tile: 1, terminal: 1, overhead_periods: 1 }] })).toMatch(/needs a vehicle, or vehicles keyed by cargo/);
   });
 });
 
@@ -110,13 +164,13 @@ describe('transport-investment: the portfolio within the budget', () => {
 });
 
 describe('transport-investment: the plate\'s world, the decision its claims read', () => {
-  it('considers 148 routes, the bus best only once, and six routes in the portfolio', () => {
+  it('considers 148 routes, the bus best only once, and seven routes in the portfolio', () => {
     const w = world(256, 160, 4242, 8);
     const r = invest(w.places, w.demands, MODES, w.hubs, [], DEFAULT_PARAMS);
     if (typeof r === 'string') throw new Error(r);
     expect(r.routes_considered).toBe(148);
     expect(r.why.filter((x) => x.mode === 'bus').length).toBe(1);
-    expect(r.chosen.length).toBe(6);
+    expect(r.chosen.length).toBe(7);
     // every chosen route pays within the payback: its score is positive
     for (const c of r.chosen) expect(c.option.score).toBeGreaterThan(0);
   });

@@ -29,7 +29,9 @@ export interface Mode {
   build_per_tile: number;
   /** Stations (and a depot) at one end of a leg. */
   terminal: number;
-  vehicle: Vehicle;
+  /** The vehicle this mode runs, or one per cargo (a mode without one for a demand's cargo cannot carry it). */
+  vehicle?: Vehicle;
+  vehicles?: Record<string, Vehicle>;
   overhead_periods: number;
   min_leg?: number; max_leg?: number;
   length_factor?: number;
@@ -40,6 +42,8 @@ export const DEFAULT_PARAMS: Params = { payback_months: 24, load_factor: 0.8, tr
 export interface Leg { from: string; to: string; mode: string; tiles: number; periods: number; vehicles: { name: string; count: number }; build: number; vehicle_cost: number; running_per_month: number; prebuilt: boolean }
 export interface Option {
   demand: string; legs: Leg[]; transfers: number;
+  /** Units a month the chosen fleet carries: the volume, or less where one more vehicle would not pay for itself. */
+  carried: number;
   distance: number; transit_periods: number; income_per_unit: number;
   monthly_income: number; monthly_profit: number; investment: number; score: number; roi: number;
 }
@@ -67,14 +71,14 @@ export const timeFactor = (periods: number, td1: number, td2: number) => incomeP
 
 const manhattan = (a: Place, b: Place) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-/** A leg's transit periods: tiles / (km/h × 0.0903) + the mode's overhead. */
-export const legPeriods = (tiles: number, m: Mode) => tiles / (m.vehicle.speed_kmh * 0.0903) + m.overhead_periods;
+/** The vehicle a mode runs for a cargo, if any. */
+export const vehicleOf = (m: Mode, cargo: string): Vehicle | undefined => m.vehicles?.[cargo] ?? m.vehicle;
 
-/** Vehicles to move `volume` a month on a leg of `periods` one way. */
-export function vehiclesFor(volume: number, periods: number, m: Mode, twoWay: boolean, load: number): number {
-  const perVehicle = (m.vehicle.capacity * load * 12) / (twoWay ? periods : 2 * periods);
-  return Math.max(1, Math.ceil(volume / perVehicle));
-}
+/** A leg's transit periods: tiles / (km/h × 0.0903) + the mode's overhead. */
+export const legPeriods = (tiles: number, v: Vehicle, m: Mode) => tiles / (v.speed_kmh * 0.0903) + m.overhead_periods;
+
+/** Units a month one vehicle moves on a leg of `periods` one way (two-way: a load each way). */
+export const perVehicle = (v: Vehicle, periods: number, twoWay: boolean, load: number) => (v.capacity * load * 12) / (twoWay ? periods : 2 * periods);
 
 /**
  * Every route of one demand, priced. Routes come from Yen's kernel on the multimodal graph
@@ -99,9 +103,11 @@ export function routes(d: Demand, places: Map<string, Place>, modes: Mode[], hub
     if (a === b || a === lastStop || (a !== 0 && b !== lastStop) || (a === 0 && b !== lastStop && b === 0)) continue;
     if (a !== 0 && b === 0) continue;
     for (const [mi, m] of modes.entries()) {
+      const v = vehicleOf(m, d.cargo);
+      if (!v) continue;
       const tiles = manhattan(places.get(stops[a])!, places.get(stops[b])!) * (m.length_factor ?? 1);
       if (tiles <= 0 || (m.min_leg !== undefined && tiles < m.min_leg) || (m.max_leg !== undefined && tiles > m.max_leg)) continue;
-      add(vid(a, mi), vid(b, mi), legPeriods(tiles, m), { kind: 'leg', a, b, m: mi, tiles });
+      add(vid(a, mi), vid(b, mi), legPeriods(tiles, v, m), { kind: 'leg', a, b, m: mi, tiles });
     }
   }
   // a change of mode at a hub costs the transfer's waiting time
@@ -116,32 +122,42 @@ export function routes(d: Demand, places: Map<string, Place>, modes: Mode[], hub
   for (const path of found) {
     const legEdges = path.edges.map((e) => meta[e]).filter((x): x is Extract<(typeof meta)[number], { kind: 'leg' }> => x.kind === 'leg');
     if (!legEdges.length || legEdges.length > p.max_legs) continue;
-    const legs: Leg[] = legEdges.map((le) => {
-      const m = modes[le.m];
-      const periods = legPeriods(le.tiles, m);
-      const count = vehiclesFor(d.volume, periods, m, Boolean(d.two_way), p.load_factor);
+    const geo = legEdges.map((le) => {
+      const m = modes[le.m]; const v = vehicleOf(m, d.cargo)!;
+      const periods = legPeriods(le.tiles, v, m);
       const from = stops[le.a]; const to = stops[le.b];
       const pre = prebuilt.has(`${from}|${to}|${m.mode}`) || prebuilt.has(`${to}|${from}|${m.mode}`);
-      return {
-        from, to, mode: m.mode, tiles: le.tiles, periods, vehicles: { name: m.vehicle.name, count },
-        build: pre ? 0 : le.tiles * m.build_per_tile + 2 * m.terminal, vehicle_cost: count * m.vehicle.price,
-        running_per_month: (count * m.vehicle.running_per_year) / 12, prebuilt: pre,
-      };
+      return { m, v, periods, from, to, tiles: le.tiles, pre, per: perVehicle(v, periods, Boolean(d.two_way), p.load_factor), build: pre ? 0 : le.tiles * m.build_per_tile + 2 * m.terminal };
     });
-    const transfers = legs.length - 1;
-    const transit = legs.reduce((s, l) => s + l.periods, 0) + transfers * p.transfer_periods;
+    const transfers = geo.length - 1;
+    const transit = geo.reduce((s, l) => s + l.periods, 0) + transfers * p.transfer_periods;
     const distance = manhattan(src, dst);
     const ipu = incomePerUnit(distance, transit, d.payment, d.td1, d.td2);
-    const monthlyIncome = d.volume * ipu;
-    const monthlyProfit = monthlyIncome - legs.reduce((s, l) => s + l.running_per_month, 0)
-      - d.volume * (d.production_cost ?? 0) - d.volume * transfers * p.transfer_cost_per_unit;
-    const investment = legs.reduce((s, l) => s + l.build + l.vehicle_cost, 0);
-    out.push({
-      demand: d.id, legs, transfers, distance, transit_periods: transit, income_per_unit: ipu,
-      monthly_income: monthlyIncome, monthly_profit: monthlyProfit, investment,
-      score: monthlyProfit * p.payback_months - investment,
-      roi: investment > 0 ? (12 * monthlyProfit) / investment : monthlyProfit > 0 ? Infinity : 0,
-    });
+    // the fleet: carry the volume, or less where one more vehicle on some leg costs more than the
+    // cargo it adds earns within the payback; the score can only change where a leg needs one
+    // more vehicle, so those breakpoints (and the whole volume) are every candidate there is
+    const candidates = new Set<number>([d.volume]);
+    for (const l of geo) for (let k = 1; k * l.per < d.volume; k++) candidates.add(k * l.per);
+    let best: Option | null = null;
+    for (const carried of candidates) {
+      const counts = geo.map((l) => Math.max(1, Math.ceil(carried / l.per - 1e-9)));
+      const legs: Leg[] = geo.map((l, j) => ({
+        from: l.from, to: l.to, mode: l.m.mode, tiles: l.tiles, periods: l.periods, vehicles: { name: l.v.name, count: counts[j] },
+        build: l.build, vehicle_cost: counts[j] * l.v.price, running_per_month: (counts[j] * l.v.running_per_year) / 12, prebuilt: l.pre,
+      }));
+      const monthlyIncome = carried * ipu;
+      const monthlyProfit = monthlyIncome - legs.reduce((s, l) => s + l.running_per_month, 0)
+        - carried * (d.production_cost ?? 0) - carried * transfers * p.transfer_cost_per_unit;
+      const investment = legs.reduce((s, l) => s + l.build + l.vehicle_cost, 0);
+      const score = monthlyProfit * p.payback_months - investment;
+      if (best && score <= best.score) continue;
+      best = {
+        demand: d.id, legs, transfers, carried, distance, transit_periods: transit, income_per_unit: ipu,
+        monthly_income: monthlyIncome, monthly_profit: monthlyProfit, investment, score,
+        roi: investment > 0 ? (12 * monthlyProfit) / investment : monthlyProfit > 0 ? Infinity : 0,
+      };
+    }
+    if (best) out.push(best);
   }
   return out.sort((a, b) => b.roi - a.roi);
 }

@@ -10,7 +10,7 @@ export const LIMITS = { places: 2000, demands: 500, modes: 12, hubs: 64 };
 const num = (v: unknown, lo = 0) => finite(v) && v >= lo;
 
 export const data: DataForm = {
-  input: '{places: [{id, x, y}], demands: [{id, from, to, cargo, volume, payment, td1, td2, two_way?, production_cost?}], modes: [{mode, build_per_tile, terminal, vehicle: {name, price, running_per_year, capacity, speed_kmh}, overhead_periods, min_leg?, max_leg?, length_factor?}], hubs?: [ids], prebuilt?: [{from, to, mode}], params?: {payback_months, load_factor, transfer_periods, transfer_cost_per_unit, max_legs, k, budget?}}',
+  input: '{places: [{id, x, y}], demands: [{id, from, to, cargo, volume, payment, td1, td2, two_way?, production_cost?}], modes: [{mode, build_per_tile, terminal, vehicle?: {name, price, running_per_year, capacity, speed_kmh}, vehicles?: {<cargo>: vehicle}, overhead_periods, min_leg?, max_leg?, length_factor?}], hubs?: [ids], prebuilt?: [{from, to, mode}], params?: {payback_months, load_factor, transfer_periods, transfer_cost_per_unit, max_legs, k, budget?}}',
   solve(raw) {
     if (!record(raw)) return 'the input must be an object {places, demands, modes, hubs?, prebuilt?, params?}';
     const extra = unknownKeys(raw, ['places', 'demands', 'modes', 'hubs', 'prebuilt', 'params']);
@@ -40,8 +40,14 @@ export const data: DataForm = {
     for (const [i, m] of raw.modes.entries()) {
       if (!record(m) || typeof m.mode !== 'string') return `modes[${i}] needs a mode name`;
       if (!num(m.build_per_tile) || !num(m.terminal) || !num(m.overhead_periods)) return `modes[${i}]: build_per_tile, terminal and overhead_periods must be non-negative numbers`;
-      const v = m.vehicle;
-      if (!record(v) || typeof v.name !== 'string' || !num(v.price) || !num(v.running_per_year) || !num(v.capacity, 1) || !num(v.speed_kmh, 1)) return `modes[${i}].vehicle must be {name, price, running_per_year, capacity >= 1, speed_kmh >= 1} (the effective speed; a train is its whole consist)`;
+      const okVehicle = (v: unknown) => record(v) && typeof v.name === 'string' && num(v.price) && num(v.running_per_year) && num(v.capacity, 1) && num(v.speed_kmh, 1);
+      const shape = '{name, price, running_per_year, capacity >= 1, speed_kmh >= 1} (the effective speed; a train is its whole consist)';
+      if (m.vehicle === undefined && m.vehicles === undefined) return `modes[${i}] needs a vehicle, or vehicles keyed by cargo`;
+      if (m.vehicle !== undefined && !okVehicle(m.vehicle)) return `modes[${i}].vehicle must be ${shape}`;
+      if (m.vehicles !== undefined) {
+        if (!record(m.vehicles)) return `modes[${i}].vehicles must map each cargo to its vehicle`;
+        for (const [cargo, v] of Object.entries(m.vehicles)) if (!okVehicle(v)) return `modes[${i}].vehicles.${cargo} must be ${shape}`;
+      }
       modes.push(m as unknown as Mode);
     }
     const hubs = raw.hubs ?? [];

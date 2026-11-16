@@ -70,10 +70,12 @@ function fromGame(raw: Record<string, unknown>): Record<string, unknown> | strin
   if (prices !== undefined) {
     if (!record(prices) || !record(prices.prices)) return 'prices must be openttd://economy/prices\' data ({prices: {build_rail, ...}})';
     const pr = prices.prices as Record<string, unknown>;
-    if (railtype !== undefined && !(record(railtype) && finite(railtype.cost_multiplier) && railtype.cost_multiplier > 0)) return 'railtype must be {cost_multiplier} (a rail type of openttd://railtypes; plain rail is 8)';
+    if (railtype !== undefined && !(record(railtype) && ((finite(railtype.build_cost) && railtype.build_cost > 0) || (finite(railtype.cost_multiplier) && railtype.cost_multiplier > 0)))) return 'railtype must be an openttd://railtypes entry with build_cost or cost_multiplier (plain rail: leave it out)';
     if (!finite(pr.build_rail) || pr.build_rail <= 0) return 'prices.prices.build_rail must be a positive amount: every cost is a multiple of it';
     // RailBuildCost: the track's price on this rail type, the unit every other cost is a multiple of
-    const rail = railBuildCost(pr.build_rail, railtype ? (railtype.cost_multiplier as number) : 8);
+    // the game's own RailBuildCost when the rail type carries it, else build_rail × multiplier >> 3
+    const rail = railtype && finite(railtype.build_cost) && railtype.build_cost > 0 ? railtype.build_cost
+      : railBuildCost(pr.build_rail, railtype ? (railtype.cost_multiplier as number) : 8);
     // the game's own price ratios, one tile of plain rail the unit; a price the game does not
     // list keeps its default, and costs the caller gives explicitly win over all of them
     const ratio = (name: string) => (finite(pr[name]) && (pr[name] as number) >= 0 ? (pr[name] as number) / rail : undefined);
