@@ -5,6 +5,12 @@
 // projected back towards its rest length, a pinned end taking none of the correction, and
 // particles are pushed out of the sphere and onto the floor. Pure: no p5, typed arrays only,
 // and the only randomness is the `rnd` handed to `cloth()`.
+//
+// Momentum, booked per step along y (gravity's axis, unit masses, velocity v = pos − prev): the
+// free particles' P = Σv obeys P' = γP + N_free·a + J_pins + J_contact exactly. Two free ends of
+// a link move by equal and opposite amounts, so the links' own corrections cancel in the sum and
+// only a link with one pinned end, or a contact, changes P. The step books those two impulses
+// (`held` per pin, `contact`) without touching a position, so the run is the same bit for bit.
 
 export const DAMPING = 0.995;
 
@@ -36,6 +42,12 @@ export interface Cloth {
   t: number;
   /** Mean relative link stretch seen by the last relaxation pass. */
   strain: number;
+  /** Per pinned particle, the y impulse its links gave the free cloth in the last step. */
+  held: Float64Array;
+  /** The y impulse the sphere and the floor gave the cloth in the last step. */
+  contact: number;
+  /** The free particles' mean y velocity after the last step (length per step). */
+  fall: number;
 }
 
 export interface Forces {
@@ -109,7 +121,17 @@ export function cloth(res: number, scene: Scene, rnd: () => number): Cloth {
     floor: top + rows * 1.15,
     t: 0,
     strain: 0,
+    held: new Float64Array(n),
+    contact: 0,
+    fall: 0,
   };
+}
+
+/** Particles that are not pinned: the ones gravity moves. */
+export function freeCount(c: Cloth): number {
+  let k = 0;
+  for (let q = 0; q < c.pinned.length; q++) if (!c.pinned[q]) k++;
+  return k;
 }
 
 /** One Verlet position update of every free particle; the wind is a travelling sine gust. */
@@ -132,7 +154,7 @@ export function integrate(c: Cloth, gravity: number, wind: number, damping = DAM
 
 /** One Gauss-Seidel pass over the links; returns the mean relative stretch it found. */
 export function relax(c: Cloth): number {
-  const { pos, pinned, la, lb, rest } = c;
+  const { pos, pinned, la, lb, rest, held } = c;
   const m = rest.length;
   let sum = 0;
   for (let k = 0; k < m; k++) {
@@ -154,6 +176,11 @@ export function relax(c: Cloth): number {
     pos[b] -= dx * diff * wb;
     pos[b + 1] -= dy * diff * wb;
     pos[b + 2] -= dz * diff * wb;
+    // one end pinned: the free end took the whole correction, an impulse through that pin
+    if (wa !== wb) {
+      if (wa === 0) held[pa] -= dy * diff;
+      else held[pb] += dy * diff;
+    }
   }
   return m > 0 ? sum / m : 0;
 }
@@ -162,8 +189,10 @@ export function relax(c: Cloth): number {
 export function collide(c: Cloth): void {
   const { pos, prev, sphere, floor } = c;
   const n = c.cols * c.rows;
+  let push = 0;
   for (let k = 0; k < n; k++) {
     const o = k * 3;
+    const y0 = pos[o + 1];
     if (sphere) {
       const dx = pos[o] - sphere.x;
       const dy = pos[o + 1] - sphere.y;
@@ -182,15 +211,33 @@ export function collide(c: Cloth): void {
       prev[o] = pos[o] - (pos[o] - prev[o]) * 0.2;
       prev[o + 2] = pos[o + 2] - (pos[o + 2] - prev[o + 2]) * 0.2;
     }
+    push += pos[o + 1] - y0;
   }
+  c.contact += push;
 }
 
 /** One time step: advance the clock, integrate, then relax and collide `iterations` times. */
 export function step(c: Cloth, f: Forces): void {
   c.t += 1;
+  c.held.fill(0);
+  c.contact = 0;
   integrate(c, f.gravity, f.wind, f.damping ?? DAMPING);
   for (let it = 0; it < f.iterations; it++) {
     c.strain = relax(c);
     collide(c);
   }
+  const { pos, prev, pinned } = c;
+  let p = 0;
+  let free = 0;
+  for (let k = 0; k < pinned.length; k++) {
+    if (pinned[k]) continue;
+    p += pos[k * 3 + 1] - prev[k * 3 + 1];
+    free++;
+  }
+  c.fall = free > 0 ? p / free : 0;
+}
+
+/** The closed form of a free fall from rest: v_n = a(1 − γⁿ)/(1 − γ) after n damped steps. */
+export function freeFall(a: number, n: number, damping = DAMPING): number {
+  return damping === 1 ? a * n : (a * (1 - damping ** n)) / (1 - damping);
 }

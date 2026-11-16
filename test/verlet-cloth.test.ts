@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
 import {
-  cloth, integrate, step, type Cloth, type Forces, type Scene,
+  cloth, DAMPING, freeCount, freeFall, integrate, step, type Cloth, type Forces, type Scene,
 } from '../src/plates/verlet-cloth/cloth';
 import { verletCloth } from '../src/plates/verlet-cloth/plate';
-import type { RangeParam } from '../src/core/plate';
+import { type Params, type PlateContext, type RangeParam, type Stat } from '../src/core/plate';
+import { GROUNDS, palette as lookupPalette } from '../src/core/palette';
+import { p5Stub } from './support/p5-stub';
 
 // ---------------------------------------------------------------------------------------------
 // The frozen reference: the simulation of src/plates/verlet-cloth/plate.ts as it was before the
@@ -229,7 +231,7 @@ function particle(x0: number[], prev0: number[]): Cloth {
     cols: 1, rows: 1,
     pos: Float64Array.from(x0), prev: Float64Array.from(prev0), pinned: new Uint8Array(1),
     la: new Uint32Array(0), lb: new Uint32Array(0), rest: new Float64Array(0),
-    sphere: null, floor: Infinity, t: 0, strain: 0,
+    sphere: null, floor: Infinity, t: 0, strain: 0, held: new Float64Array(1), contact: 0, fall: 0,
   };
 }
 
@@ -322,4 +324,85 @@ describe('verlet-cloth: position Verlet with distance constraints', () => {
       expect(Number.isFinite(c.strain)).toBe(true);
     });
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// The momentum book (cloth.ts): recomputed here from positions alone, never from the plate's sums.
+// ---------------------------------------------------------------------------------------------
+
+/** Σ over free particles of pos_y − prev_y: the cloth's y momentum, unit masses, per step. */
+function momentumY(c: Cloth): number {
+  let p = 0;
+  for (let k = 0; k < c.pinned.length; k++) if (!c.pinned[k]) p += c.pos[k * 3 + 1] - c.prev[k * 3 + 1];
+  return p;
+}
+
+describe('verlet-cloth: momentum, booked per step', () => {
+  for (const scene of ['drape', 'curtain', 'corners'] as Scene[]) {
+    it(`${scene}: P' = γP + N·a + pins + contacts every step, wind blowing`, () => {
+      const c = cloth(20, scene, mulberry32(17));
+      const f: Forces = { gravity: 0.012, wind: 0.6 * 0.004, iterations: 8 };
+      const free = freeCount(c);
+      let p = momentumY(c);
+      let contacts = 0;
+      for (let s = 0; s < 400; s++) {
+        step(c, f);
+        const pins = c.held.reduce((a, v) => a + v, 0);
+        contacts += Math.abs(c.contact);
+        const next = momentumY(c);
+        const want = DAMPING * p + free * f.gravity + pins + c.contact;
+        expect(Math.abs(next - want), `step ${s + 1}`).toBeLessThan(1e-9 * free * f.gravity);
+        expect(Math.abs(c.fall - next / free)).toBeLessThan(1e-12);
+        p = next;
+      }
+      // the drape lands on the sphere; the hung scenes never touch anything
+      if (scene === 'drape') expect(contacts).toBeGreaterThan(0);
+      else expect(contacts).toBe(0);
+    });
+  }
+
+  it('a free fall from rest: no pins, no contact, the mean velocity is a(1 − γⁿ)/(1 − γ)', () => {
+    const c = cloth(36, 'drape', mulberry32(4242));
+    const f: Forces = { gravity: 0.012, wind: 0.6 * 0.004, iterations: 8 };
+    for (let n = 1; n <= 30; n++) {
+      step(c, f);
+      expect(c.contact).toBe(0);
+      expect(Math.abs(c.fall - freeFall(f.gravity, n))).toBeLessThan(1e-12);
+    }
+    // the closed form against the recurrence v' = γv + a, summed here
+    let v = 0;
+    for (let n = 1; n <= 30; n++) v = DAMPING * v + f.gravity;
+    expect(Math.abs(freeFall(f.gravity, 30) - v)).toBeLessThan(1e-15);
+    expect(freeFall(0.5, 7, 1)).toBe(3.5);
+  });
+});
+
+describe('verlet-cloth: the plate stops after k steps', () => {
+  const run = (over: Params, frames: number): Stat[] => {
+    let rows: Stat[] = [];
+    const params: Params = {
+      ...Object.fromEntries(verletCloth.params.map((d) => [d.key, d.value])), ...over,
+    };
+    const ground = GROUNDS.dark;
+    const ctx: PlateContext = {
+      width: 400, height: 250, params, seed: 4242, rnd: mulberry32(4242), theme: 'dark',
+      bg: ground.bg, fg: ground.fg, thumbnail: false, palette: () => lookupPalette('riso'),
+      stats(r) { rows = r; }, chart() {},
+    };
+    const sim = verletCloth.create(p5Stub(), ctx);
+    sim.setup();
+    for (let f = 0; f < frames; f++) sim.draw();
+    return rows;
+  };
+  const value = (rows: Stat[], label: string) => rows.find((r) => r.label === label)?.value;
+
+  it('at 0, the default, it runs on; at k it holds still on its k-th step', () => {
+    expect(value(run({}, 20), 'completed runs')).toBe('40');
+    // an odd k: the second step of a frame is cut, so it stops on the step, not on a frame
+    const a = run({ runs: 31 }, 40);
+    const b = run({ runs: 31 }, 60);
+    expect(value(a, 'completed runs')).toBe('31 of 31, stopped');
+    expect(a).toEqual(b);
+    expect(value(a, 'free fall a(1 − γⁿ)/(1 − γ)')).toBe(`${freeFall(0.012, 31).toPrecision(10)} per step`);
+  });
 });

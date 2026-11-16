@@ -2170,7 +2170,7 @@ A mass on a spring, damped and driven, in five experiments: the steady state, a 
 <a href="https://korczis.github.io/algoglyph/#/p/verlet-cloth"><picture><source media="(prefers-color-scheme: light)" srcset="docs/previews/verlet-cloth-light.jpg"><img src="docs/previews/verlet-cloth.jpg" width="100%" alt="Verlet Cloth, plate 332"></picture></a><br>
 <b><a href="https://korczis.github.io/algoglyph/#/p/verlet-cloth">332 · Verlet Cloth</a></b><br>
 A sheet of particles held together by distance constraints: hang it as a curtain, pin it by two corners, or drop it over a sphere, then blow wind through it.<br>
-<sub>Mechanics · O(links × iterations) per step · Verlet, constraints, 3D</sub>
+<sub>Mechanics · O(links × iterations) per step · Verlet, constraints, 3D, momentum</sub>
 <br><sub>Pointer: Drag to orbit, scroll to zoom.</sub>
 </td>
 <td width="50%" valign="top">
