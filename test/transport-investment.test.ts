@@ -123,6 +123,20 @@ describe('transport-investment: the fleet that pays best, not the fleet that car
   });
 });
 
+describe('transport-investment: one line per source', () => {
+  it('sells a source\'s volume once: of two coal lines from one mine only the better enters the portfolio', () => {
+    const places: Place[] = [{ id: 'M', x: 0, y: 0 }, { id: 'P1', x: 60, y: 0 }, { id: 'P2', x: 0, y: 90 }];
+    const coal = (id: string, to: string): Demand => ({ id, from: 'M', to, cargo: 'Coal', volume: 200, payment: 5_916, td1: 7, td2: 255 });
+    const both = invest(places, [coal('a', 'P1'), coal('b', 'P2')], [rail], [], [], { ...DEFAULT_PARAMS, one_per_source: false });
+    const one = invest(places, [coal('a', 'P1'), coal('b', 'P2')], [rail], [], [], DEFAULT_PARAMS);
+    if (typeof both === 'string' || typeof one === 'string') throw new Error('refused');
+    expect(both.chosen.length).toBe(2);
+    expect(one.chosen.length).toBe(1);
+    const better = [both.options[0][0], both.options[1][0]].sort((x, y) => y.score - x.score)[0];
+    expect(one.chosen[0].demand).toBe(better.demand);
+  });
+});
+
 describe('transport-investment: vehicles by cargo', () => {
   it('runs a mode only for the cargos it has a vehicle for, and lets one run carry several cargos', () => {
     const lorry = { name: 'coal lorry', price: 9_000, running_per_year: 2_000, capacity: 20, speed_kmh: 48 };
@@ -142,11 +156,13 @@ describe('transport-investment: the portfolio within the budget', () => {
   it('takes the subset of best routes with the most score that fits, as a brute force over every subset does', () => {
     const places: Place[] = [{ id: 'P0', x: 0, y: 0 }, ...Array.from({ length: 6 }, (_, i) => ({ id: `Q${i}`, x: 40 + 30 * i, y: 10 * i }))];
     const demands: Demand[] = Array.from({ length: 6 }, (_, i) => ({ id: `d${i}`, from: 'P0', to: `Q${i}`, cargo: 'coal', volume: 150 + 60 * i, payment: 5_916, td1: 7, td2: 255 }));
-    const free = invest(places, demands, [bus, rail], [], [], DEFAULT_PARAMS);
+    // every demand here leaves the same source: the knapsack is the subject, so one line per
+    // source (tested on its own below) is off
+    const free = invest(places, demands, [bus, rail], [], [], { ...DEFAULT_PARAMS, one_per_source: false });
     if (typeof free === 'string') throw new Error(free);
     const best = free.options.map((o) => o.find((x) => x.score > 0)).filter((x) => x !== undefined);
     const budget = Math.round(best.reduce((s, o) => s + o!.investment, 0) * 0.45);
-    const r = invest(places, demands, [bus, rail], [], [], { ...DEFAULT_PARAMS, budget });
+    const r = invest(places, demands, [bus, rail], [], [], { ...DEFAULT_PARAMS, one_per_source: false, budget });
     if (typeof r === 'string') throw new Error(r);
     // brute force over the same items with the same 1000-unit weights the knapsack sees
     const unit = Math.max(1000, Math.ceil((budget * (best.length + 1)) / 200_000));

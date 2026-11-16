@@ -61,6 +61,7 @@ export const data: DataForm = {
       if (bad) return `params: ${bad}`;
       for (const [k, v] of Object.entries(raw.params)) {
         if (k === 'max_legs') { if (v !== 1 && v !== 2) return 'params.max_legs must be 1 or 2'; }
+        else if (k === 'one_per_source') { if (typeof v !== 'boolean') return 'params.one_per_source must be a boolean'; }
         else if (k === 'k') { if (!(integer(v) && v >= 1 && v <= 256)) return 'params.k must be an integer 1..256'; }
         else if (!num(v)) return `params.${k} must be a non-negative number`;
         (params as unknown as Record<string, unknown>)[k] = v;

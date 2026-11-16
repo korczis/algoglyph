@@ -36,8 +36,12 @@ export interface Mode {
   min_leg?: number; max_leg?: number;
   length_factor?: number;
 }
-export interface Params { payback_months: number; load_factor: number; transfer_periods: number; transfer_cost_per_unit: number; max_legs: 1 | 2; k: number; budget?: number }
-export const DEFAULT_PARAMS: Params = { payback_months: 24, load_factor: 0.8, transfer_periods: 2, transfer_cost_per_unit: 0, max_legs: 2, k: 32 };
+export interface Params {
+  payback_months: number; load_factor: number; transfer_periods: number; transfer_cost_per_unit: number; max_legs: 1 | 2; k: number; budget?: number;
+  /** At most one line per (cargo, source) in the portfolio: two lines from one mine would each count its whole production. */
+  one_per_source: boolean;
+}
+export const DEFAULT_PARAMS: Params = { payback_months: 24, load_factor: 0.8, transfer_periods: 2, transfer_cost_per_unit: 0, max_legs: 2, k: 32, one_per_source: true };
 
 export interface Leg { from: string; to: string; mode: string; tiles: number; periods: number; vehicles: { name: string; count: number }; build: number; vehicle_cost: number; running_per_month: number; prebuilt: boolean }
 export interface Option {
@@ -185,6 +189,19 @@ export function invest(places: Place[], demands: Demand[], modes: Mode[], hubs: 
   // the best route of each demand that pays at all enters the knapsack: weight its investment in
   // thousands, value its score; with no budget every paying best route is taken
   const best = options.map((o) => o.find((x) => x.score > 0));
+  if (p.one_per_source) {
+    // a source's volume can be sold once: of the demands sharing a cargo and a source, only the
+    // one whose best route scores highest enters the portfolio
+    const top = new Map<string, number>();
+    demands.forEach((d, i) => {
+      if (!best[i]) return;
+      const key = `${d.cargo}|${d.from}`;
+      const j = top.get(key);
+      if (j === undefined || best[i]!.score > best[j]!.score) top.set(key, i);
+    });
+    const keep = new Set(top.values());
+    best.forEach((_, i) => { if (!keep.has(i)) best[i] = undefined; });
+  }
   const items = best.map((o, i) => (o ? i : -1)).filter((i) => i >= 0);
   let picked: number[] = items;
   if (p.budget !== undefined && items.length) {
