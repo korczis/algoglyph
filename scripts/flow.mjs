@@ -8,7 +8,7 @@
 //   npm run flow -- preset [id]            the example ids, or one example as a graph document
 //   npm run flow -- check <file|->         parse and check a graph document (exit 1 when refused)
 //   npm run flow -- run <file|->           run it; each node's status and summarised outputs (exit 1 on a failed node)
-//   npm run flow -- kernel <id> <file|-> [--trace]   one catalogue kernel on your data (graph kernels: {n, edges, s, t, side?, params?})
+//   npm run flow -- kernel <id> <file|-> [--trace]   one catalogue kernel on your data (graph: {n, edges, s, t, side?, params?}; grid: its data form, e.g. knapsack {weights, values, capacity})
 //   npm run flow -- kernels                the kernels `kernel` reads caller data for, with their parameters
 //   npm run flow -- help
 //

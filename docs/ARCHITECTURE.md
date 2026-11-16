@@ -254,7 +254,9 @@ and runtime without a browser: `check -` reads a proposed document from standard
 exits 1 when it is refused, so an agent's graph is decided exactly as an import in the page.
 `kernel <id> <file|-> [--trace]` runs one catalogue kernel on a caller's own graph (`{n, edges:
 [{u, v, w, cap, cost}], s, t, side?, params?}`), with the plate's code and engine, and returns its
-result, counts, report and optionally its operation trace; another repository uses it as a backend.
+result, counts, report and optionally its operation trace; a grid kernel that declares a data form
+(`GridKernel.fromData`, knapsack-dp first) takes its own data the same way. Another repository
+uses it as a backend.
 
 A port carries a series (values in a unit along an axis in a unit), points, a table or
 readouts; units compare exactly, `$` variables bind per node, and a conversion is a node. A

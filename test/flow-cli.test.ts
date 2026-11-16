@@ -99,6 +99,38 @@ describe('flow cli: a catalogue kernel on caller data', () => {
 
   it('lists every live graph kernel as runnable on caller data', async () => {
     const list = await runnable();
-    expect(list.map((k) => k.id)).toEqual(ENTRIES.filter((e) => e.engine === 'graph' && e.status === 'live').map((e) => e.id).sort());
+    const graph = list.filter((k) => k.engine === 'graph').map((k) => k.id);
+    expect(graph).toEqual(ENTRIES.filter((e) => e.engine === 'graph' && e.status === 'live').map((e) => e.id).sort());
+    expect(list.map((k) => k.id)).toContain('knapsack-dp');
+  });
+});
+
+describe('flow cli: a grid kernel on caller data', () => {
+  // the optimum by brute force over every subset: the reference for the DP
+  const brute = (w: number[], v: number[], cap: number) => {
+    let best = 0;
+    for (let m = 0; m < 1 << w.length; m++) {
+      let tw = 0; let tv = 0;
+      for (let i = 0; i < w.length; i++) if (m & (1 << i)) { tw += w[i]; tv += v[i]; }
+      if (tw <= cap && tv > best) best = tv;
+    }
+    return best;
+  };
+
+  it('knapsack-dp finds the best value and a set of items that achieves it', async () => {
+    const data = { weights: [5, 4, 6, 3, 7, 2], values: [10, 40, 30, 50, 35, 15], capacity: 13 };
+    const r = await runKernel('knapsack-dp', JSON.stringify(data));
+    if (!r.ok) throw new Error(r.errors.join('; '));
+    const res = r.result as { best: number; items: number[] };
+    expect(res.best).toBe(brute(data.weights, data.values, data.capacity));
+    expect(res.items.reduce((s, i) => s + data.weights[i], 0)).toBeLessThanOrEqual(data.capacity);
+    expect(res.items.reduce((s, i) => s + data.values[i], 0)).toBe(res.best);
+  });
+
+  it('refuses malformed knapsack data with the field named', async () => {
+    expect(await runKernel('knapsack-dp', '{"weights":[1,0],"values":[1,1],"capacity":3}')).toMatchObject({ ok: false, errors: [expect.stringContaining('weights')] });
+    expect(await runKernel('knapsack-dp', '{"weights":[1],"values":[1,2],"capacity":3}')).toMatchObject({ ok: false, errors: [expect.stringContaining('values')] });
+    expect(await runKernel('knapsack-dp', '{"weights":[1],"values":[1],"capacity":1e9}')).toMatchObject({ ok: false, errors: [expect.stringContaining('capacity')] });
+    expect(await runKernel('n-queens', '{}')).toMatchObject({ ok: false, errors: [expect.stringContaining('no data form')] });
   });
 });

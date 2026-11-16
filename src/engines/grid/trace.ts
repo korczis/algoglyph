@@ -117,6 +117,12 @@ export interface GridKernel<D = unknown, R = unknown> {
   chart: ChartSpec;
   /** `opts` holds the kernel's own controls by key; a key it lacks takes the control's default. */
   instance(n: number, seed: number, opts?: Record<string, number>): Instance<D, R>;
+  /**
+   * An instance built from a caller's own data instead of the seed (the flow's command line,
+   * another repository's planner): the same run as the plate's, or the reason the data is
+   * refused, naming the field. Only a kernel whose problem has a natural data form offers it.
+   */
+  fromData?(data: unknown): Instance<D, R> | string;
 }
 
 /** Counts of a trace, in total and by row, and the distinct cells written and crossed. */

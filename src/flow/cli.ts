@@ -2,9 +2,10 @@
 // runtime the editor uses, answering in JSON. Nothing here reads a file, the network or the
 // DOM — scripts/flow.mjs hands it text and prints what it returns — so a graph an agent
 // proposes is decided by the one parser and checker exactly as an import in the page is.
-import { ENTRIES } from '../core/catalogue';
+import { ENTRIES, type Entry } from '../core/catalogue';
 import { build, DIRECTED, type Graph } from '../engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type GraphKernel, type Options } from '../engines/graph/trace';
+import { trace as gridTrace, type GridKernel } from '../engines/grid/trace';
 import { kernelLoader } from '../registry';
 import { coverage, tally, type Coverage, type Level } from './derive';
 import { check, parseGraph, serialiseGraph } from './graph';
@@ -151,9 +152,10 @@ const plain = (v: unknown): unknown => JSON.parse(JSON.stringify(v, (_k, x) => (
 export async function runKernel(id: string, text: string, opt: { trace?: boolean; seed?: number } = {}) {
   const e = ENTRIES.find((x) => x.id === id && x.status === 'live');
   if (!e) return { ok: false as const, errors: [`no live catalogue entry ${id}`] };
-  if (e.engine !== 'graph') return { ok: false as const, errors: [`${id} runs on the ${e.engine} engine; caller data is read for graph kernels so far`] };
+  if (e.engine !== 'graph' && e.engine !== 'grid') return { ok: false as const, errors: [`${id} runs on the ${e.engine} engine; caller data is read for graph and grid kernels so far`] };
   let raw: unknown;
   try { raw = JSON.parse(text); } catch (err) { return { ok: false as const, errors: [`the input is not JSON: ${(err as Error).message}`] }; }
+  if (e.engine === 'grid') return gridKernel(e, (await kernelLoader(e)()) as GridKernel, raw);
   const k = (await kernelLoader(e)()) as GraphKernel;
   const parsed = graphFromInput(raw, k);
   if (typeof parsed === 'string') return { ok: false as const, errors: [parsed] };
@@ -175,12 +177,34 @@ export async function runKernel(id: string, text: string, opt: { trace?: boolean
   };
 }
 
-/** The kernels `runKernel` reads caller data for, with their parameters and goal. */
+/** The kernels `runKernel` reads caller data for: every graph kernel, and every grid kernel with a data form. */
 export async function runnable() {
-  const out = [];
+  const out: Record<string, unknown>[] = [];
+  for (const e of ENTRIES.filter((x) => x.engine === 'grid' && x.status === 'live').sort((a, b) => a.id.localeCompare(b.id))) {
+    const k = (await kernelLoader(e)()) as GridKernel;
+    if (k.fromData) out.push({ id: e.id, title: e.title, engine: 'grid', input: 'the kernel\'s data form (see its fromData)' });
+  }
   for (const e of ENTRIES.filter((x) => x.engine === 'graph' && x.status === 'live').sort((a, b) => a.id.localeCompare(b.id))) {
     const k = (await kernelLoader(e)()) as GraphKernel;
-    out.push({ id: e.id, title: e.title, goal: k.goal, shape: k.inputs[0], params: (k.params ?? []).map((d) => ({ key: d.key, value: d.value })) });
+    out.push({ id: e.id, title: e.title, engine: 'graph', goal: k.goal, shape: k.inputs[0], params: (k.params ?? []).map((d) => ({ key: d.key, value: d.value })) });
   }
   return out;
+}
+
+/** A grid kernel on a caller's data, through the kernel's own `fromData`: result, readouts, work. */
+function gridKernel(e: Entry, k: GridKernel, raw: unknown) {
+  if (!k.fromData) return { ok: false as const, errors: [`${e.title} has no data form yet; it runs on its seeded instance only`] };
+  const inst = k.fromData(raw);
+  if (typeof inst === 'string') return { ok: false as const, errors: [inst] };
+  const t = gridTrace(inst);
+  if (t.truncated) return { ok: false as const, errors: [`${e.title}: the run reached the trace's event cap`] };
+  return {
+    ok: true as const,
+    kernel: { id: e.id, title: e.title, plate: `#/p/${e.id}` },
+    input: inst.input,
+    result: plain(t.outcome?.result),
+    summary: t.outcome?.summary,
+    readouts: Object.fromEntries(k.readouts.map((m) => [m.name, m.of(t.tally)])),
+    work: t.tally.work,
+  };
 }
