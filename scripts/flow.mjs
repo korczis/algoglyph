@@ -10,11 +10,13 @@
 //   npm run flow -- run <file|->           run it; each node's status and summarised outputs (exit 1 on a failed node)
 //   npm run flow -- kernel <id> <file|-> [--trace]   one catalogue kernel on your data (graph: {n, edges, s, t, side?, params?}; grid: its data form, e.g. knapsack {weights, values, capacity})
 //   npm run flow -- kernels                the kernels `kernel` reads caller data for, with their parameters
+//   npm run flow -- serve                  one long-lived process: a JSON request per stdin line, a JSON answer per stdout line
 //   npm run flow -- help
 //
 // A graph is the editor's document (schema algoglyph.graph/v1, its "Export JSON"); `-` reads it
 // from standard input, so an agent can pipe a proposal straight into `check`.
 import { readFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
@@ -29,10 +31,42 @@ async function input(arg) {
   for await (const chunk of process.stdin) text += chunk;
   return text;
 }
+/**
+ * One process for many requests (a planner that replans): each stdin line is a JSON request
+ * {id?, cmd, ...}, answered by one stdout line {id, ...answer}. cmd is one of: kernel (kernel,
+ * input, trace?), kernels, check (graph), run (graph), nodes, coverage (level?), preset (preset?).
+ * A request that fails is answered {id, ok: false, errors}; the process keeps serving until stdin closes.
+ */
+async function serve(cli) {
+  const answer = async (q) => {
+    const text = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
+    switch (q.cmd) {
+      case 'kernel': return cli.runKernel(String(q.kernel), text(q.input ?? {}), { trace: Boolean(q.trace) });
+      case 'kernels': return { ok: true, kernels: await cli.runnable() };
+      case 'check': return cli.validate(text(q.graph));
+      case 'run': return cli.run(text(q.graph));
+      case 'nodes': return { ok: true, nodes: cli.nodes() };
+      case 'coverage': return { ok: true, ...cli.entries(q.level) };
+      case 'preset': return { ok: true, preset: cli.preset(q.preset) };
+      default: return { ok: false, errors: [`unknown cmd ${q.cmd}; one of kernel, kernels, check, run, nodes, coverage, preset`] };
+    }
+  };
+  const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
+  for await (const line of lines) {
+    if (!line.trim()) continue;
+    let q;
+    try { q = JSON.parse(line); } catch (e) { process.stdout.write(`${JSON.stringify({ ok: false, errors: [`not JSON: ${e.message}`] })}\n`); continue; }
+    let a;
+    try { a = await answer(q); } catch (e) { a = { ok: false, errors: [e instanceof Error ? e.message : String(e)] }; }
+    process.stdout.write(`${JSON.stringify({ id: q.id ?? null, ...a })}\n`);
+  }
+  return 0;
+}
+
 const print = (v) => process.stdout.write(`${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}\n`);
 
 if (cmd === 'help' || cmd === '--help') {
-  print(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 15).map((l) => l.slice(3)).join('\n'));
+  print(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 16).map((l) => l.slice(3)).join('\n'));
   process.exit(0);
 }
 
@@ -47,6 +81,7 @@ try {
     case 'check': { const r = cli.validate(await input(rest[0])); print(r); code = r.ok ? 0 : 1; break; }
     case 'kernel': { const r = await cli.runKernel(rest[0], await input(rest[1]), { trace: rest.includes('--trace') }); print(r); code = r.ok ? 0 : 1; break; }
     case 'kernels': print(await cli.runnable()); break;
+    case 'serve': code = await serve(cli); break;
     case 'run': { const r = await cli.run(await input(rest[0])); print(r); code = r.ok ? 0 : 1; break; }
     default: throw new Error(`unknown command ${cmd}; try: npm run flow -- help`);
   }

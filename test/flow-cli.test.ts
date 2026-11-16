@@ -134,3 +134,22 @@ describe('flow cli: a grid kernel on caller data', () => {
     expect(await runKernel('n-queens', '{}')).toMatchObject({ ok: false, errors: [expect.stringContaining('no data form')] });
   });
 });
+
+describe('flow cli: serve', () => {
+  it('answers one JSON line per request line, in order, and keeps serving after a bad one', () => {
+    const reqs = [
+      { id: 1, cmd: 'kernel', kernel: 'knapsack-dp', input: { weights: [2, 3], values: [3, 4], capacity: 5 } },
+      'not json',
+      { id: 2, cmd: 'nope' },
+      { id: 3, cmd: 'check', graph: preset('fit') },
+    ];
+    const p = spawnSync('node', ['scripts/flow.mjs', 'serve'], { input: reqs.map((r) => (typeof r === 'string' ? r : JSON.stringify(r))).join('\n'), encoding: 'utf8' });
+    expect(p.status, p.stderr).toBe(0);
+    const out = p.stdout.trim().split('\n').map((l) => JSON.parse(l));
+    expect(out).toHaveLength(4);
+    expect(out[0]).toMatchObject({ id: 1, ok: true, result: { best: 7, items: [0, 1] } });
+    expect(out[1]).toMatchObject({ ok: false });
+    expect(out[2]).toMatchObject({ id: 2, ok: false, errors: [expect.stringContaining('unknown cmd')] });
+    expect(out[3]).toMatchObject({ id: 3, ok: true });
+  }, 60_000);
+});
