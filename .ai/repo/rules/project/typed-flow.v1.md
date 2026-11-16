@@ -42,6 +42,9 @@ that patches a value in place, a node that re-implements a kernel "just for the 
   it becomes derived only by an adapter whose runs the tests validate.
 - A derived node reports what its engine measures for the same instance, never a number of its
   own.
+- What an addition owes is read from the tree, not from a list: every adapter in `ADAPTERS` has
+  a test that runs its node against its engine and a derived row in the RFC's migration matrix,
+  and every command of `scripts/flow.mjs` is in its help and in docs/ARCHITECTURE.md.
 
 # Failure behaviour
 
@@ -52,7 +55,9 @@ references, table privacy), `test/flow-derive.test.ts` (every live entry at one 
 equal to the catalogue's, an entry going live joins and one parked leaves, inferred never
 runnable, an added adapter promotes its engine, every grid, graph, tree, string, hash, signal and
 stochastic kernel reporting its engine's own measurement, every selection kernel against a sorted
-copy) `test/flow-cli.test.ts` (the command line accepts and refuses exactly what the
+copy) `test/flow-obligations.test.ts` (an engine adapter without a test that runs its node, or
+without a derived row in the RFC's migration matrix; a command-line command missing from its help
+or from docs/ARCHITECTURE.md), `test/flow-cli.test.ts` (the command line accepts and refuses exactly what the
 editor does and exits non-zero on a refusal) or `test/flow-boundaries.test.ts` (DOM, network, storage and markup
 boundaries; views write only intents). `node scripts/audit-ui.mjs` fails its `flow` section when
 an example does not run or a node fails, a refused connection is drawn or not explained, a
