@@ -101,6 +101,12 @@
               <span class="inline-flex items-center justify-center px-2 h-6 text-xs font-medium rounded-full text-primary-800 bg-primary-100 dark:bg-primary-900 dark:text-primary-200" x-text="facts.live + ' / ' + (facts.live + facts.planned)"></span>
             </a>
           </li>
+          <li>
+            <a href="#/flow" class="flex items-center p-2 text-base text-gray-900 rounded-lg hover:bg-gray-100 group dark:text-gray-200 dark:hover:bg-gray-700" :class="view === 'flow' ? 'bg-gray-100 dark:bg-gray-700' : ''" :aria-current="view === 'flow' ? 'page' : null">
+              <svg class="w-6 h-6 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" aria-hidden="true" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M4 6h4v4H4zM16 6h4v4h-4zM10 14h4v4h-4zM8 8h8M18 10v2a2 2 0 0 1-2 2h-2M6 10v2a2 2 0 0 0 2 2h2"></path></svg>
+              <span class="flex-1 ml-3 whitespace-nowrap">Flow</span>
+            </a>
+          </li>
           <template x-for="w in wings" :key="w.key">
             <li>
               <div class="flex items-center">
@@ -370,6 +376,19 @@
             </div>
           </div>
         </template>
+      </section>
+
+      <!-- The flow editor: typed graphs over the collection's kernels (docs/rfc/0001-typed-reactive-dag.md) -->
+      <section x-show="view === 'flow'" x-cloak aria-labelledby="flow-title">
+        <nav class="flex mb-5 overflow-x-auto" aria-label="Breadcrumb">
+          <ol class="inline-flex items-center space-x-1 md:space-x-2 whitespace-nowrap">
+            <li class="inline-flex items-center"><a href="#/" class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white">Collection</a></li>
+            <li aria-current="page"><div class="flex items-center"><svg class="w-3 h-3 mx-1 text-gray-400 rtl:rotate-180" aria-hidden="true" fill="none" viewBox="0 0 6 10"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"></path></svg><span class="ml-1 text-gray-500 md:ml-2 dark:text-gray-400">Flow</span></div></li>
+          </ol>
+        </nav>
+        <h1 id="flow-title" class="mb-2 text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white">Flow</h1>
+        <p class="mb-4 max-w-3xl text-sm text-gray-700 dark:text-gray-300">Compose the collection's kernels into a typed graph. Every connection is checked, units included: seconds never meet hertz without a conversion. Every value is computed by the same code the plates run, and dragging a point in a view changes the state the graph reads.</p>
+        <div id="flow-host" data-flow-host></div>
       </section>
 
       <!-- A plate, a planned entry or a lab -->

@@ -1,6 +1,7 @@
 // The graph engine's input: one graph type and a seeded generator for every input shape a
 // kernel may declare. Pure: the same shape, size, seed and aspect give the same graph.
 import { gaussian, mulberry32 } from '../../core/random';
+import { UnionFind } from '../../kernels/graph/_uf';
 
 export interface Graph {
   shape: Shape;
@@ -97,6 +98,13 @@ export const CYCLE_WEIGHT = -40;
  * control sets it. */
 export const MIN_CONFIDENCE = 0.3;
 
+/** The ownership input's cross-holdings per 12 companies, unless the kernel's own control sets
+ * it. */
+export const CROSS_HOLDINGS = 1;
+
+/** The random input's edges per vertex, unless the kernel's own control sets it. */
+export const EDGES_PER_VERTEX = 1.2;
+
 /** What a kernel's own controls set in its input (index.ts graphInput); absent, the default. */
 export interface GraphInput {
   /** Vertex weights are 1 + ⌊u · maxDuration⌋, the same draw in the same place at every value. */
@@ -118,11 +126,19 @@ export interface GraphInput {
   /** Link confidences are round(lo + u · (99 − lo)) / 100 with lo = round(100 · minConfidence):
    * the same single draw in the same place, and at 0.30 the old round(30 + u · 69) / 100. */
   minConfidence?: number;
+  /** The ownership input asks for max(1, round(n · crossHoldings / 12)) cross-holdings, none at
+   * 0 (a DAG). A count, so a setting off the default shifts the draws after them (the share
+   * weights and the free floats); the default 1 is the old max(1, round(n / 12)). */
+  crossHoldings?: number;
+  /** The random input draws min(n(n − 1)/2, round(edgesPerVertex · n)) distinct pairs, each
+   * weight just after its pair: the list at a lower value is a prefix of the list at a higher
+   * one, and off the default only the draws after the edges (the vertex weights) shift. */
+  edgesPerVertex?: number;
 }
 
 /** The keys of GraphInput: a kernel param with one of these keys sets the input, not the run. */
 export const INPUT_KEYS: readonly (keyof GraphInput)[] = ['maxDuration', 'fanIn', 'maxCapacity',
-  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence'];
+  'reciprocity', 'maxWeight', 'cycleWeight', 'minConfidence', 'crossHoldings', 'edgesPerVertex'];
 
 interface Extra { s?: number; t?: number; truth?: number[]; names?: string[]; cap?: number[];
   cost?: number[]; vw?: number[] }
@@ -175,7 +191,7 @@ function scatter(n: number, aspect: number, rnd: () => number): { x: number[]; y
 const d2 = (x: number[], y: number[], i: number, j: number) => (x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2;
 
 /** Undirected pairs i < j joining each point to its k nearest (ties by index). */
-function knn(x: number[], y: number[], k: number, among?: number[]): [number, number][] {
+export function knn(x: number[], y: number[], k: number, among?: number[]): [number, number][] {
   const ids = among ?? x.map((_, i) => i);
   const seen = new Set<number>();
   const pairs: [number, number][] = [];
@@ -201,30 +217,48 @@ function knn(x: number[], y: number[], k: number, among?: number[]): [number, nu
   return pairs;
 }
 
-function find(p: number[], a: number): number {
-  while (p[a] !== a) { p[a] = p[p[a]]; a = p[a]; }
-  return a;
-}
+// connect() and joinWithin() join through the kernels' union-find (src/kernels/graph/_uf.ts).
+// They only ask whether two vertices share a root and scan vertices in index order, so which
+// root a union keeps never reaches a pair (test/graph-engine-union-find.test.ts).
 
 /** Add the shortest pair between components until the pairs connect every point. */
-function connect(x: number[], y: number[], pairs: [number, number][]): void {
+export function connect(x: number[], y: number[], pairs: [number, number][]): void {
   const n = x.length;
-  const p = x.map((_, i) => i);
-  for (const [a, b] of pairs) p[find(p, a)] = find(p, b);
+  const uf = new UnionFind(n);
+  for (const [a, b] of pairs) uf.union(a, b);
   for (;;) {
-    const root = find(p, 0);
+    const root = uf.find(0);
     let best = Infinity; let bi = -1; let bj = -1;
     for (let i = 0; i < n; i++) {
-      if (find(p, i) !== root) continue;
+      if (uf.find(i) !== root) continue;
       for (let j = 0; j < n; j++) {
-        if (find(p, j) === root) continue;
+        if (uf.find(j) === root) continue;
         const d = d2(x, y, i, j);
         if (d < best) { best = d; bi = i; bj = j; }
       }
     }
     if (bi < 0) return;
     pairs.push([Math.min(bi, bj), Math.max(bi, bj)]);
-    p[find(p, bi)] = find(p, bj);
+    uf.union(bi, bj);
+  }
+}
+
+/** Join the points ids (one island) inside itself: each point apart from ids[0]'s component
+ * gets a pair to the nearest point of that component, which it joins, pushed onto local. */
+export function joinWithin(x: number[], y: number[], ids: number[],
+  local: [number, number][]): void {
+  if (ids.length <= 1) return;
+  const uf = new UnionFind(x.length);
+  for (const [a, b] of local) uf.union(a, b);
+  const home = ids[0];
+  for (const i of ids) {
+    if (uf.find(i) === uf.find(home)) continue;
+    let best = home;
+    for (const j of ids) {
+      if (uf.find(j) === uf.find(home) && d2(x, y, i, j) < d2(x, y, i, best)) best = j;
+    }
+    local.push([Math.min(i, best), Math.max(i, best)]);
+    uf.union(i, home);
   }
 }
 
@@ -345,6 +379,10 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
   const capacity = input.maxCapacity ?? MAX_CAPACITY;
   const heaviest = input.maxWeight ?? MAX_WEIGHT;
   n = Math.max(2, Math.floor(n));
+  // the planted cycle is a three-cycle: below three vertices there is none to plant
+  if (shape === 'negative-cycle' && n < 3) {
+    throw new RangeError(`makeGraph: the negative-cycle shape needs at least 3 vertices, got ${n}`);
+  }
   switch (shape) {
     case 'geometric': case 'digraph': case 'signed': case 'negative-cycle': {
       const { x, y } = scatter(n, aspect, rnd);
@@ -415,7 +453,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
         return true;
       };
       if (shape === 'random') {
-        const want = Math.min((n * (n - 1)) / 2, Math.round(1.2 * n));
+        const perVertex = input.edgesPerVertex ?? EDGES_PER_VERTEX;
+        const want = Math.min((n * (n - 1)) / 2, Math.round(perVertex * n));
         while (edges.length < want) add(Math.floor(rnd() * n), Math.floor(rnd() * n));
       } else {
         for (let v = 0; v < n; v++) {
@@ -444,20 +483,7 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       for (let k = 0; k < c; k++) {
         const ids = truth.map((t, i) => (t === k ? i : -1)).filter((i) => i >= 0);
         const local = knn(x, y, shape === 'communities' ? 4 : 2, ids);
-        if (ids.length > 1) {
-          const sub = ids.map((i) => i);
-          // connect each island inside itself
-          const p = new Map(sub.map((i) => [i, i]));
-          const f = (a: number): number => { while (p.get(a) !== a) a = p.get(a)!; return a; };
-          for (const [a, b] of local) p.set(f(a), f(b));
-          for (const i of sub) {
-            if (f(i) === f(sub[0])) continue;
-            let best = sub[0];
-            for (const j of sub) if (f(j) === f(sub[0]) && d2(x, y, i, j) < d2(x, y, i, best)) best = j;
-            local.push([Math.min(i, best), Math.max(i, best)]);
-            p.set(f(i), f(sub[0]));
-          }
-        }
+        joinWithin(x, y, ids, local);
         pairs.push(...local);
       }
       const seen = new Set(pairs.map(([a, b]) => a * n + b));
@@ -527,7 +553,8 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
       // closes an ownership cycle
       const preds: number[][] = Array.from({ length: n }, () => []);
       for (const [u, v] of pairs) preds[v].push(u);
-      const back = Math.max(1, Math.round(n / 12));
+      const perTwelve = input.crossHoldings ?? CROSS_HOLDINGS;
+      const back = perTwelve === 0 ? 0 : Math.max(1, Math.round((n * perTwelve) / 12));
       const seen = new Set(pairs.map(([u, v]) => `${u},${v}`));
       for (let k = 0, tries = 0; k < back && tries < 50 * back; tries++) {
         const u = Math.floor(rnd() * n);

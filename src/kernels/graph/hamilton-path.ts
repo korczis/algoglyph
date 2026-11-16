@@ -30,23 +30,37 @@ function stillConnected(ops: GraphOps, on: boolean[], end: number, left: number)
 // only branches that cannot succeed, so the search stays exhaustive: a path whose end no longer
 // reaches all the remaining vertices is abandoned, and when a vertex of degree one exists (it
 // must be an end) only such vertices are tried as starts; three or more mean there is no path.
+// With `prune` off neither runs: the plain search, from every start, along every branch.
 export const kernel: GraphKernel<HamiltonResult> = {
   goal: 'hamilton',
   mayStop: true,
   cap: 250_000,
   inputs: ['grid', 'small-world', 'geometric', 'random'],
   n: { min: 4, max: 36, value: 16 },
+  params: [
+    // The 250,000-event cap bounds either search (the kernel may stop). Off, over every input at
+    // n 4-36, seeds 1-30: the plain search first stops at the cap at n 23 (random, 1 of 30), on
+    // geometric from n 25, and on random at n 34-36 in 30 of 30; the grid never. On, only
+    // geometric does (n 25, 29, 35 and 36; at most 3 of 30).
+    {
+      kind: 'toggle', key: 'prune', label: 'Prune dead branches', value: true, rebuild: true,
+      hint: 'Off, the plain search reaches the 250,000-event cap from n 23 (random input); at n 34-36 it does on every random seed.',
+    },
+  ],
   names: { frontier: 'On the path', tree: 'Path edges', marked: 'Hamilton path' },
   readouts: ['scans', 'frontier', 'discovers', 'rounds'],
   chart: { title: 'Length of the path being tried', y: 'vertices', series: ['frontier'] },
-  *steps(ops) {
+  *steps(ops, { p }) {
     const g = ops.g;
+    // a run that passes no value takes the old search: the default run is the run before the toggle
+    const prune = p.prune ?? true;
     const on = new Array<boolean>(g.n).fill(false);
     const deg = new Array<number>(g.n).fill(0);
     for (let e = 0; e < g.m; e++) { ops.scan(e); deg[g.eu[e]]++; deg[g.ev[e]]++; }
     const leaves = deg.map((d, v) => (d === 1 ? v : -1)).filter((v) => v >= 0);
-    if (g.n > 1 && (leaves.length > 2 || deg.some((d) => d === 0))) return { path: null, edges: [] };
-    const starts = leaves.length ? leaves : Array.from({ length: g.n }, (_, i) => i);
+    if (prune && g.n > 1 && (leaves.length > 2 || deg.some((d) => d === 0))) return { path: null, edges: [] };
+    const starts = prune && leaves.length ? leaves : Array.from({ length: g.n }, (_, i) => i);
+    const reaches = (v: number, left: number) => !prune || stillConnected(ops, on, v, left);
     const free = (v: number) => g.out[v].filter((e) => !on[other(g, e, v)]).length;
     const choices = (v: number) => g.out[v].filter((e) => !on[other(g, e, v)])
       .sort((a, b) => free(other(g, a, v)) - free(other(g, b, v)) || a - b);
@@ -54,7 +68,7 @@ export const kernel: GraphKernel<HamiltonResult> = {
       const path = [start]; const edges: number[] = [];
       on[start] = true;
       ops.discover(start);
-      const options: number[][] = [stillConnected(ops, on, start, g.n - 1) ? choices(start) : []];
+      const options: number[][] = [reaches(start, g.n - 1) ? choices(start) : []];
       while (path.length) {
         yield;
         if (path.length === g.n) {
@@ -78,7 +92,7 @@ export const kernel: GraphKernel<HamiltonResult> = {
         path.push(v); edges.push(e);
         ops.parent(v, e);
         ops.discover(v);
-        options.push(stillConnected(ops, on, v, g.n - path.length) ? choices(v) : []);
+        options.push(reaches(v, g.n - path.length) ? choices(v) : []);
       }
       ops.round();
       yield;

@@ -24,8 +24,11 @@ export const kernel: GraphKernel<RankResult> = {
   report(r, _g, { s }) {
     let top = -1;
     for (let v = 0; v < r.rank.length; v++) if (v !== s && (top < 0 || r.rank[v] > r.rank[top])) top = v;
+    // the subject keeps at least the 1 - d it teleports to itself, and the scores sum to one
+    const sum = r.rank.reduce((a, x) => a + x, 0);
     return [
-      { label: 'Converged', value: `after ${r.rounds} rounds` },
+      { label: 'Converged', value: `after ${r.rounds} rounds; scores sum to ${sum.toFixed(6)}` },
+      { label: 'Subject\'s rank', value: r.rank[s].toFixed(4) },
       { label: 'Closest to the subject', value: top < 0 ? 'none' : `vertex ${top}: ${r.rank[top].toFixed(4)}` },
     ];
   },

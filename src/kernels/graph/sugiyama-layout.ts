@@ -1,4 +1,5 @@
 import { E, type GraphKernel } from '../../engines/graph/trace';
+import { CROSS_HOLDINGS_ON_OWNERSHIP } from './_holdings';
 
 export interface LayeredResult {
   /** Layer of every node: the graph's vertices, then the dummy nodes of long edges. */
@@ -42,7 +43,10 @@ export const kernel: GraphKernel<LayeredResult> = {
   goal: 'layered',
   inputs: ['dag', 'reasoning', 'ownership'],
   n: { min: 4, max: 160, value: 40 },
-  params: [{ kind: 'range', key: 'sweeps', label: 'Sweeps (down and up)', min: 1, max: 24, step: 1, value: 8, rebuild: true }],
+  params: [
+    { kind: 'range', key: 'sweeps', label: 'Sweeps (down and up)', min: 1, max: 24, step: 1, value: 8, rebuild: true },
+    CROSS_HOLDINGS_ON_OWNERSHIP,
+  ],
   view: { colour: 'group' },
   names: { groups: 'Layers', done: 'Layered' },
   readouts: ['rounds', 'places', 'groups', 'scans'],
@@ -146,10 +150,22 @@ export const kernel: GraphKernel<LayeredResult> = {
     yield;
     return { layer, orders: bestOrders, segs, crossings: best, initial, reversed: rev.map((r, e) => (r ? e : -1)).filter((e) => e >= 0) };
   },
-  report(r) {
+  report(r, g) {
+    // an edge, oriented as the layering took it, whose head is not in a later layer than its
+    // tail: none, since a longest-path layer is at least one more than every predecessor's
+    const rev = new Set(r.reversed);
+    let against = 0;
+    for (let e = 0; e < g.m; e++) {
+      if (g.eu[e] === g.ev[e]) continue;
+      const [a, b] = rev.has(e) ? [g.ev[e], g.eu[e]] : [g.eu[e], g.ev[e]];
+      if (r.layer[b] <= r.layer[a]) against++;
+    }
     return [
       { label: 'Crossings', value: `${r.initial} before the sweeps, ${r.crossings} after` },
       { label: 'Edges reversed to break cycles', value: String(r.reversed.length) },
+      { label: 'Edges against the layer order', value: String(against) },
+      // the nodes after the graph's own: one for each layer a long edge passes, sum (span - 1)
+      { label: 'Dummy nodes', value: String(r.layer.length - g.n) },
     ];
   },
 };

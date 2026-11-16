@@ -163,11 +163,32 @@ describe('the graph engine at the defaults is what it was before the control', (
   it('every graph plate offers the same controls, the new one aside', () => {
     // every input control aside: each is checked by its own plate's controls test
     // and topological-sort's cyclic input option (wave 7a phase 2, C4,
-    // test/controls-topological-sort.test.ts): the rest of its input select is as it was
-    const option = (id: string, d: ParamDef): ParamDef => (id === 'topological-sort' && d.kind === 'select'
-      && d.key === 'shape' ? { ...d, options: d.options.filter((o) => o.value !== 'digraph') } : d);
+    // test/controls-topological-sort.test.ts): the rest of its input select is as it was; and
+    // spreading-activation's decay, whose range ends at 0.85 where a run still finishes (wave 7b
+    // D3, test/spreading-activation-readouts.test.ts): the rest of that control is as it was
+    const option = (id: string, d: ParamDef): ParamDef => {
+      if (id === 'topological-sort' && d.kind === 'select' && d.key === 'shape') {
+        return { ...d, options: d.options.filter((o) => o.value !== 'digraph') };
+      }
+      if (id === 'spreading-activation' && d.kind === 'range' && d.key === 'decay') {
+        const { hint: _hint, ...rest } = d;
+        return { ...rest, max: 0.95 };
+      }
+      return d;
+    };
+    // controls added after the fingerprint was recorded, each proved by its own test:
+    // centrality-comparison's power-iteration round cap (wave 7b C3,
+    // test/controls-centrality-comparison.test.ts); geo-graph's iterations and cooling (wave 7b
+    // C4, test/controls-geo-graph.test.ts); force-atlas2's scaling kr (wave 7b C5,
+    // test/controls-force-atlas2.test.ts); hamilton-path's pruning toggle (wave 7b C6,
+    // test/controls-hamilton-path.test.ts)
+    const added = (id: string, d: ParamDef) => (id === 'centrality-comparison' && d.key === 'powerRounds')
+      || (id === 'geo-graph' && (d.key === 'iterations' || d.key === 'cooling'))
+      || (id === 'force-atlas2' && d.key === 'scaling')
+      || (id === 'hamilton-path' && d.key === 'prune');
     const defs = live.map((e) => [e.id, plateOf(e.id).params
-      .filter((d) => !(INPUT_KEYS as readonly string[]).includes(d.key)).map((d) => option(e.id, d))]);
+      .filter((d) => !(INPUT_KEYS as readonly string[]).includes(d.key) && !added(e.id, d))
+      .map((d) => option(e.id, d))]);
     expect(hash(defs)).toBe(CONTROLS);
   });
 

@@ -1,5 +1,6 @@
 import { other } from '../../engines/graph/graph';
 import type { GraphKernel } from '../../engines/graph/trace';
+import { EDGES_PER_VERTEX_PARAM } from './_density';
 
 export interface ComponentsResult { comp: number[] }
 
@@ -8,9 +9,11 @@ export const kernel: GraphKernel<ComponentsResult> = {
   goal: 'components',
   inputs: ['islands', 'random', 'geometric', 'grid'],
   n: { min: 8, max: 400, value: 110 },
+  params: [EDGES_PER_VERTEX_PARAM],
   view: { colour: 'group' },
   names: { frontier: 'On the stack', done: 'Labelled', groups: 'Components', tree: 'Search tree edges' },
-  readouts: ['scans', 'done', 'groups'],
+  // No engine 'groups' row: the report's Components row counts the same labels once.
+  readouts: ['scans', 'done'],
   chart: { title: 'Labelling progress', y: 'vertices', series: ['done', 'frontier'] },
   *steps(ops) {
     const g = ops.g;

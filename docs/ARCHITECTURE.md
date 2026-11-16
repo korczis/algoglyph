@@ -75,6 +75,7 @@ path: the validator refuses home paths and source locators, and an untracked den
 | a measured claim on a page | `claims:` in the entry (`statement`, `readout`, `expect`, `setup`), ADR 0007 | `test/claims.test.ts` runs the plate and reads the readout |
 | a control that applies in one mode | `when: { key: <select>, values: [...] }` on the parameter | the controls panel hides it otherwise; `test/registry.test.ts` checks the select and its values |
 | a figure of a cited work | a figure in `catalogue/figures/<coll>-<vol>-<ch>.yaml` naming a live entry's plate and a `setup` of its parameters (ADR 0009) | routed once the chapter has a `review` and the plate is live and tested; `test/figures.test.ts` checks the setup; its `claims` (an entry claim's form) run in `test/claims.test.ts` with the setup under each claim's own |
+| a node of the flow editor | a `NodeDef` in `src/flow/nodes.ts` that adapts an existing kernel or helper, with a reference test in `test/flow-runtime.test.ts` (ADR 0011, rule `project.typed-flow`) | the node library's `library()`; the palette lists it |
 | a task | a recipe in `justfile` with `[group]` and `[doc]` | `just --list` |
 
 ### Engine and kernel
@@ -178,6 +179,7 @@ shows more changes a second than it did before ADR 0008 (`test/fixtures/pacing/b
 | `#/c/<taxonomy path>` | a node of the taxonomy |
 | `#/p/<id>?seed=<n>&<key>=<value>` | a plate |
 | `#/lab/<id>?seed=<n>&<key>=<value>` | a lab, with the same query |
+| `#/flow?g=<graph>` or `#/flow?preset=<id>` | the flow editor: a typed graph, carried as its canonical document (ADR 0011) |
 | `#/<collection>` and `#/<collection>/<vol>/<ch>` | a figure collection, or one chapter of it (ADR 0009) |
 | `#/<collection>/<vol>/<ch>/<fig>?seed=<n>&<key>=<value>` | a figure page: its plate with the figure's setup |
 
@@ -224,6 +226,28 @@ returns to the starting view without a rebuild. On a paused plate the stage runs
 of frames (`src/core/loop.ts`), so a progressive render finishes before the pause holds again.
 `mandelbrot-julia` uses it to undo zooms; it keeps a Julia parameter that was picked with the
 pointer.
+
+## Flow
+
+`#/flow` composes the collection's kernels into a typed graph (ADR 0011, rule
+`project.typed-flow`, design and roadmap in `docs/rfc/0001-typed-reactive-dag.md`). Everything
+under `src/flow/` except the editor runs without a DOM:
+
+```text
+types.ts    port types with units, unify()            node.ts     the NodeDef contract
+graph.ts    the document, check(), canConnect(),      store.ts    intents → validated revisions,
+            parseGraph(), links                                   undo/redo, provenance
+runtime.ts  finite, incremental, cancellable run      nodes.ts    the node library over kernels
+presets.ts  the examples and the layout               studio.ts   the editor (DOM + SVG)
+```
+
+A port carries a series (values in a unit along an axis in a unit), points, a table or
+readouts; units compare exactly, `$` variables bind per node, and a conversion is a node. A
+view never writes back along an edge: dragging a point sends a `move` intent to the node that
+owns the points, the store validates and commits it, and the runtime re-runs exactly the nodes
+whose fingerprints changed. A reader's table stays in the tab: the document and its link carry
+the approved schema, never a value. The browser gate's `flow` section (`--only flow`) runs
+every example, a refused connection, a keyboard move with Undo, and an attached table.
 
 ## Tooling
 

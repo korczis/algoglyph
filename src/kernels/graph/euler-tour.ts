@@ -5,7 +5,9 @@ export interface EulerResult { tour: number[]; edges: number[] }
 
 // Hierholzer's algorithm with a stack: walk unused edges until stuck (which can only happen back
 // at the start of the current cycle), then back up, emitting vertices; each back-up splices the
-// next cycle into the tour. Every edge is walked once and emitted once.
+// next cycle into the tour. Every edge is walked once and emitted once. A vertex is exhausted
+// when its last place on the stack is popped: a count of its places answers that in O(1), where
+// a scan would read the stack, which grows with every edge walked, on every pop.
 export const kernel: GraphKernel<EulerResult> = {
   goal: 'euler',
   inputs: ['eulerian'],
@@ -20,6 +22,8 @@ export const kernel: GraphKernel<EulerResult> = {
     const used = new Array<boolean>(g.m).fill(false);
     const next = new Array<number>(g.n).fill(0);
     const stack = [s]; const via = [-1];
+    const onStack = new Array<number>(g.n).fill(0);
+    onStack[s] = 1;
     const tour: number[] = []; const edges: number[] = [];
     ops.discover(s);
     while (stack.length) {
@@ -35,13 +39,14 @@ export const kernel: GraphKernel<EulerResult> = {
         ops.edge(e, E.tree);
         const w = other(g, e, v);
         stack.push(w); via.push(e);
+        onStack[w]++;
         ops.discover(w);
       } else {
         stack.pop();
         const f = via.pop() as number;
         tour.push(v);
         if (f >= 0) { edges.push(f); ops.edge(f, E.mark); }
-        if (!stack.includes(v)) ops.settle(v);
+        if (--onStack[v] === 0) ops.settle(v);
         yield;
       }
     }

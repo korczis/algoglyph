@@ -15,9 +15,10 @@ export const SAMPLES = 600;
 export const MAX_PER_FRAME = 20;
 /** The mirror's particles a frame pushes at most (each a whole orbit). */
 export const MIRROR_PER_FRAME = 4;
-const H = 2e-3;
+/** The Boris step of every orbit. */
+export const H = 2e-3;
 /** The mirror: B₀ = 1 at the centre, scale length L, walls where it escapes. */
-const L = 4;
+export const L = 4;
 
 type Scenario = 'gyration' | 'drift' | 'wien' | 'mirror';
 const f6 = (v: number) => v.toFixed(6);

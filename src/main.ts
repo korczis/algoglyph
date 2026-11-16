@@ -17,6 +17,7 @@ import type { Stage } from './core/stage';
 import { labRunnable, loadLab, loadPlate } from './registry';
 
 import type { View } from './core/route';
+import type { Studio } from './flow/studio';
 
 const LOG_STEPS = 1000;
 
@@ -37,6 +38,35 @@ let plateCode: Plate | null = null;
 let pendingQuery = '';
 // a reader's own data for the plate shown (ADR 0010): in memory only, never in Alpine's proxies
 let store: DataStore | null = null;
+// the flow editor (docs/rfc/0001-typed-reactive-dag.md): loaded with the first visit, never proxied
+let studio: Studio | null = null;
+/** The query the editor last wrote to the address bar: a route with it is the editor's own. */
+let studioQuery = '';
+let studioToken = 0;
+
+async function openStudio(query: string): Promise<void> {
+  const token = ++studioToken;
+  const { mountStudio } = await import('./flow/studio');
+  const host = document.getElementById('flow-host');
+  if (token !== studioToken || !host) return;
+  studio?.unmount();
+  studioQuery = query;
+  studio = mountStudio(host, {
+    query,
+    theme: currentTheme,
+    writeLink: (q) => {
+      studioQuery = q;
+      history.replaceState(null, '', `#/flow?${q}`);
+    },
+  });
+}
+
+function closeStudio(): void {
+  studioToken++;
+  studio?.unmount();
+  studio = null;
+  studioQuery = '';
+}
 
 /** What the data card shows of one declared input; a plain snapshot, rebuilt on every change. */
 interface DataView {
@@ -300,6 +330,27 @@ Alpine.data('app', () => ({
     hashWriter.cancel();
     closeDrawer();
     const r = parseRoute(location.hash);
+    if (r.view !== 'flow') closeStudio();
+    if (r.view === 'flow') {
+      stage?.unmount();
+      plateCode = null;
+      store = null;
+      this.dataSlots = [];
+      this.dataTravels = false;
+      thumbObserver?.disconnect();
+      thumbs?.close();
+      this.view = 'flow';
+      this.figureKey = '';
+      this.nodeKey = '';
+      this.currentId = '';
+      document.title = 'Flow · algoglyph';
+      // a link the editor wrote itself is its own state; any other one is opened afresh
+      if (!studio || r.query !== studioQuery) {
+        window.scrollTo({ top: 0 });
+        void openStudio(r.query);
+      }
+      return;
+    }
     if (r.view === 'figures') {
       stage?.unmount();
       plateCode = null;
