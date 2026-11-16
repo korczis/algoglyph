@@ -43,6 +43,14 @@ export interface Costs {
   /** Per tile under a bridge, and per tile inside a tunnel (each head or portal is a piece). */
   bridge: number;
   tunnel: number;
+  /**
+   * Exact prices, in units of one tile of rail, when the game's prices are known: the whole
+   * bridge with `middle` tiles under it (heads included, the cheapest type that spans it; null
+   * when none does), and the whole tunnel with `middle` tiles inside. They replace the per-tile
+   * `bridge` and `tunnel` costs; head foundations and clearing are still added.
+   */
+  bridgeSpan?: (middle: number) => number | null;
+  tunnelSpan?: (middle: number) => number;
 }
 
 export interface Rules {
@@ -302,7 +310,11 @@ export function plan(m: TileMap, from: End & { dir: Heading }, to: End, costs: C
         if ((bc === 'build' || bc === 'trees') && bt.max === hz && headOk(bt)) {
           const span: Span = { kind: 'bridge', from: [x, y], to: [bx, by], heading: HEADINGS[d], axis: d % 2 === 0 ? 'x' : 'y', length: L, z: hz,
             foundations: (t.max !== t.min ? 1 : 0) + (bt.max !== bt.min ? 1 : 0) };
-          relax(k, cc + headCost(t, cls) + headCost(bt, bc) + L * costs.bridge, bx + DX[d], by + DY[d], d, 2 * d, hz, span);
+          const exact = costs.bridgeSpan?.(L);
+          if (exact === null) continue;
+          const spanCost = exact === undefined ? headCost(t, cls) + headCost(bt, bc) + L * costs.bridge
+            : exact + headCost(t, cls) + headCost(bt, bc) - 2;
+          relax(k, cc + spanCost, bx + DX[d], by + DY[d], d, 2 * d, hz, span);
         }
       }
     }
@@ -321,7 +333,8 @@ export function plan(m: TileMap, from: End & { dir: Heading }, to: End, costs: C
           const tc = classOf(m, tx, ty);
           if (L >= 2 && (tc === 'build' || tc === 'trees')) {
             const span: Span = { kind: 'tunnel', from: [x, y], to: [tx, ty], heading: HEADINGS[d], axis: d % 2 === 0 ? 'x' : 'y', length: L - 1, z, foundations: 0 };
-            relax(k, cc + 2 + (cls === 'trees' ? costs.clear : 0) + (tc === 'trees' ? costs.clear : 0) + (L - 1) * costs.tunnel, tx + DX[d], ty + DY[d], d, 2 * d, z, span);
+            const body = costs.tunnelSpan ? costs.tunnelSpan(L - 1) : 2 + (L - 1) * costs.tunnel;
+            relax(k, cc + body + (cls === 'trees' ? costs.clear : 0) + (tc === 'trees' ? costs.clear : 0), tx + DX[d], ty + DY[d], d, 2 * d, z, span);
           }
           break;
         }
@@ -410,4 +423,37 @@ function count(pieces: Piece[]): Plan['counts'] {
     motion = mo;
   }
   return c;
+}
+
+/** OpenTTD's CalcBridgeLenCostFactor: 2 for the first two tiles, then +1, +2 +2, +3 +3 +3, ... */
+export function bridgeLenCostFactor(length: number): number {
+  if (length < 2) return length;
+  let left = length - 2;
+  let sum = 2;
+  for (let delta = 1; ; delta++) {
+    for (let c = 0; c < delta; c++) {
+      if (left === 0) return sum;
+      sum += delta;
+      left--;
+    }
+  }
+}
+
+/** A bridge's price as CmdBuildBridge charges it: L tiles of rail (heads included) and the type's share. */
+export function bridgeMoney(middle: number, buildRail: number, buildBridge: number, typePrice: number): number {
+  const L = middle + 2;
+  return L * buildRail + Math.floor((bridgeLenCostFactor(L) * buildBridge * typePrice) / 256);
+}
+
+/** A tunnel's price as CmdBuildTunnel charges it: each tile inside, compounding, then the entrance. */
+export function tunnelMoney(middle: number, buildTunnel: number): number {
+  let total = 0;
+  let coef = 3;
+  let bump = 25;
+  for (let tiles = 1; tiles <= middle; tiles++) {
+    if (tiles === bump) { coef++; bump *= 2; }
+    total += buildTunnel;
+    total += Math.floor(total / 2 ** coef);
+  }
+  return total + buildTunnel;
 }

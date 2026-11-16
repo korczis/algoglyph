@@ -6,7 +6,7 @@
 // pieces a builder can lay as they are (TrackBits per tile, each bridge and tunnel with both
 // ends), and on request the planner's reading of every tile (`meta`).
 import { finite, integer, record, unknownKeys, type DataForm } from '../../core/solve';
-import { DEFAULT_COSTS, DEFAULT_RULES, HEADINGS, meta as tileMeta, plan, type Costs, type Heading, type Rules, type TileMap } from './plan';
+import { bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, HEADINGS, meta as tileMeta, plan, tunnelMoney, type Costs, type Heading, type Piece, type Rules, type TileMap } from './plan';
 
 /** The largest map the form takes, in tiles (a 1024 × 1024 map). */
 export const MAX_TILES = 1 << 20;
@@ -46,9 +46,9 @@ const end = (v: unknown, name: string, needDir: boolean, w: number, h: number): 
  * tiles join `blocked`; the rest of the form is unchanged.
  */
 function fromGame(raw: Record<string, unknown>): Record<string, unknown> | string {
-  const { map, ways, terrain, prices, ...rest } = raw;
+  const { map, ways, terrain, prices, bridges, ...rest } = raw;
   if (map === undefined) {
-    if (terrain !== undefined || prices !== undefined) return 'terrain and prices are read with map (openttd://map), not with heights';
+    if (terrain !== undefined || prices !== undefined || bridges !== undefined) return 'terrain, prices and bridges are read with map (openttd://map), not with heights';
     return raw;
   }
   if (!record(map)) return 'map must be openttd://map\'s data ({width, height, heights, types, ...})';
@@ -81,9 +81,40 @@ function fromGame(raw: Record<string, unknown>): Record<string, unknown> | strin
       if (r !== undefined) derived[key] = r;
     }
     out.costs = { ...derived, ...(record(rest.costs) ? rest.costs : {}) };
-    out.priced = { unit: 'build_rail', build_rail: rail, derived: Object.keys(derived) };
+    const types = bridges === undefined ? undefined : record(bridges) && Array.isArray(bridges.types) ? bridges.types.filter((b): b is Record<string, unknown> => record(b) && b.available !== false && finite(b.price) && finite(b.min_length) && finite(b.max_length)) : null;
+    if (types === null) return 'bridges must be openttd://bridges\' data ({types: [{price, min_length, max_length, available}]})';
+    out.priced = { unit: 'build_rail', build_rail: rail, derived: Object.keys(derived), prices: pr, ...(types ? { bridge_types: types } : {}) };
   }
   return out;
+}
+
+interface Priced { build_rail: number; prices: Record<string, unknown>; bridge_types?: Record<string, unknown>[] }
+
+/** The game's exact span prices, in game money, from its prices and bridge types; null where it has none. */
+function spanMoney(pr: Priced) {
+  const price = (n: string) => (finite(pr.prices[n]) ? (pr.prices[n] as number) : undefined);
+  const bb = price('build_bridge'); const bt = price('build_tunnel');
+  const bridge = pr.bridge_types && bb !== undefined
+    ? (middle: number) => {
+      const fits = pr.bridge_types!.filter((t) => (t.min_length as number) <= middle && middle <= (t.max_length as number));
+      return fits.length ? Math.min(...fits.map((t) => bridgeMoney(middle, pr.build_rail, bb, t.price as number))) : null;
+    }
+    : undefined;
+  const tunnel = bt !== undefined ? (middle: number) => tunnelMoney(middle, bt) : undefined;
+  return { bridge, tunnel };
+}
+
+/** A plan's price in the game's money, summed from its pieces (never the search's penalties). */
+function moneyOf(pieces: Piece[], pr: Priced): number {
+  const price = (n: string) => (finite(pr.prices[n]) ? (pr.prices[n] as number) : 0);
+  const span = spanMoney(pr);
+  let total = 0;
+  for (const q of pieces) {
+    if (q.kind === 'track') total += pr.build_rail + (q.foundation ? price('build_foundation') : 0) + (q.cleared ? price('clear_trees') : 0);
+    else if (q.kind === 'bridge') total += (span.bridge?.(q.length) ?? (q.length + 2) * pr.build_rail + q.length * price('build_bridge')) + q.foundations * price('build_foundation');
+    else total += span.tunnel ? span.tunnel(q.length) : (q.length + 1) * price('build_tunnel');
+  }
+  return total;
 }
 
 /**
@@ -129,6 +160,7 @@ export const data: DataForm = {
     const raw = fromGame(input);
     if (typeof raw === 'string') return raw;
     const extra = unknownKeys(raw, ['heights', 'types', 'roads', 'blocked', 'from', 'to', 'costs', 'rules', 'meta', 'terrain', 'priced']);
+    if (raw.costs !== undefined && record(raw.costs) && ('bridgeSpan' in raw.costs || 'tunnelSpan' in raw.costs)) return 'costs: bridgeSpan and tunnelSpan come from prices, not from the caller';
     if (extra) return extra;
     if (!rowsOf(raw.heights)) return 'heights must list the map\'s rows';
     const first = raw.heights[0];
@@ -190,6 +222,13 @@ export const data: DataForm = {
         (rules as unknown as Record<string, unknown>)[k] = v;
       }
     }
+    if (raw.priced) {
+      // the search weighs whole bridges and tunnels at their exact prices, in units of one rail tile
+      const span = spanMoney(raw.priced as Priced);
+      const rail = (raw.priced as Priced).build_rail;
+      if (span.bridge) costs.bridgeSpan = (middle) => { const v = span.bridge!(middle); return v === null ? null : v / rail; };
+      if (span.tunnel) costs.tunnelSpan = (middle) => span.tunnel!(middle) / rail;
+    }
     const m: TileMap = { w, h, heights, types, roads, blocked };
     if (raw.terrain !== undefined) {
       const bad = applyTerrain(m, raw.terrain as Record<string, unknown>);
@@ -197,7 +236,7 @@ export const data: DataForm = {
     }
     const p = plan(m, from as { x: number; y: number; dir: Heading }, to, costs, rules);
     const out: Record<string, unknown> = {
-      ...(raw.priced ? { priced: raw.priced, money: Number.isFinite(p.cost) ? p.cost * (raw.priced as { build_rail: number }).build_rail : null } : {}),
+      ...(raw.priced ? { priced: { ...(raw.priced as Priced), prices: undefined, exact: { bridge: Boolean(costs.bridgeSpan), tunnel: Boolean(costs.tunnelSpan) } }, money: p.status === 'found' ? moneyOf(p.pieces, raw.priced as Priced) : null } : {}),
       status: p.status, cost: Number.isFinite(p.cost) ? p.cost : null, counts: p.counts, expanded: p.expanded, pieces: p.pieces, runs: p.runs, costs, rules,
     };
     if (raw.meta === true) {

@@ -68,6 +68,11 @@ the fork exports the map as layers (`openttd://map` heights, types and owners,
   a slope without one), bridge heads on inclines, signals, several tracks on one tile, a plan's
   speed (curve and slope speed limits), terraforming. Each is an addition to the rules, behind a
   test, never a silent approximation.
+- With the game's prices (`openttd://economy/prices`) and bridge types (`openttd://bridges`) the
+  search weighs a whole bridge or tunnel at the price CmdBuildBridge / CmdBuildTunnel charge
+  (CalcBridgeLenCostFactor and the cheapest type that spans it; the compounding tunnel cost), and
+  the plan's `money` is summed from its pieces in the game's money, never from the search's
+  penalties for curves and inclines.
 - A per-tile layer the fork does not export yet (foundations already built, occupancy by
   vehicles, bridge and tunnel extents) arrives through the same form as an added field, its
   reading derived here.

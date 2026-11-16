@@ -5,7 +5,7 @@
 // heuristic) is the optimum A* must equal; and maps built by hand force each construct.
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { DEFAULT_COSTS, DEFAULT_RULES, plan, unrun, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
+import { bridgeLenCostFactor, bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, plan, tunnelMoney, unrun, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
 import { data } from '../src/plates/track-planning/data';
 import { terrain } from '../src/plates/track-planning/terrain';
 import { DEFAULT_SEED } from '../src/core/claims';
@@ -375,10 +375,40 @@ describe('track planning: the data form reads the research export as it comes', 
     const priced = data.solve({ map, prices, from: river.from, to: river.to });
     if (typeof priced === 'string') throw new Error(priced);
     expect(priced.costs).toMatchObject({ bridge: 5, tunnel: 8, foundation: 0.5, clear: 0.2 });
-    expect(priced.money).toBeCloseTo((priced.cost as number) * 200, 6);
+    // the money is the pieces' prices in the game's money, summed here independently: no bridge
+    // types given, so a bridge is its tiles of rail plus build_bridge per tile under it
+    const sum = (priced.pieces as { kind: string; foundation?: boolean; cleared?: boolean; length?: number; foundations?: number }[]).reduce((t, q) =>
+      t + (q.kind === 'track' ? 200 + (q.foundation ? 100 : 0) + (q.cleared ? 40 : 0)
+        : q.kind === 'bridge' ? (q.length! + 2) * 200 + q.length! * 1000 + q.foundations! * 100 : 0), 0);
+    expect(priced.money).toBe(sum);
     expect((data.solve({ map, prices, costs: { bridge: 2 }, from: river.from, to: river.to }) as { costs: { bridge: number } }).costs.bridge).toBe(2);
     expect(data.solve({ map, prices: { prices: { build_rail: 0 } }, from: river.from, to: river.to })).toMatch(/build_rail/);
     expect(data.solve({ ...river, prices })).toMatch(/read with map/);
+  });
+
+  it('prices bridges and tunnels as the game does, and lets the cheapest bridge type that spans decide', () => {
+    // CalcBridgeLenCostFactor: L for L < 2, then 2, +1, +2 +2, +3 +3 +3, +4 ... (listed by hand)
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(bridgeLenCostFactor)).toEqual([0, 1, 2, 3, 5, 7, 10, 13, 16, 20, 24]);
+    // a bridge over 2 tiles is 4 tiles of rail and factor(4) = 5 shares of build_bridge × price / 256
+    expect(bridgeMoney(2, 200, 1000, 256)).toBe(4 * 200 + 5 * 1000);
+    // CmdBuildTunnel: each tile inside adds build_tunnel and then the running total >> 3, then the entrance
+    expect(tunnelMoney(1, 100)).toBe(100 + 12 + 100);
+    expect(tunnelMoney(2, 100)).toBe(212 + 26 + 100);
+    // the coefficient grows at the 25th tile: by hand, the running total before it, then >> 4
+    let t = 0; for (let i = 1; i <= 25; i++) { t += 100; t += Math.floor(t / 2 ** (i === 25 ? 4 : 3)); }
+    expect(tunnelMoney(25, 100)).toBe(t + 100);
+    const map = { width: 13, height: 7, heights: river.heights, types: river.types };
+    const prices = { prices: { build_rail: 200, build_bridge: 1000, build_tunnel: 1600, build_foundation: 100, clear_trees: 40 } };
+    const types = [{ type: 0, price: 512, min_length: 0, max_length: 3, available: true }, { type: 1, price: 128, min_length: 0, max_length: 10, available: true }];
+    const r = data.solve({ map, prices, bridges: { types }, from: river.from, to: river.to }) as { money: number; pieces: { kind: string; length: number; foundations: number }[]; priced: { exact: { bridge: boolean } } };
+    expect(r.priced.exact.bridge).toBe(true);
+    const b = r.pieces.find((q) => q.kind === 'bridge')!;
+    // the cheaper type (price 128) spans every length up to 10, so it prices the bridge
+    expect(r.money).toBe(r.pieces.reduce((s0, q) => s0 + (q.kind === 'track' ? 200 + ((q as unknown as { foundation: boolean }).foundation ? 100 : 0) : 0), 0)
+      + bridgeMoney(b.length, 200, 1000, 128) + b.foundations * 100);
+    // no type spans the river: no bridge can be built, so there is no route
+    expect(data.solve({ map, prices, bridges: { types: [{ type: 0, price: 128, min_length: 9, max_length: 10, available: true }] }, from: river.from, to: river.to })).toMatchObject({ status: 'unreachable' });
+    expect(data.solve({ map, prices, bridges: { kinds: [] }, from: river.from, to: river.to })).toMatch(/bridges must be/);
   });
 
   it('refuses malformed maps and ends with the field named', () => {
