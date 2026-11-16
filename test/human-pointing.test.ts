@@ -1,7 +1,8 @@
 // human-pointing (src/plates/human-pointing/motion.ts) against references outside its code: the
-// generator against xorshift64* written here a second way (in 32-bit halves, no BigInt), the five
-// tests of the OpenTTD fork's motion.rs it is ported from, Fitts' law read back by least squares,
+// generator against xorshift64* written here a second way (in 32-bit halves, no BigInt), the
+// golden vectors motion.rs writes (test/fixtures/human-pointing.v1.json), the tests of the OpenTTD fork's motion.rs it is ported from, Fitts' law read back by least squares,
 // and the minimum-jerk profile's own properties.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MODEL, drag, duration, minJerk, path, Rng, roundAway } from '../src/plates/human-pointing/motion';
 import { data } from '../src/plates/human-pointing/data';
@@ -39,7 +40,27 @@ describe('human-pointing: the seeded source', () => {
   });
 
   it('rounds half away from zero, as Rust\'s f64::round does', () => {
-    expect([2.5, -2.5, 0.5, -0.5, 1.4999, -1.5].map(roundAway)).toEqual([3, -3, 1, -1, 1, -2]);
+    expect([2.5, -2.5, 0.5, -0.5, 1.4999, -1.5, -0.3].map(roundAway)).toEqual([3, -3, 1, -1, 1, -2, 0]);
+    expect(Object.is(roundAway(-0.3), 0)).toBe(true);
+  });
+});
+
+describe('human-pointing: bit for bit with motion.rs', () => {
+  // written by the fork's `mcp-human golden` (korczis/OpenTTD f725a16fd5,
+  // tools/research/mcp-human/golden/human-pointing.v1.json): each case a fresh Rng(seed)
+  const golden = JSON.parse(readFileSync('test/fixtures/human-pointing.v1.json', 'utf8')) as {
+    schema: string; model: typeof DEFAULT_MODEL;
+    cases: { from: [number, number]; to: [number, number]; width: number; seed: number; drag: boolean; samples: number[][] }[];
+  };
+  it('reads the golden file\'s model as this one\'s defaults', () => {
+    expect(golden.schema).toBe('human-pointing-golden/v1');
+    expect(golden.model).toEqual(DEFAULT_MODEL);
+    expect(golden.cases.length).toBeGreaterThan(0);
+  });
+  it.each(golden.cases.map((c, i) => [i, c] as const))('case %i gives motion.rs\'s samples exactly', (_i, c) => {
+    const rng = new Rng(c.seed);
+    const got = c.drag ? drag(golden.model, c.from, c.to, rng) : path(golden.model, c.from, c.to, c.width, rng);
+    expect(got).toEqual(c.samples);
   });
 });
 

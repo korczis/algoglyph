@@ -59,8 +59,8 @@ export const DEFAULT_MODEL: Model = { fitts_a: 0.15, fitts_b: 0.14, rate_hz: 60,
 /** One step: where the pointer is, and how long to wait before the next. */
 export type Sample = [number, number, number];
 
-/** Rust's f64::round: half away from zero. */
-export const roundAway = (v: number) => (v < 0 ? -Math.round(-v) : Math.round(v));
+/** Rust's f64::round as an integer: half away from zero, and never -0 (an i32 has no sign of zero). */
+export const roundAway = (v: number) => (v < 0 ? -Math.round(-v) : Math.round(v)) + 0;
 
 export function minJerk(t: number): number {
   const u = Math.min(1, Math.max(0, t));
