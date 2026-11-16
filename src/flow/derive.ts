@@ -44,8 +44,8 @@ export interface Coverage {
   proposal?: string;
 }
 
-/** Engines whose kernels run without drawing (a trace or a simulator module): read from the tree. */
-const RUNNERS = Object.keys(import.meta.glob('../engines/*/{trace,sim}.ts'))
+/** Engines whose kernels run without drawing (a trace, simulator or table module): read from the tree. */
+const RUNNERS = Object.keys(import.meta.glob('../engines/*/{trace,sim,table}.ts'))
   .map((p) => /engines\/([^/]+)\//.exec(p)?.[1] ?? '');
 
 export const headless = (engine: string, runners: readonly string[] = RUNNERS): boolean => runners.includes(engine);

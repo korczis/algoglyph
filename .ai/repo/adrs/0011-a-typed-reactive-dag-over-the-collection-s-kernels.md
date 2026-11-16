@@ -54,7 +54,7 @@ keep their state inside their closures behind mouse hooks.
    layer, ports as buttons, a per-input menu listing what `canConnect` accepts, lazy ECharts
    previews through `src/core/charts.ts`. Route `#/flow`, lazy-loaded.
 7. **Kernels are derived, never listed.** `src/flow/derive.ts` connects the catalogue to the
-   flow generically: one adapter per engine (array in `nodes.ts`; grid and graph in
+   flow generically: one adapter per engine (array in `nodes.ts`; grid, graph, tree, string and hash in
    `src/flow/adapters.ts`) turns every live entry of its engine into a choice of one family node,
    run by that engine's headless runner and reporting that engine's measurement. Every live
    entry is computed into one level — declared, derived or inferred — and an inferred entry
@@ -86,7 +86,9 @@ keep their state inside their closures behind mouse hooks.
 
 ## Consequences
 
-- New code lives under `src/flow/`; no plate, engine, kernel or the stage changed.
+- New code lives under `src/flow/`; no plate, kernel or the stage changed. Two engines moved a
+  constant into their headless module so plate and flow read one source (the tree engine's input
+  sizes, the hash plate's defaults); their plates are unchanged.
 - An entry that goes live under an adapted engine is in the flow with no edit; its kernel test
   proves its result, `test/flow-derive.test.ts` proves its node forwards the engine's numbers.
 - `project.typed-flow` makes the invariants blocking; `test/flow-*.test.ts` and the browser

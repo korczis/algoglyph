@@ -12,7 +12,7 @@ import { lstsq, polyval, vandermonde } from '../kernels/numeric/_linalg';
 import { fft, nextPow2 } from '../kernels/signal/_fft';
 import { kernelLoader } from '../registry';
 import { deriveNodes, type Adapter, type KernelLoad } from './derive';
-import { gridAdapter, graphAdapter } from './adapters';
+import { gridAdapter, graphAdapter, hashAdapter, stringAdapter, treeAdapter } from './adapters';
 import { registry, Wait, type AnyNodeDef, type NodeDef, type Registry } from './node';
 import type { PointsValue, PortType, RecordValue, SeriesValue, TableValue, Unit } from './types';
 
@@ -455,7 +455,7 @@ export function seriesCsv(s: SeriesValue): string {
 export const DECLARED: AnyNodeDef[] = [keys, signal, csv, points, column, normalize, spectrum, stats, fit, chart, scatter, readout, exporter];
 
 /** One adapter per engine whose kernels the flow can run; every other engine's entries are inferred. */
-export const ADAPTERS: Adapter[] = [arrayAdapter, gridAdapter, graphAdapter];
+export const ADAPTERS: Adapter[] = [arrayAdapter, gridAdapter, graphAdapter, treeAdapter, stringAdapter, hashAdapter];
 
 /** Declared nodes and the family nodes derived from the catalogue, in palette order. */
 export function library(adapters: readonly Adapter[] = ADAPTERS, entries: readonly Entry[] = ENTRIES, load: KernelLoad = loadKernel): AnyNodeDef[] {

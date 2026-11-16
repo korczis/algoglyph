@@ -50,8 +50,8 @@ order, malformed and malicious documents, canonical round trips), `test/flow-run
 (intent round trip and refusal, undo/redo, incremental re-runs, cancellation, kernels against
 references, table privacy), `test/flow-derive.test.ts` (every live entry at one level, choices
 equal to the catalogue's, an entry going live joins and one parked leaves, inferred never
-runnable, an added adapter promotes its engine, every grid and graph kernel reporting its
-engine's own measurement) or `test/flow-boundaries.test.ts` (DOM, network, storage and markup
+runnable, an added adapter promotes its engine, every grid, graph, tree, string and hash kernel
+reporting its engine's own measurement) or `test/flow-boundaries.test.ts` (DOM, network, storage and markup
 boundaries; views write only intents). `node scripts/audit-ui.mjs` fails its `flow` section when
 an example does not run or a node fails, a refused connection is drawn or not explained, a
 keyboard move does not change the fit or Undo does not restore it, a request leaves the page

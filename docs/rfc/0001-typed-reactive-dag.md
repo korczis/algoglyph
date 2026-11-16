@@ -136,12 +136,12 @@ on each open and never stored):
 
 - **declared** — a node written in `nodes.ts` names the entry it runs (`entry`): the spectrum
   node runs the FFT entry, the fit node the least-squares entry;
-- **derived** — an engine adapter accepts the entry: the sort node (array), the table and board
-  kernel node (grid) and the graph kernel node (graph), each a select over the catalogue's own
-  entries, linking the chosen entry's plate;
+- **derived** — an engine adapter accepts the entry: the sort node (array) and the table and
+  board (grid), graph, tree and heap (tree), string and text (string) and hash table (hash)
+  kernel nodes, each a select over the catalogue's own entries, linking the chosen entry's plate;
 - **inferred** — no adapter runs it. The reason is computed: a bespoke plate keeps its
   computation inside its drawing; an adapter refuses it (a selection kernel has no `k` port);
-  or the engine has a headless runner in the source tree (`src/engines/*/{trace,sim}.ts`, read
+  or the engine has a headless runner in the source tree (`src/engines/*/{trace,sim,table}.ts`, read
   by glob), in which case a node is *proposed* (seeded provider → counts) but not built. An
   inferred entry is never runnable; adding an adapter promotes its engine's entries, and the
   tests then validate every promoted run.
@@ -165,7 +165,9 @@ written here (rule `project.derived-facts`); list them with `npm run catalogue -
 | numeric | `NumericKernel.run(inp) → NumericRun` (drawing) | extraction | split algorithm from run builder; helpers already pure (`_linalg`, `_functions`) | Polynomial fit (done, via `_linalg`) |
 | signal | `_fft.ts`, windows | processor via helpers | adapter over helpers (done for FFT) | Magnitude spectrum (done) |
 | geometry | trace + worker | extraction | expose hull/Voronoi as `points → points` | convex hull |
-| tree, string, hash | engine-specific traces | **inferred**: proposed seeded provider → counts | one adapter each, the same shape as grid's | — |
+| tree | `TreeKernel.run`, `workload()`, `trace()`, `Counts` | **derived provider** | tree adapter (done) | Tree and heap kernel, every live tree entry |
+| string | `StringKernel.run`, `input()`, `trace()`, its own counters | **derived provider** | string adapter (done) | String and text kernel, every live string entry |
+| hash | `HashKernel`, the shared `workload()`, `trace()`, `Counts` | **derived provider** | hash adapter (done); the plate's defaults are one exported constant both read | Hash table kernel, every live hash entry |
 | stochastic, systems | time-stepped sims | simulation mode (§7 below) | not in the finite runtime | — |
 | bespoke plates | `PlateCode.create` closure | sink now; bidirectional after state lift | per plate, by ADR | `least-squares`-style plates first |
 
@@ -203,9 +205,11 @@ Ordered by dependency; each step leaves every standalone page working.
    whose output matches the plate's readout. Risk: pacing depends on run shape — keep `build()`
    generators intact.
 3. **Done — generic derivation.** Engine adapters derive family nodes from the catalogue; every
-   live entry is declared, derived or inferred (`test/flow-derive.test.ts`, gate `flow`). Next:
-   adapters for the engines whose entries are inferred with a proposal (tree, string, hash), one
-   at a time, each validated against its engine's own measurement. A frontmatter `flow:` facet
+   live entry is declared, derived or inferred (`test/flow-derive.test.ts`, gate `flow`): array,
+   grid, graph, tree, string and hash. Next: numeric, signal, stochastic, systems and geometry,
+   whose kernels return drawings or run as time-stepped simulations — each needs its compute
+   split from its run (step 2) or the simulation mode (step 7) before an adapter can report a
+   measurement rather than a picture. A frontmatter `flow:` facet
    only when an entry must deviate from its engine's projection.
 4. **Plate as sink.** A sink node that mounts an existing plate through the stage with
    parameters bound from a record input. Acceptance: one stage-owned canvas per visible preview,

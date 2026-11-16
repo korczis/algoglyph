@@ -8,6 +8,11 @@ import { ENTRIES, type Entry } from '../src/core/catalogue';
 import { makeGraph } from '../src/engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type GraphKernel } from '../src/engines/graph/trace';
 import { run as gridRun, type GridKernel } from '../src/engines/grid/trace';
+import { trace as hashTrace, type HashKernel } from '../src/engines/hash/table';
+import { PLATE as HASH_PLATE, workload as hashWorkload } from '../src/engines/hash/workload';
+import { input as stringInput, KINDS as STRING_KINDS } from '../src/engines/string/inputs';
+import { trace as stringTrace, type StringKernel } from '../src/engines/string/trace';
+import { SHAPES as TREE_SHAPES, SIZE as TREE_SIZE, trace as treeTrace, workload, type TreeKernel } from '../src/engines/tree/trace';
 import { gridAdapter } from '../src/flow/adapters';
 import { coverage, deriveNodes, headless, tally, type Adapter } from '../src/flow/derive';
 import type { NodeDef } from '../src/flow/node';
@@ -126,5 +131,60 @@ describe('derived kernels run through their engines', () => {
 
   it('refuses a kernel that is not one of the node\'s derived choices', async () => {
     await expect(runNode(REGISTRY.get('grid')!, { kernel: 'quicksort', size: 'small' })).rejects.toThrow(/not a kernel this node runs/);
+  });
+});
+
+describe('tree and string kernels run through their engines', () => {
+  const load = (id: string) => kernelLoader(live.find((e) => e.id === id)!)();
+
+  it('every tree kernel reports its engine\'s own counts for the same seeded workload', async () => {
+    const d = REGISTRY.get('tree')!;
+    for (const id of d.origin!.entries) {
+      const k = (await load(id)) as TreeKernel;
+      const n = TREE_SIZE[k.input].min;
+      const opts = Object.fromEntries((k.params ?? []).map((p) => [p.key, Number(p.value)]));
+      const t = treeTrace(k, workload(k.input, TREE_SHAPES[k.input][0].value, n, 7, opts), false);
+      const run = runNode(d, { kernel: id, size: 'small' }, 7);
+      if (t.truncated) { await expect(run, id).rejects.toThrow(/event cap/); continue; }
+      const r = rec((await run).counts);
+      expect(r[TREE_SIZE[k.input].label], id).toBe(n);
+      if (t.counts.compares > 0) expect(r['Key comparisons'], id).toBe(t.counts.compares);
+      if (t.counts.writes > 0) expect(r['Array writes'], id).toBe(t.counts.writes);
+    }
+  });
+
+  it('every string kernel reports its own counters for the same seeded input', async () => {
+    const d = REGISTRY.get('text')!;
+    for (const id of d.origin!.entries) {
+      const k = (await load(id)) as StringKernel;
+      const def = STRING_KINDS[k.input];
+      const opts = Object.fromEntries((k.params ?? []).map((p) => [p.key, p.value]));
+      const x = stringInput(k.input, def.size.min, k.shape ?? def.shapes[0]?.value ?? '', 7, opts as never);
+      const t = stringTrace(k, x as never, opts);
+      const run = runNode(d, { kernel: id, size: 'small' }, 7);
+      if (t.truncated) { await expect(run, id).rejects.toThrow(/event cap/); continue; }
+      const r = rec((await run).counts);
+      t.labels.forEach((label, i) => expect(r[label], `${id} ${label}`).toBe(t.counts[i]));
+    }
+  });
+});
+
+describe('hash kernels run through their engine', () => {
+  it('every hash kernel reports its engine\'s own counts for the plate\'s workload', async () => {
+    const d = REGISTRY.get('hash')!;
+    for (const id of d.origin!.entries) {
+      const k = (await kernelLoader(live.find((e) => e.id === id)!)()) as HashKernel;
+      const n = HASH_PLATE.nMin;
+      const ld = k.maxLoad === undefined ? 100 : Math.min(HASH_PLATE.load, k.maxLoad);
+      const opts = Object.fromEntries((k.params ?? []).map((p) => [p.key, p.value]));
+      const t = hashTrace(k, hashWorkload('uniform', n, HASH_PLATE.deletes, 7), { n, m: Math.ceil(n / (ld / 100)), pageSize: HASH_PLATE.page, opts });
+      const run = runNode(d, { kernel: id, size: 'small' }, 7);
+      if (t.truncated) { await expect(run, id).rejects.toThrow(/event cap/); continue; }
+      const r = rec((await run).counts);
+      expect(r['Keys inserted'], id).toBe(n);
+      expect(r.Hashes ?? 0, id).toBe(t.counts.hashes);
+      expect(r.Probes ?? 0, id).toBe(t.counts.probes);
+      expect(r.Writes ?? 0, id).toBe(t.counts.writes);
+    }
   });
 });

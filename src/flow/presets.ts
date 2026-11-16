@@ -97,11 +97,17 @@ export const PRESETS: Preset[] = [
   {
     id: 'kernels',
     title: 'Catalogue kernels',
-    summary: 'Nodes derived from the catalogue: any table or board kernel and any graph kernel on its seeded instance, measured by its own engine.',
+    summary: 'Nodes derived from the catalogue: a table, graph, tree, text and hash kernel, each on its seeded instance, measured by its own engine.',
     build: (r) => doc(r, [
       instance(r, 'grid', 'grid'), instance(r, 'readouts', 'readout'), instance(r, 'rows', 'chart'),
       instance(r, 'graph', 'graph'), instance(r, 'counts', 'readout'),
-    ], [e('grid', 'readouts', 'readouts', 'in'), e('grid', 'rows', 'rows', 'a'), e('graph', 'counts', 'counts', 'in')]),
+      instance(r, 'tree', 'tree'), instance(r, 'tree-counts', 'readout'),
+      instance(r, 'text', 'text'), instance(r, 'text-counts', 'readout'),
+      instance(r, 'hash', 'hash'), instance(r, 'hash-counts', 'readout'),
+    ], [
+      e('grid', 'readouts', 'readouts', 'in'), e('grid', 'rows', 'rows', 'a'), e('graph', 'counts', 'counts', 'in'),
+      e('tree', 'counts', 'tree-counts', 'in'), e('text', 'counts', 'text-counts', 'in'), e('hash', 'counts', 'hash-counts', 'in'),
+    ]),
   },
 ];
 

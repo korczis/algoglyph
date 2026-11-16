@@ -8,6 +8,11 @@ import type { ParamDef, Params } from '../core/plate';
 import { makeGraph } from '../engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type Counts, type GraphKernel } from '../engines/graph/trace';
 import { run as gridRun, type GridKernel } from '../engines/grid/trace';
+import { trace as hashTrace, type Counts as HashCounts, type HashKernel } from '../engines/hash/table';
+import { PLATE as HASH_PLATE, workload as hashWorkload } from '../engines/hash/workload';
+import { input as stringInput, KINDS as STRING_KINDS } from '../engines/string/inputs';
+import { trace as stringTrace, type StringKernel } from '../engines/string/trace';
+import { SHAPES as TREE_SHAPES, SIZE as TREE_SIZE, trace as treeTrace, workload, type Counts as TreeCounts, type TreeKernel } from '../engines/tree/trace';
 import type { Adapter, KernelLoad } from './derive';
 import type { NodeDef } from './node';
 import type { RecordValue, SeriesValue } from './types';
@@ -88,6 +93,98 @@ export const graphAdapter: Adapter = {
       const rows: [string, number][] = [['Vertices', g.n], ['Edges', g.m]];
       for (const [key, label] of COUNT_LABELS) if (t.counts[key] > 0) rows.push([label, t.counts[key]]);
       rows.push(['Work', graphWork(t.counts)]);
+      return { counts: record(rows) };
+    },
+  }),
+};
+
+/** A kernel's own parameters at their defaults: what shapes its input, as its plate reads them. */
+const defaults = (ps: readonly ParamDef[] | undefined): Record<string, number> =>
+  Object.fromEntries((ps ?? []).map((d) => [d.key, Number(d.value)]));
+
+const TREE_LABELS: [keyof TreeCounts, string][] = [
+  ['compares', 'Key comparisons'], ['digits', 'Digit tests'], ['visits', 'Node visits'], ['links', 'Links set'],
+  ['rotations', 'Rotations'], ['splits', 'Splits'], ['recolours', 'Recolourings'], ['nodes', 'Nodes allocated'],
+  ['reads', 'Array reads'], ['writes', 'Array writes'],
+];
+
+/** The tree engine: a seeded workload of the kernel's input kind, built and searched, counted. */
+export const treeAdapter: Adapter = {
+  engine: 'tree', type: 'tree',
+  signature: 'seeded workload in; the engine\'s operation counts (record) out',
+  refuse: () => null,
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'tree', title: 'Tree and heap kernel', category: 'provider', seeded: true,
+    summary: 'Any kernel of the tree engine on its own seeded workload: search trees, heaps, tries, forests and codes, every operation counted.',
+    params: [kernelParam(es), SIZE],
+    inputs: [],
+    outputs: [{ id: 'counts', label: 'Counts', type: { kind: 'record' } }],
+    run: async ({ params, seed }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as TreeKernel;
+      const size = TREE_SIZE[k.input];
+      const n = params.size === 'default' ? size.value : size.min;
+      const t = treeTrace(k, workload(k.input, TREE_SHAPES[k.input][0].value, n, seed, defaults(k.params)), false);
+      if (t.truncated) throw new Error(`${e.title}: the run reached the trace's event cap`);
+      const rows: [string, number][] = [[size.label, n]];
+      for (const [key, label] of TREE_LABELS) if (t.counts[key] > 0) rows.push([label, t.counts[key]]);
+      return { counts: record(rows) };
+    },
+  }),
+};
+
+/** The string engine: a seeded text, list or table of the kernel's input kind, counted by its own counters. */
+export const stringAdapter: Adapter = {
+  engine: 'string', type: 'text',
+  signature: 'seeded input in; the kernel\'s own counters (record) out',
+  refuse: () => null,
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'text', title: 'String and text kernel', category: 'provider', seeded: true,
+    summary: 'Any kernel of the string engine on its own seeded input: matching, edit distance, compression, record linkage, counted by its own counters.',
+    params: [kernelParam(es), SIZE],
+    inputs: [],
+    outputs: [{ id: 'counts', label: 'Counts', type: { kind: 'record' } }],
+    run: async ({ params, seed }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as StringKernel;
+      const def = STRING_KINDS[k.input];
+      const n = params.size === 'default' ? (k.size ?? def.size.value) : def.size.min;
+      const opts = Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value]));
+      const x = stringInput(k.input, n, k.shape ?? def.shapes[0]?.value ?? '', seed, opts as never);
+      const t = stringTrace(k, x as never, opts);
+      if (t.truncated) throw new Error(`${e.title}: the run reached the trace's event cap`);
+      return { counts: record([[def.size.label, n], ...t.labels.map((label, i): [string, number] => [label, t.counts[i]])]) };
+    },
+  }),
+};
+
+const HASH_LABELS: [keyof HashCounts, string][] = [
+  ['hashes', 'Hashes'], ['probes', 'Probes'], ['writes', 'Writes'], ['removes', 'Removals'], ['rehashes', 'Rehashes'],
+  ['rehashed', 'Keys rehashed'], ['loads', 'Page loads'], ['splits', 'Splits'], ['doublings', 'Directory doublings'], ['dirReads', 'Directory reads'],
+];
+
+/** The hash engine: the shared workload (insert, search, delete) on uniform seeded keys, counted. */
+export const hashAdapter: Adapter = {
+  engine: 'hash', type: 'hash',
+  signature: 'seeded key workload in; the engine\'s operation counts (record) out',
+  refuse: () => null,
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'hash', title: 'Hash table kernel', category: 'provider', seeded: true,
+    summary: 'Any kernel of the hash engine on the workload every hash plate runs: uniform seeded keys inserted, searched and partly deleted, every probe counted.',
+    params: [kernelParam(es), SIZE],
+    inputs: [],
+    outputs: [{ id: 'counts', label: 'Counts', type: { kind: 'record' } }],
+    run: async ({ params, seed }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as HashKernel;
+      const n = params.size === 'default' ? HASH_PLATE.n : HASH_PLATE.nMin;
+      // as the plate sizes it: a fixed-size table filled to its load factor, a self-sizing one given n slots
+      const ld = k.maxLoad === undefined ? 100 : Math.min(HASH_PLATE.load, k.maxLoad);
+      const size = { n, m: Math.max(1, Math.ceil(n / (ld / 100))), pageSize: HASH_PLATE.page, opts: Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value])) };
+      const t = hashTrace(k, hashWorkload('uniform', n, HASH_PLATE.deletes, seed), size);
+      if (t.truncated) throw new Error(`${e.title}: the run reached the trace's event cap`);
+      const rows: [string, number][] = [['Keys inserted', n]];
+      for (const [key, label] of HASH_LABELS) if (t.counts[key] > 0) rows.push([label, t.counts[key]]);
       return { counts: record(rows) };
     },
   }),

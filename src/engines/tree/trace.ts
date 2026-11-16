@@ -441,6 +441,15 @@ export const wordLetters = (r: number = WORD_LETTERS.length): string => WORD_ALP
 /** Largest alphabet a Huffman workload can label. */
 export const MAX_SYMBOLS = ALPHABET.length;
 
+/** The input-size control of each input kind: its plate's slider and the flow's sizes read it. */
+export const SIZE: Record<InputKind, { min: number; max: number; value: number; label: string }> = {
+  keys: { min: 2, max: 255, value: 31, label: 'Keys' },
+  bits: { min: 2, max: 255, value: 24, label: 'Keys' },
+  words: { min: 2, max: 120, value: 20, label: 'Words' },
+  pairs: { min: 2, max: 200, value: 24, label: 'Sites' },
+  weights: { min: 2, max: MAX_SYMBOLS, value: 14, label: 'Symbols' },
+};
+
 function order(seq: number[], shape: string, rnd: () => number): number[] {
   const a = seq.slice().sort((x, y) => x - y);
   if (shape === 'ascending') return a;
