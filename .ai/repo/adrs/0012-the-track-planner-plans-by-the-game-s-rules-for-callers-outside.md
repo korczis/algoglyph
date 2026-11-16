@@ -93,3 +93,24 @@ questions, recorded verbatim (a peer session's label is replaced by its role):
 
 The stack lands through the integrator after hosted x86 CI, as every branch does; the confirmation
 releases the hold, it does not skip a gate.
+
+The integrator session (8b702ebf-3f15-4e77-880e-843436e75d2c) asked the owner twice on 2026-11-16,
+recorded verbatim. First, before the confirmation above:
+
+- Q: "Another session, algoglyph-f8, asked me to land a seven-branch stack into the public algoglyph
+  site. On top of flow-solve sit six branches that add an OpenTTD rail and transport planner: a new
+  ADR 0012, a new blocking rule (project.planner-plays-by-the-rules), a human-like mouse-motion model
+  matched bit for bit against a fork's motion.rs, and plans expanded into key presses. Should I land
+  the OpenTTD part in algoglyph?" A: "Hold it (Recommended)".
+
+Then, after the confirmation above was reported to it by the planner's session, and before landing:
+
+- Q: "Earlier you told me to hold the OpenTTD planner stack. algoglyph-f8 now reports that you told it
+  "Land all of them" at 20:25 CET today (about 15 minutes ago), and it added your words to ADR 0012.
+  Which stands for the stack: flow-solve, track-planning, human-pointing, openttd-map-input,
+  action-plan, transport-investment and exact-prices, 23 commits with exact-prices 689f24a on top?"
+  A: "Land all of them".
+
+The later answer stands. Before landing, the stack's added lines were checked for a private
+repository, a local path, an e-mail address and peer-session labels: none (commit messages keep
+four peer-session labels, which are agent names, not people or repositories).
