@@ -50,7 +50,7 @@ describe('flow cli', () => {
     expect(JSON.parse(ok.stdout)).toMatchObject({ ok: true });
     const bad = spawnSync('node', ['scripts/flow.mjs', 'check', '-'], { input: '{}', encoding: 'utf8' });
     expect(bad.status).toBe(1);
-  }, 60_000);
+  });
 });
 
 describe('flow cli: a catalogue kernel on caller data', () => {
@@ -151,5 +151,5 @@ describe('flow cli: serve', () => {
     expect(out[1]).toMatchObject({ ok: false });
     expect(out[2]).toMatchObject({ id: 2, ok: false, errors: [expect.stringContaining('unknown cmd')] });
     expect(out[3]).toMatchObject({ id: 3, ok: true });
-  }, 60_000);
+  });
 });
