@@ -352,6 +352,35 @@ describe('track planning: the data form reads the research export as it comes', 
     expect(data.solve({ map, ways: { occupancy: [3] }, from: river.from, to: river.to })).toMatch(/ways.occupancy/);
   });
 
+  it('reads openttd://map/terrain against the map and openttd://economy/prices as the cost unit', () => {
+    const map = { width: 13, height: 7, heights: river.heights, types: river.types };
+    // the planner's own reading of the slopes is the reference the terrain must agree with
+    const meta = data.solve({ ...river, meta: true });
+    if (typeof meta === 'string') throw new Error(meta);
+    const slopes = (meta.meta as { slopes: string[] }).slopes;
+    const clear = Array(6).fill('.'.repeat(12)); const none = Array(6).fill('.'.repeat(12));
+    const ok = data.solve({ map, terrain: { slopes, buildable: clear, vehicles: none }, from: river.from, to: river.to });
+    expect(ok).toMatchObject({ status: 'found' });
+    // a terrain read at another moment (one slope differs) is refused, naming the tile
+    const stale = slopes.map((r, y) => (y === 3 ? `1d${r.slice(2)}` : r));
+    expect(data.solve({ map, terrain: { slopes: stale }, from: river.from, to: river.to })).toMatch(/terrain.slopes\[3\].*same moment/);
+    // a vehicle standing on a tile, or a tile built on since, is taken
+    const plan = ok as { pieces: { kind: string; x: number; y: number }[] };
+    const t = plan.pieces.find((q) => q.kind === 'track')!;
+    const busy = none.map((r, y) => (y === t.y ? r.slice(0, t.x) + '2' + r.slice(t.x + 1) : r));
+    const round = data.solve({ map, terrain: { vehicles: busy }, from: river.from, to: river.to }) as { pieces: { kind: string; x: number; y: number }[] };
+    expect(round.pieces.some((q) => q.kind === 'track' && q.x === t.x && q.y === t.y)).toBe(false);
+    // prices: costs become the game's ratios to one tile of rail, and an explicit cost still wins
+    const prices = { prices: { build_rail: 200, build_bridge: 1000, build_tunnel: 1600, build_foundation: 100, clear_trees: 40 } };
+    const priced = data.solve({ map, prices, from: river.from, to: river.to });
+    if (typeof priced === 'string') throw new Error(priced);
+    expect(priced.costs).toMatchObject({ bridge: 5, tunnel: 8, foundation: 0.5, clear: 0.2 });
+    expect(priced.money).toBeCloseTo((priced.cost as number) * 200, 6);
+    expect((data.solve({ map, prices, costs: { bridge: 2 }, from: river.from, to: river.to }) as { costs: { bridge: number } }).costs.bridge).toBe(2);
+    expect(data.solve({ map, prices: { prices: { build_rail: 0 } }, from: river.from, to: river.to })).toMatch(/build_rail/);
+    expect(data.solve({ ...river, prices })).toMatch(/read with map/);
+  });
+
   it('refuses malformed maps and ends with the field named', () => {
     expect(data.solve({ ...river, heights: ['0g'] })).toMatch(/heights/);
     expect(data.solve({ ...river, types: Array(7).fill('CCCCCZWCCCCCC') })).toMatch(/types/);

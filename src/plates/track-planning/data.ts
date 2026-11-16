@@ -46,8 +46,11 @@ const end = (v: unknown, name: string, needDir: boolean, w: number, h: number): 
  * tiles join `blocked`; the rest of the form is unchanged.
  */
 function fromGame(raw: Record<string, unknown>): Record<string, unknown> | string {
-  const { map, ways, ...rest } = raw;
-  if (map === undefined) return raw;
+  const { map, ways, terrain, prices, ...rest } = raw;
+  if (map === undefined) {
+    if (terrain !== undefined || prices !== undefined) return 'terrain and prices are read with map (openttd://map), not with heights';
+    return raw;
+  }
   if (!record(map)) return 'map must be openttd://map\'s data ({width, height, heights, types, ...})';
   const out: Record<string, unknown> = { ...rest, heights: map.heights, types: map.types };
   if (ways !== undefined) {
@@ -57,11 +60,66 @@ function fromGame(raw: Record<string, unknown>): Record<string, unknown> | strin
       if (!Array.isArray(ways.occupancy)) return 'ways.occupancy must list {x, y, ...} tiles';
       const taken = ways.occupancy.map((o) => (record(o) ? [o.x, o.y] : null));
       if (taken.some((t) => t === null)) return 'ways.occupancy must list {x, y, ...} tiles';
-      out.blocked = [...(Array.isArray(rest.blocked) ? rest.blocked : []), ...(taken as unknown[])];
+      out.blocked = [...(Array.isArray(out.blocked) ? out.blocked : Array.isArray(rest.blocked) ? rest.blocked : []), ...(taken as unknown[])];
     }
+  }
+  if (terrain !== undefined) {
+    if (!record(terrain)) return 'terrain must be openttd://map/terrain\'s data ({slopes, buildable, vehicles, ...})';
+    out.terrain = terrain;
+  }
+  if (prices !== undefined) {
+    if (!record(prices) || !record(prices.prices)) return 'prices must be openttd://economy/prices\' data ({prices: {build_rail, ...}})';
+    const pr = prices.prices as Record<string, unknown>;
+    const rail = pr.build_rail;
+    if (!finite(rail) || rail <= 0) return 'prices.prices.build_rail must be a positive amount: every cost is a multiple of it';
+    // the game's own price ratios, one tile of plain rail the unit; a price the game does not
+    // list keeps its default, and costs the caller gives explicitly win over all of them
+    const ratio = (name: string) => (finite(pr[name]) && (pr[name] as number) >= 0 ? (pr[name] as number) / rail : undefined);
+    const derived: Record<string, number> = {};
+    for (const [key, name] of [['bridge', 'build_bridge'], ['tunnel', 'build_tunnel'], ['foundation', 'build_foundation'], ['clear', 'clear_trees']] as const) {
+      const r = ratio(name);
+      if (r !== undefined) derived[key] = r;
+    }
+    out.costs = { ...derived, ...(record(rest.costs) ? rest.costs : {}) };
+    out.priced = { unit: 'build_rail', build_rail: rail, derived: Object.keys(derived) };
   }
   return out;
 }
+
+/**
+ * openttd://map/terrain read against the map: its slope for every tile must be the one the heights
+ * give (a snapshot read at another moment is refused, never half-trusted), a tile it marks built
+ * on ('x') that the types call clear is taken, and a tile with vehicles standing on it is taken.
+ */
+function applyTerrain(m: TileMap, t: Record<string, unknown>): string | null {
+  const tw = m.w - 1; const th = m.h - 1;
+  const rows = (name: string, perTile: number) => {
+    const r = t[name];
+    if (r === undefined) return null;
+    if (!Array.isArray(r) || r.length < th || !r.every((x) => typeof x === 'string' && x.length >= tw * perTile)) return `terrain.${name} must be rows of ${perTile} character${perTile > 1 ? 's' : ''} a tile`;
+    return r as string[];
+  };
+  const slopes = rows('slopes', 2);
+  if (typeof slopes === 'string') return slopes;
+  const buildable = rows('buildable', 1);
+  if (typeof buildable === 'string') return buildable;
+  const vehicles = rows('vehicles', 1);
+  if (typeof vehicles === 'string') return vehicles;
+  m.blocked ??= new Uint8Array(m.w * m.h);
+  for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) {
+    const i = y * m.w + x;
+    if (slopes) {
+      const want = parseInt(slopes[y].slice(2 * x, 2 * x + 2), 16);
+      const got = tileMeta(m, x, y).slope;
+      if (want !== got) return `terrain.slopes[${y}] says tile (${x}, ${y}) has Slope ${want.toString(16)}, its heights give ${got.toString(16)}: read map and terrain at the same moment`;
+    }
+    const type = String.fromCharCode(m.types[i]);
+    if (buildable && buildable[y][x] === 'x' && (type === 'C' || type === 'T')) m.blocked[i] = 1;
+    if (vehicles && vehicles[y][x] !== '.') m.blocked[i] = 1;
+  }
+  return null;
+}
+
 
 export const data: DataForm = {
   input: '{map?: openttd://map data, ways?: openttd://map/ways data | heights: string[] (2 hex digits a tile, openttd://map) | number[][], types?: string[], roads?: string[] (1 hex digit a tile), blocked?: [x, y][], from: {x, y, dir: NE|SE|SW|NW}, to: {x, y, dir?}, costs?, rules?, meta?: boolean}',
@@ -70,7 +128,7 @@ export const data: DataForm = {
     if (input.map !== undefined && input.heights !== undefined) return 'give either map (openttd://map) or heights, not both';
     const raw = fromGame(input);
     if (typeof raw === 'string') return raw;
-    const extra = unknownKeys(raw, ['heights', 'types', 'roads', 'blocked', 'from', 'to', 'costs', 'rules', 'meta']);
+    const extra = unknownKeys(raw, ['heights', 'types', 'roads', 'blocked', 'from', 'to', 'costs', 'rules', 'meta', 'terrain', 'priced']);
     if (extra) return extra;
     if (!rowsOf(raw.heights)) return 'heights must list the map\'s rows';
     const first = raw.heights[0];
@@ -133,8 +191,13 @@ export const data: DataForm = {
       }
     }
     const m: TileMap = { w, h, heights, types, roads, blocked };
+    if (raw.terrain !== undefined) {
+      const bad = applyTerrain(m, raw.terrain as Record<string, unknown>);
+      if (bad) return bad;
+    }
     const p = plan(m, from as { x: number; y: number; dir: Heading }, to, costs, rules);
     const out: Record<string, unknown> = {
+      ...(raw.priced ? { priced: raw.priced, money: Number.isFinite(p.cost) ? p.cost * (raw.priced as { build_rail: number }).build_rail : null } : {}),
       status: p.status, cost: Number.isFinite(p.cost) ? p.cost : null, counts: p.counts, expanded: p.expanded, pieces: p.pieces, runs: p.runs, costs, rules,
     };
     if (raw.meta === true) {
