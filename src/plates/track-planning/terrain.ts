@@ -40,8 +40,11 @@ export function terrain(w: number, h: number, seed: number): Terrain {
     const z = heights[sy * vw + sx];
     for (let y = sy - 1; y <= sy + 2; y++) for (let x = sx - 1; x <= sx + 2; x++) { heights[y * vw + x] = z; fixed[y * vw + x] = 1; }
   }
-  // OpenTTD's rule: neighbouring vertices at most one level apart; the river and the sites hold
-  for (let changed = true; changed;) {
+  // OpenTTD's rule: neighbouring vertices at most one level apart; the river and the sites hold.
+  // Each pass settles at least one more vertex of the slope; on a map too small for the river, the
+  // ridge and the sites to keep apart, fixed vertices pull a slope both ways and it would never
+  // settle, so the passes are bounded (the plate keeps its maps at least MIN_W × MIN_H).
+  for (let changed = true, pass = 0; changed && pass < 2 * (vw + vh); pass++) {
     changed = false;
     for (let y = 0; y < vh; y++) for (let x = 0; x < vw; x++) for (const [nx, ny] of [[x + 1, y], [x, y + 1]]) {
       if (nx >= vw || ny >= vh) continue;

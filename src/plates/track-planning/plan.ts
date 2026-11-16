@@ -214,6 +214,19 @@ interface Move { prev: number; piece: Piece }
  */
 export function plan(m: TileMap, from: End & { dir: Heading }, to: End, costs: Costs = DEFAULT_COSTS,
   rules: Rules = DEFAULT_RULES, heuristic = true): Plan {
+  const it = search(m, from, to, costs, rules, heuristic);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
+}
+
+/**
+ * The same search as `plan`, resumable: it yields the states expanded so far every `chunk`
+ * expansions and returns the plan. A caller with a per-frame budget (the plate) drives it a slice at
+ * a time; every caller that runs it to the end gets exactly `plan`'s answer.
+ */
+export function* search(m: TileMap, from: End & { dir: Heading }, to: End, costs: Costs = DEFAULT_COSTS,
+  rules: Rules = DEFAULT_RULES, heuristic = true, chunk = 2048): Generator<number, Plan, void> {
   const W = m.w;
   const hf = heuristic ? Math.min(HALF_DIAGONAL, costs.bridge, costs.tunnel, 1) : 0;
   const goalZ = level(meta(m, to.x, to.y));
@@ -262,6 +275,7 @@ export function plan(m: TileMap, from: End & { dir: Heading }, to: End, costs: C
       continue;
     }
     if (++expanded > rules.budget) return empty('budget', expanded);
+    if (expanded % chunk === 0) yield expanded;
     const cls = classOf(m, x, y);
     if (cls === 'none' || cls === 'span') continue;
     const t = meta(m, x, y);

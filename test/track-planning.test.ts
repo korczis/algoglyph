@@ -5,7 +5,7 @@
 // heuristic) is the optimum A* must equal; and maps built by hand force each construct.
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { bridgeLenCostFactor, bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, plan, railBuildCost, tunnelMoney, unrun, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
+import { bridgeLenCostFactor, bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, plan, railBuildCost, search, tunnelMoney, unrun, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
 import { data } from '../src/plates/track-planning/data';
 import { terrain } from '../src/plates/track-planning/terrain';
 import { DEFAULT_SEED } from '../src/core/claims';
@@ -317,6 +317,35 @@ describe('track planning: the plate\'s maps, the plans its claims read', () => {
       const { map, a, b } = terrain(50, 31, seed);
       const blocked = plan(map, { x: a[0], y: a[1], dir: 'SW' }, { x: b[0], y: b[1] }, DEFAULT_COSTS, { ...DEFAULT_RULES, maxBridge: 0 });
       expect(blocked.status, `seed ${seed}`).toBe('unreachable');
+    }
+  });
+});
+
+describe('track planning: the plate stays inside its frame budget', () => {
+  it('the resumable search yields along the way and, run to its end, answers exactly what plan answers', () => {
+    const t = terrain(90, 56, DEFAULT_SEED);
+    const from = { x: t.a[0], y: t.a[1], dir: 'SW' as const };
+    const to = { x: t.b[0], y: t.b[1] };
+    for (const heuristic of [true, false]) {
+      const it = search(t.map, from, to, DEFAULT_COSTS, DEFAULT_RULES, heuristic, 512);
+      let yields = 0; let last = 0;
+      let r = it.next();
+      while (!r.done) { expect(r.value).toBeGreaterThan(last); last = r.value; yields++; r = it.next(); }
+      const whole = plan(t.map, from, to, DEFAULT_COSTS, DEFAULT_RULES, heuristic);
+      expect(yields).toBeGreaterThan(10);
+      expect([r.value.status, r.value.cost, r.value.expanded, r.value.pieces.length]).toEqual([whole.status, whole.cost, whole.expanded, whole.pieces.length]);
+    }
+  });
+
+  it('builds a map at any size, and keeps neighbouring vertices one level apart on every size the plate draws', () => {
+    // 16 x 10 once put the river three vertices from a site five levels up: the smoothing never settled
+    for (const [w, h] of [[16, 10], [8, 6]]) expect(terrain(w, h, 4242).map.w).toBe(w + 1);
+    for (const [w, h] of [[24, 14], [24, 15], [60, 37], [180, 112]]) for (let seed = 1; seed <= 4; seed++) {
+      const H = terrain(w, h, seed).map.heights; const vw = w + 1;
+      for (let y = 0; y <= h; y++) for (let x = 0; x <= w; x++) {
+        if (x < w) expect(Math.abs(H[y * vw + x] - H[y * vw + x + 1])).toBeLessThanOrEqual(1);
+        if (y < h) expect(Math.abs(H[y * vw + x] - H[(y + 1) * vw + x])).toBeLessThanOrEqual(1);
+      }
     }
   });
 });
