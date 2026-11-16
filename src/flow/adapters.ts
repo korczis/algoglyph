@@ -8,7 +8,10 @@ import type { ParamDef, Params } from '../core/plate';
 import { makeGraph } from '../engines/graph/graph';
 import { defaultParams, EVENT_CAP, trace as graphTrace, work as graphWork, type Counts, type GraphKernel } from '../engines/graph/trace';
 import { run as gridRun, type GridKernel } from '../engines/grid/trace';
+import { DEFAULT_SHAPES, makeInput } from '../engines/geometry/input';
+import { DEFAULT_N, record as record_, type GeometryKernel } from '../engines/geometry/trace';
 import type { NumericKernel } from '../engines/numeric/trace';
+import { defaultParams as systemsDefaults, simulate, total as systemsTotal, type SystemsKernel } from '../engines/systems/sim';
 import { trace as stochasticTrace, type StochasticKernel } from '../engines/stochastic/trace';
 import { Meter as SignalMeter, type SignalKernel, type View as SignalView } from '../engines/signal/trace';
 import { trace as hashTrace, type Counts as HashCounts, type HashKernel } from '../engines/hash/table';
@@ -276,6 +279,52 @@ export const numericAdapter: Adapter = {
         series: { kind: 'points', xs: Float64Array.from(first, (p) => p[0]), ys: Float64Array.from(first, (p) => p[1]), x: '1', y: '1' } as PointsValue,
         sizes: record(measured.map((m): [string, number] => [`${m.name}: points`, m.points.length])),
       };
+    },
+  }),
+};
+
+/** The systems engine: a kernel's scenario simulated to its horizon on the graph's seed, measured by its readouts. */
+export const systemsAdapter: Adapter = {
+  engine: 'systems', type: 'protocol',
+  signature: 'seeded simulated network in; the kernel\'s own readouts over the whole run (record) out',
+  refuse: () => null,
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'protocol', title: 'Distributed systems kernel', category: 'provider', seeded: true,
+    summary: 'Any kernel of the systems engine simulated to its horizon on a seeded network: consensus, replication, clocks and queues, measured by its own readouts.',
+    params: [kernelParam(es)],
+    inputs: [],
+    outputs: [{ id: 'readouts', label: 'Readouts', type: { kind: 'record' } }],
+    run: async ({ params, seed }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as SystemsKernel;
+      const run = simulate(k, systemsDefaults(k), seed);
+      const gauges = new Map<string, number>();
+      for (const ev of run.net.events) if (ev.k === 'gauge') gauges.set(ev.key, ev.value);
+      return { readouts: record(k.readouts.map((r): [string, number] => [r.label, r.kind === 'gauge' ? gauges.get(r.key) ?? NaN : systemsTotal(run.net, r.key)])) };
+    },
+  }),
+};
+
+/** The geometry engine: the kernel's default input shape at its plate's size, every primitive counted. */
+export const geometryAdapter: Adapter = {
+  engine: 'geometry', type: 'geometry',
+  signature: 'seeded input of the kernel\'s kind in; its own counters (record) out',
+  refuse: () => null,
+  node: (es: Entry[], load: KernelLoad): NodeDef => ({
+    type: 'geometry', title: 'Computational geometry kernel', category: 'provider', seeded: true,
+    summary: 'Any kernel of the geometry engine on a seeded input of the shape its plate opens with: hulls, triangulations, sweeps and nearest neighbours, every primitive counted.',
+    params: [kernelParam(es), SIZE],
+    inputs: [],
+    outputs: [{ id: 'counts', label: 'Counts', type: { kind: 'record' } }],
+    run: async ({ params, seed }) => {
+      const e = chosen(es, params);
+      const k = (await load(e)) as GeometryKernel;
+      const size = k.n ?? DEFAULT_N;
+      const n = params.size === 'default' ? size.value : size.min;
+      const own = Object.fromEntries((k.params ?? []).map((d) => [d.key, d.value]));
+      const shape = (k.shapes ?? DEFAULT_SHAPES[k.input])[0];
+      const t = record_(k, makeInput(k.input, shape, n, seed, own), own, seed, false);
+      return { counts: record([['Size', n], ...k.counters.map(([key, label]): [string, number] => [label, t.counts[key] ?? 0])]) };
     },
   }),
 };

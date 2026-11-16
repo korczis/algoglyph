@@ -12,6 +12,9 @@ import { trace as hashTrace, type HashKernel } from '../src/engines/hash/table';
 import { Meter as SignalMeter, type SignalKernel } from '../src/engines/signal/trace';
 import { trace as stochasticTrace, type StochasticKernel } from '../src/engines/stochastic/trace';
 import type { NumericKernel } from '../src/engines/numeric/trace';
+import { DEFAULT_SHAPES, makeInput } from '../src/engines/geometry/input';
+import { DEFAULT_N, record as recordGeometry, type GeometryKernel } from '../src/engines/geometry/trace';
+import { defaultParams as systemsDefaults, simulate, total as systemsTotal, type SystemsKernel } from '../src/engines/systems/sim';
 import { PLATE as HASH_PLATE, workload as hashWorkload } from '../src/engines/hash/workload';
 import { input as stringInput, KINDS as STRING_KINDS } from '../src/engines/string/inputs';
 import { trace as stringTrace, type StringKernel } from '../src/engines/string/trace';
@@ -83,7 +86,7 @@ describe('derivation from the catalogue', () => {
   });
 
   it('promotes an engine\'s entries from inferred to derived when an adapter for it is added', () => {
-    const engine = rows.find((r) => r.level === 'inferred' && r.proposal)!.engine;
+    const engine = rows.find((r) => r.level === 'inferred')!.engine;
     const probe: Adapter = {
       engine, type: `probe-${engine}`, signature: 'a probe adapter', refuse: () => null,
       node: () => ({ type: `probe-${engine}`, title: 'Probe', category: 'provider', summary: 'probe', params: [], inputs: [], outputs: [], run: () => ({}) }),
@@ -264,6 +267,32 @@ describe('numeric kernels run through their probes', () => {
       const out = await runNode(d, { kernel: id }, 7);
       expect(Array.from((out.series as PointsValue).ys), id).toEqual(want[0].points.map((p) => p[1]));
       expect((out.sizes as RecordValue).rows.length, id).toBe(want.length);
+    }
+  });
+});
+
+describe('systems and geometry kernels run through their engines', () => {
+  const load = (id: string) => kernelLoader(live.find((e) => e.id === id)!)();
+
+  it('every systems kernel reports its own readouts over the same simulated run', async () => {
+    const d = REGISTRY.get('protocol')!;
+    for (const id of d.origin!.entries) {
+      const k = (await load(id)) as SystemsKernel;
+      const run = simulate(k, systemsDefaults(k), 7);
+      const r = rec((await runNode(d, { kernel: id }, 7)).readouts);
+      for (const ro of k.readouts) if (ro.kind !== 'gauge') expect(r[ro.label], `${id} ${ro.label}`).toBe(systemsTotal(run.net, ro.key));
+    }
+  });
+
+  it('every geometry kernel reports its own counters for the same seeded input', async () => {
+    const d = REGISTRY.get('geometry')!;
+    for (const id of d.origin!.entries) {
+      const k = (await load(id)) as GeometryKernel;
+      const n = (k.n ?? DEFAULT_N).min;
+      const own = Object.fromEntries((k.params ?? []).map((p) => [p.key, p.value]));
+      const t = recordGeometry(k, makeInput(k.input, (k.shapes ?? DEFAULT_SHAPES[k.input])[0], n, 7, own), own, 7, false);
+      const r = rec((await runNode(d, { kernel: id, size: 'small' }, 7)).counts);
+      for (const [key, label] of k.counters) expect(r[label], `${id} ${label}`).toBe(t.counts[key] ?? 0);
     }
   });
 });

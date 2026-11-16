@@ -165,12 +165,12 @@ written here (rule `project.derived-facts`); list them with `npm run catalogue -
 | graph | `GraphKernel.steps`, `makeGraph`, `trace()`, `Counts` | **derived provider** | graph adapter (done); a graph value kind for graph *inputs* is still not built | Graph kernel, every live graph entry |
 | numeric | `NumericKernel.run(inp) → NumericRun` (drawing); `probe.measure` for lab kernels | **derived provider** for lab kernels; extraction for the rest | numeric adapter: a lab kernel's probe series (done); the rest need compute split from run (§H step 2) | Numeric kernel probe, every numeric entry in a lab; polynomial fit via `_linalg` |
 | signal | `_fft.ts`, windows; `SignalKernel.run(params, seed, meter)` | processor via helpers, **derived provider** | spectrum over `_fft.ts` (declared); signal adapter: the metered counts of the whole run (done) | Magnitude spectrum; Signal processing kernel, every live signal entry |
-| geometry | trace + worker | extraction | expose hull/Voronoi as `points → points` | convex hull |
+| geometry | `GeometryKernel.run` generator, `makeInput`, `record()`, its counters | **derived provider** | geometry adapter: the kernel's own counters on its default input shape (done); `points → points` processors still need a point-set input port | Computational geometry kernel, every live geometry entry |
 | tree | `TreeKernel.run`, `workload()`, `trace()`, `Counts` | **derived provider** | tree adapter (done) | Tree and heap kernel, every live tree entry |
 | string | `StringKernel.run`, `input()`, `trace()`, its own counters | **derived provider** | string adapter (done) | String and text kernel, every live string entry |
 | hash | `HashKernel`, the shared `workload()`, `trace()`, `Counts` | **derived provider** | hash adapter (done); the plate's defaults are one exported constant both read | Hash table kernel, every live hash entry |
 | stochastic | `StochasticKernel.run` generator, `trace()`, draws/evals, chart series | **derived provider** | stochastic adapter: counts and the run's own chart series as points (done) | Stochastic kernel, every live stochastic entry |
-| systems | time-stepped network sims | simulation mode (§7 below) | not in the finite runtime | — |
+| systems | `SystemsKernel` on a simulated `Net`, `simulate()`, its readouts | **derived provider** (run to its horizon, finite) | systems adapter: the kernel's own readouts over the whole simulated run (done); live stepping is the simulation mode (§H step 7) | Distributed systems kernel, every live systems entry |
 | bespoke plates | `PlateCode.create` closure | sink now; bidirectional after state lift | per plate, by ADR | `least-squares`-style plates first |
 
 Standalone pages, gallery, links, seeds, claims, pacing and budgets are untouched: the flow
@@ -208,7 +208,7 @@ Ordered by dependency; each step leaves every standalone page working.
    generators intact.
 3. **Done — generic derivation.** Engine adapters derive family nodes from the catalogue; every
    live entry is declared, derived or inferred (`test/flow-derive.test.ts`, gate `flow`): array,
-   grid, graph, tree, string, hash, signal, stochastic and the numeric kernels that take part in a lab. Next: the other numeric kernels, systems and geometry,
+   grid, graph, tree, string, hash, signal, stochastic, systems, geometry and the numeric kernels that take part in a lab. Next: the other numeric kernels and the bespoke plates,
    whose kernels return drawings or run as time-stepped simulations — each needs its compute
    split from its run (step 2) or the simulation mode (step 7) before an adapter can report a
    measurement rather than a picture. A frontmatter `flow:` facet

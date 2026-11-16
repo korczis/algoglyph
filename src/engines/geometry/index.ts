@@ -10,7 +10,7 @@ import { drawMarks, drawPacked, fit, type View } from './draw';
 import { optionId } from '../../core/data';
 import { DEFAULT_SHAPES, fitToBox, makeInput, SHAPE_LABELS, type Fitted } from './input';
 import { buildNow, Scaling, SLICE_MS, startBuild, type Build, type Request } from './build';
-import { record, type Box, type GeometryKernel } from './trace';
+import { DEFAULT_N, record, type Box, type GeometryKernel } from './trace';
 import type { Track } from './track';
 import { count } from '../../core/format';
 import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
@@ -39,7 +39,7 @@ export function work(kernel: GeometryKernel, shape: string, n: number, seed: num
 }
 
 function controls(kernel: GeometryKernel, shapes: string[]): ParamDef[] {
-  const n = kernel.n ?? { min: 3, max: 1000, value: 120, step: 1 };
+  const n = kernel.n ?? DEFAULT_N;
   const out: ParamDef[] = [];
   if (shapes.length > 1) {
     out.push({
@@ -200,7 +200,7 @@ function plate(info: KernelInfo, kernel: GeometryKernel): PlateCode {
 function lab(id: string, kernels: { info: KernelInfo; kernel: GeometryKernel }[]): PlateCode {
   const first = kernels[0].kernel;
   const shapes = shapesOf(first);
-  const n = first.n ?? { min: 3, max: 1000, value: 120 };
+  const n = first.n ?? DEFAULT_N;
   const nMax = Math.min(n.max, 500);
   // the lab measures only sizes its own control can reach
   const sizes = (first.scaling ?? [32, 64, 128, 256, 512, 1024]).filter((s) => s <= nMax);
