@@ -198,8 +198,12 @@ export async function runnable() {
   return out;
 }
 
-/** An entry's kernel module, or null for an entry with none (a custom plate, an unbacked id). */
+/** A custom plate's headless data form, next to its plate: src/plates/<id>/data.ts. */
+const PLATE_DATA = import.meta.glob('../plates/*/data.ts') as Record<string, () => Promise<{ data?: DataForm }>>;
+
+/** An entry's kernel module (a custom plate's data.ts), or null for an entry with neither. */
 async function loadOrNull(e: Entry): Promise<unknown> {
+  if (e.engine === 'custom') { const load = PLATE_DATA[`../plates/${e.id}/data.ts`]; return load ? load() : null; }
   try { return await kernelLoader(e)(); } catch { return null; }
 }
 

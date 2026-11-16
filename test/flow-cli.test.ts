@@ -244,8 +244,15 @@ describe('flow cli: numeric and stochastic kernels on caller data (src/core/solv
     expect(await runKernel('bayes-update', '{"successes":-1,"failures":1}')).toMatchObject({ ok: false, errors: [expect.stringContaining('successes')] });
   });
 
+  it('track-planning plans on the research export\'s layers: bridges a river, refuses a malformed map', async () => {
+    const hex = (r: string) => [...r].map((c) => `0${c}`).join('');
+    const map = { heights: Array(7).fill(hex('1111100011111')), types: Array(7).fill('CCCCCWWCCCCCC'), from: { x: 0, y: 3, dir: 'SW' }, to: { x: 11, y: 3 } };
+    expect(await ok('track-planning', map)).toMatchObject({ status: 'found', counts: { bridges: 1, sharp: 0 } });
+    expect(await runKernel('track-planning', JSON.stringify({ ...map, from: { x: 0, y: 3, dir: 'UP' } }))).toMatchObject({ ok: false, errors: [expect.stringContaining('from.dir')] });
+  });
+
   it('lists every declared data form, with the shape it reads', async () => {
     const list = await runnable();
-    for (const id of ['simplex-method', 'pert-monte-carlo', 'bayes-update']) expect(list.find((k) => k.id === id)).toMatchObject({ input: expect.stringContaining('{') });
+    for (const id of ['simplex-method', 'pert-monte-carlo', 'bayes-update', 'track-planning']) expect(list.find((k) => k.id === id)).toMatchObject({ input: expect.stringContaining('{') });
   });
 });

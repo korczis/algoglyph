@@ -46,7 +46,8 @@ that patches a value in place, a node that re-implements a kernel "just for the 
   a test that runs its node against its engine and a derived row in the RFC's migration matrix,
   and every command of `scripts/flow.mjs` is in its help and in docs/ARCHITECTURE.md.
 - A kernel reads a caller's data only through a form it declares (a graph kernel the graph form,
-  a grid kernel `fromData`, any other a `DataForm` of `src/core/solve.ts`): the kernel validates
+  a grid kernel `fromData`, any other a `DataForm` of `src/core/solve.ts`, a custom plate the
+  `DataForm` its `src/plates/<id>/data.ts` exports): the kernel validates
   the data itself, refuses with the field named and answers with the plate's own code. The
   command line finds every form from the kernels; each one owes a reference test.
 
