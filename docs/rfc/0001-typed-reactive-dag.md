@@ -313,4 +313,4 @@ Pages. "—" means not reached; nothing is marked without its evidence.
 | G25 performance budget | — | per-node caps only; no whole-graph budget test yet |
 | G26 derived docs fresh | ENFORCED | existing catalogue/README/facts gates, unchanged |
 | G27 enforcement reachability | DECLARED | rule `project.typed-flow` names its gates; Majordomus reachability not proven here |
-| G28 deployed | see the task's finish record | Pages serves `revision.txt`; marked only after it matches |
+| G28 deployed | DEPLOYED | Pages run 43814717534 (attempt 2) deployed b3dee95, which carries flow-dag 7681a6f, flow-derived 35f27ef and flow-cli 07a4c56; its Verify production job passed and `revision.txt` served `b3dee95` on 2026-11-16 |
