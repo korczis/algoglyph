@@ -65,11 +65,12 @@ async function serve(cli) {
 
 const print = (v) => process.stdout.write(`${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}\n`);
 
+// The process ends by itself once its output is written: process.exit() would drop what a pipe has
+// not read yet, cutting any answer past the pipe's buffer (64 KiB) mid-JSON, so the exit status is
+// set with process.exitCode and the event loop is left to drain.
 if (cmd === 'help' || cmd === '--help') {
   print(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 16).map((l) => l.slice(3)).join('\n'));
-  process.exit(0);
-}
-
+} else {
 const vite = await createServer({ root: ROOT, logLevel: 'error', appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false, watch: null } });
 let code = 0;
 try {
@@ -91,4 +92,5 @@ try {
 } finally {
   await vite.close();
 }
-process.exit(code);
+process.exitCode = code;
+}
