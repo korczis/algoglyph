@@ -379,6 +379,10 @@ export function makeGraph(shape: Shape, n: number, seed: number, aspect = 16 / 9
   const capacity = input.maxCapacity ?? MAX_CAPACITY;
   const heaviest = input.maxWeight ?? MAX_WEIGHT;
   n = Math.max(2, Math.floor(n));
+  // the planted cycle is a three-cycle: below three vertices there is none to plant
+  if (shape === 'negative-cycle' && n < 3) {
+    throw new RangeError(`makeGraph: the negative-cycle shape needs at least 3 vertices, got ${n}`);
+  }
   switch (shape) {
     case 'geometric': case 'digraph': case 'signed': case 'negative-cycle': {
       const { x, y } = scatter(n, aspect, rnd);
