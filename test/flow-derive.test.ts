@@ -64,8 +64,8 @@ describe('derivation from the catalogue', () => {
     const custom = rows.find((r) => r.engine === 'custom');
     expect(custom?.level).toBe('inferred');
     expect(custom?.reason).toMatch(/lifted out/);
-    const selection = rows.find((r) => r.engine === 'array' && r.level === 'inferred');
-    expect(selection?.reason).toMatch(/selection kernel/);
+    // the array engine's two adapters partition it: a selection kernel is the select node's
+    expect(rows.find((r) => r.id === 'quickselect')).toMatchObject({ level: 'derived', node: 'select' });
   });
 
   it('reads which engines run without drawing from the source tree, and proposes a node only for those', () => {
@@ -87,8 +87,10 @@ describe('derivation from the catalogue', () => {
     expect(library([...ADAPTERS, probe]).some((d) => d.type === `probe-${engine}`)).toBe(true);
   });
 
-  it('refuses two adapters for one engine and an adapter whose node is not its declared type', () => {
-    expect(() => deriveNodes([gridAdapter, gridAdapter], async () => ({}))).toThrow(/two adapters/);
+  it('refuses two adapters that accept one entry or derive one type, and an adapter whose node is not its type', () => {
+    expect(() => deriveNodes([gridAdapter, gridAdapter], async () => ({}))).toThrow(/two adapters derive the node type grid/);
+    expect(() => deriveNodes([gridAdapter, { ...gridAdapter, type: 'grid2', node: (es, l) => ({ ...gridAdapter.node(es, l), type: 'grid2' }) }], async () => ({})))
+      .toThrow(/accepted by both the grid and the grid2 adapter/);
     const liar: Adapter = { ...gridAdapter, type: 'not-grid' };
     expect(() => deriveNodes([liar], async () => ({}))).toThrow(/derived grid, not not-grid/);
   });
@@ -185,6 +187,25 @@ describe('hash kernels run through their engine', () => {
       expect(r.Hashes ?? 0, id).toBe(t.counts.hashes);
       expect(r.Probes ?? 0, id).toBe(t.counts.probes);
       expect(r.Writes ?? 0, id).toBe(t.counts.writes);
+    }
+  });
+});
+
+describe('selection kernels', () => {
+  it('select the k-th smallest key like a sorted copy does', async () => {
+    const d = REGISTRY.get('select')!;
+    const keys = Float64Array.from({ length: 40 }, (_, i) => (i * 17) % 40 + 0.5);
+    const sorted = Array.from(keys).sort((a, b) => a - b);
+    for (const id of d.origin!.entries) {
+      for (const rank of [1, 13, 40]) {
+        const r = await d.run({ nodeId: 's', params: { kernel: id, rank }, state: undefined, seed: 1, signal: ctl(),
+          inputs: { in: { kind: 'series', values: keys, unit: 'm', index: { unit: '1', start: 0, step: 1 }, label: 'k' } } });
+        const sel = (r.selected as RecordValue).rows.find((x) => x.label === 'Selected key')!;
+        expect(sel.value, `${id} ${rank}`).toBe(sorted[rank - 1]);
+        expect(sel.unit).toBe('m');
+      }
+      await expect(d.run({ nodeId: 's', params: { kernel: id, rank: 41 }, state: undefined, seed: 1, signal: ctl(),
+        inputs: { in: { kind: 'series', values: keys, unit: 'm', index: { unit: '1', start: 0, step: 1 }, label: 'k' } } })).rejects.toThrow(/past the 40 keys/);
     }
   });
 });

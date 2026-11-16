@@ -264,8 +264,51 @@ const loadKernel: KernelLoad = (e) => kernelLoader(e)();
 export const arrayAdapter: Adapter = {
   engine: 'array', type: 'sort',
   signature: 'keys (series) in; sorted keys by rank (series) and the trace\'s counts (record) out',
-  refuse: (e) => (e.taxonomy.startsWith(SELECTION) ? 'a selection kernel places one key; the sort node has no port for k or for the key it selects' : null),
+  refuse: (e) => (e.taxonomy.startsWith(SELECTION) ? 'a selection kernel places one key, not a sorted series' : null),
   node: (es, load) => sortNode(es, load),
+};
+
+/** The array engine's second adapter: the selection kernels, which place the k-th smallest key. */
+export const selectAdapter: Adapter = {
+  engine: 'array', type: 'select',
+  signature: 'keys (series) and a rank k in; the k-th smallest key and the trace\'s counts (record) out',
+  refuse: (e) => (e.taxonomy.startsWith(SELECTION) ? null : 'a sorting kernel orders every key; the select node runs only kernels that place one'),
+  node: (es, load): NodeDef => ({
+    type: 'select', title: 'Select the k-th smallest', category: 'processor',
+    summary: 'Any selection kernel of the collection, run by the array engine\'s instrumented trace: the k-th smallest key, every compare and write counted.',
+    params: [
+      { kind: 'select', key: 'kernel', label: 'Kernel', value: es[0]?.id ?? '', options: es.map((e) => ({ value: e.id, label: e.title })) },
+      range('rank', 'Rank k (1 = smallest)', 1, 1024, 1, 1),
+    ],
+    inputs: [{ id: 'in', label: 'Keys', type: { kind: 'series', unit: '$U', index: '$I' }, required: true }],
+    outputs: [{ id: 'selected', label: 'Selected', type: { kind: 'record' } }],
+    run: async ({ params, inputs }) => {
+      const id = String(params.kernel);
+      const e = es.find((x) => x.id === id);
+      if (!e) throw new Error(`${id} is not a selection kernel of the catalogue`);
+      const s = inputs.in as SeriesValue;
+      const keys = Array.from(s.values);
+      const rank = n(params, 'rank');
+      if (rank > keys.length) throw new Error(`rank ${rank} is past the ${keys.length} keys`);
+      const k = (await load(e)) as ArrayKernel;
+      if (k.goal !== 'select') throw new Error(`${e.title} sorts; it does not select`);
+      if (k.maxN !== undefined && keys.length > k.maxN) throw new Error(`${e.title} plays at most ${k.maxN} keys, these are ${keys.length}`);
+      const t = trace(k, keys, rank - 1);
+      if (t.truncated) throw new Error(`${e.title}: the run reached the trace's event cap`);
+      return {
+        selected: {
+          kind: 'record',
+          rows: [
+            { label: 'Rank k', value: rank, unit: '1' },
+            { label: 'Selected key', value: t.output[rank - 1], unit: s.unit },
+            { label: 'Compares', value: t.counts.compares, unit: '1' },
+            { label: 'Writes', value: t.counts.writes, unit: '1' },
+            { label: 'Swaps', value: t.counts.swaps, unit: '1' },
+          ],
+        },
+      };
+    },
+  }),
 };
 
 /** The sort node over the given kernels (the array adapter derives them from the catalogue). */
@@ -455,7 +498,7 @@ export function seriesCsv(s: SeriesValue): string {
 export const DECLARED: AnyNodeDef[] = [keys, signal, csv, points, column, normalize, spectrum, stats, fit, chart, scatter, readout, exporter];
 
 /** One adapter per engine whose kernels the flow can run; every other engine's entries are inferred. */
-export const ADAPTERS: Adapter[] = [arrayAdapter, gridAdapter, graphAdapter, treeAdapter, stringAdapter, hashAdapter];
+export const ADAPTERS: Adapter[] = [arrayAdapter, selectAdapter, gridAdapter, graphAdapter, treeAdapter, stringAdapter, hashAdapter];
 
 /** Declared nodes and the family nodes derived from the catalogue, in palette order. */
 export function library(adapters: readonly Adapter[] = ADAPTERS, entries: readonly Entry[] = ENTRIES, load: KernelLoad = loadKernel): AnyNodeDef[] {

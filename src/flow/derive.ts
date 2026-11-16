@@ -52,15 +52,25 @@ export const headless = (engine: string, runners: readonly string[] = RUNNERS): 
 
 const live = (entries: readonly Entry[]) => entries.filter((e) => e.status === 'live');
 
-/** The family nodes the adapters derive from the live entries; an adapter that accepts none adds none. */
+/**
+ * The family nodes the adapters derive from the live entries; an adapter that accepts none adds
+ * none. One engine may have several adapters (the array engine's sort and select nodes), but they
+ * partition its entries: an entry two adapters accept, or two adapters of one node type, is refused.
+ */
 export function deriveNodes(adapters: readonly Adapter[], load: KernelLoad, entries: readonly Entry[] = ENTRIES): NodeDef[] {
-  const engines = new Set<string>();
+  const types = new Set<string>();
+  const owner = new Map<string, string>();
   const out: NodeDef[] = [];
   for (const a of adapters) {
-    if (engines.has(a.engine)) throw new Error(`flow: two adapters for engine ${a.engine}`);
-    engines.add(a.engine);
+    if (types.has(a.type)) throw new Error(`flow: two adapters derive the node type ${a.type}`);
+    types.add(a.type);
     const accepted = live(entries).filter((e) => e.engine === a.engine && a.refuse(e) === null)
       .sort((x, y) => x.title.localeCompare(y.title));
+    for (const e of accepted) {
+      const other = owner.get(e.id);
+      if (other) throw new Error(`flow: ${e.id} is accepted by both the ${other} and the ${a.type} adapter`);
+      owner.set(e.id, a.type);
+    }
     if (!accepted.length) continue;
     const d = a.node(accepted, load);
     if (d.type !== a.type) throw new Error(`flow: the ${a.engine} adapter derived ${d.type}, not ${a.type}`);
@@ -85,20 +95,21 @@ function infer(e: Entry, runners: readonly string[]): Pick<Coverage, 'reason' | 
 
 /**
  * Every live entry, at its level. Declared wins over derived (a hand-written node that names its
- * entry is the more specific contract); an entry an adapter refuses is inferred with the refusal.
+ * entry is the more specific contract); an entry every adapter of its engine refuses is inferred
+ * with their refusals.
  */
 export function coverage(declared: readonly AnyNodeDef[], adapters: readonly Adapter[],
   entries: readonly Entry[] = ENTRIES, runners: readonly string[] = RUNNERS): Coverage[] {
   const byEntry = new Map(declared.filter((d) => d.entry).map((d) => [d.entry as string, d.type]));
-  const byEngine = new Map(adapters.map((a) => [a.engine, a]));
+  const byEngine = (engine: string) => adapters.filter((a) => a.engine === engine);
   return live(entries).map((e): Coverage => {
     const base = { id: e.id, title: e.title, engine: e.engine };
     const node = byEntry.get(e.id);
     if (node) return { ...base, level: 'declared', node, reason: `the ${node} node names it` };
-    const a = byEngine.get(e.engine);
-    const why = a?.refuse(e);
-    if (a && why === null) return { ...base, level: 'derived', node: a.type, reason: a.signature };
-    if (a && why) return { ...base, level: 'inferred', reason: why };
+    const mine = byEngine(e.engine);
+    const a = mine.find((x) => x.refuse(e) === null);
+    if (a) return { ...base, level: 'derived', node: a.type, reason: a.signature };
+    if (mine.length) return { ...base, level: 'inferred', reason: mine.map((x) => x.refuse(e)).join('; ') };
     return { ...base, level: 'inferred', ...infer(e, runners) };
   }).sort((x, y) => x.engine.localeCompare(y.engine) || x.title.localeCompare(y.title));
 }
