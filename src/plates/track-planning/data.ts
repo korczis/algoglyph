@@ -165,7 +165,7 @@ function applyTerrain(m: TileMap, t: Record<string, unknown>): string | null {
 
 
 export const data: DataForm = {
-  input: '{map?: openttd://map data, ways?: openttd://map/ways data | heights: string[] (2 hex digits a tile, openttd://map) | number[][], types?: string[], roads?: string[] (1 hex digit a tile), blocked?: [x, y][], from: {x, y, dir: NE|SE|SW|NW}, to: {x, y, dir?}, costs?, rules?, meta?: boolean}',
+  input: '{map?: openttd://map data, ways?, terrain?, prices?, bridges?, railtype? | heights: string[] (2 hex digits a tile) | number[][], types?: string[], roads?: string[] (1 hex digit a tile), blocked?: [x, y][], from: {x, y, dir: NE|SE|SW|NW}, to: {x, y, dir?}, costs?, rules?, meta?: boolean}. from and to are the station tiles themselves (a station site\'s end tile, not the tile beyond it): the plan starts on the tile after from and stops on the tile before to. Pieces and spans keep their shape: track {kind, x, y, track, piece, heading, z, foundation, incline, crossing, cleared}; bridge or tunnel {kind, from, to, heading, axis, length, z, foundations}',
   solve(input) {
     if (!record(input)) return 'the input must be an object {heights, types?, roads?, blocked?, from, to, costs?, rules?, meta?} or {map, ways?, from, to, ...}';
     if (input.map !== undefined && input.heights !== undefined) return 'give either map (openttd://map) or heights, not both';

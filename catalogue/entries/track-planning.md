@@ -90,4 +90,4 @@ The search's state is a tile, the heading the line entered it by, the train's mo
 
 A* orders the states by the cost so far plus the Manhattan distance times the cheapest cost of advancing a tile, which never overestimates; the readout compares its plan with Dijkstra's on the same map. Raise the bridge or tunnel cost and watch the line go round the village or over the ridge instead.
 
-The flow's command line runs the same planner on a caller's map, the layers OpenTTD's research export gives (`npm run flow -- kernel track-planning -`).
+The flow's command line runs the same planner on a caller's map, the layers OpenTTD's research export gives (`npm run flow -- kernel track-planning -`). Its `from` and `to` are the station tiles themselves, so the line starts on the tile after the first station and stops on the tile before the second; a builder lays the pieces between them as they are.
