@@ -48,15 +48,16 @@ claims:
   - id: persistent-noise-alpha-is-planted
     statement: >-
       Fractional Gaussian noise generated with H = 0.8 has α = H: within 0.167 of 0.8, four
-      standard deviations (0.0417) over 2,000 other seeds, whose mean, 0.796, is within one of 0.8.
+      standard deviations (0.0416) over 400 other seeds (1 to 400), whose mean, 0.794, is within
+      one of 0.8.
     readout: DFA exponent α so far
     expect: { value: 0.8, tolerance: 0.167 }
   - id: anti-persistent-noise-alpha-is-planted
     statement: >-
-      With H = 0.3 α is 0.3, within 0.095: four standard deviations (0.0236) over 2,000 other
-      seeds, whose mean, 0.307, is within one of 0.3.
+      With H = 0.3 α is 0.3, within 0.094: four standard deviations (0.0233) over 400 other
+      seeds (1 to 400), whose mean, 0.306, is within one of 0.3.
     readout: DFA exponent α so far
-    expect: { value: 0.3, tolerance: 0.095 }
+    expect: { value: 0.3, tolerance: 0.094 }
     setup:
       params: { series: fgn-0.3 }
   - id: rescaled-range-is-biased-on-short-windows

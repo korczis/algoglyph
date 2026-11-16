@@ -1,4 +1,5 @@
 import type { GraphKernel } from '../../engines/graph/trace';
+import { CROSS_HOLDINGS_PARAM } from './_holdings';
 
 export interface OwnershipResult { eff: number[]; rounds: number }
 
@@ -11,6 +12,7 @@ export const kernel: GraphKernel<OwnershipResult> = {
   goal: 'ownership',
   inputs: ['ownership'],
   n: { min: 4, max: 200, value: 50 },
+  params: [CROSS_HOLDINGS_PARAM],
   pick: 't',
   endpoints: 't',
   view: { colour: 'value', size: true },

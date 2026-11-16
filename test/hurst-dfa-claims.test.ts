@@ -18,21 +18,29 @@ const N = 2048;
 const CLAIM_SEEDS = [4242];
 /** The seeds the standard deviations come from, disjoint from CLAIM_SEEDS. */
 const SD_SEEDS = Array.from({ length: 2000 }, (_, i) => i + 1);
+/** Fractional Gaussian noise costs O(N²) a series (Hosking's recursion), so its standard
+ * deviations come from the first 400 of them: the sd's relative standard error is then
+ * 1/√(2 · 399) = 3.5%, and the tolerance is re-derived from these seeds alone. */
+const FGN_SD_SEEDS = SD_SEEDS.slice(0, 400);
+const sdSeeds = (series: string) => (series.startsWith('fgn-') ? FGN_SD_SEEDS : SD_SEEDS);
 
 const { model } = loadCatalogue(process.cwd()) as { model: { entries: { id: string; claims: Claim[] }[] } };
 const claims = model.entries.find((e) => e.id === 'hurst-dfa')!.claims;
 const claimOn = (readout: string, series: string) =>
   claims.find((c) => c.readout === readout && String(c.setup?.params?.series ?? 'fgn-0.8') === series);
 
-/** α and the rescaled-range slope as the plate computes them, over every box size. */
-function estimates(series: string, seed: number): [number, number] {
+/** α as the plate computes it, over every box size. */
+function dfaAlpha(series: string, seed: number): number {
   const { x } = seriesFor(series, N, seed);
   const y = profile(x);
-  const sizes = boxSizes(N);
-  return [
-    logSlope(sizes.map((n) => [n, fluctuation(y, n).F] as [number, number])),
-    logSlope(sizes.map((n) => [n, rescaledRange(x, n)] as [number, number])),
-  ];
+  return logSlope(boxSizes(N).map((n) => [n, fluctuation(y, n).F] as [number, number]));
+}
+
+/** The rescaled-range slope as the plate computes it, over every box size: without the DFA
+ * fits, which cost twenty times as much and which the R/S claim does not read. */
+function rsSlope(series: string, seed: number): number {
+  const { x } = seriesFor(series, N, seed);
+  return logSlope(boxSizes(N).map((n) => [n, rescaledRange(x, n)] as [number, number]));
 }
 
 function meanSd(v: number[]): [number, number] {
@@ -59,16 +67,17 @@ function expectedRS(n: number): number {
 describe('hurst-dfa: the seed sets are disjoint', () => {
   it('no claim seed is among the standard-deviation seeds', () => {
     for (const s of CLAIM_SEEDS) expect(SD_SEEDS).not.toContain(s);
+    for (const s of CLAIM_SEEDS) expect(FGN_SD_SEEDS).not.toContain(s);
     for (const c of claims) expect(CLAIM_SEEDS).toContain(c.setup?.seed ?? 4242);
   });
 });
 
 describe('hurst-dfa: DFA α within four standard deviations of the planted exponent', () => {
   for (const [series, planted] of [['white', 0.5], ['walk', 1.5], ['fgn-0.8', 0.8], ['fgn-0.3', 0.3]] as const) {
-    it(`${series}: the claim is ${planted} ± at least 4 sd over ${SD_SEEDS.length} other seeds`, () => {
+    it(`${series}: the claim is ${planted} ± at least 4 sd over ${sdSeeds(series).length} other seeds`, () => {
       const c = claimOn('DFA exponent α so far', series);
       expect(c, `a DFA claim on ${series}`).toBeDefined();
-      const [mean, sd] = meanSd(SD_SEEDS.map((s) => estimates(series, s)[0]));
+      const [mean, sd] = meanSd(sdSeeds(series).map((s) => dfaAlpha(series, s)));
       expect(c!.expect.value).toBe(planted);
       expect(c!.expect.tolerance as number).toBeGreaterThanOrEqual(4 * sd);
       expect(c!.expect.tolerance as number).toBeLessThan(4 * sd + 0.01);
@@ -77,6 +86,19 @@ describe('hurst-dfa: DFA α within four standard deviations of the planted expon
       expect(Math.abs(mean - planted), `mean ${mean}, sd ${sd}`).toBeLessThan(sd);
     });
   }
+});
+
+describe('hurst-dfa: the DFA bands separate the planted exponents', () => {
+  it('no band holds another series\' planted α', () => {
+    const planted = { white: 0.5, walk: 1.5, 'fgn-0.8': 0.8, 'fgn-0.3': 0.3 } as const;
+    for (const [series, centre] of Object.entries(planted)) {
+      const c = claimOn('DFA exponent α so far', series)!;
+      expect(c.expect.value).toBe(centre);
+      for (const [other, alpha] of Object.entries(planted)) {
+        if (other !== series) expect(Math.abs(alpha - centre), `${series} band holds ${other}`).toBeGreaterThan(c.expect.tolerance as number);
+      }
+    }
+  });
 });
 
 describe('hurst-dfa: the rescaled range of white noise is centred on the expected R/S slope', () => {
@@ -96,10 +118,13 @@ describe('hurst-dfa: the rescaled range of white noise is centred on the expecte
   it('the claim is the slope of log E_n ± at least 4 sd over the other seeds', () => {
     const c = claimOn('Rescaled range H so far', 'white');
     expect(c, 'an R/S claim on white noise').toBeDefined();
-    const [mean, sd] = meanSd(SD_SEEDS.map((s) => estimates('white', s)[1]));
+    const [mean, sd] = meanSd(SD_SEEDS.map((s) => rsSlope('white', s)));
     expect(Math.abs((c!.expect.value as number) - centre)).toBeLessThanOrEqual(0.0005);
     expect(c!.expect.tolerance as number).toBeGreaterThanOrEqual(4 * sd);
     expect(c!.expect.tolerance as number).toBeLessThan(4 * sd + 0.01);
     expect(Math.abs(mean - centre), `mean ${mean}, sd ${sd}, centre ${centre}`).toBeLessThan(sd);
+    // the bias the claim states: the seeds' mean slope is above ½ by more than four of its own
+    // standard errors, while it meets the expected R/S slope
+    expect(mean - 0.5, `mean ${mean}`).toBeGreaterThan((4 * sd) / Math.sqrt(SD_SEEDS.length));
   });
 });

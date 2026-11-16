@@ -14,7 +14,7 @@ import { ENTRIES } from '../src/core/catalogue';
 import type { Params, RangeParam } from '../src/core/plate';
 import { parse, serialise } from '../src/core/share';
 import * as G from '../src/engines/graph';
-import { makeGraph, SHAPES, type Graph, type Shape } from '../src/engines/graph/graph';
+import { INPUT_KEYS, makeGraph, SHAPES, type Graph, type Shape } from '../src/engines/graph/graph';
 import { defaultParams, trace, type GraphKernel } from '../src/engines/graph/trace';
 import type { SupportResult } from '../src/kernels/graph/transitive-support';
 import { read, type Claim } from './support/claims';
@@ -146,11 +146,16 @@ describe('the graph engine at the defaults is what it was before the fan-in cont
   });
 
   it('the kernels sharing the reasoning input get the default input, and trace the same', () => {
+    /** A kernel's own input controls at their defaults (sugiyama-layout's cross-holdings of the
+     * ownership input, wave 7b C1): none of them is the fan-in, so the reasoning input is the old. */
+    const own = (k: GraphKernel) => Object.fromEntries((k.params ?? [])
+      .filter((d) => (INPUT_KEYS as readonly string[]).includes(d.key)).map((d) => [d.key, d.value]));
     for (const id of SHARERS) {
       const k = kernelOf(id);
       const p = defaultParams(k);
       expect(k.inputs).toContain('reasoning');
-      expect(inputOf(k, p), id).toEqual({});
+      expect(inputOf(k, p), id).toEqual(own(k));
+      expect(Object.keys(own(k)), id).not.toContain(KEY);
       for (const n of [k.n?.min ?? 8, N, Math.min(k.n?.max ?? 160, 160)]) {
         for (const seed of SEEDS) {
           const g = graphAt('reasoning', n, seed, inputOf(k, p));
