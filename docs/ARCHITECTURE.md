@@ -259,7 +259,9 @@ result, counts, report and optionally its operation trace; a grid kernel that de
 kernel that declares a `DataForm` (`src/core/solve.ts`: simplex-method reads `{A, b, c}`,
 pert-monte-carlo a task network, bayes-update its evidence), and so does a custom plate with a
 `data.ts` beside it: `track-planning` plans a railway on a caller's OpenTTD map (ADR 0012, rule
-`project.planner-plays-by-the-rules`). `kernels` lists every form with the
+`project.planner-plays-by-the-rules`). `human-pointing` moves a pointer the way a hand does (Fitts'
+law, minimum jerk, overshoot, tremor), seeded bit for bit with the OpenTTD fork's `motion.rs` so its
+player and the plate move alike. `kernels` lists every form with the
 shape it reads, found from the kernels themselves; each form owes a reference test
 (`test/flow-obligations.test.ts`). Another repository
 uses it as a backend; `serve` keeps one process for many requests, a JSON request per stdin line

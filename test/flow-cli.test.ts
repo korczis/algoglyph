@@ -251,8 +251,15 @@ describe('flow cli: numeric and stochastic kernels on caller data (src/core/solv
     expect(await runKernel('track-planning', JSON.stringify({ ...map, from: { x: 0, y: 3, dir: 'UP' } }))).toMatchObject({ ok: false, errors: [expect.stringContaining('from.dir')] });
   });
 
+  it('human-pointing answers a seeded move that ends on its target, and refuses a bad seed', async () => {
+    const r = await ok('human-pointing', { from: [0, 0], to: [900, 400], width: 40, seed: 7 });
+    const samples = r.samples as number[][];
+    expect(samples[samples.length - 1].slice(0, 2)).toEqual([900, 400]);
+    expect(await runKernel('human-pointing', '{"from":[0,0],"to":[1,1],"seed":1.5}')).toMatchObject({ ok: false, errors: [expect.stringContaining('seed')] });
+  });
+
   it('lists every declared data form, with the shape it reads', async () => {
     const list = await runnable();
-    for (const id of ['simplex-method', 'pert-monte-carlo', 'bayes-update', 'track-planning']) expect(list.find((k) => k.id === id)).toMatchObject({ input: expect.stringContaining('{') });
+    for (const id of ['simplex-method', 'pert-monte-carlo', 'bayes-update', 'track-planning', 'human-pointing']) expect(list.find((k) => k.id === id)).toMatchObject({ input: expect.stringContaining('{') });
   });
 });
