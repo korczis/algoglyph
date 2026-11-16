@@ -483,11 +483,17 @@ try {
           await axe(p, `${where} ${id}`);
           if (SHOTS && desktop) await p.screenshot({ path: join(SHOTS, `flow-${theme}-${id}.png`), fullPage: true });
         }
-        // bidirectional: a point moved from the keyboard reaches the fit, and Undo restores it
-        await p.goto(`${base}#/flow?preset=fit`, { waitUntil: 'load' });
-        await settled();
+        // bidirectional: a point moved from the keyboard reaches the fit, and Undo restores it.
+        // The badges settle before the readout renders, so the first read waits for the R² cell
+        // to carry a value; reading it at once raced the render (Pages run 43801836465).
         const r2 = () => p.evaluate(() => [...document.querySelectorAll('[data-flow-readout] tr')]
           .find((tr) => tr.querySelector('th')?.textContent === 'R²')?.querySelector('td')?.dataset.value ?? '');
+        const r2Ready = (timeout) => p.waitForFunction(() => [...document.querySelectorAll('[data-flow-readout] tr')]
+          .find((tr) => tr.querySelector('th')?.textContent === 'R²')?.querySelector('td')?.dataset.value, null, { timeout })
+          .then(() => true, () => false);
+        await p.goto(`${base}#/flow?preset=fit`, { waitUntil: 'load' });
+        if (!(await settled())) fail(where, 'the fit did not run');
+        if (!(await r2Ready(30000))) fail(where, 'the fit showed no R²');
         const before = await r2();
         await p.focus('[data-flow-scatter] circle[data-i="3"]');
         await p.keyboard.press('Shift+ArrowUp');
@@ -505,6 +511,8 @@ try {
         // a refused connection: a spectrum in Hz into a chart of a signal in seconds
         await p.goto(`${base}#/flow?preset=spectrum`, { waitUntil: 'load' });
         await settled();
+        // negative control: this example renders no R², so the wait above must report it missing
+        if (await r2Ready(2000)) fail(where, 'the R² wait passed on a page that renders no R²');
         await p.click('[data-port="fft.out"][data-dir="out"]');
         await p.click('[data-port="wave.b"][data-dir="in"]');
         const said = await p.textContent('[data-flow-status]');
