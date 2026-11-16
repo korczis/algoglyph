@@ -445,8 +445,12 @@ export function bridgeMoney(middle: number, buildRail: number, buildBridge: numb
   return L * buildRail + Math.floor((bridgeLenCostFactor(L) * buildBridge * typePrice) / 256);
 }
 
-/** A tunnel's price as CmdBuildTunnel charges it: each tile inside, compounding, then the entrance. */
-export function tunnelMoney(middle: number, buildTunnel: number): number {
+/**
+ * A tunnel's price as CmdBuildTunnel charges it: each tile inside adds build_tunnel and then the
+ * running total >> coef (coef 3, one more at the 25th, 50th, 100th ... tile); then build_tunnel
+ * for each head; then the track, `railBuild` over the tiles inside and both heads.
+ */
+export function tunnelMoney(middle: number, buildTunnel: number, railBuild = 0): number {
   let total = 0;
   let coef = 3;
   let bump = 25;
@@ -455,5 +459,8 @@ export function tunnelMoney(middle: number, buildTunnel: number): number {
     total += buildTunnel;
     total += Math.floor(total / 2 ** coef);
   }
-  return total + buildTunnel;
+  return total + 2 * buildTunnel + (middle + 2) * railBuild;
 }
+
+/** RailBuildCost: build_rail × the rail type's cost multiplier >> 3 (plain rail's is 8). */
+export const railBuildCost = (buildRail: number, multiplier = 8) => Math.floor((buildRail * multiplier) / 8);

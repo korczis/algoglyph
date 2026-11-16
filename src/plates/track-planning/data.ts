@@ -6,7 +6,7 @@
 // pieces a builder can lay as they are (TrackBits per tile, each bridge and tunnel with both
 // ends), and on request the planner's reading of every tile (`meta`).
 import { finite, integer, record, unknownKeys, type DataForm } from '../../core/solve';
-import { bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, HEADINGS, meta as tileMeta, plan, tunnelMoney, type Costs, type Heading, type Piece, type Rules, type TileMap } from './plan';
+import { bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, HEADINGS, meta as tileMeta, plan, railBuildCost, tunnelMoney, type Costs, type Heading, type Piece, type Rules, type TileMap } from './plan';
 
 /** The largest map the form takes, in tiles (a 1024 × 1024 map). */
 export const MAX_TILES = 1 << 20;
@@ -46,7 +46,7 @@ const end = (v: unknown, name: string, needDir: boolean, w: number, h: number): 
  * tiles join `blocked`; the rest of the form is unchanged.
  */
 function fromGame(raw: Record<string, unknown>): Record<string, unknown> | string {
-  const { map, ways, terrain, prices, bridges, ...rest } = raw;
+  const { map, ways, terrain, prices, bridges, railtype, ...rest } = raw;
   if (map === undefined) {
     if (terrain !== undefined || prices !== undefined || bridges !== undefined) return 'terrain, prices and bridges are read with map (openttd://map), not with heights';
     return raw;
@@ -70,8 +70,10 @@ function fromGame(raw: Record<string, unknown>): Record<string, unknown> | strin
   if (prices !== undefined) {
     if (!record(prices) || !record(prices.prices)) return 'prices must be openttd://economy/prices\' data ({prices: {build_rail, ...}})';
     const pr = prices.prices as Record<string, unknown>;
-    const rail = pr.build_rail;
-    if (!finite(rail) || rail <= 0) return 'prices.prices.build_rail must be a positive amount: every cost is a multiple of it';
+    if (railtype !== undefined && !(record(railtype) && finite(railtype.cost_multiplier) && railtype.cost_multiplier > 0)) return 'railtype must be {cost_multiplier} (a rail type of openttd://railtypes; plain rail is 8)';
+    if (!finite(pr.build_rail) || pr.build_rail <= 0) return 'prices.prices.build_rail must be a positive amount: every cost is a multiple of it';
+    // RailBuildCost: the track's price on this rail type, the unit every other cost is a multiple of
+    const rail = railBuildCost(pr.build_rail, railtype ? (railtype.cost_multiplier as number) : 8);
     // the game's own price ratios, one tile of plain rail the unit; a price the game does not
     // list keeps its default, and costs the caller gives explicitly win over all of them
     const ratio = (name: string) => (finite(pr[name]) && (pr[name] as number) >= 0 ? (pr[name] as number) / rail : undefined);
@@ -100,7 +102,7 @@ function spanMoney(pr: Priced) {
       return fits.length ? Math.min(...fits.map((t) => bridgeMoney(middle, pr.build_rail, bb, t.price as number))) : null;
     }
     : undefined;
-  const tunnel = bt !== undefined ? (middle: number) => tunnelMoney(middle, bt) : undefined;
+  const tunnel = bt !== undefined ? (middle: number) => tunnelMoney(middle, bt, pr.build_rail) : undefined;
   return { bridge, tunnel };
 }
 
@@ -112,7 +114,7 @@ function moneyOf(pieces: Piece[], pr: Priced): number {
   for (const q of pieces) {
     if (q.kind === 'track') total += pr.build_rail + (q.foundation ? price('build_foundation') : 0) + (q.cleared ? price('clear_trees') : 0);
     else if (q.kind === 'bridge') total += (span.bridge?.(q.length) ?? (q.length + 2) * pr.build_rail + q.length * price('build_bridge')) + q.foundations * price('build_foundation');
-    else total += span.tunnel ? span.tunnel(q.length) : (q.length + 1) * price('build_tunnel');
+    else total += span.tunnel ? span.tunnel(q.length) : (q.length + 2) * (price('build_tunnel') + pr.build_rail);
   }
   return total;
 }

@@ -5,7 +5,7 @@
 // heuristic) is the optimum A* must equal; and maps built by hand force each construct.
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/random';
-import { bridgeLenCostFactor, bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, plan, tunnelMoney, unrun, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
+import { bridgeLenCostFactor, bridgeMoney, DEFAULT_COSTS, DEFAULT_RULES, plan, railBuildCost, tunnelMoney, unrun, type Costs, type Heading, type Piece, type Plan, type Rules, type TileMap } from '../src/plates/track-planning/plan';
 import { data } from '../src/plates/track-planning/data';
 import { terrain } from '../src/plates/track-planning/terrain';
 import { DEFAULT_SEED } from '../src/core/claims';
@@ -391,12 +391,16 @@ describe('track planning: the data form reads the research export as it comes', 
     expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(bridgeLenCostFactor)).toEqual([0, 1, 2, 3, 5, 7, 10, 13, 16, 20, 24]);
     // a bridge over 2 tiles is 4 tiles of rail and factor(4) = 5 shares of build_bridge × price / 256
     expect(bridgeMoney(2, 200, 1000, 256)).toBe(4 * 200 + 5 * 1000);
-    // CmdBuildTunnel: each tile inside adds build_tunnel and then the running total >> 3, then the entrance
-    expect(tunnelMoney(1, 100)).toBe(100 + 12 + 100);
-    expect(tunnelMoney(2, 100)).toBe(212 + 26 + 100);
+    // CmdBuildTunnel: each tile inside adds build_tunnel and then the running total >> 3, then
+    // build_tunnel for each head, then the track over the tiles inside and both heads
+    expect(tunnelMoney(1, 100)).toBe(100 + 12 + 2 * 100);
+    expect(tunnelMoney(2, 100)).toBe(212 + 26 + 2 * 100);
+    expect(tunnelMoney(2, 100, 75)).toBe(212 + 26 + 2 * 100 + 4 * 75);
     // the coefficient grows at the 25th tile: by hand, the running total before it, then >> 4
     let t = 0; for (let i = 1; i <= 25; i++) { t += 100; t += Math.floor(t / 2 ** (i === 25 ? 4 : 3)); }
-    expect(tunnelMoney(25, 100)).toBe(t + 100);
+    expect(tunnelMoney(25, 100)).toBe(t + 2 * 100);
+    // RailBuildCost: build_rail × the rail type's multiplier >> 3; plain rail (8) is build_rail itself
+    expect([railBuildCost(200), railBuildCost(200, 12), railBuildCost(75, 10)]).toEqual([200, 300, 93]);
     const map = { width: 13, height: 7, heights: river.heights, types: river.types };
     const prices = { prices: { build_rail: 200, build_bridge: 1000, build_tunnel: 1600, build_foundation: 100, clear_trees: 40 } };
     const types = [{ type: 0, price: 512, min_length: 0, max_length: 3, available: true }, { type: 1, price: 128, min_length: 0, max_length: 10, available: true }];
@@ -409,6 +413,10 @@ describe('track planning: the data form reads the research export as it comes', 
     // no type spans the river: no bridge can be built, so there is no route
     expect(data.solve({ map, prices, bridges: { types: [{ type: 0, price: 128, min_length: 9, max_length: 10, available: true }] }, from: river.from, to: river.to })).toMatchObject({ status: 'unreachable' });
     expect(data.solve({ map, prices, bridges: { kinds: [] }, from: river.from, to: river.to })).toMatch(/bridges must be/);
+    // an electrified rail type (multiplier 12) makes every track tile cost 300, not 200
+    const elec = data.solve({ map, prices, railtype: { cost_multiplier: 12 }, from: river.from, to: river.to }) as { priced: { build_rail: number } };
+    expect(elec.priced.build_rail).toBe(300);
+    expect(data.solve({ map, prices, railtype: { cost_multiplier: 0 }, from: river.from, to: river.to })).toMatch(/railtype/);
   });
 
   it('refuses malformed maps and ends with the field named', () => {
