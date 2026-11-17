@@ -381,7 +381,8 @@ try {
         await card.getByRole('button', { name: 'Use pasted data' }).click();
         const refused = await p.waitForSelector('[data-data-errors]', { state: 'visible', timeout: 5000 }).then(() => true, () => false);
         if (!refused) fail(where, 'a value that is not a number was not refused on the page');
-        const n = Math.max(d.rows.min, 12);
+        // a dozen rows, within the declared bounds (tornado-sensitivity takes exactly 5, noisy-or at most 10)
+        const n = Math.min(d.rows.max, Math.max(d.rows.min, 12));
         // a rising first column and a scattered rest; a value outside its column's declared bounds is
         // moved inside them on the same pattern, so a plate with narrow bounds gets a table it accepts
         const sample = (c, j, k) => {
