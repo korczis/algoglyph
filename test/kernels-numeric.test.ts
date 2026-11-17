@@ -11,6 +11,7 @@ import * as adaptive from '../src/kernels/numeric/adaptive-quadrature';
 import * as additive from '../src/kernels/numeric/additive-congruential';
 import * as spline from '../src/kernels/numeric/cubic-splines';
 import * as euclid from '../src/kernels/numeric/euclid-gcd';
+import * as fd from '../src/kernels/numeric/finite-differences';
 import * as gauss from '../src/kernels/numeric/gaussian-elimination';
 import * as horner from '../src/kernels/numeric/horner-evaluation';
 import * as hurst from '../src/kernels/numeric/hurst-dfa';
@@ -23,6 +24,7 @@ import * as pca from '../src/kernels/numeric/pca-svd';
 import * as poincare from '../src/kernels/numeric/poincare-section';
 import * as interp from '../src/kernels/numeric/polynomial-interpolation';
 import * as rec from '../src/kernels/numeric/recurrence-plot';
+import * as rl from '../src/kernels/numeric/roots-and-logarithms';
 import * as simplex from '../src/kernels/numeric/simplex-method';
 import * as simpson from '../src/kernels/numeric/simpson-quadrature';
 import * as strassen from '../src/kernels/numeric/strassen';
@@ -176,6 +178,39 @@ const REFERENCES: Record<string, () => void> = {
     trap.forEach(([e], i) => { expect(e).toBe(2 ** (i + 1) + 1); expect(simp[i][0]).toBe(e); });
   },
 
+  'finite-differences': () => {
+    // exact on the polynomials of each stencil's degree, at a step where rounding is negligible
+    close(fd.forward((x) => 3 * x - 1, 0.7, 0.125), 3, 1e-12);
+    close(fd.central((x) => x * x - 4 * x, 0.7, 0.125), 2 * 0.7 - 4, 1e-12);
+    close(fd.fivePoint((x) => x ** 4 - x ** 3, 0.7, 0.125), 4 * 0.7 ** 3 - 3 * 0.7 ** 2, 1e-11);
+    // central on a cubic: 3x² + h² exactly
+    close(fd.central((x) => x ** 3, 1, 0.25), 3 + 0.0625, 1e-12);
+    // the five-point stencil is Richardson's extrapolation of the central quotient
+    for (const h of [0.1, 0.01, 0.001]) {
+      close(fd.fivePoint(Math.sin, 1, h), (4 * fd.central(Math.sin, 1, h) - fd.central(Math.sin, 1, 2 * h)) / 3, 1e-12);
+    }
+    // the orders, by an independent fit: log₂ of each halving's ratio over the truncation range
+    // (atan 4x is left out: its scale is 1/4, so h = 1/4 is not yet asymptotic, as its preset shows)
+    for (const g of [fd.FUNCTIONS.sine, fd.FUNCTIONS.exp]) {
+      const exact = g.d(g.x0);
+      fd.SCHEMES.forEach((s) => {
+        const ratios: number[] = [];
+        for (let k = 2; k < 6; k++) {
+          const a = Math.abs(s.q(g.f, g.x0, 2 ** -k) - exact);
+          const b = Math.abs(s.q(g.f, g.x0, 2 ** -(k + 1)) - exact);
+          ratios.push(Math.log2(a / b));
+        }
+        const mean = ratios.reduce((x, y) => x + y, 0) / ratios.length;
+        close(mean, s.order, 0.2);
+      });
+      const p = fd.orders(fd.errors(g));
+      fd.SCHEMES.forEach((s, i) => close(p[i], s.order, 0.2));
+    }
+    // a mutation control: a forward quotient divided by 2h is not first order, it is wrong
+    const bad = (f: (x: number) => number, x: number, h: number) => (f(x + h) - f(x)) / (2 * h);
+    expect(Math.abs(bad(Math.sin, 1, 2 ** -6) - Math.cos(1))).toBeGreaterThan(0.2);
+  },
+
   'adaptive-quadrature': () => {
     for (const [key, g] of Object.entries(INTEGRANDS)) {
       const r = adaptive.adaptiveSimpson(g.f, g.a, g.b, 1e-9);
@@ -193,6 +228,34 @@ const REFERENCES: Record<string, () => void> = {
     let n = 2;
     while (Math.abs(simpson.simpson(g.f, g.a, g.b, n) - g.exact) > err) n += 2;
     expect(r.evals).toBeLessThan(n + 1);
+  },
+
+  'roots-and-logarithms': () => {
+    // the pencil root is ⌊√N⌋: checked by its defining inequality, and against perfect squares
+    for (const N of [0n, 1n, 2n, 99n, 100n, 10n ** 41n, 123456789n ** 2n, 123456789n ** 2n - 1n]) {
+      const r = rl.pencilSqrt(N);
+      expect(r * r <= N && (r + 1n) * (r + 1n) > N, String(N)).toBe(true);
+    }
+    // √2 to 60 digits, a published constant (OEIS A002193)
+    const s2 = rl.roots(2, 60, 8, 10);
+    expect(rl.decimals(s2.ref, 60, 60)).toBe('1.414213562373095048801688724209698078569671875376948073176679');
+    // Newton's error squares: e₍ₖ₊₁₎ = e²ₖ / 2xₖ exactly in real arithmetic, so the digits double
+    const run = rl.roots(3);
+    const dn = run.newton.map((x) => rl.correctDigits(x, run.ref, rl.ROOT_DIGITS));
+    close(rl.digitRatio(dn, rl.ROOT_DIGITS), 2, 0.05);
+    // the atanh logarithm against double precision, and ln 10 against a published constant (A002392)
+    const S = rl.scale(40);
+    expect(rl.decimals(rl.lnFixed(10n * S, S), 40, 30)).toBe('2.302585092994045684017991454684');
+    for (const a of [2, 3, 7]) close(Number(rl.decimals((rl.lnFixed(BigInt(a) * S, S) * S) / rl.lnFixed(10n * S, S), 40, 17)), Math.log10(a), 1e-15);
+    // the ladder's bits are the binary digits of log₁₀ a
+    const { rungs } = rl.ladder(2, 60, 20);
+    const bits = rungs.map((q) => q.bit).join('');
+    const want = Array.from({ length: 20 }, (_, k) => Math.floor(Math.log10(2) * 2 ** (k + 1)) % 2).join('');
+    expect(bits).toBe(want);
+    // a mutation control: an iteration that averages x with a·x, not a/x, never converges to √a
+    let x = run.S; const target = 3n * run.S * run.S;
+    for (let k = 0; k < 10; k++) x = (x + (target / run.S) * x / run.S) / 2n;
+    expect(rl.correctDigits(x, run.ref, rl.ROOT_DIGITS)).toBeLessThan(1);
   },
 
   'polynomial-interpolation': () => {
