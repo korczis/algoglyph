@@ -1691,3 +1691,9 @@ sources:
     year: 1972
     kind: paper
     url: https://doi.org/10.1086/151823
+  - id: callen-1985
+    title: Thermodynamics and an Introduction to Thermostatistics (second edition)
+    author: Herbert B. Callen
+    publisher: Wiley
+    year: 1985
+    kind: book
