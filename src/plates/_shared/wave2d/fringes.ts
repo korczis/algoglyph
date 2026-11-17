@@ -4,7 +4,7 @@
 // lengths r₁, r₂ to each point of the line and the wavenumber each path travels with, the grid's
 // own k(θ) from its dispersion relation (or the continuum ω/c): a maximum wherever
 //   (φ₁ − k(θ₁) r₁) − (φ₂ − k(θ₂) r₂) = 2πm.
-// The far-field spacing λL/d is src/plates/_shared/two-slit/screen.ts's fringePeriod; this is the
+// The far-field spacing λL/d is src/plates/_shared/optics/screen.ts's fringePeriod; this is the
 // near-field, grid-aware prediction it is compared with.
 import { numericalWavenumber } from './wave';
 

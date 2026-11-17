@@ -1,3 +1,6 @@
+// The module as it stood in src/plates/_shared/two-slit/detector.ts before the hoist to _shared/optics
+// (origin/main 1b8e009), kept verbatim but for this line and its import, so test/optics-hoist.test.ts
+// can show the hoisted module computes the same numbers.
 // A detector of finite resolution reading a fringe pattern (FLP III/1, the figure of very fine
 // fringes for heavy bullets). A real detector reports a position blurred by a normalised,
 // non-negative response K: p_meas = K ∗ p_true. For a fringe of period Λ the blur multiplies the
@@ -14,7 +17,7 @@
 // forms above are what it is compared with, never what produces it. The envelope of the
 // single-slit pattern is taken as flat across the detector's reach: that is where the attenuation
 // law holds, and the plate says so.
-import { sinc } from './math';
+import { sinc } from '../../../src/plates/_shared/two-slit/math';
 
 export type KernelKind = 'gaussian' | 'box';
 
