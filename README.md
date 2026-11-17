@@ -2260,9 +2260,9 @@ A Gaussian wave packet runs into a barrier it classically cannot climb, and part
 <td width="50%" valign="top">
 <a href="https://korczis.github.io/algoglyph/#/p/ripple-tank"><picture><source media="(prefers-color-scheme: light)" srcset="docs/previews/ripple-tank-light.jpg"><img src="docs/previews/ripple-tank.jpg" width="100%" alt="Ripple Tank, plate 345"></picture></a><br>
 <b><a href="https://korczis.github.io/algoglyph/#/p/ripple-tank">345 · Ripple Tank</a></b><br>
-The wave equation on a grid: two sources, a double slit, a single slit. Switch to intensity and Young's interference fringes develop out of the noise.<br>
-<sub>Waves · O(cells) per step, explicit FD · waves, interference, finite differences</sub>
-<br><sub>Pointer: Click or drag to drop pebbles.</sub>
+The wave equation on a grid: slits, point sources, a steered array, a source faster than its waves, and a drum.<br>
+<sub>Waves · O(cells) per step, explicit FD · waves, interference, finite differences, phased array, Mach cone, normal modes</sub>
+<br><sub>Pointer: Choose the experiment; click or drag to drop pebbles. The phased array takes a phase step between its elements, the moving source a speed in multiples of the wave speed.</sub>
 </td>
 <td width="50%" valign="top">
 <b><a href="https://korczis.github.io/algoglyph/#/p/water-waves-two-slit">346 · Water Waves Through Two Openings</a></b><br>

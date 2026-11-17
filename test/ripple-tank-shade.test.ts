@@ -1,6 +1,7 @@
 // ripple-tank's shading without allocations (src/plates/ripple-tank/shade.ts) against the per-cell
 // loop it replaced, copied below as it was in plate.ts: every byte of the raster equal, for both
-// views, every palette and real fields of every experiment, within one run. A planted change in
+// views, every palette and real fields of every experiment (slice 29's array, moving source and
+// drum included), within one run. A planted change in
 // the copied loop (the height scaled by 0.56 for 0.55) must fail the same comparison.
 import { describe, expect, it } from 'vitest';
 import { GROUNDS, mix, PALETTES, ramp, type Palette, type RGB } from '../src/core/palette';
@@ -25,7 +26,7 @@ function oldShade(data: Uint8ClampedArray, view: string, u: Float32Array, intens
   }
 }
 
-const EXPERIMENTS: Experiment[] = ['double', 'single', 'two', 'free'];
+const EXPERIMENTS: Experiment[] = ['double', 'single', 'two', 'free', 'array', 'moving', 'drum'];
 
 /** Every (experiment, view, palette) raster pair: new and old; counts the pairs that differ. */
 function compare(scale: number): { pairs: number; differ: number } {
