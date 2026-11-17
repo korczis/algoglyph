@@ -84,12 +84,13 @@ nodes:
 
   - id: numerics
     title: Numbers and computation
-    summary: Random numbers, arithmetic, linear algebra, curve fitting, integration and number theory.
+    summary: Random numbers, arithmetic, linear algebra, curve fitting, differentiation, integration and number theory.
     children:
       - { id: random, title: Random numbers, summary: Deterministic sequences that pass for chance. }
       - { id: arithmetic, title: Arithmetic, summary: Polynomials, big products and fast matrix multiplication. }
       - { id: linear-algebra, title: Linear algebra, summary: Elimination, decomposition and principal axes. }
       - { id: fitting, title: Curve fitting, summary: Interpolation, splines and least squares. }
+      - { id: differentiation, title: Differentiation, summary: Derivatives from function values, and how small a step can be. }
       - { id: integration, title: Integration, summary: Areas under curves, adaptively. }
       - { id: optimisation, title: Optimisation, summary: Linear programs and heuristics that climb. }
       - { id: number-theory, title: Number theory, summary: Integers, primes and their sequences. }

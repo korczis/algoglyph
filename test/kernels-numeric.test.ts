@@ -11,6 +11,7 @@ import * as adaptive from '../src/kernels/numeric/adaptive-quadrature';
 import * as additive from '../src/kernels/numeric/additive-congruential';
 import * as spline from '../src/kernels/numeric/cubic-splines';
 import * as euclid from '../src/kernels/numeric/euclid-gcd';
+import * as fd from '../src/kernels/numeric/finite-differences';
 import * as gauss from '../src/kernels/numeric/gaussian-elimination';
 import * as horner from '../src/kernels/numeric/horner-evaluation';
 import * as hurst from '../src/kernels/numeric/hurst-dfa';
@@ -174,6 +175,39 @@ const REFERENCES: Record<string, () => void> = {
     close(order(simpson.simpson), -4, 0.05);
     const { trap, simp } = simpson.convergence('sine');
     trap.forEach(([e], i) => { expect(e).toBe(2 ** (i + 1) + 1); expect(simp[i][0]).toBe(e); });
+  },
+
+  'finite-differences': () => {
+    // exact on the polynomials of each stencil's degree, at a step where rounding is negligible
+    close(fd.forward((x) => 3 * x - 1, 0.7, 0.125), 3, 1e-12);
+    close(fd.central((x) => x * x - 4 * x, 0.7, 0.125), 2 * 0.7 - 4, 1e-12);
+    close(fd.fivePoint((x) => x ** 4 - x ** 3, 0.7, 0.125), 4 * 0.7 ** 3 - 3 * 0.7 ** 2, 1e-11);
+    // central on a cubic: 3x² + h² exactly
+    close(fd.central((x) => x ** 3, 1, 0.25), 3 + 0.0625, 1e-12);
+    // the five-point stencil is Richardson's extrapolation of the central quotient
+    for (const h of [0.1, 0.01, 0.001]) {
+      close(fd.fivePoint(Math.sin, 1, h), (4 * fd.central(Math.sin, 1, h) - fd.central(Math.sin, 1, 2 * h)) / 3, 1e-12);
+    }
+    // the orders, by an independent fit: log₂ of each halving's ratio over the truncation range
+    // (atan 4x is left out: its scale is 1/4, so h = 1/4 is not yet asymptotic, as its preset shows)
+    for (const g of [fd.FUNCTIONS.sine, fd.FUNCTIONS.exp]) {
+      const exact = g.d(g.x0);
+      fd.SCHEMES.forEach((s) => {
+        const ratios: number[] = [];
+        for (let k = 2; k < 6; k++) {
+          const a = Math.abs(s.q(g.f, g.x0, 2 ** -k) - exact);
+          const b = Math.abs(s.q(g.f, g.x0, 2 ** -(k + 1)) - exact);
+          ratios.push(Math.log2(a / b));
+        }
+        const mean = ratios.reduce((x, y) => x + y, 0) / ratios.length;
+        close(mean, s.order, 0.2);
+      });
+      const p = fd.orders(fd.errors(g));
+      fd.SCHEMES.forEach((s, i) => close(p[i], s.order, 0.2));
+    }
+    // a mutation control: a forward quotient divided by 2h is not first order, it is wrong
+    const bad = (f: (x: number) => number, x: number, h: number) => (f(x + h) - f(x)) / (2 * h);
+    expect(Math.abs(bad(Math.sin, 1, 2 ** -6) - Math.cos(1))).toBeGreaterThan(0.2);
   },
 
   'adaptive-quadrature': () => {
