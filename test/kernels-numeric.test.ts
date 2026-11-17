@@ -28,6 +28,7 @@ import * as rl from '../src/kernels/numeric/roots-and-logarithms';
 import * as simplex from '../src/kernels/numeric/simplex-method';
 import * as simpson from '../src/kernels/numeric/simpson-quadrature';
 import * as strassen from '../src/kernels/numeric/strassen';
+import * as str from '../src/kernels/numeric/string-and-sound';
 import * as takens from '../src/kernels/numeric/takens-embedding';
 import * as topsis from '../src/kernels/numeric/topsis';
 import { falseNeighbours, firstMinimum, mutualInformation } from '../src/kernels/numeric/_embed';
@@ -301,6 +302,39 @@ const REFERENCES: Record<string, () => void> = {
       return Math.max(...Array.from({ length: 401 }, (_, i) => Math.abs(sp.at(i / 400) - Math.sin((Math.PI * i) / 400))));
     };
     expect(err(11) / err(21)).toBeGreaterThan(12);
+  },
+
+  'string-and-sound': () => {
+    // the pluck: a unit triangle, zero at both ends, apex on its cell
+    const u = str.pluckShape(0.2);
+    expect(u[0]).toBe(0); expect(u[str.L]).toBe(0); expect(u[48]).toBe(1);
+    // the spectrum against a direct DFT of the same windowed record, at a few bins
+    const rec = str.pluck(1, 0.2, 960).record;
+    const mag = str.spectrum(rec, 12);
+    for (const b of [2, 5, 11]) {
+      let re = 0; let im = 0;
+      for (let t = 0; t < rec.length; t++) {
+        const w = rec[t] * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / rec.length));
+        re += w * Math.cos((2 * Math.PI * b * t) / rec.length); im -= w * Math.sin((2 * Math.PI * b * t) / rec.length);
+      }
+      close(mag[b], Math.hypot(re, im), 1e-9 * (1 + Math.hypot(re, im)));
+    }
+    // at C = 1 the line is exact: the period is 2L steps, and every harmonic is n/2L
+    close(str.period(1), 2 * str.L, 1e-9);
+    const a = str.analyse(1, 0.25);
+    a.f.forEach((f, i) => { if ((i + 1) % 4) close(f, (i + 1) / (2 * str.L), 1e-9); });
+    // a pluck at a quarter silences harmonics 4, 8 and 12; the others meet the closed form
+    for (const n of [4, 8, 12]) expect(a.amp[n - 1]).toBeLessThan(1e-10);
+    for (const n of [2, 3, 5, 7]) close(a.amp[n - 1], str.amplitudeRatio(n, 0.25), 1e-6);
+    // the discrete closed form tends to the continuous string's sin(nπp) sin(nπq) / n² as L grows
+    const big = 240_000;
+    const q = Math.round(str.PICKUP * big) / big;
+    close(str.amplitudeRatio(3, 0.25, big), Math.abs(Math.sin(0.75 * Math.PI) * Math.sin(3 * Math.PI * q)) / (9 * Math.abs(Math.sin(0.25 * Math.PI) * Math.sin(Math.PI * q))), 1e-9);
+    // a mutation control: a string stepped with a wrong Courant number sounds a wrong fundamental
+    const wrong = str.pluck(0.81, 0.25, Math.round(10 * str.period(1))).record;
+    const wm = str.spectrum(wrong, 15);
+    const [fw] = str.peakNear(wm, 10, wrong.length);
+    expect(Math.abs(fw - 1 / (2 * str.L))).toBeGreaterThan(1e-4);
   },
 
   'least-squares': () => {
