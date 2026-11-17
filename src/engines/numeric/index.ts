@@ -3,12 +3,15 @@
 // drawing every layer through the plate context. A lab runs several kernels on the same input
 // side by side and overlays the series each one measures (ADR 0004 §4-5).
 import type p5 from 'p5';
-import { paletteParam, ramp, type RGB } from '../../core/palette';
+import { paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { bool, type ParamDef, type Params, type PlateCode, type PlateContext, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import type { Engine, KernelInfo } from '../types';
 import { building, drain, resume, type NumericKernel, type NumericRun, type Panel, type XY } from './trace';
 import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const gridColour: RGB = [0, 0, 0];
 
 /** The most views a frame steps, at the pace control's top: the old speed slider's maximum. */
 const MAX_VIEWS_PER_FRAME = 4;
@@ -163,11 +166,13 @@ function drawRun(p: p5, ctx: PlateContext, run: NumericRun, at: number, r: Box):
         }
         if (cached.shown < shown) {
           const span = L.hi - L.lo || 1;
+          // ramp in place, bound to a local: bit-equal, no array per cell
+          const into = rampInto; const cc = gridColour;
           for (let i = cached.shown; i < shown; i++) {
             for (let j = 0; j < L.cols; j++) {
               const v = L.values[i * L.cols + j];
               if (!Number.isFinite(v) || v === L.clear) continue;
-              const cc = ramp(pal, (v - L.lo) / span);
+              into(cc, pal, (v - L.lo) / span);
               cached.r.set(j, i, cc[0], cc[1], cc[2]);
             }
           }

@@ -11,7 +11,7 @@
 //   E = ½ Σ (u − u⁻)² + ½ C² Σ_edges (Δu)(Δu⁻)
 // is conserved to rounding; damping only lowers it. Sources are soft (a forcing term), so fields
 // superpose exactly: the scheme is linear. Pure: typed arrays, no p5, no randomness.
-import { flush } from '../../../core/budget';
+import { TINY } from '../../../core/budget';
 
 /** The two-dimensional stability limit of the five-point leapfrog scheme, 1/√2. */
 export const MAX_COURANT = Math.SQRT1_2;
@@ -120,7 +120,12 @@ export function stepField(f: WaveField, sources: readonly Source[] = [], omega =
     if (s.index < 0 || s.index >= n || fixed[s.index]) continue;
     next[s.index] += b[s.index] * scale * s.amplitude * Math.sin(omega * t + s.phase);
   }
-  for (let i = 0; i < n; i++) next[i] = flush(next[i]);
+  // flush inlined against a local TINY: bit-equal, and no imported call per cell
+  const tiny = TINY;
+  for (let i = 0; i < n; i++) {
+    const v = next[i];
+    next[i] = v > tiny || v < -tiny ? v : 0;
+  }
   f.prev = u;
   f.u = next;
   f.next = prev;

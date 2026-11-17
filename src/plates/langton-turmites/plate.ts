@@ -1,4 +1,4 @@
-import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
+import { mixInto, paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
@@ -69,13 +69,16 @@ export const langtonTurmites: PlateCode = {
       const colours = ant.colours;
       lut = new Uint8Array(colours * 256 * 3);
       const glow = ramp(pal, dark ? 1 : 0);
+      // ramp and mix in place, bound to locals: bit-equal, no array per entry
+      const into = rampInto; const blend = mixInto; const tint: RGB = [0, 0, 0]; const c: RGB = [0, 0, 0];
       for (let s = 0; s < colours; s++) {
         const f = s / Math.max(1, colours - 1);
         const base = s === 0 ? ctx.bg
-          : mix(ctx.bg, ramp(pal, dark ? 0.2 + 0.55 * f : 0.8 - 0.55 * f), 0.92);
+          : blend(tint, ctx.bg, into(tint, pal, dark ? 0.2 + 0.55 * f : 0.8 - 0.55 * f), 0.92);
         for (let v = 0; v < 256; v++) {
-          const c = mix(base, glow, 0.8 * Math.pow(v / 255, 2));
-          lut.set([c[0], c[1], c[2]], (s * 256 + v) * 3);
+          blend(c, base, glow, 0.8 * Math.pow(v / 255, 2));
+          const at = (s * 256 + v) * 3;
+          lut[at] = c[0]; lut[at + 1] = c[1]; lut[at + 2] = c[2];
         }
       }
       ink = glow;
