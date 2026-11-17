@@ -1680,3 +1680,8 @@ sources:
     author: Heinrich Hencky
     year: 1920
     kind: paper
+  - id: foucault-1851
+    title: Démonstration physique du mouvement de rotation de la Terre au moyen du pendule (Comptes rendus de l'Académie des sciences 32, 135–138)
+    author: Léon Foucault
+    year: 1851
+    kind: paper

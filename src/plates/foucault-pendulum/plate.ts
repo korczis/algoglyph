@@ -1,7 +1,7 @@
 import { mix, paletteParam, ramp } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { RunCounter, runsParam } from '../_shared/settle/settle';
-import { EARTH_OMEGA, PrecessionMeter, rk4, type State } from './foucault';
+import { EARTH_OMEGA, invariants, PrecessionMeter, rk4, type State } from './foucault';
 
 const PERIOD_S = 2.4;
 const W0 = (2 * Math.PI) / PERIOD_S;
@@ -45,6 +45,10 @@ export const foucaultPendulum: PlateCode = {
     let lat = 0;
     let boost = 1;
     let counter = new RunCounter(params);
+    let start = { E: 1, J: 0 };
+    let dE = 0;
+    let dJ = 0;
+    let s0a2 = 1;
 
     return {
       setup() {
@@ -54,11 +58,15 @@ export const foucaultPendulum: PlateCode = {
         const a = num(params, 'amp');
         // released from rest in the Earth's frame, swinging east-west
         s = [a, 0, 0, 0];
+        s0a2 = a * a;
         t = 0;
         meter = new PrecessionMeter();
         trail = [];
         angle = 0.5;
         counter = new RunCounter(params);
+        start = invariants(s, W0, wz);
+        dE = 0;
+        dJ = 0;
       },
       draw() {
         const steps = Math.round((num(params, 'speed') * (ctx.thumbnail ? 4 : 1)) / (60 * DT));
@@ -66,7 +74,11 @@ export const foucaultPendulum: PlateCode = {
         for (let k = 0; k < steps && !counter.stopped; k++) {
           s = rk4(s, DT, W0, wz);
           t += DT;
-          if (meter.sample(t, s[0], s[1]) && meter.turns % RUN_TURNS === 0) {
+          const inv = invariants(s, W0, wz);
+          dE = Math.max(dE, Math.abs(inv.E - start.E) / start.E);
+          // J starts at Ωz a², zero on the equator: measured against ω0 a², the swing's own scale
+          dJ = Math.max(dJ, Math.abs(inv.J - start.J) / (W0 * s0a2));
+          if (meter.sample(t, s[0], s[1], DT) && meter.turns % RUN_TURNS === 0) {
             counter.complete(`${(Math.abs(meter.rate()) * 1000).toFixed(2)} mrad/s over ${meter.turns} turning points`);
           }
           if (k % 2 === 0) trail.push([s[0], s[1]]);
@@ -138,6 +150,11 @@ export const foucaultPendulum: PlateCode = {
             : `${(measured * 1000).toFixed(2)} mrad/s${theory > 0 ? ` (${((100 * (measured - theory)) / theory).toFixed(2)} %)` : ''}` },
           { label: 'plane turned', value: `${((-meter.angle() * 180) / Math.PI).toFixed(1)}°` },
           { label: 'full turn on the real Earth', value: hours(realPeriod) },
+          { label: 'half-swing π/√(ω₀² + Ωz²) of the rotating-frame equations (s)', value: (Math.PI / Math.sqrt(W0 * W0 + wz * wz)).toFixed(9) },
+          { label: 'half-swing π/ω₀ without the Earth’s turning (s)', value: (Math.PI / W0).toFixed(9) },
+          { label: 'half-swing, measured between turning points (s)', value: Number.isNaN(meter.halfSwing()) ? 'measuring…' : meter.halfSwing().toFixed(9) },
+          { label: 'energy ½|v|² + ½ω₀²r², largest relative change, numerics', value: dE.toExponential(2) },
+          { label: 'J = xy′ − yx′ + Ωz r², largest change over ω₀a², numerics', value: dJ.toExponential(2) },
           ...counter.rows(),
         ]);
       },
