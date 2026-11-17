@@ -25,7 +25,7 @@ function sample(f: Float32Array, w: number, x: number, y: number): number {
 const ARC_SPAN = 64;
 const ARC_STEP = 0.25;
 
-/** The array's centre and the arc's radius: as far as the sponge and the far edge allow. */
+/** The array's centre and the arc's radius: as far as the edges allow (a wide angle may reach into the sponge). */
 export function arcOf(t: Tank): { cx: number; cy: number; r: number } {
   const cx = t.sources[0][0];
   const cy = t.sources.reduce((s, q) => s + q[1], 0) / t.sources.length;
@@ -68,10 +68,12 @@ export function predictedLobe(t: Tank, lambda: number): number {
     const a = (deg * Math.PI) / 180;
     const px = cx + r * Math.cos(a); const py = cy - r * Math.sin(a);
     let re = 0; let im = 0;
+    // the scheme's wavenumber along the arc point's direction from the array's centre: the
+    // elements see it within a few degrees, where k changes by under 1e−4 of itself
+    const k = numericalWavenumber(w, Math.sqrt(t.c2), -a);
     t.sources.forEach(([sx, sy], n) => {
       const dx = px - sx; const dy = py - sy;
       const rn = Math.hypot(dx, dy);
-      const k = numericalWavenumber(w, Math.sqrt(t.c2), Math.atan2(dy, dx));
       const ph = phases[n] - k * rn;
       re += Math.cos(ph) / Math.sqrt(rn); im += Math.sin(ph) / Math.sqrt(rn);
     });

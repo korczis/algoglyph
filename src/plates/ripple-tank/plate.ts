@@ -11,8 +11,22 @@ import { advance, C2, drop, tank, type Experiment, type Tank } from './wave';
 
 /** Steps in one run of the stop: a block of 100 steps. */
 const BLOCK = 100;
-/** Where the moving source's cone is read: once the source has crossed this fraction of the tank. */
-const MACH_AT = 0.7;
+/**
+ * The phased array's and the moving source's own tank: 67,200 cells, three quarters of MAX_CELLS,
+ * with a sponge of WIDE_SPONGE cells. The default 18 reflected enough that the lobe read on its arc
+ * moved by up to 8° as the tank's size changed; at 40 it stays within about 1° on every size tried.
+ */
+const WIDE_W = 320;
+const WIDE_H = 210;
+const WIDE_SPONGE = 40;
+/**
+ * Cell updates a frame on that tank: four steps of it. At eight a frame the phased array read
+ * 21.9 of 24 ms at 390 px in the full budget suite, as dear on a phone as on a desktop, because
+ * its tank does not shrink with the canvas; 'steps this frame' shows the bound.
+ */
+const WIDE_CELL_STEPS = 4 * WIDE_W * WIDE_H;
+/** Where the moving source's cone is read: once the source is this many cells from the far edge. */
+const MACH_FROM_EDGE = 50;
 
 /**
  * Cells in the tank at most, and cell updates (cells × steps) per frame (src/core/budget.ts):
@@ -75,8 +89,8 @@ export const rippleTank: PlateCode = {
     let mach = NaN;
     let lobe: { lambda: number; predicted: number; far: number } | null = null;
 
-    /** The cell under a canvas point: the drum fills the canvas at its own size, the tank at `res` px a cell. */
-    const cellAt = (x: number, y: number): [number, number] => (t.experiment === 'drum'
+    /** The cell under a canvas point: a tank of its own size fills the canvas; the others are `res` px a cell. */
+    const cellAt = (x: number, y: number): [number, number] => (t.experiment === 'drum' || t.experiment === 'array' || t.experiment === 'moving'
       ? [Math.floor((x * t.w) / ctx.width), Math.floor((y * t.h) / ctx.height)]
       : [Math.floor(x / res), Math.floor(y / res)]);
 
@@ -99,7 +113,7 @@ export const rippleTank: PlateCode = {
         }
         case 'moving': {
           const m = t.mover!;
-          if (!Number.isFinite(mach) && m.x0 + m.v * t.step > MACH_AT * t.w) mach = measuredMach(t);
+          if (!Number.isFinite(mach) && m.x0 + m.v * t.step > t.w - MACH_FROM_EDGE) mach = measuredMach(t);
           return [
             { label: 'Mach cone half-angle, measured (degrees)', value: deg(mach) },
             { label: 'Mach angle asin(c / v) (degrees)', value: deg(machAngle(Math.sqrt(t.c2), m.v)) },
@@ -143,10 +157,15 @@ export const rippleTank: PlateCode = {
           raster = new Raster(DRUM_W, DRUM_H);
           return;
         }
-        const w = Math.floor(ctx.width / res);
-        const h = Math.floor(ctx.height / res);
+        // the array and the moving source get a tank of their own size, drawn across the canvas:
+        // the lobe must be read beyond the array's near field and the cone needs room to form,
+        // whatever the canvas (at 800 × 500 and 3 px a cell the arc would sit inside it)
+        const fixed = experiment === 'array' || experiment === 'moving';
+        const w = fixed ? WIDE_W : Math.floor(ctx.width / res);
+        const h = fixed ? WIDE_H : Math.floor(ctx.height / res);
         t = tank(w, h, experiment, num(params, 'gap'), {
           phaseStep: (num(params, 'phase') * Math.PI) / 180, moverSpeed: num(params, 'mach') * Math.sqrt(C2),
+          ...(fixed ? { sponge: WIDE_SPONGE } : {}),
         });
         raster = new Raster(w, h);
       },
@@ -160,7 +179,7 @@ export const rippleTank: PlateCode = {
         const lambda = num(params, 'lambda');
         const asked = num(params, 'speed');
         // clamped to the stop: the frame that reaches it steps only the steps left
-        const steps = stop.allow(stepsWithin(asked, t.w * t.h, CELL_STEPS_PER_FRAME));
+        const steps = stop.allow(stepsWithin(asked, t.w * t.h, t.w === WIDE_W && t.h === WIDE_H ? WIDE_CELL_STEPS : CELL_STEPS_PER_FRAME));
         stop.advance(steps);
         for (let s = 0; s < steps; s++) {
           if (recorded < record.length) record[recorded++] = t.u[pickup];
