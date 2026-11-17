@@ -1,4 +1,8 @@
-import { mix, paletteParam, ramp, scale, type RGB } from '../../core/palette';
+import { mix, mixInto, paletteParam, rampInto, scaleInto, type RGB } from '../../core/palette';
+
+/** The colours the terrain's shading loop writes into, cell after cell. */
+const shaded: RGB = [0, 0, 0];
+const lit: RGB = [0, 0, 0];
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { mulberry32 } from '../../core/random';
@@ -162,15 +166,19 @@ export const pathfinding: PlateCode = {
         const pal = ctx.palette();
         const wall = mix(ctx.bg, ctx.fg, 0.82);
         const { w, h } = map;
+        // in place and bound to locals (scripts/check-hot-loops.mjs): ramp, mix and scale's
+        // arithmetic in order, every pixel bit-equal, no array per cell and frame
+        const into = rampInto; const blend = mixInto; const sc = scaleInto; const bg = ctx.bg;
         for (let i = 0; i < w * h; i++) {
           let c: RGB;
           if (!passable(i)) c = wall;
           else {
+            c = shaded;
             // contour bands every tenth of the height range
             const band = Math.floor(heights[i] * 10) % 2 === 0 ? 1 : 0.9;
-            c = scale(mix(ctx.bg, ramp(pal, heights[i]), 0.42), band);
-            if (search?.closed[i]) c = mix(c, ramp(pal, 0.95), 0.35);
-            else if (search?.open[i]) c = ramp(pal, 1);
+            sc(c, blend(c, bg, into(c, pal, heights[i]), 0.42), band);
+            if (search?.closed[i]) blend(c, c, into(lit, pal, 0.95), 0.35);
+            else if (search?.open[i]) into(c, pal, 1);
           }
           raster.set(i % w, Math.floor(i / w), c[0], c[1], c[2]);
         }

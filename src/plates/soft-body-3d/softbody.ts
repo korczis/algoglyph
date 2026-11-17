@@ -3,7 +3,7 @@
 // along -y and a ground plane at y = 0 with restitution and Coulomb friction. Integrated by
 // velocity Verlet (kick-drift-kick): symplectic for the conservative forces, second order.
 // Positions, velocities and forces are packed xyz arrays; y points up.
-import { flush, stepsWithin } from '../../core/budget';
+import { stepsWithin, TINY } from '../../core/budget';
 
 export const STRUCTURAL = 0;
 export const SHEAR = 1;
@@ -272,6 +272,8 @@ export function forces(b: SoftBody, w: World): void {
     f[i * 3 + 1] = -m[i] * w.gravity;
     f[i * 3 + 2] = 0;
   }
+  // flush inlined against a local TINY: bit-equal, and no imported call per spring
+  const tiny = TINY;
   for (let s = 0; s < b.springs; s++) {
     const i = b.sa[s];
     const j = b.sb[s];
@@ -290,7 +292,8 @@ export function forces(b: SoftBody, w: World): void {
     // critical damping of two masses on one spring: c = 2·sqrt(k·μ), μ the reduced mass
     const c = w.damping * 2 * Math.sqrt((k * m[i] * m[j]) / (m[i] + m[j]));
     // a damped body at rest decays its tension and velocities geometrically: keep them normal
-    const t = flush(k * (d - b.rest[s]) + c * closing);
+    const q = k * (d - b.rest[s]) + c * closing;
+    const t = q > tiny || q < -tiny ? q : 0;
     f[ia] += t * ux;
     f[ia + 1] += t * uy;
     f[ia + 2] += t * uz;
@@ -375,11 +378,14 @@ function respond(b: SoftBody, w: World, bounce: boolean): void {
 export function step(b: SoftBody, w: World, dt: number): number {
   const { n, x, v, f, m, pinned } = b;
   const h = dt / 2;
+  // flush inlined against a local TINY: bit-equal, and no imported call per component
+  const tiny = TINY;
   for (let i = 0; i < n; i++) {
     if (pinned[i]) continue;
     const k = h / m[i];
     for (let d = i * 3; d < i * 3 + 3; d++) {
-      v[d] = flush(v[d] + f[d] * k);
+      const q = v[d] + f[d] * k;
+      v[d] = q > tiny || q < -tiny ? q : 0;
       x[d] += v[d] * dt;
     }
   }
@@ -389,7 +395,10 @@ export function step(b: SoftBody, w: World, dt: number): number {
   for (let i = 0; i < n; i++) {
     if (pinned[i]) continue;
     const k = h / m[i];
-    for (let d = i * 3; d < i * 3 + 3; d++) v[d] = flush(v[d] + f[d] * k);
+    for (let d = i * 3; d < i * 3 + 3; d++) {
+      const q = v[d] + f[d] * k;
+      v[d] = q > tiny || q < -tiny ? q : 0;
+    }
   }
   // the floor also stops, without a bounce, a mass the second half kick drives into it: a mass
   // at rest on it would otherwise carry that half kick as a velocity it never moves with
