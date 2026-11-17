@@ -1599,3 +1599,9 @@ sources:
     year: 1947
     kind: paper
     url: https://doi.org/10.1017/S0305004100023197
+  - id: brent-1976
+    title: Fast Multiple-Precision Evaluation of Elementary Functions (Journal of the ACM 23, 242–251)
+    author: Richard P. Brent
+    year: 1976
+    kind: paper
+    url: https://doi.org/10.1145/321941.321944
