@@ -27,6 +27,19 @@ pedagogy:
 algorithm:
   properties:
     online: true
+data:
+  - id: stream
+    title: Your stream
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e9, max: 1.0e9 }
+    rows: { min: 20, max: 2000 }
+    bytes: 65536
+    replaces: stream
+    ignores: [n, shift]
+    url_bytes: 1800
+    note: Your stream is tested as it is, in its order, for an upward shift of its mean; δ and λ are read in your stream's own units, not in standard deviations. The plate shows the statistic, its peak and the first alarm. Your stream has no known change point, so no delay is measured and no alarm is called false.
 claims:
   - id: shift-of-two-detected-within-thirty
     statement: >-

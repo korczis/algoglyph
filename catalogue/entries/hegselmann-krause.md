@@ -20,6 +20,19 @@ pedagogy:
     - Relate the bound to the outcome, a single consensus for a wide ε and camps for a narrow one.
 algorithm:
   paradigm: simulation
+data:
+  - id: opinions
+    title: Your opinions
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: opinion, unit: '1', min: 0, max: 1 }
+    rows: { min: 2, max: 400 }
+    bytes: 65536
+    replaces: opinions
+    ignores: [n]
+    url_bytes: 1800
+    note: Each of your values is one agent's initial opinion on [0, 1], so the number of agents is the number of values; the agents then update under the bounded confidence ε exactly as on the seeded opinions, and nothing is drawn at random. The groups and their sizes are measured from the run; no prediction of how many groups form is made for your opinions.
 claims:
   - id: wide-bound-reaches-consensus
     statement: >-

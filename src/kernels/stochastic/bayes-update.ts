@@ -1,7 +1,8 @@
-import { num, str } from '../../core/plate';
+import { num, str, type Params } from '../../core/plate';
 import { finite, integer, record, unknownKeys, type DataForm } from '../../core/solve';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
 import { betaCdf, fmt, pm, Sampler } from '../../engines/stochastic/sample';
-import type { StochasticKernel } from '../../engines/stochastic/trace';
+import type { StochasticKernel, StochasticOps } from '../../engines/stochastic/trace';
 
 export interface BayesResult {
   /** Cell midpoints on (0, 1) and the posterior probability of each cell. */
@@ -115,6 +116,9 @@ export const kernel: StochasticKernel<BayesResult> = {
   data,
   palette: 'abyss',
   params: [
+    // the input: today's only seeded evidence, beside which a reader's own outcomes are offered (ADR 0010)
+    { kind: 'select', key: 'evidence', label: 'Evidence', value: 'simulated', rebuild: true,
+      options: [{ value: 'simulated', label: 'Trials drawn at the true rate' }] },
     {
       kind: 'select', key: 'prior', label: 'Prior', value: 'flat', rebuild: true,
       options: [
@@ -136,7 +140,10 @@ export const kernel: StochasticKernel<BayesResult> = {
     },
   ],
   chart: { title: 'Posterior as evidence arrives', x: { label: 'observations' }, y: { label: 'rate' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
+    // a reader's outcomes (ADR 0010): the same update on them, with no true rate behind them
+    const mine = readerTable(cfg, 'evidence', reader);
+    if (mine) return yield* onOutcomes(ops, column(mine), cfg);
     const s = new Sampler(() => ops.rnd());
     const [a, b] = PRIORS[str(cfg, 'prior')] ?? PRIORS.flat;
     const truth = num(cfg, 'truth');
@@ -190,3 +197,62 @@ export const kernel: StochasticKernel<BayesResult> = {
     return { grid, posterior: post, prior: [a, b], successes: succ, failures: n - succ, truth, mean: summary(grid, post, ci).mean };
   },
 };
+
+/**
+ * The update on a reader's outcomes, in their order: a value x in [0, 1] counts x of an event and
+ * 1 − x of none, its likelihood θ^x (1 − θ)^(1 − x) at each cell's midpoint, so 0 and 1 are the
+ * ordinary trials and the closed form Beta(a + Σx, b + Σ(1 − x)) still checks the grid. There is
+ * no true rate: none is marked, and no frame compares with one.
+ */
+function* onOutcomes(ops: StochasticOps, xs: number[], cfg: Params): Generator<void, BayesResult, void> {
+  const [a, b] = PRIORS[str(cfg, 'prior')] ?? PRIORS.flat;
+  const n = xs.length;
+  const G = CELLS.includes(str(cfg, 'cells')) ? num(cfg, 'cells') : 400;
+  const ci = CREDIBLE[str(cfg, 'credible')] ?? CREDIBLE['0.9'];
+  const grid = Array.from({ length: G }, (_, i) => (i + 0.5) / G);
+  const prior = normalise(grid.map((_, i) => betaCdf((i + 1) / G, a, b) - betaCdf(i / G, a, b)));
+  const whole = xs.every((x) => x === 0 || x === 1);
+  const input = readerInput(`${fmt(n)} outcomes${whole ? '' : ', fractional ones counted as part events'}`);
+  let post = prior.slice();
+  let succ = 0;
+  const every = Math.max(1, Math.ceil(n / FRAMES));
+  const curve = (m: number[]) => grid.map((t, i) => [t, m[i] * G] as [number, number]);
+  const priorCurve = curve(prior);
+  const digits = whole ? 0 : 2;
+  const show = (k: number, last: string) => {
+    const sm = summary(grid, post, ci);
+    ops.point('posterior mean', k, sm.mean);
+    ops.point(`${ci.lower} bound`, k, sm.lo);
+    ops.point(`${ci.upper} bound`, k, sm.hi);
+    const top = Math.max(...post, ...prior) * G * 1.05;
+    const [ca, cb] = [a + succ, b + k - succ];
+    ops.frame([{
+      kind: 'plot', title: 'Prior (faint) and posterior density of the rate, on your outcomes', x: [0, 1], y: [0, top],
+      band: { pts: grid.flatMap((t, i) => (t >= sm.lo - 1 / G && t <= sm.hi ? [[t, 0, post[i] * G] as [number, number, number]] : [])), tone: 0.45 },
+      lines: [{ pts: priorCurve, tone: -1, alpha: 0.35, weight: 1 }, { pts: curve(post), tone: 0.6, weight: 2 }],
+    }], [
+      input,
+      { label: 'Observations', value: `${fmt(k)}: ${fmt(succ, digits)} events, ${fmt(k - succ, digits)} none` },
+      { label: 'Posterior mean', value: pm(sm.mean, sm.sd) },
+      { label: `${ci.name} credible interval`, value: `${fmt(sm.lo, 4)} – ${fmt(sm.hi, 4)} (to the cell width ${fmt(1 / G, 4)})` },
+      { label: 'Last observation', value: last },
+      { label: 'Closed form Beta mean', value: `${fmt(ca / (ca + cb), 3)} for Beta(${fmt(ca, 1)}, ${fmt(cb, 1)})` },
+      { label: 'Closed form lower end', value: `${fmt(betaQuantile(ci.lo, ca, cb), 4)}, the ${ci.lower} quantile` },
+      { label: 'Closed form upper end', value: `${fmt(betaQuantile(ci.hi, ca, cb), 4)}, the ${ci.upper} quantile` },
+      { label: 'True rate', value: 'none: your outcomes have no known rate behind them' },
+    ]);
+  };
+  show(0, '—');
+  yield;
+  for (let k = 1; k <= n; k++) {
+    const x = xs[k - 1];
+    succ += x;
+    post = normalise(post.map((d, i) => d * (x === 1 ? grid[i] : x === 0 ? 1 - grid[i] : grid[i] ** x * (1 - grid[i]) ** (1 - x))));
+    ops.count(G);
+    if (k % every === 0 || k === n) {
+      show(k, x === 1 ? 'event' : x === 0 ? 'no event' : `${fmt(x, 3)} of an event`);
+      yield;
+    }
+  }
+  return { grid, posterior: post, prior: [a, b], successes: succ, failures: n - succ, truth: NaN, mean: summary(grid, post, ci).mean };
+}

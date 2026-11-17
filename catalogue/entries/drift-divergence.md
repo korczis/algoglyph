@@ -25,6 +25,19 @@ bounds:
   model: samples drawn and binned (a reference window, then one window per step)
   best: 82n for windows of n samples
   worst: 82n for windows of n samples
+data:
+  - id: series
+    title: Your series
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 40, max: 10000 }
+    bytes: 65536
+    replaces: windows
+    ignores: [n, drift, widen]
+    url_bytes: 1800
+    note: Your series is read in time order, as a monitor reads a stream; its first half is the reference, and a window as long slides in eighty steps from the reference itself to the series' last half. The bins span your series' own range. The shift on the chart is the measured difference of the window's mean from the reference's; no distribution is claimed to have generated either window.
 claims:
   - id: psi-is-kl-both-ways
     statement: >-

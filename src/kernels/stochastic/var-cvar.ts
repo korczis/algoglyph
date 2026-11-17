@@ -1,6 +1,7 @@
-import { num, str } from '../../core/plate';
+import { num, str, type Params } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, pm, quantile, Sampler, SortedSample } from '../../engines/stochastic/sample';
-import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
+import { histogram, type StochasticKernel, type StochasticOps } from '../../engines/stochastic/trace';
 
 /** Value at risk (the level-quantile of the loss) and expected shortfall (the mean loss at or
  * beyond it), from an ascending sample. */
@@ -68,7 +69,10 @@ export const kernel: StochasticKernel<RiskResult> = {
     },
   ],
   chart: { title: 'Tail estimates as runs accumulate', x: { label: 'simulated losses', log: true }, y: { label: 'loss' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
+    // a reader's losses (ADR 0010): read in their order, as they are, with no model behind them
+    const mine = readerTable(cfg, 'scenario', reader);
+    if (mine) return yield* onLosses(ops, column(mine), cfg);
     const s = new Sampler(() => ops.rnd());
     const id = SCENARIOS[str(cfg, 'scenario')] ? str(cfg, 'scenario') : 'portfolio';
     const sc = SCENARIOS[id];
@@ -133,3 +137,69 @@ export const kernel: StochasticKernel<RiskResult> = {
     return { losses: all.values, level, var: r.var, cvar: r.cvar, tail: r.tail, scenario: id };
   },
 };
+
+/** Frames a reader's losses fill in, a share of them more each frame. */
+const DATA_FRAMES = 40;
+
+/** The standard error of a mean of batch estimates. */
+function batchError(xs: number[]): number {
+  const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+  return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1) / xs.length);
+}
+
+/**
+ * Value at risk and expected shortfall of a reader's losses, read in their order a share at a
+ * time, the batches' standard errors beside them as on the seeded run (loss i in batch i mod 10).
+ * Nothing is simulated: no random draw is made, and no scenario's reference value is claimed.
+ */
+function* onLosses(ops: StochasticOps, losses: number[], cfg: Params): Generator<void, RiskResult, void> {
+  const level = Number(str(cfg, 'level'));
+  const n = losses.length;
+  let lo = Math.min(...losses);
+  let hi = Math.max(...losses);
+  if (hi - lo < 1e-9 * Math.max(1, Math.abs(lo))) { lo -= 0.5; hi += 0.5; }
+  const all = new SortedSample();
+  const batches = Array.from({ length: BATCHES }, () => new SortedSample());
+  const bins = new Array<number>(64).fill(0);
+  const input = readerInput(`${fmt(n)} losses, in their order`);
+  let done = 0;
+  for (let fr = 1; fr <= DATA_FRAMES; fr++) {
+    const end = Math.round((fr / DATA_FRAMES) * n);
+    if (end === done) continue;
+    const fresh = losses.slice(done, end);
+    const perBatch: number[][] = Array.from({ length: BATCHES }, () => []);
+    for (let i = done; i < end; i++) perBatch[i % BATCHES].push(losses[i]);
+    ops.count(end - done);
+    done = end;
+    histogram(fresh, lo, hi, 64, 0, fresh.length, bins);
+    all.add(fresh);
+    for (let i = 0; i < BATCHES; i++) batches[i].add(perBatch[i]);
+    yield;
+    const r = tailRisk(all.values, level);
+    const per = batches.filter((b) => b.length).map((b) => tailRisk(b.values, level));
+    const fewest = per.length < BATCHES ? 0 : Math.min(...per.map((q) => q.tail));
+    const enough = fewest >= MIN_BATCH_TAIL;
+    ops.point('value at risk', done, r.var);
+    ops.point('expected shortfall', done, r.cvar);
+    const values = all.values;
+    ops.frame([{
+      kind: 'hist', title: `Your losses; the worst ${fmt(100 * (1 - level), 1)}% shaded`, lo, hi,
+      bins: bins.slice(), shade: [r.var, hi],
+      marks: [{ x: r.var, label: 'VaR', tone: -1 }, { x: r.cvar, label: 'ES', tone: 0.9 }],
+    }], [
+      input,
+      { label: `Value at risk ${fmt(100 * level, 1)}%`, value: enough ? pm(r.var, batchError(per.map((q) => q.var))) : fmt(r.var, 3) },
+      { label: 'Expected shortfall', value: enough ? pm(r.cvar, batchError(per.map((q) => q.cvar))) : fmt(r.cvar, 3) },
+      {
+        label: 'Standard errors',
+        value: enough ? `from ${fmt(BATCHES)} batches of about ${fmt(Math.floor(done / BATCHES))} losses, as if they were independent`
+          : `not shown: a batch's tail holds only ${fmt(fewest)} losses (fewer than ${fmt(MIN_BATCH_TAIL)})`,
+      },
+      { label: 'Losses read', value: `${fmt(done)} of ${fmt(n)}; ${fmt(r.tail)} at or beyond VaR averaged` },
+      { label: 'Largest loss', value: fmt(values[values.length - 1], 3) },
+    ]);
+    yield;
+  }
+  const r = tailRisk(all.values, level);
+  return { losses: all.values, level, var: r.var, cvar: r.cvar, tail: r.tail, scenario: 'data' };
+}

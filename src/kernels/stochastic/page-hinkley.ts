@@ -1,7 +1,8 @@
-import { num } from '../../core/plate';
+import { num, type Params } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, Sampler } from '../../engines/stochastic/sample';
 import { stream } from '../../engines/stochastic/scenarios';
-import type { StochasticKernel } from '../../engines/stochastic/trace';
+import type { StochasticKernel, StochasticOps } from '../../engines/stochastic/trace';
 
 export interface PageHinkleyResult {
   stream: number[];
@@ -37,13 +38,19 @@ const FRAMES = 160;
 export const kernel: StochasticKernel<PageHinkleyResult> = {
   palette: 'spectral',
   params: [
+    // the input: today's only seeded stream, beside which a reader's own stream is offered (ADR 0010)
+    { kind: 'select', key: 'stream', label: 'Stream', value: 'shift', rebuild: true,
+      options: [{ value: 'shift', label: 'Normal, its mean shifting once' }] },
     { kind: 'range', key: 'n', label: 'Stream length', min: 200, max: 2000, step: 50, value: 600, rebuild: true },
     { kind: 'range', key: 'shift', label: 'Mean shift (standard deviations)', min: 0, max: 3, step: 0.1, value: 1, rebuild: true },
     { kind: 'range', key: 'delta', label: 'Tolerance δ', min: 0, max: 1.5, step: 0.05, value: 0.5, rebuild: true },
     { kind: 'range', key: 'lambda', label: 'Threshold λ', min: 2, max: 60, step: 1, value: 15, rebuild: true },
   ],
   chart: { title: 'Page–Hinkley statistic', x: { label: 'sample' }, y: { label: 'm_t − min m' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
+    // a reader's stream (ADR 0010): tested as it is, with no known change point to time an alarm by
+    const mine = readerTable(cfg, 'stream', reader);
+    if (mine) return yield* onStream(ops, column(mine), cfg);
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
     const shift = num(cfg, 'shift');
@@ -108,3 +115,60 @@ export const kernel: StochasticKernel<PageHinkleyResult> = {
     return { stream: xs, change: at, alarm, statistic, lambda, delta };
   },
 };
+
+/**
+ * The test on a reader's stream, in its own units (δ and λ are read in them), frame by frame as
+ * the samples arrive. The stream has no known change point: no change is marked, no mean drawn
+ * from is shown, and an alarm is reported where it falls with no delay or false alarm named.
+ */
+function* onStream(ops: StochasticOps, xs: number[], cfg: Params): Generator<void, PageHinkleyResult, void> {
+  const n = xs.length;
+  const delta = num(cfg, 'delta');
+  const lambda = num(cfg, 'lambda');
+  const { alarm, statistic } = pageHinkley(xs, delta, lambda);
+  ops.count(n);
+  let lo = Math.min(...xs);
+  let hi = Math.max(...xs);
+  if (hi - lo < 1e-9 * Math.max(1, Math.abs(lo))) { lo -= 0.5; hi += 0.5; }
+  const top = Math.max(lambda * 1.3, ...statistic);
+  const every = Math.max(1, Math.ceil(n / FRAMES));
+  const streamPts = xs.map((v, i) => [i, v] as [number, number]);
+  const statPts = statistic.map((v, i) => [i, v] as [number, number]);
+  const input = readerInput(`${fmt(n)} samples, in their order`);
+  yield;
+  let mean = 0;
+  let peak = 0;
+  for (let t = 0; t < n; t++) {
+    mean += xs[t];
+    peak = Math.max(peak, statistic[t]);
+    if ((t + 1) % every === 0 || t === n - 1) {
+      const upto = t + 1;
+      ops.setSeries('statistic', statPts.slice(0, upto));
+      ops.setSeries('threshold λ', [[0, lambda], [upto - 1, lambda]]);
+      const seen = alarm >= 0 && alarm <= t;
+      const marks = seen ? [{ x: alarm, label: 'alarm', tone: 0.85 }] : [];
+      ops.frame([
+        {
+          kind: 'plot', title: 'Your stream', x: [0, Math.max(1, n - 1)], y: [lo, hi],
+          dots: [{ pts: streamPts.slice(0, upto), tones: new Array<number>(upto).fill(0.6), size: 1.6, alpha: 0.7 }],
+          marks,
+        },
+        {
+          kind: 'plot', title: 'm_t − min m against the threshold λ', x: [0, Math.max(1, n - 1)], y: [0, top],
+          lines: [{ pts: statPts.slice(0, upto), tone: 0.85, weight: 1.5 }],
+          marks: [{ y: lambda, label: `λ = ${lambda}`, tone: -1, dash: true }, ...marks],
+        },
+      ], [
+        input,
+        { label: 'Samples seen', value: fmt(upto) },
+        { label: 'Running mean', value: fmt(mean / upto, 3) },
+        { label: 'Statistic', value: `${fmt(statistic[t], 2)} (λ ${lambda})` },
+        { label: 'Peak of m_t − min m', value: `${fmt(peak, 2)} (λ ${lambda})` },
+        { label: 'Alarm', value: seen ? `at sample ${fmt(alarm)}` : 'none yet' },
+        { label: 'Detection', value: 'none: your stream has no known change point to time a delay or a false alarm by' },
+      ]);
+      yield;
+    }
+  }
+  return { stream: xs, change: n, alarm, statistic, lambda, delta };
+}

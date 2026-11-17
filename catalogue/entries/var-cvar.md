@@ -21,6 +21,19 @@ pedagogy:
   - Explain why heavy tails and rare jumps move expected shortfall more than value at risk.
 algorithm:
   paradigm: simulation
+data:
+  - id: losses
+    title: Your losses
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: loss, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 20, max: 10000 }
+    bytes: 65536
+    replaces: scenario
+    ignores: [n, jumpP, nu]
+    url_bytes: 1800
+    note: Your values are read as losses, larger is worse (negate returns first), all of them, in their order, a fortieth more each frame; value at risk is the level-quantile of those read so far and expected shortfall the mean at or beyond it, with standard errors from ten batches (value i in batch i mod 10), which assume the losses independent. Nothing is simulated, so no loss model's reference value is claimed.
 claims:
   - id: normal-var-at-95
     statement: >-
