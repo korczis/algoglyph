@@ -1,5 +1,5 @@
 import { str } from '../../core/plate';
-import { addNoise, chirp, chirpFreq, mulberry32, tones } from '../../engines/signal/input';
+import { addNoise, chirp, chirpFreq, mulberry32, power, tones } from '../../engines/signal/input';
 import { chartPoints, FRAME, fmtHz, MUL, type Meter, type SignalKernel, type View } from '../../engines/signal/trace';
 import { amplitude, argmax, parabolic, WINDOWS, windowOf } from './_fft';
 
@@ -20,6 +20,30 @@ export function stft(x: Float64Array, frame: number, hop: number, win: string, m
 }
 
 const dbOf = (a: number) => (a > 0 ? Math.max(-120, 20 * Math.log10(a)) : -120);
+
+/**
+ * The equivalent noise bandwidth of a cosine-sum window w[n] = Σ (−1)^k a_k cos(2πkn/M), in bins:
+ * M·Σw²/(Σw)², which for the periodic window is (a₀² + Σ_(k≥1) a_k²/2)/a₀² exactly (Harris 1978's
+ * table: 1 rectangular, 1.5 Hann, 1.36 Hamming, 1.73 Blackman, 2.00 Blackman-Harris).
+ */
+export function noiseBandwidth(win: string): number {
+  const a = (WINDOWS.find((w) => w.id === win) ?? WINDOWS[1]).coef;
+  let s = a[0] * a[0];
+  for (let k = 1; k < a.length; k++) s += (a[k] * a[k]) / 2;
+  return s / (a[0] * a[0]);
+}
+
+/**
+ * One frame's noise power over bins 1 … M/2 − 1, as the plate's amplitude spectrum reads it
+ * (2|X_k|/Σw). White noise of variance σ² gives each bin 4σ²·Σw²/(Σw)² = 4σ²·ENBW/M on average, so
+ * the mean over frames and bins, times M/4σ², measures the window's noise bandwidth.
+ */
+export function framePower(noise: Float64Array, w: Float64Array, frame: number, from: number): number {
+  const a = amplitude(noise, w, frame, undefined, from);
+  let s = 0;
+  for (let k = 1; k < frame / 2; k++) s += a[k] * a[k];
+  return s;
+}
 
 // A chirp over a steady tone in noise: each frame's peak follows the chirp, while Welch's average
 // of all frames keeps the tone and lowers the noise's variance.
@@ -42,7 +66,12 @@ export const kernel: SignalKernel = {
     const x = chirp(len, FS, F0, F1, 0.5);
     const t = tones(len, FS, [{ f: tone, a: 0.25 }]);
     for (let i = 0; i < len; i++) x[i] += t[i];
+    // the noise alone, through the same frames: the window's bandwidth measured, never assumed
+    const clean = x.slice();
+    const sigma2 = power(clean) / 10 ** (Number(params.snr) / 10);
     addNoise(x, rnd, Number(params.snr));
+    const noise = Float64Array.from(x, (v, i) => v - clean[i]);
+    let noisePow = 0;
     const win = str(params, 'window');
     const w = windowOf(win, frame);
     const rows: Float32Array[] = [];
@@ -62,6 +91,7 @@ export const kernel: SignalKernel = {
       const peak = (k + parabolic(a[k - 1], a[k], a[k + 1])) * df;
       const truth = chirpFreq(len, FS, F0, F1, from + frame / 2);
       ridge += Math.abs(peak - truth);
+      noisePow += framePower(noise, w, frame, from);
       if (f % every !== 0 && f !== total - 1) continue;
       const mean = Float64Array.from(avg, (v) => 10 * Math.log10(Math.max(1e-12, v / (f + 1))));
       const wk = argmax(mean, 1, mean.length - 1);
@@ -85,6 +115,8 @@ export const kernel: SignalKernel = {
           { label: 'Welch average peak', value: `${fmtHz(wk * df)} (tone at ${fmtHz(tone)})` },
           { label: 'Welch noise floor (median bin)', value: `${sorted[sorted.length >> 1].toFixed(1)} dB` },
           { label: 'Resolution', value: `${fmtHz(df)} per bin, ${(1000 * hop / FS).toFixed(1)} ms per hop` },
+          { label: 'Noise bandwidth of the window, measured', value:
+            `${((noisePow / ((f + 1) * (frame / 2 - 1))) * frame / (4 * sigma2)).toFixed(3)} bins (closed form ${noiseBandwidth(win).toFixed(4)})` },
         ],
         counts: meter.snapshot(),
         chart: {

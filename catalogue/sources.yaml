@@ -1651,3 +1651,9 @@ sources:
     year: 1990
     kind: paper
     url: https://doi.org/10.1016/0375-9601(90)90092-3
+  - id: harris-1978-windows
+    title: On the Use of Windows for Harmonic Analysis with the Discrete Fourier Transform (Proceedings of the IEEE 66(1), 51–83)
+    author: Fredric J. Harris
+    year: 1978
+    kind: paper
+    url: https://doi.org/10.1109/PROC.1978.10837
