@@ -129,3 +129,5 @@ The share of output variance each input explains, alone and with the others.
 The first-order index of an input is the share of the output's variance its own variation explains; the total index adds every interaction it takes part in. Both come from two independent sample matrices and the hybrids that swap in one column: the first-order estimator of Saltelli (2010) and the total-effect estimator of Jansen.
 
 On the Ishigami function the third input has no first-order effect at all yet a total index near 0.24 at the defaults a = 7 and b = 0.1 (both controls), because it acts only through its interaction with the first. On an additive model first-order and total indices coincide and sum to one; the ticks are the analytic values.
+
+**Data.** The plate takes no data of a reader's. Its estimators need the model at points they build, two sample matrices and the hybrids that swap one column between them, so a table of a reader's runs, fixed in advance, cannot answer them; and its error is measured against the indices the Ishigami and the additive models have in closed form.

@@ -1,4 +1,6 @@
-import { num } from '../../core/plate';
+import type { DataTable } from '../../core/data';
+import { num, type Stat } from '../../core/plate';
+import { readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, pct, Sampler } from '../../engines/stochastic/sample';
 import {
   evidenceSet, MIN_RELIABILITY, type EvidenceItem,
@@ -38,6 +40,13 @@ function exactStability(items: EvidenceItem[], prior: number, baseline: boolean)
 const LO = -8;
 const HI = 8;
 
+/** A reader's evidence items, one a row: log-likelihood ratio, its sd and its reliability. */
+export function itemsOf(t: DataTable): EvidenceItem[] {
+  return Array.from({ length: t.rows }, (_, i) => ({
+    label: `row ${i + 1}`, llr: t.values[0][i], sd: t.values[1][i], reliability: t.values[2][i],
+  }));
+}
+
 // The verdict is what the evidence says as given: the prior log-odds plus every item's
 // log-likelihood ratio, compared with zero. Each run perturbs it the way it could be wrong:
 // every item holds up only with its reliability, and its strength wobbles by its standard
@@ -45,6 +54,11 @@ const HI = 8;
 export const kernel: StochasticKernel<VerdictResult> = {
   palette: 'spectral',
   params: [
+    // the input: seeded evidence items, and a reader's (ADR 0010)
+    {
+      kind: 'select', key: 'evidence', label: 'Evidence', value: 'seeded', rebuild: true,
+      options: [{ value: 'seeded', label: 'Seeded evidence items' }],
+    },
     { kind: 'range', key: 'k', label: 'Evidence items', min: 2, max: 12, step: 1, value: 7, rebuild: true },
     { kind: 'range', key: 'prior', label: 'Prior log-odds', min: -4, max: 4, step: 0.1, value: -1, rebuild: true },
     { kind: 'range', key: 'noise', label: 'Strength noise (× each item’s sd)', min: 0, max: 3, step: 0.1, value: 1, rebuild: true },
@@ -57,14 +71,22 @@ export const kernel: StochasticKernel<VerdictResult> = {
     },
   ],
   chart: { title: 'Verdict stability as runs accumulate', x: { label: 'runs', log: true }, y: { label: 'share of runs agreeing' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
-    const k = num(cfg, 'k');
+    // a reader's evidence items (ADR 0010): perturbed as they are, in place of the seeded ones
+    const mine = readerTable(cfg, 'evidence', reader);
+    const k = mine ? mine.rows : num(cfg, 'k');
     const prior = num(cfg, 'prior');
     const noise = num(cfg, 'noise');
     const n = num(cfg, 'n');
-    const items = evidenceSet(s, k, num(cfg, 'minRel'));
+    const items = mine ? itemsOf(mine) : evidenceSet(s, k, num(cfg, 'minRel'));
     const total = prior + items.reduce((t, e) => t + e.llr, 0);
+    // a reader's log-odds may reach past ±8, and their items past ±2.5
+    const reach = mine ? Math.max(HI, Math.abs(prior) + items.reduce((t, e) => t + Math.abs(e.llr), 0)) : HI;
+    const lo0 = mine ? -reach : LO;
+    const hi0 = reach;
+    const wide = mine ? Math.max(2.5, ...items.map((e) => Math.abs(e.llr) + 2 * e.sd * noise)) : 2.5;
+    const input: Stat[] = mine ? [readerInput(`${fmt(k)} evidence items`)] : [];
     const baseline = total > 0;
     // with no strength noise a run is decided by which items hold up: the exact stability sums
     // the chance of every such subset (2^k ≤ 4096 of them), with no draws
@@ -88,7 +110,7 @@ export const kernel: StochasticKernel<VerdictResult> = {
           if (holds) lo += e.llr + (noise ? s.normal(0, e.sd * noise) : 0);
         }
         ops.count(1);
-        histogram([lo], LO, HI, 48, 0, 1, bins);
+        histogram([lo], lo0, hi0, 48, 0, 1, bins);
         const same = lo > 0 === baseline;
         if (same) agree++;
         kept.forEach((h, i) => {
@@ -105,18 +127,19 @@ export const kernel: StochasticKernel<VerdictResult> = {
       const top = influence.reduce((b, v, i) => (v > influence[b] ? i : b), 0);
       ops.frame([
         {
-          kind: 'hist', title: 'Posterior log-odds over perturbed runs; verdict flips left of 0', lo: LO, hi: HI,
-          bins: bins.slice(), shade: baseline ? [LO, 0] : [0, HI],
+          kind: 'hist', title: 'Posterior log-odds over perturbed runs; verdict flips left of 0', lo: lo0, hi: hi0,
+          bins: bins.slice(), shade: baseline ? [lo0, 0] : [0, hi0],
           marks: [{ x: 0, label: 'threshold', tone: -1 }, { x: total, label: 'as given', tone: 0.9, dash: true }],
         },
         {
-          kind: 'bars', title: 'Items: log-likelihood ratio ± 2 sd × noise; label shows reliability', x: [-2.5, 2.5],
+          kind: 'bars', title: 'Items: log-likelihood ratio ± 2 sd × noise; label shows reliability', x: [-wide, wide],
           rows: items.map((e) => ({
             label: `${e.label} r=${fmt(e.reliability, 2)}`, lo: 0, hi: e.llr, tone: e.llr > 0 ? 0.85 : 0.1,
             ...(noise ? { err: [e.llr - 2 * e.sd * noise, e.llr + 2 * e.sd * noise] as [number, number] } : {}),
           })),
         },
       ], [
+        ...input,
         { label: 'Verdict as given', value: `${baseline ? 'supported' : 'not supported'} (log-odds ${fmt(total, 2)})` },
         { label: 'Stability', value: `${pct(st)} ± ${pct(se)}` },
         { label: 'Runs', value: `${fmt(done)}; ${fmt(done - agree)} flipped` },

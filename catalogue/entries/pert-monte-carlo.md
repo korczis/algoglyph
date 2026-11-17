@@ -27,6 +27,21 @@ pedagogy:
   - Explain why the project waits longer on average than its tasks at their means suggest.
 algorithm:
   paradigm: simulation
+data:
+  - id: tasks
+    title: Your tasks (min, mode, max)
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: min, unit: duration, min: 0, max: 1.0e6 }
+      - { key: mode, unit: duration, min: 0, max: 1.0e6 }
+      - { key: max, unit: duration, min: 0, max: 1.0e6 }
+    rows: { min: 1, max: 100 }
+    bytes: 65536
+    replaces: project
+    ignores: []
+    url_bytes: 1800
+    note: A table carries no precedence, so your tasks run one after another, each row a task whose PERT-Beta duration is drawn every run at the weight λ; the plate shows the quantiles of the project's length. Each row's three values are sorted, so they may come in any order, and a row whose least and greatest are equal is a task of fixed length. A chain has nothing that merges, so there is no merge bias and every task is critical in every run. At most 400,000 durations are drawn, so a long list gets fewer runs than the control asks for.
 claims:
   - id: merging-paths-delay-the-mean-finish
     statement: >-

@@ -1,7 +1,8 @@
-import { num, str } from '../../core/plate';
+import { num, str, type Stat } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, Sampler } from '../../engines/stochastic/sample';
 import { OVER_SLOPE, scoredSet } from '../../engines/stochastic/scenarios';
-import type { Panel, StochasticKernel } from '../../engines/stochastic/trace';
+import type { Panel, StochasticKernel, StochasticOps } from '../../engines/stochastic/trace';
 
 interface Block { sum: number; w: number; from: number; to: number }
 
@@ -87,88 +88,125 @@ export const kernel: StochasticKernel<IsotonicResult> = {
     },
   ],
   chart: { title: 'Reliability on held-out cases', x: { label: 'predicted probability' }, y: { label: 'observed frequency' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
+    // a reader's cases (ADR 0010): split by the seed, fitted on one half and measured on the other
+    const mine = readerTable(cfg, 'distortion', reader);
+    if (mine) return yield* onCases(ops, s, column(mine, 0), column(mine, 1));
     const n = num(cfg, 'n');
     const slope = num(cfg, 'slope');
     const train = yield* scoredSet(s, n, str(cfg, 'distortion'), slope);
     const test = yield* scoredSet(s, n, str(cfg, 'distortion'), slope);
-    const order = train.score.map((_, i) => i).sort((a, b) => train.score[a] - train.score[b]);
-    const score = order.map((i) => train.score[i]);
-    const label = order.map((i) => train.label[i]);
-    const truth: [number, number][] = Array.from({ length: 51 }, (_, i) => [i / 50, train.truth(i / 50)]);
-    const before = reliability(test.score, test.label);
-    const brierBefore = brier(test.score, test.label);
-    ops.setSeries('perfect calibration', [[0, 0], [1, 1]]);
-    ops.setSeries('before', before.pts);
-    let merges = 0;
-    const every = Math.max(1, Math.ceil(n / FRAMES));
-    yield;
-    const labelDots: [number, number][] = score.map((x, i) => [x, label[i] ? 0.98 : 0.02]);
-    const frame = (blocks: Block[], upto: number, after: { pts: [number, number][]; ece: number; brier: number } | null, times = 1) => {
-      const step: [number, number][] = [];
-      for (const b of blocks) {
-        const v = b.sum / b.w;
-        step.push([score[b.from], v], [score[b.to], v]);
-      }
-      const panels: Panel[] = [
-        {
-          kind: 'plot', title: 'Labels (top, bottom), PAV fit so far, true curve dashed', x: [0, 1], y: [0, 1],
-          dots: [{ pts: labelDots.slice(0, upto), tones: label.slice(0, upto).map((l) => (l ? 0.85 : 0.15)), size: 1.5, alpha: 0.5 }],
-          lines: [{ pts: truth, tone: -1, dash: true, alpha: 0.6 }, { pts: step, tone: 0.75, weight: 2.5 }],
-        },
-        {
-          kind: 'plot', title: 'Reliability diagram (held-out cases)', x: [0, 1], y: [0, 1],
-          lines: [
-            { pts: [[0, 0], [1, 1]], tone: -1, dash: true, alpha: 0.5 },
-            { pts: before.pts, tone: 0.1, weight: 2 },
-            ...(after ? [{ pts: after.pts, tone: 0.75, weight: 2.5 }] : []),
-          ],
-          dots: [{ pts: before.pts, tone: 0.1, size: 3 }, ...(after ? [{ pts: after.pts, tone: 0.75, size: 3 }] : [])],
-        },
-      ];
-      const stats = [
-        { label: 'Cases pooled', value: `${fmt(upto)} of ${fmt(n)}` },
-        { label: 'Blocks', value: `${fmt(blocks.length)} after ${fmt(merges)} merges` },
-        { label: 'Brier score (held out)', value: after ? `${fmt(brierBefore, 4)} → ${fmt(after.brier, 4)}` : fmt(brierBefore, 4) },
-        { label: 'Expected calibration error', value: after ? `${fmt(before.ece, 4)} → ${fmt(after.ece, 4)}` : fmt(before.ece, 4) },
-      ];
-      for (let h = 0; h < times; h++) ops.frame(panels, stats);
-    };
-    // replay the fit case by case so the frames show it growing
-    const blocks: Block[] = [];
-    for (let i = 0; i < n; i++) {
-      blocks.push({ sum: label[i], w: 1, from: i, to: i });
-      ops.count(1);
-      while (blocks.length > 1) {
-        const b = blocks[blocks.length - 1];
-        const a = blocks[blocks.length - 2];
-        ops.count(1);
-        if (a.sum / a.w <= b.sum / b.w) break;
-        blocks.splice(blocks.length - 2, 2, { sum: a.sum + b.sum, w: a.w + b.w, from: a.from, to: b.to });
-        merges++;
-      }
-      if ((i + 1) % every === 0 && i + 1 < n) {
-        frame(blocks, i + 1, null);
-        yield;
-      }
-    }
-    yield;
-    const fitted = pav(label);
-    const calibrate = (x: number) => {
-      let lo = 0;
-      let hi = n - 1;
-      if (x <= score[0]) return fitted[0];
-      while (lo < hi) {
-        const mid = (lo + hi + 1) >> 1;
-        if (score[mid] <= x) lo = mid; else hi = mid - 1;
-      }
-      return fitted[lo];
-    };
-    const pred = test.score.map(calibrate);
-    const after = { ...reliability(pred, test.label), brier: brier(pred, test.label) };
-    ops.setSeries('after', after.pts);
-    frame(blocks, n, after, 40);
-    return { score, label, fitted, brierBefore, brierAfter: after.brier, eceBefore: before.ece, eceAfter: after.ece };
+    return yield* fit(ops, train, test, train.truth);
   },
 };
+
+interface Cases { score: number[]; label: number[] }
+
+/**
+ * Fit the training cases by pool adjacent violators, frame by frame, and measure the fit on the
+ * held-out cases. `truthOf` is the true probability, drawn dashed, when the cases were drawn from
+ * one; `input` is the Input readout, on a reader's cases only.
+ */
+function* fit(ops: StochasticOps, train: Cases, test: Cases, truthOf: ((x: number) => number) | null, input?: Stat): Generator<void, IsotonicResult, void> {
+  const n = train.score.length;
+  const order = train.score.map((_, i) => i).sort((a, b) => train.score[a] - train.score[b]);
+  const score = order.map((i) => train.score[i]);
+  const label = order.map((i) => train.label[i]);
+  const truth: [number, number][] | null = truthOf && Array.from({ length: 51 }, (_, i) => [i / 50, truthOf(i / 50)]);
+  const before = reliability(test.score, test.label);
+  const brierBefore = brier(test.score, test.label);
+  ops.setSeries('perfect calibration', [[0, 0], [1, 1]]);
+  ops.setSeries('before', before.pts);
+  let merges = 0;
+  const every = Math.max(1, Math.ceil(n / FRAMES));
+  yield;
+  const labelDots: [number, number][] = score.map((x, i) => [x, label[i] ? 0.98 : 0.02]);
+  const frame = (blocks: Block[], upto: number, after: { pts: [number, number][]; ece: number; brier: number } | null, times = 1) => {
+    const step: [number, number][] = [];
+    for (const b of blocks) {
+      const v = b.sum / b.w;
+      step.push([score[b.from], v], [score[b.to], v]);
+    }
+    const panels: Panel[] = [
+      {
+        kind: 'plot', title: truth ? 'Labels (top, bottom), PAV fit so far, true curve dashed' : 'Your labels (top, bottom) and the PAV fit so far', x: [0, 1], y: [0, 1],
+        dots: [{ pts: labelDots.slice(0, upto), tones: label.slice(0, upto).map((l) => (l ? 0.85 : 0.15)), size: 1.5, alpha: 0.5 }],
+        lines: [...(truth ? [{ pts: truth, tone: -1, dash: true, alpha: 0.6 }] : []), { pts: step, tone: 0.75, weight: 2.5 }],
+      },
+      {
+        kind: 'plot', title: 'Reliability diagram (held-out cases)', x: [0, 1], y: [0, 1],
+        lines: [
+          { pts: [[0, 0], [1, 1]], tone: -1, dash: true, alpha: 0.5 },
+          { pts: before.pts, tone: 0.1, weight: 2 },
+          ...(after ? [{ pts: after.pts, tone: 0.75, weight: 2.5 }] : []),
+        ],
+        dots: [{ pts: before.pts, tone: 0.1, size: 3 }, ...(after ? [{ pts: after.pts, tone: 0.75, size: 3 }] : [])],
+      },
+    ];
+    const stats: Stat[] = [
+      ...(input ? [input] : []),
+      { label: 'Cases pooled', value: `${fmt(upto)} of ${fmt(n)}` },
+      { label: 'Blocks', value: `${fmt(blocks.length)} after ${fmt(merges)} merges` },
+      { label: 'Brier score (held out)', value: after ? `${fmt(brierBefore, 4)} → ${fmt(after.brier, 4)}` : fmt(brierBefore, 4) },
+      { label: 'Expected calibration error', value: after ? `${fmt(before.ece, 4)} → ${fmt(after.ece, 4)}` : fmt(before.ece, 4) },
+    ];
+    for (let h = 0; h < times; h++) ops.frame(panels, stats);
+  };
+  // replay the fit case by case so the frames show it growing
+  const blocks: Block[] = [];
+  for (let i = 0; i < n; i++) {
+    blocks.push({ sum: label[i], w: 1, from: i, to: i });
+    ops.count(1);
+    while (blocks.length > 1) {
+      const b = blocks[blocks.length - 1];
+      const a = blocks[blocks.length - 2];
+      ops.count(1);
+      if (a.sum / a.w <= b.sum / b.w) break;
+      blocks.splice(blocks.length - 2, 2, { sum: a.sum + b.sum, w: a.w + b.w, from: a.from, to: b.to });
+      merges++;
+    }
+    if ((i + 1) % every === 0 && i + 1 < n) {
+      frame(blocks, i + 1, null);
+      yield;
+    }
+  }
+  yield;
+  const fitted = pav(label);
+  const calibrate = (x: number) => {
+    let lo = 0;
+    let hi = n - 1;
+    if (x <= score[0]) return fitted[0];
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (score[mid] <= x) lo = mid; else hi = mid - 1;
+    }
+    return fitted[lo];
+  };
+  const pred = test.score.map(calibrate);
+  const after = { ...reliability(pred, test.label), brier: brier(pred, test.label) };
+  ops.setSeries('after', after.pts);
+  frame(blocks, n, after, 40);
+  return { score, label, fitted, brierBefore, brierAfter: after.brier, eceBefore: before.ece, eceAfter: after.ece };
+}
+
+/**
+ * A reader's cases: an outcome counts as 1 at 0.5 or above, so 0/1 outcomes read as they are. A
+ * seeded shuffle splits them, the first half (rounded up) to fit and the rest held out, so the
+ * held-out Brier score and calibration error are measured on cases the fit never saw. Nothing
+ * says how your outcomes were drawn, so there is no true curve.
+ */
+function* onCases(ops: StochasticOps, s: Sampler, p: number[], raw: number[]): Generator<void, IsotonicResult, void> {
+  const n = p.length;
+  const y = raw.map((v) => (v >= 0.5 ? 1 : 0));
+  const order = p.map((_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = s.int(i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const half = Math.ceil(n / 2);
+  const part = (ix: number[]): Cases => ({ score: ix.map((i) => p[i]), label: ix.map((i) => y[i]) });
+  yield;
+  return yield* fit(ops, part(order.slice(0, half)), part(order.slice(half)), null,
+    readerInput(`${fmt(n)} cases: ${fmt(half)} fitted, ${fmt(n - half)} held out`));
+}

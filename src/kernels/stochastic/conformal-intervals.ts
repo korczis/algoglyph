@@ -1,6 +1,7 @@
-import { num, str } from '../../core/plate';
+import { num, str, type Params } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
 import { ascending, fmt, pct, Sampler } from '../../engines/stochastic/sample';
-import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
+import { histogram, type StochasticKernel, type StochasticOps } from '../../engines/stochastic/trace';
 import { COVERAGE, coverageChart, ladder, levelName, levelParam, LEVELS, publishCoverage, repetitionsParam, shownLevel } from './_coverage';
 
 const signal = (x: number) => 1.5 * Math.sin(2 * Math.PI * x) + x;
@@ -95,8 +96,11 @@ export const kernel: StochasticKernel<ConformalResult> = {
   ],
   chart: coverageChart,
   labSeries: COVERAGE,
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
+    // a reader's rows (ADR 0010): each experiment splits them anew into train, calibration and test
+    const mine = readerTable(cfg, 'noise', reader);
+    if (mine) return yield* onRows(ops, s, column(mine, 0), column(mine, 1), cfg);
     const kind = str(cfg, 'noise');
     const degree = num(cfg, 'degree');
     const nCal = num(cfg, 'ncal');
@@ -166,3 +170,112 @@ export const kernel: StochasticKernel<ConformalResult> = {
     return { calibration: nCal, coverage: hits.map((h) => h / reps), reps, residuals: first.residuals, radius: q };
   },
 };
+
+/** The shares of a reader's rows each split gives to training and to calibration; the rest test. */
+const SPLIT = { train: 0.4, calibration: 0.4 };
+
+/**
+ * Split conformal on a reader's rows (x, y). x is mapped onto [0, 1] by its own range, so the
+ * polynomial is fitted as well conditioned as on the seeded cases. Every experiment shuffles the
+ * rows by the seed and splits them: 40% to fit, 40% to calibrate the radius, the rest to test it.
+ * The test cases are your own held-out rows, so coverage is measured, not assumed. A random split
+ * makes the held-out rows exchangeable with the calibration rows, so on average it meets the
+ * guarantee whatever the rows; whether new rows would is beyond what the plate can check.
+ */
+function* onRows(ops: StochasticOps, s: Sampler, xs: number[], ys: number[], cfg: Params): Generator<void, ConformalResult, void> {
+  const n = xs.length;
+  const degree = num(cfg, 'degree');
+  const reps = num(cfg, 'reps');
+  const level = shownLevel(cfg);
+  const name = levelName(level);
+  const nTrain = Math.floor(SPLIT.train * n);
+  const nCal = Math.floor(SPLIT.calibration * n);
+  const nTest = n - nTrain - nCal;
+  let xlo = Infinity; let xhi = -Infinity; let ymin = Infinity; let ymax = -Infinity;
+  for (let i = 0; i < n; i++) {
+    xlo = Math.min(xlo, xs[i]); xhi = Math.max(xhi, xs[i]);
+    ymin = Math.min(ymin, ys[i]); ymax = Math.max(ymax, ys[i]);
+  }
+  const u = xs.map((x) => (xhi > xlo ? (x - xlo) / (xhi - xlo) : 0.5));
+  const pad = ymax > ymin ? 0.15 * (ymax - ymin) : Math.max(1, Math.abs(ymin));
+  const ylo = ymin - pad;
+  const yhi = ymax + pad;
+  const order = xs.map((_, i) => i);
+  const split = () => {
+    for (let i = n - 1; i > 0; i--) {
+      const j = s.int(i + 1);
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const part = (from: number, to: number) => {
+      const ix = order.slice(from, to);
+      return { x: ix.map((i) => u[i]), y: ix.map((i) => ys[i]) };
+    };
+    const train = part(0, nTrain);
+    const cal = part(nTrain, nTrain + nCal);
+    const test = part(nTrain + nCal, n);
+    const c = polyfit(train.x, train.y, degree);
+    const residuals = ascending(cal.x.map((x, i) => Math.abs(cal.y[i] - polyval(c, x))));
+    const testPred = test.x.map((x) => polyval(c, x));
+    const testResiduals = testPred.map((q, i) => Math.abs(test.y[i] - q));
+    return { train, test, c, residuals, testPred, testResiduals };
+  };
+  const input = readerInput(`${fmt(n)} rows, split anew each experiment: ${fmt(nTrain)} train, ${fmt(nCal)} calibration, ${fmt(nTest)} test`);
+  const first = split();
+  ops.count(nCal + nTest);
+  const q = conformalRadius(first.residuals, level);
+  const curve: [number, number][] = Array.from({ length: 61 }, (_, i) => [i / 60, polyval(first.c, i / 60)]);
+  const band: [number, number, number][] = curve.map(([x, y]) => [x, y - q, y + q]);
+  const hitsFirst = first.testResiduals.map((r) => r <= q);
+  const rmax = Math.max(q * 1.6, first.residuals[first.residuals.length - 1]);
+  const intro = [
+    {
+      kind: 'plot' as const, title: 'Your rows, x mapped onto [0, 1]: fit (line), training (faint) and test rows; the band is ± the conformal radius',
+      x: [0, 1] as [number, number], y: [ylo, yhi] as [number, number],
+      band: { pts: Number.isFinite(q) ? band : [], tone: 0.55 },
+      lines: [{ pts: curve, tone: 0.8, weight: 2 }],
+      dots: [
+        { pts: first.train.x.map((x, i) => [x, first.train.y[i]] as [number, number]), tone: -1, size: 1.5, alpha: 0.3 },
+        { pts: first.test.x.map((x, i) => [x, first.test.y[i]] as [number, number]), tones: hitsFirst.map((h) => (h ? 0.6 : 0.05)), size: 2 },
+      ],
+    },
+    {
+      kind: 'hist' as const, title: `Calibration residuals |y − ŷ| and the ${name} radius`, lo: 0, hi: rmax, bins: histogram(first.residuals, 0, rmax, 24),
+      marks: [{ x: q, label: `radius ${fmt(q, 3)}`, tone: -1 }],
+    },
+  ];
+  const introStats = [
+    input,
+    { label: 'x mapped onto [0, 1] from', value: `[${fmt(xlo, 4)}, ${fmt(xhi, 4)}]` },
+    { label: `${name} radius`, value: `${fmt(q, 4)} (residual ${fmt(Math.ceil((nCal + 1) * level))} of ${fmt(nCal)})` },
+    { label: 'Test rows covered', value: pct(hitsFirst.filter(Boolean).length / nTest) },
+  ];
+  for (let h = 0; h < 60; h++) ops.frame(intro, introStats);
+  yield;
+  const hits = new Array<number>(LEVELS.length).fill(0);
+  const shown: { label: string; lo: number; hi: number; truth: number }[] = [];
+  let width = 0;
+  for (let r = 1; r <= reps; r++) {
+    const e = r === 1 ? first : split();
+    if (r > 1) ops.count(nCal + nTest);
+    LEVELS.forEach((l, i) => {
+      const rad = conformalRadius(e.residuals, l);
+      hits[i] += e.testResiduals.filter((v) => v <= rad).length / nTest;
+    });
+    const rad = conformalRadius(e.residuals, level);
+    width += 2 * rad;
+    const pred = e.testPred[0];
+    shown.push({ label: `split ${r}`, lo: pred - rad, hi: pred + rad, truth: e.test.y[0] });
+    if (shown.length > LADDER) shown.shift();
+    publishCoverage(ops, hits, r);
+    const k = LEVELS.indexOf(level);
+    ops.frame([intro[0], ladder(`One held-out row per split against its ${name} interval`, shown.slice(), [ylo, yhi])], [
+      input,
+      { label: 'Experiments', value: `${fmt(r)} of ${fmt(reps)}, ${fmt(nTest)} test rows each` },
+      { label: `${name} intervals covering`, value: `${pct(hits[k] / r)} (guarantee: at least ${name} on rows split at random)` },
+      ...(k ? [{ label: '50% intervals covering', value: pct(hits[0] / r) }] : []),
+      { label: `Mean ${name} width`, value: fmt(width / r, 4) },
+    ]);
+    yield;
+  }
+  return { calibration: nCal, coverage: hits.map((h) => h / reps), reps, residuals: first.residuals, radius: q };
+}

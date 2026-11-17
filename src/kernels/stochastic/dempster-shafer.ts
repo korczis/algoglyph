@@ -1,4 +1,6 @@
-import { num } from '../../core/plate';
+import type { DataTable } from '../../core/data';
+import { num, type Stat } from '../../core/plate';
+import { readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, Sampler } from '../../engines/stochastic/sample';
 import type { StochasticKernel } from '../../engines/stochastic/trace';
 
@@ -61,6 +63,20 @@ export interface DempsterResult {
 
 const HOLD = 30;
 const SHOWN = [1, 2, 4, 3, 5, 6];
+/** The sets a reader's columns give mass to, in column order: H1, H2, H3, {H1,H2}, {H1,H3}, {H2,H3}, Θ. */
+export const COLUMNS = [1, 2, 4, 3, 5, 6, FULL];
+
+/** A reader's sources, one a row of seven weights: each row scaled to sum to 1, and a row of
+ * zeros, a source with nothing to say, put wholly on Θ. */
+export function sourcesOf(t: DataTable): Mass[] {
+  return Array.from({ length: t.rows }, (_, j) => {
+    const m = new Array<number>(8).fill(0);
+    const total = COLUMNS.reduce((a, _, c) => a + t.values[c][j], 0);
+    if (!total) m[FULL] = 1;
+    else COLUMNS.forEach((x, c) => { m[x] = t.values[c][j] / total; });
+    return m;
+  });
+}
 
 // Each synthetic source commits mass to two or three sets of hypotheses and keeps the rest on
 // the whole frame (what it does not know), none when the least mass on Θ is 0. Sources are
@@ -68,16 +84,24 @@ const SHOWN = [1, 2, 4, 3, 5, 6];
 export const kernel: StochasticKernel<DempsterResult> = {
   palette: 'spectral',
   params: [
+    // the input: seeded sources, and a reader's (ADR 0010)
+    {
+      kind: 'select', key: 'evidence', label: 'Sources of evidence', value: 'seeded', rebuild: true,
+      options: [{ value: 'seeded', label: 'Seeded sources on two or three sets' }],
+    },
     { kind: 'range', key: 'sources', label: 'Sources', min: 2, max: 10, step: 1, value: 5, rebuild: true },
     { kind: 'range', key: 'ignorance', label: 'Least mass on Θ per source', min: 0, max: 0.8, step: 0.05, value: 0.2, rebuild: true },
   ],
   chart: { title: 'Belief and plausibility of H1', x: { label: 'sources combined' }, y: { label: 'value' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
-    const k = num(cfg, 'sources');
+    // a reader's sources (ADR 0010): combined as they are, in their order
+    const mine = readerTable(cfg, 'evidence', reader);
+    const k = mine ? mine.rows : num(cfg, 'sources');
     const ign = num(cfg, 'ignorance');
-    const sources: Mass[] = [];
-    for (let j = 0; j < k; j++) {
+    const sources: Mass[] = mine ? sourcesOf(mine) : [];
+    const input: Stat[] = mine ? [readerInput(`${fmt(k)} sources`)] : [];
+    for (let j = 0; !mine && j < k; j++) {
       const m = new Array<number>(8).fill(0);
       const focal = 2 + s.int(2);
       const weights = Array.from({ length: focal }, () => s.gamma(1));
@@ -106,6 +130,7 @@ export const kernel: StochasticKernel<DempsterResult> = {
         },
       ];
       const stats = [
+        ...input,
         { label: 'Sources combined', value: `${fmt(j + 1)} of ${fmt(k)}` },
         { label: 'Conflict K of the last combination', value: j ? fmt(conflict, 4) : '—' },
         { label: `Leading hypothesis ${setName(lead)}`, value: `Bel ${fmt(belief(combined, lead), 3)}, Pl ${fmt(plausibility(combined, lead), 3)}` },
@@ -124,6 +149,7 @@ export const kernel: StochasticKernel<DempsterResult> = {
         // total conflict: nothing is left to renormalise, so the rule says nothing
         undefinedAt = j;
         const stats = [
+          ...input,
           { label: 'Sources combined', value: `${fmt(j)} of ${fmt(k)}; source ${fmt(j + 1)} could not be` },
           { label: 'Conflict K of the last combination', value: `${fmt(r.conflict, 4)}: total conflict` },
           { label: 'Combination', value: "undefined: Dempster's rule cannot renormalise by 1 − K = 0" },

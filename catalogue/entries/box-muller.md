@@ -58,3 +58,5 @@ Two uniform numbers turned into two independent Gaussians by a rotation and a lo
 Each pair of uniforms becomes a radius √(−2 ln u₁) and an angle 2πu₂; the point's two coordinates are independent standard normals because the radius squared of a standard bivariate normal is exponential and its angle uniform. The scatter colours each pair by its angle u₂.
 
 The histogram fills against the N(0, 1) density, and the Kolmogorov–Smirnov distance D between the sample and the normal distribution function is recomputed as it grows: it shrinks like 1/√n and should stay under the 5% critical value 1.36/√n most of the time. The mean of z₁·z₂ checks that the two values of a pair are uncorrelated.
+
+**Data.** The plate takes no data of a reader's. Its input is the stream of uniform pairs the transform consumes, fresh and independent draws on [0, 1), and every readout measures the normals that come out against the standard normal. A reader's sample of normals would test that sample, not the transform, and a reader's uniforms would test their generator, a question for a test of uniformity rather than for this plate.

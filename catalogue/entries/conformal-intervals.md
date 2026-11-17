@@ -23,6 +23,20 @@ pedagogy:
     - Tell marginal coverage, averaged over cases, from coverage at each x, and see a constant-width band over- and under-cover where the noise changes.
   misconceptions:
     - A badly chosen model gives intervals that cover less often; it gives wider intervals that cover just as often.
+data:
+  - id: rows
+    title: Your rows (x, y)
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
+      - { key: y, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 60, max: 1000 }
+    bytes: 65536
+    replaces: noise
+    ignores: [ntrain, ncal]
+    url_bytes: 1800
+    note: Each experiment shuffles your rows by the seed and splits them, 40% to fit the polynomial, 40% to calibrate the radius and the rest to test it, so the coverage is counted on your own held-out rows. x is mapped onto [0, 1] by its range before the fit. A random split makes the held-out rows exchangeable with the calibration rows, so the coverage meets the guarantee on average whatever your rows are; whether it holds for rows you have not collected yet depends on them being exchangeable with these, which the plate cannot check.
 claims:
   - id: covers-at-the-guaranteed-rate
     statement: >-

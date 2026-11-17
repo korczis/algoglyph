@@ -1,6 +1,7 @@
-import { num } from '../../core/plate';
-import { fmt, normalCdf, pct, Sampler, sortDescending } from '../../engines/stochastic/sample';
-import { histogram, type Panel, type StochasticKernel } from '../../engines/stochastic/trace';
+import { num, type Params, type Stat } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
+import { fmt, mean, normalCdf, pct, Sampler, sortDescending, variance } from '../../engines/stochastic/sample';
+import { histogram, type Panel, type StochasticKernel, type StochasticOps } from '../../engines/stochastic/trace';
 
 export interface Confusion { tp: number; fp: number; tn: number; fn: number }
 
@@ -46,13 +47,21 @@ const HI = 7;
 export const kernel: StochasticKernel<RocResult> = {
   palette: 'abyss',
   params: [
+    // the input: the seeded binormal scores, and a reader's scores and labels (ADR 0010)
+    {
+      kind: 'select', key: 'scores', label: 'Scores', value: 'binormal', rebuild: true,
+      options: [{ value: 'binormal', label: 'Binormal scores, rare positives' }],
+    },
     { kind: 'range', key: 'rate', label: 'Base rate of positives', min: 0.001, max: 0.5, step: 0.001, value: 0.01, rebuild: true },
     { kind: 'range', key: 'dprime', label: "Separation d'", min: 0.5, max: 4, step: 0.1, value: 2, rebuild: true },
     { kind: 'range', key: 'threshold', label: 'Alarm threshold', min: -2, max: 5, step: 0.05, value: 2, rebuild: true },
     { kind: 'range', key: 'n', label: 'Population', min: 2000, max: 100000, step: 1000, value: 20000, rebuild: true },
   ],
   chart: { title: 'ROC curve', x: { label: 'false positive rate' }, y: { label: 'true positive rate' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
+    // a reader's scores and labels (ADR 0010): swept as they are, with no d' behind them
+    const mine = readerTable(cfg, 'scores', reader);
+    if (mine) return yield* onScores(ops, cfg, column(mine, 0), column(mine, 1));
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
     const dprime = num(cfg, 'dprime');
@@ -68,77 +77,137 @@ export const kernel: StochasticKernel<RocResult> = {
       histogram(score, LO, HI, 44, i, i + 1, isPos ? pos : neg);
       if (i % 5000 === 4999) yield;
     }
-    const order = yield* sortDescending(score);
-    const desc = new Float64Array(n);
-    const above = new Int32Array(n + 1);
-    for (let k = 0; k < n; k++) {
-      desc[k] = score[order[k]];
-      above[k + 1] = above[k] + label[order[k]];
-    }
-    const ranked = new Ranked(desc, above);
-    const P = ranked.positives;
-    const N = n - P;
-    // the empirical ROC, every distinct score a threshold, and its area by trapezoids
-    const pts: [number, number][] = [[0, 0]];
-    let auc = 0;
-    for (let k = 0; k < n;) {
-      const k0 = k;
-      while (k < n && desc[k] === desc[k0]) k++;
-      const tp0 = above[k0];
-      const tp = above[k];
-      auc += ((k - tp - (k0 - tp0)) / Math.max(1, N)) * ((tp + tp0) / 2 / Math.max(1, P));
-      pts.push([(k - tp) / Math.max(1, N), tp / Math.max(1, P)]);
-      if (k % 10000 < k - k0) yield;
-    }
-    const curve = { pts: pts.filter((_, i) => i % Math.max(1, Math.floor(pts.length / 400)) === 0 || i === pts.length - 1), auc };
-    ops.count(n);
-    yield;
-    ops.setSeries('chance', [[0, 0], [1, 1]]);
-    const show = (t: number, frames: number, onCurve: boolean) => {
-      const c = ranked.confusion(t);
-      ops.count(1);
-      const tpr = c.tp / Math.max(1, c.tp + c.fn);
-      const fpr = c.fp / Math.max(1, c.fp + c.tn);
-      const ppv = c.tp / Math.max(1, c.tp + c.fp);
-      if (onCurve) ops.point('ROC', fpr, tpr);
-      else ops.setSeries('operating point', [[fpr, tpr]]);
-      const panels = [
-        {
-          kind: 'hist', title: 'Scores within each class: negatives (bars), positives (outline)', lo: LO, hi: HI,
-          bins: neg, tone: 0.3, overlay: { bins: pos, tone: 0.85 }, normalise: true, shade: [t, HI],
-          marks: [{ x: t, label: 'threshold', tone: -1 }],
-        },
-        {
-          kind: 'plot', title: 'ROC: the swept threshold', x: [0, 1], y: [0, 1],
-          lines: [{ pts: [[0, 0], [1, 1]], tone: -1, dash: true, alpha: 0.5 }, { pts: curve.pts, tone: 0.6, weight: 2 }],
-          dots: [{ pts: [[fpr, tpr]], tone: 0.95, size: 5 }],
-        },
-        {
-          kind: 'bars', title: 'What the alarms are', x: [0, 1],
-          rows: [
-            { label: 'alarms that are real', lo: 0, hi: ppv, tone: 0.85 },
-            { label: 'alarms that are false', lo: 0, hi: 1 - ppv, tone: 0.3 },
-            { label: 'positives caught', lo: 0, hi: tpr, tone: 0.65 },
-            { label: 'negatives alarmed', lo: 0, hi: fpr, tone: 0.15 },
-          ],
-        },
-      ] as Panel[];
-      const stats = [
-        { label: 'Base rate (measured)', value: `${pct(P / n, 2)} of ${fmt(n)}` },
-        { label: 'Threshold', value: fmt(t, 2) },
-        { label: 'True / false positive rate', value: `${pct(tpr)} / ${pct(fpr, 2)}` },
-        { label: 'Precision (alarms that are real)', value: `${pct(ppv)}: ${fmt(c.tp)} real, ${fmt(c.fp)} false` },
-        { label: 'AUC', value: `${fmt(curve.auc, 4)} (binormal Φ(d'/√2) = ${fmt(normalCdf(dprime / Math.SQRT2), 4)})` },
-      ];
-      for (let h = 0; h < frames; h++) ops.frame(panels, stats);
-      return c;
-    };
-    for (let k = 0; k <= SWEEP; k++) {
-      show(HI - (k / SWEEP) * (HI - LO), 1, true);
-      yield;
-    }
     const t = num(cfg, 'threshold');
-    const c = show(t, HOLD, false);
-    return { score, label, auc: curve.auc, threshold: t, ...c };
+    return yield* sweep(ops, { score, label, neg, pos, lo: LO, hi: HI, threshold: t,
+      aucText: (a) => `${fmt(a, 4)} (binormal Φ(d'/√2) = ${fmt(normalCdf(dprime / Math.SQRT2), 4)})` });
   },
 };
+
+/** Rows a reader's scores are binned in per piece of work. */
+const BIN_PIECE = 5000;
+
+/**
+ * A reader's scores and labels: a label counts as positive at 0.5 or above, so 0/1 labels read as
+ * they are and a probability of the positive class reads as its more likely class. The threshold
+ * control keeps its meaning on the seeded scores, where negatives score N(0, 1): it is read in
+ * standard deviations of the negatives' scores above their mean. There is no d', so no binormal
+ * AUC beside the measured one.
+ */
+function* onScores(ops: StochasticOps, cfg: Params, score: number[], raw: number[]): Generator<void, RocResult, void> {
+  const n = score.length;
+  const label = raw.map((v) => (v >= 0.5 ? 1 : 0));
+  const negatives = score.filter((_, i) => !label[i]);
+  const P = n - negatives.length;
+  // the threshold's origin and scale: the negatives', or every score's when there are too few
+  const base = negatives.length >= 2 ? negatives : score;
+  const mu = mean(base);
+  const sd = Math.sqrt(variance(base));
+  const t = mu + num(cfg, 'threshold') * (sd > 0 ? sd : 0);
+  let lo = Math.min(...score);
+  let hi = Math.max(...score);
+  const pad = hi > lo ? 0.05 * (hi - lo) : Math.max(1, Math.abs(lo));
+  lo -= pad;
+  hi += pad;
+  const neg = new Array<number>(44).fill(0);
+  const pos = new Array<number>(44).fill(0);
+  for (let i = 0; i < n; i++) {
+    histogram(score, lo, hi, 44, i, i + 1, label[i] ? pos : neg);
+    if (i % BIN_PIECE === BIN_PIECE - 1) yield;
+  }
+  const input = readerInput(`${fmt(n)} scores, ${fmt(P)} labelled positive`);
+  const aucText = (a: number) => (P && P < n ? fmt(a, 4) : 'none: your labels hold one class only, so there is no curve to measure');
+  return yield* sweep(ops, { score, label, neg, pos, lo, hi, threshold: t, aucText, input });
+}
+
+interface Swept {
+  score: number[];
+  label: number[];
+  /** Histograms of the negatives' and the positives' scores over [lo, hi]. */
+  neg: number[];
+  pos: number[];
+  lo: number;
+  hi: number;
+  /** The threshold held at the end of the sweep. */
+  threshold: number;
+  /** The AUC readout's value. */
+  aucText: (a: number) => string;
+  /** The Input readout, on a reader's data only. */
+  input?: Stat;
+}
+
+/** Sort the scores, trace the empirical ROC, then sweep the threshold from hi to lo and hold it. */
+function* sweep(ops: StochasticOps, { score, label, neg, pos, lo, hi, threshold: t, aucText, input }: Swept): Generator<void, RocResult, void> {
+  const n = score.length;
+  const order = yield* sortDescending(score);
+  const desc = new Float64Array(n);
+  const above = new Int32Array(n + 1);
+  for (let k = 0; k < n; k++) {
+    desc[k] = score[order[k]];
+    above[k + 1] = above[k] + label[order[k]];
+  }
+  const ranked = new Ranked(desc, above);
+  const P = ranked.positives;
+  const N = n - P;
+  // the empirical ROC, every distinct score a threshold, and its area by trapezoids
+  const pts: [number, number][] = [[0, 0]];
+  let auc = 0;
+  for (let k = 0; k < n;) {
+    const k0 = k;
+    while (k < n && desc[k] === desc[k0]) k++;
+    const tp0 = above[k0];
+    const tp = above[k];
+    auc += ((k - tp - (k0 - tp0)) / Math.max(1, N)) * ((tp + tp0) / 2 / Math.max(1, P));
+    pts.push([(k - tp) / Math.max(1, N), tp / Math.max(1, P)]);
+    if (k % 10000 < k - k0) yield;
+  }
+  const curve = { pts: pts.filter((_, i) => i % Math.max(1, Math.floor(pts.length / 400)) === 0 || i === pts.length - 1), auc };
+  ops.count(n);
+  yield;
+  ops.setSeries('chance', [[0, 0], [1, 1]]);
+  const show = (t: number, frames: number, onCurve: boolean) => {
+    const c = ranked.confusion(t);
+    ops.count(1);
+    const tpr = c.tp / Math.max(1, c.tp + c.fn);
+    const fpr = c.fp / Math.max(1, c.fp + c.tn);
+    const ppv = c.tp / Math.max(1, c.tp + c.fp);
+    if (onCurve) ops.point('ROC', fpr, tpr);
+    else ops.setSeries('operating point', [[fpr, tpr]]);
+    const panels = [
+      {
+        kind: 'hist', title: 'Scores within each class: negatives (bars), positives (outline)', lo, hi,
+        bins: neg, tone: 0.3, overlay: { bins: pos, tone: 0.85 }, normalise: true, shade: [t, hi],
+        marks: [{ x: t, label: 'threshold', tone: -1 }],
+      },
+      {
+        kind: 'plot', title: 'ROC: the swept threshold', x: [0, 1], y: [0, 1],
+        lines: [{ pts: [[0, 0], [1, 1]], tone: -1, dash: true, alpha: 0.5 }, { pts: curve.pts, tone: 0.6, weight: 2 }],
+        dots: [{ pts: [[fpr, tpr]], tone: 0.95, size: 5 }],
+      },
+      {
+        kind: 'bars', title: 'What the alarms are', x: [0, 1],
+        rows: [
+          { label: 'alarms that are real', lo: 0, hi: ppv, tone: 0.85 },
+          { label: 'alarms that are false', lo: 0, hi: 1 - ppv, tone: 0.3 },
+          { label: 'positives caught', lo: 0, hi: tpr, tone: 0.65 },
+          { label: 'negatives alarmed', lo: 0, hi: fpr, tone: 0.15 },
+        ],
+      },
+    ] as Panel[];
+    const stats: Stat[] = [
+      ...(input ? [input] : []),
+      { label: 'Base rate (measured)', value: `${pct(P / n, 2)} of ${fmt(n)}` },
+      { label: 'Threshold', value: fmt(t, 2) },
+      { label: 'True / false positive rate', value: `${pct(tpr)} / ${pct(fpr, 2)}` },
+      { label: 'Precision (alarms that are real)', value: `${pct(ppv)}: ${fmt(c.tp)} real, ${fmt(c.fp)} false` },
+      { label: 'AUC', value: aucText(curve.auc) },
+    ];
+    for (let h = 0; h < frames; h++) ops.frame(panels, stats);
+    return c;
+  };
+  for (let k = 0; k <= SWEEP; k++) {
+    show(hi - (k / SWEEP) * (hi - lo), 1, true);
+    yield;
+  }
+  const c = show(t, HOLD, false);
+  return { score, label, auc: curve.auc, threshold: t, ...c };
+}

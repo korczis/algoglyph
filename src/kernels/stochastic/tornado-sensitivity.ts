@@ -1,4 +1,6 @@
-import { num } from '../../core/plate';
+import type { DataTable } from '../../core/data';
+import { num, type Stat } from '../../core/plate';
+import { readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, Sampler, SortedSample } from '../../engines/stochastic/sample';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
 
@@ -28,6 +30,15 @@ export function inputs(s: Sampler): Input[] {
   ];
 }
 
+/** A reader's ranges, one row an input of the model in NAMES order; each row's three values are
+ * sorted, so (low, base, high) may come in any order. */
+export function rangesOf(t: DataTable): Input[] {
+  return NAMES.map((name, i) => {
+    const [low, base, high] = [t.values[0][i], t.values[1][i], t.values[2][i]].sort((a, b) => a - b);
+    return { name, low, base, high };
+  });
+}
+
 /** Inverse distribution function of the triangular distribution (low, mode, high). */
 export function triangular(u: number, a: number, c: number, b: number): number {
   const f = (c - a) / (b - a);
@@ -50,11 +61,21 @@ const FILL = 100;
 // a triangular distribution on its range, shows how the swings combine.
 export const kernel: StochasticKernel<TornadoResult> = {
   palette: 'ember',
-  params: [{ kind: 'range', key: 'n', label: 'Joint Monte Carlo runs', min: 500, max: 40000, step: 500, value: 8000, rebuild: true }],
+  params: [
+    // the input: seeded ranges, and a reader's (ADR 0010)
+    {
+      kind: 'select', key: 'ranges', label: 'Input ranges', value: 'seeded', rebuild: true,
+      options: [{ value: 'seeded', label: 'Seeded ranges around a base case' }],
+    },
+    { kind: 'range', key: 'n', label: 'Joint Monte Carlo runs', min: 500, max: 40000, step: 500, value: 8000, rebuild: true },
+  ],
   chart: { title: 'Spider plot: output as each input moves alone', x: { label: 'input position, low (0) to high (1)' }, y: { label: 'output' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
-    const xs = inputs(s);
+    // a reader's ranges (ADR 0010): one row per input of the margin model, in its order
+    const mine = readerTable(cfg, 'ranges', reader);
+    const xs = mine ? rangesOf(mine) : inputs(s);
+    const input: Stat[] = mine ? [readerInput(`ranges of the ${fmt(xs.length)} inputs`)] : [];
     const baseX = xs.map((x) => x.base);
     const base = ops.evaluate(model, baseX);
     const at = (i: number, v: number) => ops.evaluate(model, baseX.map((b, j) => (j === i ? v : b)));
@@ -67,7 +88,8 @@ export const kernel: StochasticKernel<TornadoResult> = {
     const samples: number[] = [];
     let lo = Math.min(...raw.flatMap((r) => [r.atLow, r.atHigh]));
     let hi = Math.max(...raw.flatMap((r) => [r.atLow, r.atHigh]));
-    const pad = 0.6 * (hi - lo);
+    // a reader's ranges may all be points: the axis still needs a width
+    const pad = hi > lo ? 0.6 * (hi - lo) : Math.max(1, 0.1 * Math.abs(base));
     lo -= pad;
     hi += pad;
     const tornado = (shown: number) => ({
@@ -81,7 +103,7 @@ export const kernel: StochasticKernel<TornadoResult> = {
       label: `Swing of ${xs[r.i].name}`, value: `${fmt(Math.abs(r.atHigh - r.atLow), 0)} (${fmt(Math.min(r.atLow, r.atHigh), 0)} to ${fmt(Math.max(r.atLow, r.atHigh), 0)})`,
     }));
     for (let k = 1; k <= swings.length; k++) {
-      for (let h = 0; h < HOLD; h++) ops.frame([tornado(k)], [{ label: 'Base case output', value: fmt(base, 0) }, ...swingStats(k)]);
+      for (let h = 0; h < HOLD; h++) ops.frame([tornado(k)], [...input, { label: 'Base case output', value: fmt(base, 0) }, ...swingStats(k)]);
       yield;
     }
     // the joint runs, kept sorted and binned as they grow
@@ -106,6 +128,7 @@ export const kernel: StochasticKernel<TornadoResult> = {
           marks: [{ x: base, label: 'base', tone: -1, dash: true }, { x: p50, label: 'P50', tone: -1 }],
         },
       ], [
+        ...input,
         { label: 'Base case output', value: fmt(base, 0) },
         ...swingStats(swings.length),
         { label: 'Joint runs', value: fmt(samples.length) },

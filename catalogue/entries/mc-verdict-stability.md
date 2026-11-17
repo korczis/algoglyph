@@ -23,6 +23,21 @@ pedagogy:
     - Find the items a verdict rests on from how much more often it flips when they fail, and see why one strong but unreliable item makes it fragile.
 algorithm:
   paradigm: simulation
+data:
+  - id: items
+    title: Your evidence items
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: llr, unit: 'log-odds (natural)', min: -10, max: 10 }
+      - { key: sd, unit: 'log-odds (natural)', min: 0, max: 10 }
+      - { key: reliability, unit: 'probability (1)', min: 0.05, max: 1 }
+    rows: { min: 1, max: 12 }
+    bytes: 65536
+    replaces: evidence
+    ignores: [k, minRel]
+    url_bytes: 1800
+    note: Each row is an evidence item, its log-likelihood ratio for the hypothesis, the standard deviation of that strength and the probability it holds up, and the plate perturbs them as it does its own; the prior, the strength noise and the runs still apply. With no strength noise the exact stability is enumerated over every subset of your items that may hold up. At most 12 items, as many as the plate enumerates.
 claims:
   - id: fully-reliable-noiseless-evidence-never-flips
     statement: >-

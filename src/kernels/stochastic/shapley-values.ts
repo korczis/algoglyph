@@ -1,4 +1,5 @@
-import { num } from '../../core/plate';
+import { num, type Stat } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, pm, Sampler } from '../../engines/stochastic/sample';
 import type { StochasticKernel } from '../../engines/stochastic/trace';
 
@@ -38,6 +39,11 @@ function orderings(d: number): number[][] {
 }
 
 const FRAMES = 150;
+/** The most players a reader's game may have: the plate's own most inputs. */
+export const MAX_PLAYERS = 6;
+
+/** The players of a reader's series of coalition values: the most d with 2^d values given. */
+export const playersOf = (values: number): number => Math.min(MAX_PLAYERS, Math.floor(Math.log2(values)));
 
 // A coalition S of inputs takes the instance's values for its members and a baseline's for the
 // rest; v(S) is the model's output there. In a random ordering each input joins the inputs
@@ -46,6 +52,11 @@ const FRAMES = 150;
 export const kernel: StochasticKernel<ShapleyResult> = {
   palette: 'riso',
   params: [
+    // the input: a seeded model's coalitions, and a reader's game (ADR 0010)
+    {
+      kind: 'select', key: 'game', label: 'Coalition values', value: 'model', rebuild: true,
+      options: [{ value: 'model', label: 'A seeded model at an instance and a baseline' }],
+    },
     { kind: 'range', key: 'd', label: 'Inputs', min: 2, max: 6, step: 1, value: 5, rebuild: true },
     { kind: 'range', key: 'm', label: 'Sampled orderings', min: 20, max: 4000, step: 20, value: 600, rebuild: true },
     // 0 is the additive model; four terms already touch most of the default five inputs (two
@@ -54,14 +65,22 @@ export const kernel: StochasticKernel<ShapleyResult> = {
     { kind: 'range', key: 'pairs', label: 'Pairwise interactions', min: 0, max: 4, step: 1, value: 2, rebuild: true },
   ],
   chart: { title: 'Error of the sampled values', x: { label: 'orderings sampled', log: true }, y: { label: 'largest |estimate − exact|', log: true } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
-    const d = num(cfg, 'd');
+    // a reader's game (ADR 0010): v(S) for every coalition S, in bit-mask order
+    const mine = readerTable(cfg, 'game', reader);
+    const given = mine ? column(mine) : [];
+    const d = mine ? playersOf(given.length) : num(cfg, 'd');
     const m = num(cfg, 'm');
-    const { a, pairs, f } = model(s, d, num(cfg, 'pairs'));
-    const x = Array.from({ length: d }, () => s.uniform());
-    const base = Array.from({ length: d }, () => s.uniform());
-    const v = (mask: number) => f(x.map((xi, i) => (mask & (1 << i) ? xi : base[i])));
+    const { a, pairs, f } = mine ? { a: [], pairs: [], f: () => NaN } : model(s, d, num(cfg, 'pairs'));
+    const x = mine ? [] : Array.from({ length: d }, () => s.uniform());
+    const base = mine ? [] : Array.from({ length: d }, () => s.uniform());
+    const v = mine ? (mask: number) => given[mask] : (mask: number) => f(x.map((xi, i) => (mask & (1 << i) ? xi : base[i])));
+    const used = 1 << d;
+    const input: Stat[] = mine
+      ? [readerInput(`${fmt(given.length)} coalition values${used < given.length ? `, the first ${fmt(used)}` : ''} for ${fmt(d)} players`)]
+      : [];
+    const tag = (i: number) => (mine ? `player ${i + 1}` : `x${i + 1}`);
     const values = Array.from({ length: 1 << d }, (_, mask) => ops.evaluate(v, mask));
     const all = orderings(d);
     const exact = new Array<number>(d).fill(0);
@@ -105,7 +124,7 @@ export const kernel: StochasticKernel<ShapleyResult> = {
         {
           kind: 'bars', title: 'Sampled Shapley values ± 2 SE; ticks are the exact values', x: [lo, hi],
           rows: e.map((ei, i) => ({
-            label: `x${i + 1}`, lo: 0, hi: ei, tone: 0.1 + (0.8 * i) / Math.max(1, d - 1), mark: exact[i],
+            label: tag(i), lo: 0, hi: ei, tone: 0.1 + (0.8 * i) / Math.max(1, d - 1), mark: exact[i],
             ...(Number.isFinite(se[i]) ? { err: [ei - 2 * se[i], ei + 2 * se[i]] as [number, number] } : {}),
           })),
         },
@@ -115,10 +134,11 @@ export const kernel: StochasticKernel<ShapleyResult> = {
           marks: exact.map((ex, i) => ({ y: ex, tone: 0.1 + (0.8 * i) / Math.max(1, d - 1), dash: true })),
         },
       ], [
+        ...input,
         { label: 'Orderings sampled', value: fmt(done) },
         { label: 'Sum of estimates', value: `${fmt(e.reduce((a, b) => a + b, 0), 6)} = v(all) − v(none) ${fmt(full, 6)}` },
         { label: 'Largest error', value: fmt(err, 4) },
-        { label: `Largest attribution x${top + 1}`, value: Number.isFinite(se[top]) ? pm(e[top], se[top]) : fmt(e[top], 3) },
+        { label: `Largest attribution ${tag(top)}`, value: Number.isFinite(se[top]) ? pm(e[top], se[top]) : fmt(e[top], 3) },
       ]);
       yield;
     }
