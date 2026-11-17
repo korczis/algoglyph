@@ -44,15 +44,23 @@ export function terrain(w: number, h: number, seed: number): Terrain {
   // Each pass settles at least one more vertex of the slope; on a map too small for the river, the
   // ridge and the sites to keep apart, fixed vertices pull a slope both ways and it would never
   // settle, so the passes are bounded (the plate keeps its maps at least MIN_W × MIN_H).
+  // Allocation-free: the pass visits each vertex's east, then south neighbour in the order the
+  // array-of-pairs loop did (that loop allocated three arrays per pair, up to 2(vw + vh) passes,
+  // and cost a 180 × 112 map about 15–20 ms in one frame); test/track-planning-terrain.test.ts
+  // proves the maps byte-equal to it within one run.
+  const settle = (i: number, j: number): boolean => {
+    const hi = heights[i] > heights[j] ? i : j;
+    const lo = hi === i ? j : i;
+    if (heights[hi] - heights[lo] <= 1) return false;
+    if (!fixed[hi]) heights[hi] = heights[lo] + 1; else heights[lo] = heights[hi] - 1;
+    return true;
+  };
   for (let changed = true, pass = 0; changed && pass < 2 * (vw + vh); pass++) {
     changed = false;
-    for (let y = 0; y < vh; y++) for (let x = 0; x < vw; x++) for (const [nx, ny] of [[x + 1, y], [x, y + 1]]) {
-      if (nx >= vw || ny >= vh) continue;
-      const i = y * vw + x; const j = ny * vw + nx;
-      const [hi, lo] = heights[i] > heights[j] ? [i, j] : [j, i];
-      if (heights[hi] - heights[lo] <= 1) continue;
-      if (!fixed[hi]) heights[hi] = heights[lo] + 1; else heights[lo] = heights[hi] - 1;
-      changed = true;
+    for (let y = 0; y < vh; y++) for (let x = 0; x < vw; x++) {
+      const i = y * vw + x;
+      if (x + 1 < vw && settle(i, i + 1)) changed = true;
+      if (y + 1 < vh && settle(i, i + vw)) changed = true;
     }
   }
   const types = new Uint8Array(vw * vh).fill(C);

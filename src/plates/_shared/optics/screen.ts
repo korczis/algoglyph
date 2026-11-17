@@ -15,7 +15,7 @@
 // Densities are per emitted particle: with one slit closed, half of what is emitted is stopped by
 // it (the source lights the two openings equally), so P₁ + P₂ and P₁₂ compare at the same flux.
 // Pure: no p5, and the only randomness is the generator passed in.
-import { cumulative, integrate, sinc } from './math';
+import { cumulative, integrate, sinc } from '../two-slit/math';
 
 export interface Slits {
   /** Wavelength (m). */
