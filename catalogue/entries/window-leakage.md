@@ -24,6 +24,19 @@ pedagogy:
   - See a tone on a bin fall into one bin, and a tone half a bin away leak into every bin.
   - Trade main-lobe width against side-lobe level across the rectangular, Hann, Hamming, Blackman and Blackman–Harris windows.
   - Lower the weak tone or move it closer and see when leakage buries it.
+data:
+  - id: samples
+    title: Your samples
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e9, max: 1.0e9 }
+    rows: { min: 8, max: 128 }
+    bytes: 65536
+    replaces: signal
+    ignores: [weak, gap]
+    url_bytes: 1800
+    note: Your samples are read at N a second, the window length N (64 or 128), as the seeded tones are, so one bin is one hertz; the window and the transform take the first N of them, zero-padded when there are fewer, and the side lobe and width readouts stay the window's own. The weak tone's level and distance shape only the seeded signal and do nothing on your data.
 claims:
   - id: rectangular-side-lobe
     statement: >-
@@ -103,3 +116,5 @@ A tone between bins smears across the spectrum; each window trades width for sid
 A tone exactly on a bin falls into one bin of the DFT; moved half a bin away it leaks into every bin, because the record no longer holds a whole number of periods. The plate slides the tone from on-bin to half-way and back, with the zero-padded transform drawn under the DFT bins so the window's main lobe and side lobes are visible.
 
 Each window trades main-lobe width for side-lobe level: the rectangular window has the narrowest main lobe and side lobes near −13 dB; Hann about −31 dB, Hamming about −43 dB, Blackman about −58 dB and the four-term Blackman–Harris about −92 dB. The side lobe and −3 dB width shown are measured from the window's own transform; at 128 samples instead of 64 they sit closer to the published large-N values, Hamming's most of all. Lower the weak tone or move it closer to see when leakage buries it.
+
+On your own series the plate windows its first N samples instead, marks the peak bin and draws the series' bins under every window, so the windows' leakage can be compared on your numbers; there is no tone to know there, so nothing is compared with a truth.

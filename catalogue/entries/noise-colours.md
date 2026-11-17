@@ -25,6 +25,19 @@ pedagogy:
   - Tell white, pink and brown noise apart by power falling 0, 3 and 6 dB per octave.
   - Make pink noise by the Voss–McCartney algorithm and brown noise by a leaky integrator.
   - Fit the slopes by least squares to Welch-averaged power in third-octave bands.
+data:
+  - id: samples
+    title: Your samples
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e9, max: 1.0e9 }
+    rows: { min: 1024, max: 98304 }
+    bytes: 65536
+    replaces: signal
+    ignores: [rows, leak]
+    url_bytes: 1800
+    note: Your samples are read at 8000 a second, the plate's rate, as one more noise; the plate takes the first 48 blocks of 2048 of them, as many as it generates of each seeded noise, and a series needs at least one Hann frame of 1024. The slope is fitted in the same third-octave bands with no ideal beside it, since nothing says what colour your data is; the Voss–McCartney rows and the leak shape only the seeded noises.
 claims:
   - id: brown-slope-at-the-default-leak
     statement: >-

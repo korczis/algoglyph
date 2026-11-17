@@ -1,5 +1,5 @@
 import { str } from '../../core/plate';
-import { mulberry32 } from '../../engines/signal/input';
+import { mulberry32, readerSeries } from '../../engines/signal/input';
 import { MUL, type Meter, type Series, type SignalKernel, type View } from '../../engines/signal/trace';
 
 const S3 = Math.sqrt(3);
@@ -88,17 +88,23 @@ const energy = (x: ArrayLike<number>) => { let s = 0; for (let i = 0; i < x.leng
 // coefficients and rebuild, which is wavelet compression.
 export const kernel: SignalKernel = {
   params: [
+    { kind: 'select', key: 'signal', label: 'Signal', value: 'step-burst',
+      options: [{ value: 'step-burst', label: 'Sine with a step and a burst' }] },
     { kind: 'select', key: 'wavelet', label: 'Wavelet', value: 'db2', options: Object.entries(FILTERS).map(([value, f]) => ({ value, label: f.label })) },
     { kind: 'range', key: 'levels', label: 'Levels', min: 1, max: 6, step: 1, value: 5 },
     { kind: 'range', key: 'keep', label: 'Coefficients kept for compression (%)', min: 1, max: 50, step: 1, value: 8 },
     { kind: 'select', key: 'n', label: 'Signal length', value: String(N),
       options: [128, 256, N].map((v) => ({ value: String(v), label: `${v} samples` })) },
   ],
-  run(params, seed, meter): View[] {
+  run(params, seed, meter, data): View[] {
     const n = Number(params.n ?? N);
     const h = FILTERS[str(params, 'wavelet')]?.h ?? FILTERS.db2.h;
     const levels = Number(params.levels);
-    const x = testSignal(n, seed);
+    // a reader's series (ADR 0010): its first n samples, zero-padded when it is shorter; the
+    // transform has no clock, so the readout names no rate
+    const yours = readerSeries(params, 'signal', data);
+    const x = yours ? Float64Array.from({ length: n }, (_, i) => yours[i] ?? 0) : testSignal(n, seed);
+    const input = yours ? [{ label: 'Input', value: `your data, ${yours.length} samples${n < yours.length ? `, the first ${n} used` : ''}` }] : [];
     const total = energy(x);
     const views: View[] = [];
     const details: Float64Array[] = [];
@@ -125,6 +131,7 @@ export const kernel: SignalKernel = {
           { label: 'Level', value: `${j} of ${levels}` },
           { label: `Energy in d${j}`, value: `${energies[j - 1][1].toFixed(2)} %` },
           { label: `Energy in a${j}`, value: `${((100 * energy(a)) / total).toFixed(2)} %` },
+          ...input,
         ],
         counts: meter.snapshot(),
         chart: { title: 'Energy by octave', x: { label: 'level' }, y: { label: 'share of energy (%)' }, series: [{ name: 'detail energy', points: energies.slice() }] },
@@ -157,6 +164,7 @@ export const kernel: SignalKernel = {
         { label: 'Perfect reconstruction, largest error', value: worst.toExponential(2) },
         { label: 'Coefficients kept', value: `${kept} of ${n}` },
         { label: 'Compression SNR (measured)', value: `${snr.toFixed(1)} dB` },
+        ...input,
       ],
       counts: meter.snapshot(),
       chart: views[views.length - 1]?.chart,
