@@ -1593,3 +1593,15 @@ sources:
     year: 1947
     kind: paper
     url: https://doi.org/10.1017/S0305004100023197
+  - id: landau-lifshitz-mechanics
+    title: Mechanics (Course of Theoretical Physics, Volume 1, third edition)
+    author: Lev D. Landau, Evgeny M. Lifshitz
+    publisher: Butterworth-Heinemann
+    year: 1976
+    kind: book
+  - id: yoshida-1990
+    title: Construction of Higher Order Symplectic Integrators (Physics Letters A 150, 262)
+    author: Haruo Yoshida
+    year: 1990
+    kind: paper
+    url: https://doi.org/10.1016/0375-9601(90)90092-3
