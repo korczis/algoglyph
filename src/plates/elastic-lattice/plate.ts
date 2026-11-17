@@ -50,16 +50,21 @@ export const elasticLattice: PlateCode = {
         { value: 'clamped', label: 'hold the ends fast' },
       ],
     },
-    // a strip from 8 to 80 sites long: below 8 there is no middle to measure; 80 × 40 is the frame budget's corner
+    // a strip from 8 to 80 sites long: below 8 there is no middle to measure; above 80 columns, or
+    // 40 rows, a bond is under 4 px at the phone's width and the sheet blurs. A frame's work is capped
+    // by WORK_PER_FRAME at any size, so the frame budget does not end these ranges.
     { kind: 'range', key: 'columns', label: 'Strip length (sites)', min: 8, max: 80, step: 1, value: 48, rebuild: true, when: when('stretch') },
     { kind: 'range', key: 'rows', label: 'Strip width (rows)', min: 3, max: 40, step: 1, value: 12, rebuild: true, when: when('stretch') },
     { kind: 'range', key: 'strain', label: 'Pull, as a strain (%)', min: 0.1, max: 5, step: 0.1, value: 1, rebuild: true, when: when('stretch'),
-      hint: 'The springs are linear: the pull scales every displacement and force, and leaves the ratios alone.' },
+      hint: 'The springs are linear: the pull scales every displacement and force, and leaves the ratios alone. Past 5% the bonds’ turning, which the linear springs leave out, would matter.' },
+    // 64 columns is the widest periodic sheet whose bonds stay legible at the phone's width
     { kind: 'range', key: 'size', label: 'Sheet size (columns)', min: 16, max: 64, step: 2, value: 48, rebuild: true, when: when('waves', 'pulse') },
     { kind: 'range', key: 'waves', label: 'Wavelengths across the sheet', min: 1, max: 12, step: 1, value: 1, rebuild: true, when: when('waves'),
-      hint: 'One is the longest wave the sheet holds; at twelve the lattice’s dispersion shows in the ratio of the speeds.' },
-    { kind: 'range', key: 'periods', label: 'Run for this many transverse periods', min: 2, max: 12, step: 1, value: 4, rebuild: true, when: when('waves') },
-    { kind: 'range', key: 'k', label: 'Spring constant k', min: 0.25, max: 4, step: 0.25, value: 1, rebuild: true },
+      hint: 'One is the longest wave the sheet holds; at twelve on 48 columns, four sites to a wavelength, the lattice’s dispersion shows in the ratio of the speeds. Past half the columns a wave is the same as a longer one.' },
+    { kind: 'range', key: 'periods', label: 'Run for this many transverse periods', min: 2, max: 12, step: 1, value: 4, rebuild: true, when: when('waves'),
+      hint: 'Two periods give the zeros a frequency needs; twelve give six times as many, enough to watch the measurement settle.' },
+    { kind: 'range', key: 'k', label: 'Spring constant k', min: 0.25, max: 4, step: 0.25, value: 1, rebuild: true,
+      hint: 'k scales every frequency by √k and every modulus by k, and no ratio: a factor of 16 shows that, and more would show nothing new.' },
     { kind: 'range', key: 'magnify', label: 'Drawn displacement, exaggerated', min: 1, max: 100, step: 1, value: 20, cosmetic: true,
       hint: 'The strip: 20 draws the true displacement. Waves and the kick: the largest displacement is drawn as a fiftieth of this, in sites.' },
     paceParam(),
