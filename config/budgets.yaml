@@ -21,6 +21,20 @@ drag_steps: 8         # steps of a slider swept from its minimum to its maximum,
 reference_cpu_ms: 2.9   # referenceCpuMs() in test/support/budget.ts on the reference machine (an M-series Mac,
                         # best of seven at 2026-11-12T00:21Z); budgets scale by measured / this, never below 1
 local_headroom: 0.6     # outside CI (no CI env var) the budgets are this fraction: local green predicts CI green
+# What the gate measures is not quite the site. The gate runs under vitest, whose module transform
+# turns each imported binding into a property read on a module object; the site ships a bundle
+# where an import is a plain binding. scripts/budget-vs-bundle.mjs times the same corners both
+# ways in one process (2026-11-17, tree e3ffed0, load ~5; thread CPU per frame, best of 2):
+#   ripple-tank double slit, res 2, 8 steps  median 10.45 vs 3.18 ms (3.3x), worst 13.78 vs 3.40 (4.1x)
+#   gray-scott, res 2, 40 steps              median  9.39 vs 3.32 ms (2.8x), worst 11.51 vs 3.86 (3.0x)
+#   boids-3d, 1500 at radius 0.3             median  6.89 vs 6.87 ms (1.0x), worst  9.71 vs 10.25
+#   lorenz-attractor, 48 x 2400, 12 steps    median  1.32 vs 1.32 ms (1.0x), worst  3.16 vs 2.87
+# A second run minutes later: 3.2x / 2.9x, 2.9x / 3.0x, 0.95x / 0.94x, 0.95x / 0.67x (median /
+# worst); the medians repeat to a few percent, a single worst frame does not.
+# The two over 1 call an imported function in a per-cell loop (flush from src/core/budget.ts);
+# the two at 1 call none. So the margin errs safe, by up to 3-4x exactly where a hot loop reads
+# an import, and by nothing elsewhere: a reading near the budget is real unless the plate has that
+# pattern, and the cure (a local copy, bit-equal) is cheap in both runtimes. The thresholds stay.
 # The budget a capped sorting kernel's max_n is measured against (test/sorting-max-n.test.ts), in
 # reference milliseconds of one rebuild; ALGOGLYPH_MAX_N_MS overrides it for one run only.
 max_n_budget_ms: 17
