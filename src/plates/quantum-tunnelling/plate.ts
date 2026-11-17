@@ -1,4 +1,4 @@
-import { mix, paletteParam, ramp, type Palette, type RGB } from '../../core/palette';
+import { mix, mixInto, paletteParam, ramp, rampInto, type Palette, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { RunCounter, runsParam } from '../_shared/settle/settle';
@@ -82,11 +82,16 @@ export const quantumTunnelling: PlateCode = {
       const pal = ctx.palette();
       if (pal === lutFor) return;
       lutFor = pal;
+      // mix(bg, ramp(pal, t), …) and ramp(pal, t, true) in place, bound to locals: bit-equal,
+      // no array per entry
+      const into = rampInto; const blend = mixInto; const bg = ctx.bg;
+      const c: RGB = [0, 0, 0];
+      const h: RGB = [0, 0, 0];
       for (let i = 0; i < LUT; i++) {
         const t = i / (LUT - 1);
-        const c = mix(ctx.bg, ramp(pal, 0.2 + 0.8 * t), Math.min(1, 1.6 * t));
+        blend(c, bg, into(c, pal, 0.2 + 0.8 * t), Math.min(1, 1.6 * t));
         densityLut.set(c, i * 3);
-        const h = ramp(pal, i / LUT, true);
+        into(h, pal, i / LUT, true);
         phaseLut.set(h, i * 3);
         phaseStyle[i] = rgba(h, 0.8);
       }

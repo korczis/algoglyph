@@ -1,4 +1,7 @@
-import { mix, paletteParam, ramp, scale, type RGB } from '../../core/palette';
+import { mix, mixInto, paletteParam, ramp, rampInto, scaleInto, type RGB } from '../../core/palette';
+
+/** The colour the terrain's paint loop writes into, tile after tile. */
+const tile: RGB = [0, 0, 0];
 import { bool, num, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { HOLD_FRAMES, Pacer, paceParam } from '../../core/pace';
@@ -88,17 +91,22 @@ export const trackPlanning: PlateCode = {
     function paint(pal: ReturnType<typeof ctx.palette>) {
       const { map } = world;
       const tw = map.w - 1; const th = map.h - 1;
+      // in place and bound to locals (scripts/check-hot-loops.mjs): the arithmetic of ramp, mix
+      // and scale in order, so every pixel is bit-equal, with no array per tile
+      const into = rampInto; const blend = mixInto; const sc = scaleInto;
+      const { bg, fg } = ctx; const c = tile;
       for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) {
-        const k = [map.heights[y * map.w + x], map.heights[(y + 1) * map.w + x], map.heights[(y + 1) * map.w + x + 1], map.heights[y * map.w + x + 1]];
-        const top = Math.max(...k);
+        const k0 = map.heights[y * map.w + x]; const k1 = map.heights[(y + 1) * map.w + x];
+        const k2 = map.heights[(y + 1) * map.w + x + 1]; const k3 = map.heights[y * map.w + x + 1];
+        const top = Math.max(k0, k1, k2, k3);
         const t = String.fromCharCode(map.types[y * map.w + x]);
-        let c: RGB = mix(ctx.bg, ramp(pal, 0.15 + 0.14 * top), 0.55);
+        blend(c, bg, into(c, pal, 0.15 + 0.14 * top), 0.55);
         // light from the north: a tile falling to the south-east is darker
-        c = scale(c, 1 + 0.06 * ((k[0] + k[3]) - (k[1] + k[2])));
-        if (t === 'W') c = mix(ctx.bg, ramp(pal, 0.02), 0.85);
-        else if (t === 'H') c = mix(ctx.bg, ctx.fg, 0.7);
-        else if (t === 'T') c = scale(c, 0.8);
-        else if (t === 'S') c = mix(ctx.bg, ctx.fg, 0.9);
+        sc(c, c, 1 + 0.06 * ((k0 + k3) - (k1 + k2)));
+        if (t === 'W') blend(c, bg, into(c, pal, 0.02), 0.85);
+        else if (t === 'H') blend(c, bg, fg, 0.7);
+        else if (t === 'T') sc(c, c, 0.8);
+        else if (t === 'S') blend(c, bg, fg, 0.9);
         raster.set(x, y, c[0], c[1], c[2]);
       }
     }

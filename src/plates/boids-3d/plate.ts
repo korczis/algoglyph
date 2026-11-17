@@ -1,4 +1,24 @@
-import { mix, paletteParam, ramp, type RGB } from '../../core/palette';
+import { mix, paletteParam, type RGB } from '../../core/palette';
+
+/** mix(ramp(stops, t, cyclic), fg, 0.14) into `out`: ramp's and mix's arithmetic in the same order. */
+export function tint(out: RGB, s: RGB[], t: number, cyclic: boolean, fg: RGB): void {
+  let a: RGB; let b: RGB; let f: number;
+  if (cyclic) {
+    const u = t - Math.floor(t);
+    const x = u * s.length;
+    const i = Math.floor(x) % s.length;
+    a = s[i]; b = s[(i + 1) % s.length]; f = x - Math.floor(x);
+  } else {
+    let u = Math.min(1, Math.max(0, t));
+    u *= s.length - 1;
+    const i = Math.min(s.length - 2, Math.floor(u));
+    a = s[i]; b = s[i + 1]; f = u - i;
+  }
+  const r0 = a[0] + (b[0] - a[0]) * f; const r1 = a[1] + (b[1] - a[1]) * f; const r2 = a[2] + (b[2] - a[2]) * f;
+  out[0] = r0 + (fg[0] - r0) * 0.14;
+  out[1] = r1 + (fg[1] - r1) * 0.14;
+  out[2] = r2 + (fg[2] - r2) * 0.14;
+}
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { DEFAULT_RULES, Flock, Grid, meanNearest, polarisation, type Rules, type V3 }
   from './flock';
@@ -126,8 +146,10 @@ export const boidsMurmuration: PlateCode = {
           const t = byHeading
             ? Math.atan2(vel[i * 3 + 2], vel[i * 3]) / (2 * Math.PI) + 0.5
             : 0.4 + 0.6 * Math.min(1, crowd[i] / 16);
-          // lift every bird a little towards the ink so the palette's dark end stays visible
-          colours[i] = mix(ramp(pal, t, byHeading), ctx.fg, 0.14);
+          // lift every bird a little towards the ink so the palette's dark end stays visible:
+          // mix(ramp(pal, t, byHeading), fg, 0.14) written into the bird's own colour, the
+          // arithmetic of ramp and mix in order, so no array is allocated per bird and frame
+          tint(colours[i], pal.stops, t, byHeading, ctx.fg);
         }
 
         p.background(...ctx.bg);

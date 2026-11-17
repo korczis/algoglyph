@@ -79,3 +79,16 @@ export function momentum(b: Bodies): number {
   }
   return Math.hypot(px, py, pz);
 }
+
+/** The total angular momentum Σ m x×v about the origin. */
+export function angularMomentum(b: Bodies): Float64Array {
+  const L = new Float64Array(3);
+  for (let i = 0; i < b.n; i++) {
+    const [x, y, z] = [b.x[i * 3], b.x[i * 3 + 1], b.x[i * 3 + 2]];
+    const [u, v, w] = [b.v[i * 3], b.v[i * 3 + 1], b.v[i * 3 + 2]];
+    L[0] += b.m[i] * (y * w - z * v);
+    L[1] += b.m[i] * (z * u - x * w);
+    L[2] += b.m[i] * (x * v - y * u);
+  }
+  return L;
+}

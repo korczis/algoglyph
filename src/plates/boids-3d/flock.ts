@@ -85,6 +85,50 @@ export class Grid {
   }
 
   /**
+   * The squared distance from boid i to its nearest other boid, exact: the cells are searched in
+   * shells of growing Chebyshev radius k about i's cell, and the search stops once every cell not
+   * yet searched is farther than the best distance found (at least k whole cells away). The
+   * squared distance is the same expression meanNearest always used, so the value is bit-equal.
+   */
+  nearest(pos: Float64Array, i: number, n: number): number {
+    const x = pos[i * 3];
+    const y = pos[i * 3 + 1];
+    const z = pos[i * 3 + 2];
+    const h = this.half;
+    const cx = this.axis(x, h[0], this.wx, this.nx);
+    const cy = this.axis(y, h[1], this.wy, this.ny);
+    const cz = this.axis(z, h[2], this.wz, this.nz);
+    const w = Math.min(this.wx, this.wy, this.wz);
+    const inside = Math.abs(x) <= h[0] && Math.abs(y) <= h[1] && Math.abs(z) <= h[2];
+    const most = Math.max(this.nx, this.ny, this.nz);
+    let best = Infinity;
+    for (let k = 0; k <= most; k++) {
+      // every cell at Chebyshev distance exactly k from i's cell
+      for (let kz = cz - k; kz <= cz + k; kz++) {
+        if (kz < 0 || kz >= this.nz) continue;
+        for (let ky = cy - k; ky <= cy + k; ky++) {
+          if (ky < 0 || ky >= this.ny) continue;
+          const shell = Math.abs(kz - cz) === k || Math.abs(ky - cy) === k;
+          for (let kx = cx - k; kx <= cx + k; kx += shell ? 1 : 2 * k || 1) {
+            if (kx < 0 || kx >= this.nx) continue;
+            const c = kx + this.nx * (ky + this.ny * kz);
+            for (let q = this.start[c]; q < this.start[c + 1]; q++) {
+              const j = this.order[q];
+              if (j === i) continue;
+              const d2 = (pos[j * 3] - x) ** 2 + (pos[j * 3 + 1] - y) ** 2 + (pos[j * 3 + 2] - z) ** 2;
+              if (d2 < best) best = d2;
+            }
+          }
+        }
+      }
+      // a cell k + 1 away is at least k whole cells from any point of i's cell (a boid outside
+      // the box sits in a clamped edge cell, which that bound does not cover: it is searched out)
+      if (inside && best <= (k * w) ** 2) break;
+    }
+    return n > 1 ? best : Infinity;
+  }
+
+  /**
    * Write into `out` every boid j ≠ i with |x_j − x_i| < r and return how many. `r` must not
    * exceed the cell size the grid was built with.
    */
@@ -206,31 +250,35 @@ export class Flock {
       let ay = 0;
       let az = 0;
       if (m > 0) {
-        sep[0] = sep[1] = sep[2] = 0;
-        ali[0] = ali[1] = ali[2] = 0;
-        coh[0] = coh[1] = coh[2] = 0;
+        // the sums in locals, added in the same order as into the arrays they replaced (bit-equal)
+        let s0 = 0; let s1 = 0; let s2 = 0;
+        let a0 = 0; let a1 = 0; let a2 = 0;
+        let c0 = 0; let c1 = 0; let c2 = 0;
         let close = 0;
         for (let k = 0; k < m; k++) {
-          const j = buf[k];
-          const dx = x - pos[j * 3];
-          const dy = y - pos[j * 3 + 1];
-          const dz = z - pos[j * 3 + 2];
+          const j3 = buf[k] * 3;
+          const dx = x - pos[j3];
+          const dy = y - pos[j3 + 1];
+          const dz = z - pos[j3 + 2];
           const d2 = dx * dx + dy * dy + dz * dz;
           if (d2 < rs2) {
             // away from the neighbour, weighted 1/d so the nearest push hardest
             const w = 1 / Math.max(d2, 1e-12);
-            sep[0] += dx * w;
-            sep[1] += dy * w;
-            sep[2] += dz * w;
+            s0 += dx * w;
+            s1 += dy * w;
+            s2 += dz * w;
             close++;
           }
-          ali[0] += vel[j * 3];
-          ali[1] += vel[j * 3 + 1];
-          ali[2] += vel[j * 3 + 2];
-          coh[0] += pos[j * 3];
-          coh[1] += pos[j * 3 + 1];
-          coh[2] += pos[j * 3 + 2];
+          a0 += vel[j3];
+          a1 += vel[j3 + 1];
+          a2 += vel[j3 + 2];
+          c0 += pos[j3];
+          c1 += pos[j3 + 1];
+          c2 += pos[j3 + 2];
         }
+        sep[0] = s0; sep[1] = s1; sep[2] = s2;
+        ali[0] = a0; ali[1] = a1; ali[2] = a2;
+        coh[0] = c0; coh[1] = c1; coh[2] = c2;
         if (close > 0 && rules.separation !== 0) {
           steer(f, sep, vx, vy, vz, maxSpeed, maxForce);
           ax += rules.separation * f[0];
@@ -328,21 +376,13 @@ export function polarisation(f: Flock): number {
 export function meanNearest(f: Flock, cell: number, grid = new Grid()): number {
   const { n, pos } = f;
   if (n < 2) return 0;
-  grid.build(pos, n, f.half, cell);
-  const buf = new Int32Array(n);
+  // its own grid, about two boids a cell, searched in shells (Grid.nearest): exact, bit-equal to
+  // the scan of the perception block and, for a boid with no neighbour in it, of every boid that
+  // it replaced, whose cost grew with the radius (4.5 ms at radius 0.3 and 1500 boids)
+  void cell;
+  const volume = 8 * f.half[0] * f.half[1] * f.half[2];
+  grid.build(pos, n, f.half, Math.cbrt((2 * volume) / n));
   let sum = 0;
-  for (let i = 0; i < n; i++) {
-    const m = grid.query(pos, i, cell, buf);
-    let best = Infinity;
-    const scan = m > 0 ? m : n;
-    for (let k = 0; k < scan; k++) {
-      const j = m > 0 ? buf[k] : k;
-      if (j === i) continue;
-      const d2 = (pos[j * 3] - pos[i * 3]) ** 2 + (pos[j * 3 + 1] - pos[i * 3 + 1]) ** 2
-        + (pos[j * 3 + 2] - pos[i * 3 + 2]) ** 2;
-      if (d2 < best) best = d2;
-    }
-    sum += Math.sqrt(best);
-  }
+  for (let i = 0; i < n; i++) sum += Math.sqrt(grid.nearest(pos, i, n));
   return sum / n;
 }
