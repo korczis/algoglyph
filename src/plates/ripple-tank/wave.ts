@@ -10,6 +10,7 @@
 // intensity average, goes through `flush` (src/core/budget.ts): below TINY it is an exact zero.
 
 import { flush } from '../../core/budget';
+import { leapfrog2d } from '../_shared/wave2d/leapfrog';
 
 /** Courant number squared, (c·dt/dx)², kept under the 2D stability limit of 1/2. */
 export const C2 = 0.24;
@@ -121,18 +122,8 @@ export function advance(t: Tank, lambda: number): void {
   for (const [sx, sy] of t.sources) u[sy * w + sx] = 1.4 * drive;
   const prev = t.prev;
   const nxt = t.nxt;
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
-      if (wall[i]) {
-        nxt[i] = 0;
-        continue;
-      }
-      const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * u[i];
-      const v = (2 * u[i] - prev[i] + c2 * lap) * damp[i];
-      nxt[i] = f ? flush(v) : v;
-    }
-  }
+  // the S2 stencil, shared with the string and the dispersive line (src/plates/_shared/wave2d)
+  leapfrog2d(u, prev, nxt, w, h, c2, damp, wall, f);
   t.prev = u;
   t.u = nxt;
   t.nxt = prev;
