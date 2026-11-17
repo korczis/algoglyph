@@ -211,7 +211,7 @@ export const crystalDiffraction: PlateCode = {
           }
         }
         g.fillStyle = rgba(fg, 0.75);
-        g.fillText(`reflections (h, k, ${layer}); hollow: absent`, mx, my - 8);
+        g.fillText(`(h, k, ${layer}); hollow: absent`, mx, my - 8);
         // right: the powder diffractogram, scanned in 2θ
         const px = mx + side + W * 0.03;
         const pw = W - px - W * 0.03;
@@ -237,7 +237,7 @@ export const crystalDiffraction: PlateCode = {
         g.lineTo(px + (scan / 180) * pw, my + ph);
         g.stroke();
         g.fillStyle = rgba(fg, 0.75);
-        g.fillText('powder lines against 2θ, 0° to 180°', px, my - 8);
+        g.fillText('powder lines, 2θ 0°–180°', px, my - 8);
         g.restore();
         ctx.stats([pacer.row(params), { label: 'Input', value: input }, { label: 'scan 2θ (degrees)', value: scan.toFixed(1) }, ...fixed]);
       },
