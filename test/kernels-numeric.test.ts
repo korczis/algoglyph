@@ -177,6 +177,25 @@ const REFERENCES: Record<string, () => void> = {
     trap.forEach(([e], i) => { expect(e).toBe(2 ** (i + 1) + 1); expect(simp[i][0]).toBe(e); });
   },
 
+  'adaptive-quadrature': () => {
+    for (const [key, g] of Object.entries(INTEGRANDS)) {
+      const r = adaptive.adaptiveSimpson(g.f, g.a, g.b, 1e-9);
+      close(r.value, g.exact, 1e-7);
+      // every node is evaluated once: three to start, two per examined interval
+      expect(r.evals, key).toBe(3 + 2 * r.pieces.length);
+      expect(new Set(r.nodes.map((q) => q[0])).size, key).toBe(r.nodes.length);
+      const accepted = r.pieces.filter((q) => q.accepted);
+      close(accepted.reduce((s, q) => s + (q.b - q.a), 0), g.b - g.a, 1e-12);
+    }
+    // on a sharp peak, adaptivity reaches an error with fewer evaluations than uniform panels
+    const g = INTEGRANDS.peak;
+    const r = adaptive.adaptiveSimpson(g.f, g.a, g.b, 1e-8);
+    const err = Math.abs(r.value - g.exact);
+    let n = 2;
+    while (Math.abs(simpson.simpson(g.f, g.a, g.b, n) - g.exact) > err) n += 2;
+    expect(r.evals).toBeLessThan(n + 1);
+  },
+
   'roots-and-logarithms': () => {
     // the pencil root is ⌊√N⌋: checked by its defining inequality, and against perfect squares
     for (const N of [0n, 1n, 2n, 99n, 100n, 10n ** 41n, 123456789n ** 2n, 123456789n ** 2n - 1n]) {
@@ -203,25 +222,6 @@ const REFERENCES: Record<string, () => void> = {
     let x = run.S; const target = 3n * run.S * run.S;
     for (let k = 0; k < 10; k++) x = (x + (target / run.S) * x / run.S) / 2n;
     expect(rl.correctDigits(x, run.ref, rl.ROOT_DIGITS)).toBeLessThan(1);
-  },
-
-  'adaptive-quadrature': () => {
-    for (const [key, g] of Object.entries(INTEGRANDS)) {
-      const r = adaptive.adaptiveSimpson(g.f, g.a, g.b, 1e-9);
-      close(r.value, g.exact, 1e-7);
-      // every node is evaluated once: three to start, two per examined interval
-      expect(r.evals, key).toBe(3 + 2 * r.pieces.length);
-      expect(new Set(r.nodes.map((q) => q[0])).size, key).toBe(r.nodes.length);
-      const accepted = r.pieces.filter((q) => q.accepted);
-      close(accepted.reduce((s, q) => s + (q.b - q.a), 0), g.b - g.a, 1e-12);
-    }
-    // on a sharp peak, adaptivity reaches an error with fewer evaluations than uniform panels
-    const g = INTEGRANDS.peak;
-    const r = adaptive.adaptiveSimpson(g.f, g.a, g.b, 1e-8);
-    const err = Math.abs(r.value - g.exact);
-    let n = 2;
-    while (Math.abs(simpson.simpson(g.f, g.a, g.b, n) - g.exact) > err) n += 2;
-    expect(r.evals).toBeLessThan(n + 1);
   },
 
   'polynomial-interpolation': () => {
