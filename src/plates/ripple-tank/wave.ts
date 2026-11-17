@@ -17,7 +17,7 @@ export const C2 = 0.24;
 /** Width of the absorbing sponge in cells. */
 export const SPONGE = 18;
 
-export type Experiment = 'double' | 'single' | 'two' | 'free';
+export type Experiment = 'double' | 'single' | 'two' | 'free' | 'array' | 'moving' | 'drum';
 
 export interface Tank {
   w: number;
@@ -35,6 +35,10 @@ export interface Tank {
   /** First column of the barrier (the slit experiments). */
   barrierX: number;
   sources: [number, number][];
+  /** Each source's phase in radians (the phased array); absent, every source is in phase. */
+  phases?: number[];
+  /** A source moving along a row: its start column, its row and its speed in cells per step. */
+  mover?: { x0: number; y: number; v: number };
   /** Steps taken. */
   step: number;
   /** Stored values go through `flush`; false keeps every value as computed (tests only). */
@@ -42,12 +46,28 @@ export interface Tank {
 }
 
 export interface TankOptions {
+  /** Elements of the phased array (default ELEMENTS). */
+  elements?: number;
+  /** Phase step between neighbouring elements, in radians (default 0). */
+  phaseStep?: number;
+  /** The moving source's speed in cells per step (default twice the wave speed). */
+  moverSpeed?: number;
   /** The absorbing border in cells, 0 for none (default SPONGE). */
   sponge?: number;
   /** (c·dt/dx)² (default C2). */
   c2?: number;
   /** Flush stored values below TINY to zero (default true). */
   flush?: boolean;
+}
+
+/** Elements of the phased array by default: ten, so the main lobe is narrow enough to locate. */
+export const ELEMENTS = 10;
+
+/** The phased array's elements: a column at 0.3 w, `spacing` cells apart, centred on the middle row. */
+export function arrayElements(w: number, h: number, spacing: number, n = ELEMENTS): [number, number][] {
+  const x = Math.floor(w * 0.3);
+  const mid = (h - 1) / 2;
+  return Array.from({ length: n }, (_, k) => [x, Math.round(mid + (k - (n - 1) / 2) * spacing)] as [number, number]);
 }
 
 /** True for the experiments driven by a plane wave from the left edge. */
@@ -62,7 +82,8 @@ export function planeDriven(e: Experiment): boolean {
 export function tank(
   w: number, h: number, experiment: Experiment, gap: number, options: TankOptions = {},
 ): Tank {
-  const sponge = options.sponge ?? SPONGE;
+  // the drum is a membrane fixed at its rim: no sponge, every wave reflected
+  const sponge = experiment === 'drum' ? 0 : options.sponge ?? SPONGE;
   const n = w * h;
   const damp = new Float32Array(n);
   const wall = new Uint8Array(n);
@@ -92,9 +113,14 @@ export function tank(
   const sources: [number, number][] = experiment === 'two'
     ? [[Math.floor(w * 0.3), Math.floor(h / 2 - gap / 2)],
       [Math.floor(w * 0.3), Math.floor(h / 2 + gap / 2)]]
-    : [];
+    : experiment === 'array' ? arrayElements(w, h, gap, options.elements ?? ELEMENTS) : [];
+  const phases = experiment === 'array'
+    ? sources.map((_, n) => n * (options.phaseStep ?? 0)) : undefined;
+  const mover = experiment === 'moving'
+    ? { x0: Math.floor(w * 0.08), y: Math.floor(h / 2), v: options.moverSpeed ?? 2 * Math.sqrt(options.c2 ?? C2) }
+    : undefined;
   return {
-    w, h, c2: options.c2 ?? C2, experiment,
+    w, h, c2: options.c2 ?? C2, experiment, phases, mover,
     u: new Float32Array(n),
     prev: new Float32Array(n),
     nxt: new Float32Array(n),
@@ -119,7 +145,14 @@ export function advance(t: Tank, lambda: number): void {
   if (planeDriven(t.experiment)) {
     for (let y = 1; y < h - 1; y++) u[y * w + 2] = drive;
   }
-  for (const [sx, sy] of t.sources) u[sy * w + sx] = 1.4 * drive;
+  if (t.phases) {
+    const om = omega(lambda, c2);
+    t.sources.forEach(([sx, sy], n) => { u[sy * w + sx] = 1.4 * Math.sin(om * t.step + t.phases![n]); });
+  } else for (const [sx, sy] of t.sources) u[sy * w + sx] = 1.4 * drive;
+  if (t.mover) {
+    const x = Math.round(t.mover.x0 + t.mover.v * t.step);
+    if (x >= 1 && x < w - 1) u[t.mover.y * w + x] = 1.4 * drive;
+  }
   const prev = t.prev;
   const nxt = t.nxt;
   // the S2 stencil, shared with the string and the dispersive line (src/plates/_shared/wave2d)
