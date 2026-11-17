@@ -34,6 +34,19 @@ bounds:
   model: derivative evaluations, one per oscillator per Runge–Kutta stage
   best: '4N per step: 4N · 2500 for the run of 2500 steps'
   worst: '4N per step: 4N · 2500 for the run of 2500 steps'
+data:
+  - id: frequencies
+    title: Your natural frequencies
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -50, max: 50 }
+    rows: { min: 16, max: 512 }
+    bytes: 65536
+    replaces: dist
+    ignores: [n, gamma]
+    url_bytes: 1800
+    note: Each of your values is one oscillator's natural frequency, in radians per unit of the plate's time, so there are as many oscillators as values; their phases start seeded. A step of 0.02 turns none of them more than one radian, which keeps the measured effective frequencies unambiguous. Your frequencies come from no known distribution, so the critical coupling and the theory for N → ∞ are not shown; the oscillator count and the width control shape only the seeded frequencies.
 claims:
   - id: four-evaluations-per-oscillator-per-step
     statement: >-

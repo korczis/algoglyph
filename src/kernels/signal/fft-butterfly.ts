@@ -1,4 +1,4 @@
-import { mulberry32, tones } from '../../engines/signal/input';
+import { mulberry32, readerInput, readerSeries, tones } from '../../engines/signal/input';
 import { BUTTERFLY, fmtHz, MUL, type Meter, type Panel, type SignalKernel,
   type View } from '../../engines/signal/trace';
 import { str } from '../../core/plate';
@@ -53,9 +53,13 @@ export const kernel: SignalKernel = {
       { value: 'tones', label: 'Two tones on bins' }, { value: 'square', label: 'Square wave' },
       { value: 'chirp', label: 'Chirp' }, { value: 'impulse', label: 'Impulse' }] },
   ],
-  run(params, seed, meter: Meter): View[] {
+  run(params, seed, meter: Meter, data): View[] {
     const n = Number(str(params, 'n'));
-    const { x, truth } = input(str(params, 'signal'), n, seed);
+    // a reader's series (ADR 0010): its first N samples at FS, zero-padded when it is shorter
+    const yours = readerSeries(params, 'signal', data);
+    const { x, truth } = yours
+      ? { x: Float64Array.from({ length: n }, (_, i) => yours[i] ?? 0), truth: `your data, the first ${Math.min(n, yours.length)} samples` }
+      : input(str(params, 'signal'), n, seed);
     const re = Float64Array.from(x);
     const im = new Float64Array(n);
     const br = Float64Array.from(x); const bi = new Float64Array(n);
@@ -73,7 +77,8 @@ export const kernel: SignalKernel = {
         { kind: 'wave', title: `Input, ${truth}`, series: [{ name: 'x[n]', y: x, stems: true, tone: 0.3 }] },
         { kind: 'butterfly', title: `Butterflies, stage ${s} of ${stages}`, n, done: s, mags: mags.slice() },
       ];
-      const stats = [{ label: 'Stage', value: `${s} of ${stages}${s === 0 ? ' (bit-reversed input)' : ''}` }];
+      const stats = [{ label: 'Stage', value: `${s} of ${stages}${s === 0 ? ' (bit-reversed input)' : ''}` },
+        ...(yours ? [readerInput(yours, FS, Math.min(n, yours.length))] : [])];
       if (done) {
         const half = Float64Array.from({ length: n / 2 + 1 }, (_, k) => Math.hypot(re[k], im[k]) / n);
         panels.push({ kind: 'spectrum', title: '|X[k]| / N', fmax: FS / 2, floor: -80, ceil: 10,

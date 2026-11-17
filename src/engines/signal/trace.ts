@@ -3,6 +3,7 @@
 // phase portraits) with the readouts measured at that point of the run. Every multiply,
 // butterfly or frame a kernel performs goes through a Meter, so the counts the plate shows are
 // the counts of the run itself. Nothing here draws.
+import type { DataTable } from '../../core/data';
 import type { Chart, ParamDef, Params, Stat } from '../../core/plate';
 import { count } from '../../core/format';
 
@@ -144,9 +145,11 @@ export interface SignalKernel {
   /**
    * Record a run on a signal seeded by `seed`. The engine resumes it for a few milliseconds per
    * frame, so a kernel yields each view as soon as it is recorded and yields `null` inside any
-   * stretch of work that takes longer than a millisecond or two.
+   * stretch of work that takes longer than a millisecond or two. `data` returns a reader's
+   * table by its declared id (ADR 0010) when the page has one attached: a kernel whose entry
+   * declares `data` reads its series through readerSeries (./input.ts) when its select picks it.
    */
-  run(params: Params, seed: number, meter: Meter): Run;
+  run(params: Params, seed: number, meter: Meter, data?: (id: string) => DataTable | null): Run;
   /** The kernel applied to the lab's shared input: its result as one panel, its work metered. */
   lab?(x: Float64Array, fs: number, meter: Meter): Panel;
 }

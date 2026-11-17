@@ -31,6 +31,18 @@ bounds:
   model: butterflies and real multiplies
   best: '(N/2) log2 N butterflies and 2N log2 N real multiplies, four per twiddle product'
   worst: '(N/2) log2 N butterflies and 2N log2 N real multiplies, four per twiddle product'
+data:
+  - id: samples
+    title: Your samples
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e9, max: 1.0e9 }
+    rows: { min: 8, max: 4096 }
+    bytes: 65536
+    replaces: signal
+    url_bytes: 1800
+    note: Your samples are read at 1000 a second, the plate's rate; the transform takes the first N of them (the Transform size control), zero-padded when there are fewer, so its peak and its Parseval check are about your numbers.
 claims:
   - id: parseval-both-sides
     statement: >-

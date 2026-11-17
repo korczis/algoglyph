@@ -1,5 +1,7 @@
 // Seeded synthetic signals: every input a signal kernel sees is made here from a seed, so a URL
 // with ?seed= reproduces the run, and every test knows the truth the kernel has to recover.
+import { optionId, type DataTable } from '../../core/data';
+import type { Params } from '../../core/plate';
 import { gaussian, mulberry32 } from '../../core/random';
 
 export interface Partial { f: number; a: number; ph?: number }
@@ -63,3 +65,20 @@ export function labSignal(n: number, fs: number, seed: number): Float64Array {
 }
 
 export { mulberry32 };
+
+/**
+ * A reader's series (ADR 0010), when the select `key` picks one and the page holds it: its one
+ * column as samples, taken at the plate's own rate (the entry's data note states it). Null means
+ * the seeded signal: no data option picked, or none attached.
+ */
+export function readerSeries(params: Params, key: string, data?: (id: string) => DataTable | null): Float64Array | null {
+  const id = optionId(params[key]);
+  const table = id && data ? data(id) : null;
+  return table ? Float64Array.from(table.values[0]) : null;
+}
+
+/** The readout every adopter publishes on a reader's series, which the browser gate looks for. */
+export const readerInput = (x: Float64Array, fs: number, used = x.length): { label: string; value: string } => ({
+  label: 'Input',
+  value: `your data, ${x.length} samples at ${fs} Hz${used < x.length ? `, the first ${used} used` : ''}`,
+});

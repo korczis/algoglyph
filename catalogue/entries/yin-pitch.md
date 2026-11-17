@@ -26,6 +26,19 @@ pedagogy:
 bounds:
   model: real multiplies per frame
   worst: 'W·τmax for the difference function over a frame of W samples, and 2τmax for its normalisation'
+data:
+  - id: samples
+    title: Your samples
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e9, max: 1.0e9 }
+    rows: { min: 912, max: 24000 }
+    bytes: 65536
+    replaces: signal
+    ignores: [f0, glide, vib, snr, h2]
+    url_bytes: 1800
+    note: Your samples are read at 16000 a second, the plate's rate; the detector takes the first 1.5 s of them in the same frames as the seeded tone, so a series needs W + τmax samples for one frame at the widest window. There is no true pitch to compare with, so the track and its readouts are the detector's alone; the pitch, glide, vibrato, SNR and second-harmonic controls shape only the seeded tone.
 claims:
   - id: multiplies-at-w-512
     statement: >-

@@ -1,5 +1,5 @@
 import { str } from '../../core/plate';
-import { mulberry32, tones } from '../../engines/signal/input';
+import { mulberry32, readerInput, readerSeries, tones } from '../../engines/signal/input';
 import { MUL, type Meter, type SignalKernel, type View } from '../../engines/signal/trace';
 import { amplitude, argmax, fft, toDb, WINDOWS, windowOf } from './_fft';
 
@@ -27,6 +27,49 @@ export function lobes(id: string, n = N, pad = PAD, meter?: Meter): { sidelobe: 
 
 const leak10 = (r: number) => (r > 1e-8 ? `${(20 * Math.log10(r)).toFixed(1)} dB` : 'below −160 dB');
 
+/**
+ * A reader's series (ADR 0010) through the chosen window: its first n samples, zero-padded when
+ * there are fewer, read at n a second like the seeded tones, so one bin is one hertz. There is no
+ * tone to know, so the view measures the peak and the leakage and draws every window on the data.
+ */
+function* onData(yours: Float64Array, id: string, n: number, meter: Meter): Generator<View> {
+  const fs = n;
+  const used = Math.min(n, yours.length);
+  const x = Float64Array.from({ length: n }, (_, i) => yours[i] ?? 0);
+  const w = windowOf(id, n);
+  const lobe = lobes(id, n, PAD, meter);
+  const fine = amplitude(x, w, n * PAD, meter);
+  const bins = amplitude(x, w, n, meter);
+  const kp = argmax(bins, 1);
+  const far = Math.min(bins.length - 1, kp + 10);
+  meter.add(MUL, n);
+  const shaped = Float64Array.from(x, (v, i) => v * w[i]);
+  const every = WINDOWS.map((def) => ({ name: def.label,
+    points: Array.from(toDb(amplitude(x, windowOf(def.id, n), n), -160), (v, k): [number, number] => [k, v]) }));
+  yield {
+    layout: [[0], [1]],
+    panels: [
+      { kind: 'wave', title: `Your first ${used} samples${used < n ? `, zero-padded to ${n}` : ''}, and the ${WINDOWS.find((d) => d.id === id)?.label} window`, series: [
+        { name: 'signal', y: x, tone: -1, alpha: 110 }, { name: 'windowed', y: shaped, tone: 0.75 },
+        { name: 'window', y: w, tone: 0.3 }] },
+      { kind: 'spectrum', title: `Spectrum: ${n} DFT bins (stems) on the ${PAD}× zero-padded transform`, fmax: fs / 2, floor: -120, ceil: 5, series: [
+        { name: 'zero-padded', y: toDb(fine, -120), tone: 0.3, alpha: 200 },
+        { name: 'DFT bins', y: toDb(bins, -120), tone: 0.8, stems: true }],
+      marks: [{ at: kp, label: 'peak' }] },
+    ],
+    stats: [
+      readerInput(yours, fs, used),
+      { label: 'Highest side lobe (measured)', value: `${lobe.sidelobe.toFixed(1)} dB` },
+      { label: 'Main lobe −3 dB width', value: `${lobe.width3.toFixed(2)} bins` },
+      { label: 'Peak bin (measured, DC aside)', value: `bin ${kp}, ${toDb([bins[kp]], -160)[0].toFixed(2)} dB` },
+      { label: 'Leakage 10 bins from the peak', value: leak10(bins[far] / bins[kp]) },
+      { label: 'Tone and its truth', value: 'none on your data: no reference to compare with' },
+    ],
+    counts: meter.snapshot(),
+    chart: { title: 'Your data\'s DFT bins under every window', x: { label: 'bin (Hz)' }, y: { label: 'amplitude (dB)' }, series: every },
+  };
+}
+
 // One window, a tone sliding from on-bin to half-way between bins and back, and a weak tone a
 // few bins away that leakage can bury. The sample rate is the window length, so one bin is one
 // hertz at either length.
@@ -38,10 +81,15 @@ export const kernel: SignalKernel = {
     { kind: 'range', key: 'gap', label: 'Weak tone distance (bins)', min: 2, max: 20, step: 1, value: 6 },
     { kind: 'select', key: 'n', label: 'Window length N', value: String(N),
       options: ['64', '128'].map((v) => ({ value: v, label: `${v} samples` })) },
+    // today's seeded input is the only option; the registry adds a reader's series (ADR 0010)
+    { kind: 'select', key: 'signal', label: 'Signal', value: 'tones', options: [
+      { value: 'tones', label: 'A tone sliding off its bin, and a weak tone' }] },
   ],
-  *run(params, seed, meter): Generator<View | null> {
+  *run(params, seed, meter, data): Generator<View | null> {
     const id = str(params, 'window');
     const n = Number(str(params, 'n'));
+    const yours = readerSeries(params, 'signal', data);
+    if (yours) { yield* onData(yours, id, n, meter); return; }
     const fs = n;
     const rnd = mulberry32(seed);
     const k0 = 8 + Math.floor(rnd() * 6);

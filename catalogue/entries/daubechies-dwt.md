@@ -25,6 +25,18 @@ algorithm:
 bounds:
   model: real multiplies of the analysis filter bank
   worst: 'N·L at the first level for a filter of length L, half that at each next: 2NL(1 − 2^−J) for J levels, below 2NL'
+data:
+  - id: samples
+    title: Your samples
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e9, max: 1.0e9 }
+    rows: { min: 8, max: 512 }
+    bytes: 65536
+    replaces: signal
+    url_bytes: 1800
+    note: Your samples are taken one per position, as they come; the transform has no clock, so each octave is half the band of the one before at whatever rate you sampled. It reads the first n of them (the Signal length control), zero-padded when there are fewer, and the filters wrap around that padded signal as they wrap around the seeded one.
 claims:
   - id: reconstruction-exact-to-rounding
     statement: >-

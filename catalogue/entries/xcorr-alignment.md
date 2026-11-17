@@ -81,3 +81,5 @@ The lag between two captures, to a fraction of a sample, by correlating them.
 Two noisy captures of the same band-limited burst, the second later by a delay that is not a whole number of samples. The cross-correlation r[l] = Σ a[n]·b[n + l] is built lag by lag as b slides over a, and it peaks at the lag closest to the delay, as long as the largest lag searched reaches it; a shorter search costs less and reports the best lag it has, short of the delay.
 
 The correlation of band-limited signals is itself band-limited, so its samples determine it between them: interpolating with sinc(τ − l) and searching that curve finds the delay to a small fraction of a sample. A parabola through the three highest samples is the cheap estimate, and it is biased toward the nearest integer.
+
+**Data.** The plate takes no data of a reader's. It aligns two captures of one burst, where a series is a single column, and its estimates are scored against the delay it drew, which a reader's pair of captures would not come with.

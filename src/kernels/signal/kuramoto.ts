@@ -1,6 +1,6 @@
 import { str } from '../../core/plate';
 import { gaussian } from '../../core/random';
-import { mulberry32 } from '../../engines/signal/input';
+import { mulberry32, readerSeries } from '../../engines/signal/input';
 import { Rk4, type Deriv } from '../../plates/_shared/ode/ode';
 import type { Meter, SignalKernel, View } from '../../engines/signal/trace';
 
@@ -60,12 +60,15 @@ export const kernel: SignalKernel = {
     // so the coupling's range up to 6 still reaches well above it and the plate shows locking
     { kind: 'range', key: 'gamma', label: 'Frequency width γ', min: 0.1, max: 2, step: 0.05, value: 0.5 },
   ],
-  *run(params, seed, meter): Generator<View | null> {
+  *run(params, seed, meter, data): Generator<View | null> {
     const rnd = mulberry32(seed);
-    const n = Number(params.n); const K = Number(params.K);
+    // a reader's natural frequencies (ADR 0010): one oscillator per value, in the order given;
+    // they come from no distribution, so there is no critical coupling to compare with
+    const yours = readerSeries(params, 'dist', data);
+    const n = yours ? yours.length : Number(params.n); const K = Number(params.K);
     const dist = str(params, 'dist');
     const width = Number(params.gamma ?? 0.5);
-    const { omega, kc } = frequencies(n, dist, width, rnd);
+    const { omega, kc } = yours ? { omega: yours, kc: NaN } : frequencies(n, dist, width, rnd);
     const theta = Float64Array.from({ length: n }, () => 2 * Math.PI * rnd());
     // each oscillator's rank by natural frequency, by one sort of the indices
     const rank = new Float64Array(n);
@@ -74,7 +77,7 @@ export const kernel: SignalKernel = {
     const steps = 2500; const every = 25;
     const rs: number[] = [];
     const unwrapped = Float64Array.from(theta);
-    const lim = Math.min(3, Math.max(...omega.map(Math.abs)) * 1.05);
+    const lim = Math.min(3, Math.max(...omega.map(Math.abs)) * 1.05) || 1;
     const history: Float64Array[] = [];
     const rk = new Rk4(n); const f = derivOf(omega, K, meter);
     for (let s = 1; s <= steps; s++) {
@@ -118,10 +121,13 @@ export const kernel: SignalKernel = {
           { label: 'Time', value: (s * DT).toFixed(1) },
           { label: 'Order parameter r now', value: r.toFixed(3) },
           { label: 'r averaged over the second half so far', value: avg.toFixed(3) },
-          { label: 'Coupling K / critical K_c', value: `${K.toFixed(2)} / ${kc.toFixed(3)} = ${(K / kc).toFixed(2)}` },
-          ...(dist === 'lorentz' ? [{ label: 'Theory for N → ∞, √(1 − K_c/K)', value: K > kc ? Math.sqrt(1 - kc / K).toFixed(3) : '0 (incoherent)' }] : []),
+          ...(yours ? [{ label: 'Coupling K', value: K.toFixed(2) },
+            { label: 'Critical K_c', value: 'no reference: your frequencies come from no known distribution' }]
+            : [{ label: 'Coupling K / critical K_c', value: `${K.toFixed(2)} / ${kc.toFixed(3)} = ${(K / kc).toFixed(2)}` }]),
+          ...(!yours && dist === 'lorentz' ? [{ label: 'Theory for N → ∞, √(1 − K_c/K)', value: K > kc ? Math.sqrt(1 - kc / K).toFixed(3) : '0 (incoherent)' }] : []),
           { label: 'Incoherent level 1/√N', value: (1 / Math.sqrt(n)).toFixed(3) },
           { label: 'Effective frequency within 0.02 of the mean (measured)', value: `${near} of ${n}` },
+          ...(yours ? [{ label: 'Input', value: `your data, ${n} natural frequencies` }] : []),
         ],
         counts: meter.snapshot(),
         chart: { title: 'Order parameter over time', x: { label: 'time' }, y: { label: 'r' }, series: [
