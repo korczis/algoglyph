@@ -87,6 +87,8 @@ export const rateProcesses: PlateCode = {
     let hist = new Float64Array(BINS + 1);
     let predicted = new Float64Array(BINS + 1);
     let scaleY = 1;
+    /** Each curve's full height: the counts' scale, the atoms' number for the excited atoms. */
+    let scales: number[] = [1];
     const state = new Int32Array(3);
 
     function setup() {
@@ -162,6 +164,7 @@ export const rateProcesses: PlateCode = {
         expected = null;
         scaleY = Math.max(4, Math.ceil(4 * nb + 2));
       }
+      scales = proc === 'einstein' ? [scaleY, num(params, 'N')] : Array.from({ length: run.width }, () => scaleY);
       curves = Array.from({ length: run.width }, () => new Float64Array(SAMPLES + 1));
       record(0);
       hist = new Float64Array(BINS + 1);
@@ -211,11 +214,11 @@ export const rateProcesses: PlateCode = {
         const h = H * 0.76;
         g.strokeStyle = rgba(mix(ctx.bg, fg, 0.3), 1);
         g.strokeRect(x0, y0, w, h);
-        const Y = (v: number) => y0 + h - Math.min(1, v / scaleY) * h;
+        const Y = (v: number, top = scaleY) => y0 + h - Math.min(1, v / top) * h;
         for (let c = 0; c < run.width; c++) {
           g.strokeStyle = rgba(ramp(pal, 0.15 + 0.35 * c), 1);
           g.beginPath();
-          for (let i = 0; i <= shown; i++) { const X = x0 + (i / SAMPLES) * w; if (i === 0) g.moveTo(X, Y(curves[c][i])); else g.lineTo(X, Y(curves[c][i])); }
+          for (let i = 0; i <= shown; i++) { const X = x0 + (i / SAMPLES) * w; if (i === 0) g.moveTo(X, Y(curves[c][i], scales[c])); else g.lineTo(X, Y(curves[c][i], scales[c])); }
           g.stroke();
         }
         if (expected) {
@@ -228,7 +231,7 @@ export const rateProcesses: PlateCode = {
         }
         g.fillStyle = rgba(fg, 0.75);
         g.fillText(proc === 'chain' ? 'atoms of A, B and C against time; dashed: Bateman’s B'
-          : proc === 'einstein' ? 'photons in the mode and excited atoms against time' : 'particles in the level against time', x0, y0 - 8);
+          : proc === 'einstein' ? `photons (0 to ${scaleY}) and excited atoms (0 to ${num(params, 'N')}) against time` : 'particles in the level against time', x0, y0 - 8);
         if (proc !== 'chain') {
           // the time-weighted distribution of the first count, bars, against the prediction, dots
           const hx = x0 + w + W * 0.05;
@@ -242,7 +245,7 @@ export const rateProcesses: PlateCode = {
           g.fillStyle = rgba(fg, 0.85);
           for (let k = 0; k <= BINS; k++) g.fillRect(hx + (k + 0.5) * bw - 2, y0 + h - (predicted[k] / top) * h - 2, 4, 4);
           g.fillStyle = rgba(fg, 0.75);
-          g.fillText(`share of time at 0 … ${BINS}; dots: the closed form`, hx, y0 - 8);
+          g.fillText(`time at 0 … ${BINS}; dots: closed form`, hx, y0 - 8);
         }
         g.restore();
         const t = (shown / SAMPLES) * run.end;
