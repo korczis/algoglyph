@@ -1599,6 +1599,18 @@ sources:
     year: 1947
     kind: paper
     url: https://doi.org/10.1017/S0305004100023197
+  - id: born-wolf-optics
+    title: Principles of Optics (seventh edition)
+    author: Max Born, Emil Wolf
+    publisher: Cambridge University Press
+    year: 1999
+    kind: book
+  - id: bragg-1913
+    title: The Reflection of X-rays by Crystals (Proceedings of the Royal Society of London A 88, 428)
+    author: William Henry Bragg, William Lawrence Bragg
+    year: 1913
+    kind: paper
+    url: https://doi.org/10.1098/rspa.1913.0040
   - id: brent-1976
     title: Fast Multiple-Precision Evaluation of Elementary Functions (Journal of the ACM 23, 242–251)
     author: Richard P. Brent
