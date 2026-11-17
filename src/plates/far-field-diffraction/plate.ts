@@ -6,7 +6,7 @@
 // a rectangle's zeros at λ/w and λ/h. A reader's transmission profile replaces the aperture.
 import { optionId } from '../../core/data';
 import { Pacer, paceParam } from '../../core/pace';
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mix, mixInto, paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { num, str, type PlateCode, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import {
@@ -263,9 +263,12 @@ export const farFieldDiffraction: PlateCode = {
         if (!apRaster) {
           apRaster = new Raster(G, G);
           const c = ramp(pal, 0.85);
+          // mix in place, bound to a local: bit-equal, no array per cell
+          const blend = mixInto; const bg = ctx.bg;
+          const m: RGB = [0, 0, 0];
           for (let i = 0; i < G * G; i++) {
             const v = ap.t[i];
-            const m = mix(ctx.bg, c, v);
+            blend(m, bg, c, v);
             apRaster.set(i % G, Math.floor(i / G), m[0], m[1], m[2]);
           }
         }
@@ -274,11 +277,14 @@ export const farFieldDiffraction: PlateCode = {
           hitRaster.fill(ctx.bg);
         }
         const lp = Math.log1p(peakCount);
+        // mix(bg, ramp(pal, t), …) in place, bound to locals: bit-equal, no array per photon
+        const into = rampInto; const blend = mixInto; const bg = ctx.bg;
+        const m: RGB = [0, 0, 0];
         for (const i of fresh) {
           const x = (i % G) - (G / 2 - win);
           const y = Math.floor(i / G) - (G / 2 - win);
           if (x < 0 || y < 0 || x >= 2 * win || y >= 2 * win) continue;
-          const m = mix(ctx.bg, ramp(pal, 0.2 + 0.7 * (Math.log1p(counts[i]) / lp)), Math.min(1, 0.35 + Math.log1p(counts[i]) / lp));
+          blend(m, bg, into(m, pal, 0.2 + 0.7 * (Math.log1p(counts[i]) / lp)), Math.min(1, 0.35 + Math.log1p(counts[i]) / lp));
           hitRaster.set(x, y, m[0], m[1], m[2]);
         }
         apRaster.blit(p, false, xA, y0, side, side);

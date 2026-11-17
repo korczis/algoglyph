@@ -10,7 +10,7 @@
 // A damped field decays towards zero and would end in subnormal floats, which x86 runs far slower
 // than normal ones; with `flushed` every stored value goes through `flush` (src/core/budget.ts).
 // Pure: typed arrays only, no p5, no randomness.
-import { flush, TINY } from '../../../core/budget';
+import { TINY } from '../../../core/budget';
 
 type Field = Float32Array | Float64Array;
 
@@ -51,10 +51,12 @@ export function leapfrog2d(
 export function leapfrog1d(
   u: Field, prev: Field, nxt: Field, n: number, c2: number, damp?: Field, flushed = false,
 ): void {
+  // flush inlined against a local copy of TINY, as in leapfrog2d: bit-equal, no imported call
+  const tiny = TINY;
   for (let i = 1; i < n - 1; i++) {
     const lap = u[i - 1] + u[i + 1] - 2 * u[i];
     const v = (2 * u[i] - prev[i] + c2 * lap) * (damp ? damp[i] : 1);
-    nxt[i] = flushed ? flush(v) : v;
+    nxt[i] = flushed ? (v > tiny || v < -tiny ? v : 0) : v;
   }
   nxt[0] = 0;
   nxt[n - 1] = 0;

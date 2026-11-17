@@ -1,4 +1,7 @@
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mixInto, paletteParam, rampInto, type RGB } from '../../core/palette';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { bounded, cellWithin, stepsWithin } from '../../core/budget';
@@ -98,12 +101,14 @@ export const grayScott: PlateCode = {
 
         const pal = ctx.palette();
         let sum = 0;
+        // mix(bg, ramp(pal, t), …) in place, bound to locals: bit-equal, no array per cell
+        const into = rampInto; const blend = mixInto; const bg = ctx.bg;
         for (let i = 0; i < fl.v.length; i++) {
           const v = fl.v[i];
           sum += v;
           const t = Math.min(1, Math.max(0, v * 2.6));
-          const c = mix(ctx.bg, ramp(pal, t), Math.min(1, t * 1.6));
-          raster.set(i % fl.w, Math.floor(i / fl.w), c[0], c[1], c[2]);
+          blend(colour, bg, into(colour, pal, t), Math.min(1, t * 1.6));
+          raster.set(i % fl.w, Math.floor(i / fl.w), colour[0], colour[1], colour[2]);
         }
         raster.blit(p, true);
 
