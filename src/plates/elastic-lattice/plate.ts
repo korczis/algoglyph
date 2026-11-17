@@ -62,7 +62,7 @@ export const elasticLattice: PlateCode = {
     { kind: 'range', key: 'waves', label: 'Wavelengths across the sheet', min: 1, max: 12, step: 1, value: 1, rebuild: true, when: when('waves'),
       hint: 'One is the longest wave the sheet holds; at twelve on 48 columns, four sites to a wavelength, the lattice’s dispersion shows in the ratio of the speeds. Past half the columns a wave is the same as a longer one.' },
     { kind: 'range', key: 'periods', label: 'Run for this many transverse periods', min: 2, max: 12, step: 1, value: 4, rebuild: true, when: when('waves'),
-      hint: 'Two periods give the zeros a frequency needs; past twelve the measured frequencies do not move in their ninth digit.' },
+      hint: 'Two periods give the zeros a frequency needs; twelve give six times as many, enough to watch the measurement settle.' },
     { kind: 'range', key: 'k', label: 'Spring constant k', min: 0.25, max: 4, step: 0.25, value: 1, rebuild: true,
       hint: 'k scales every frequency by √k and every modulus by k, and no ratio: a factor of 16 shows that, and more would show nothing new.' },
     { kind: 'range', key: 'magnify', label: 'Drawn displacement, exaggerated', min: 1, max: 100, step: 1, value: 20, cosmetic: true,
