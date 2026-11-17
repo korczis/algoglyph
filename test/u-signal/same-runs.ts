@@ -4,7 +4,7 @@
 // their plates, and both record every p5 call, every pixel of every blit and every readout, frame
 // by frame, within one run: at the defaults and at every option of every select. The clock is a
 // counter reset per recording, so time-sliced work slices the same in both. A planted change (a
-// select moved to its next option on one side) must fail the same comparison.
+// select moved to its next option on one side, or a range nudged a step) must fail the same comparison.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Params, PlateCode } from '../../src/core/plate';
 import { engine as now } from '../../src/engines/signal/index';
@@ -36,11 +36,18 @@ export function sameSeededRuns(id: string, k: SignalKernel, kb: SignalKernel): v
       for (const c of corners(a)) expect(firstDifference(run(a, c), run(b, c)), JSON.stringify(c)).toBe(-1);
     }, 120_000);
 
-    it(`${id}: a planted change (a select moved to its next option) fails the same comparison`, () => {
+    it(`${id}: a planted change (a select moved to its next option, or a range nudged a step) fails the same comparison`, () => {
       const a = now.plate(info, k); const b = before.plate(info, kb);
-      const d = a.params.find((q) => q.kind === 'select' && !q.cosmetic && q.options.length > 1);
-      if (!d || d.kind !== 'select') throw new Error(`${id}: no select to move`);
-      expect(firstDifference(run(a, { [d.key]: d.options[1].value }), run(b, { [d.key]: d.options[0].value }))).toBeGreaterThanOrEqual(0);
+      const sel = a.params.find((q) => q.kind === 'select' && !q.cosmetic && q.options.length > 1);
+      const rng = a.params.find((q) => q.kind === 'range' && q.key !== 'pace');
+      let mine: Params; let theirs: Params;
+      if (sel && sel.kind === 'select') {
+        mine = { [sel.key]: sel.options[1].value }; theirs = { [sel.key]: sel.options[0].value };
+      } else if (rng && rng.kind === 'range') {
+        const v = rng.value as number;
+        mine = { [rng.key]: v + rng.step <= rng.max ? v + rng.step : v - rng.step }; theirs = { [rng.key]: v };
+      } else throw new Error(`${id}: no control to plant a change on`);
+      expect(firstDifference(run(a, mine), run(b, theirs))).toBeGreaterThanOrEqual(0);
     }, 120_000);
   });
 }
