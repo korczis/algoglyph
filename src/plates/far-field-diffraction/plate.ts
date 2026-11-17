@@ -100,6 +100,8 @@ export const farFieldDiffraction: PlateCode = {
     // the x cut of the pattern, and the single-slit envelope drawn over it
     let cut = new Float64Array(G);
     let overlay: Float64Array | null = null;
+    /** Half the window of bins the photons and the cut are shown in: a few of the pattern's zeros. */
+    let win = G / 2;
     /** sin θ of bin k from the centre. */
     const sinOf = (k: number) => (k * lambda) / (G * PITCH_UM);
     const f9 = (v: number | null) => (v === null ? 'none within the grid' : v.toFixed(9));
@@ -112,7 +114,7 @@ export const farFieldDiffraction: PlateCode = {
 
     function measure() {
       const n = ap.t.reduce((s, v) => s + (v > 0 ? 1 : 0), 0);
-      fixed = [{ label: 'aperture cells open (1 µm each)', value: `${n}` }];
+      fixed = [{ label: 'aperture cells open, a square micrometre each', value: `${n}` }];
       if (kind === 'slit') {
         const a = num(params, 'a');
         fixed.push(
@@ -132,7 +134,7 @@ export const farFieldDiffraction: PlateCode = {
         const below = zeroAlong('x', G / d - 1.5 * unit, unit / 8);
         const above = below === null ? null : zeroAlong('x', (below * G) / lambda + unit / 2, unit / 8);
         fixed.push(
-          { label: 'pitch used d (µm)', value: `${d}` },
+          { label: 'pitch used d (micrometres)', value: `${d}` },
           { label: 'first zero beside the central maximum, sin θ, measured', value: f9(k1) },
           { label: 'half-width of a principal maximum λ/(Nd)', value: f9(lambda / (N * d)) },
           { label: 'first order, midway between its neighbouring zeros, sin θ, measured', value: !clear ? 'none: the first order lies past the slit’s first zero, d/a ≤ 1 + 1.5/N' : f9(below !== null && above !== null ? (below + above) / 2 : null) },
@@ -145,7 +147,7 @@ export const farFieldDiffraction: PlateCode = {
         const rd = zeroAlong('diagonal');
         const A = airyConstant();
         fixed.push(
-          { label: 'diameter from the disc’s area, 2√(n/π) (µm)', value: Deq.toFixed(9) },
+          { label: 'diameter from the disc’s area, 2√(n/π) (micrometres)', value: Deq.toFixed(9) },
           { label: 'first dark ring along x, sin θ, measured', value: f9(rx) },
           { label: 'first dark ring along the diagonal, sin θ, measured', value: f9(rd) },
           { label: 'first dark ring, mean of the two, sin θ', value: f9(rx !== null && rd !== null ? (rx + rd) / 2 : null) },
@@ -214,6 +216,10 @@ export const farFieldDiffraction: PlateCode = {
         const e0 = envelope(s, 0);
         overlay = Float64Array.from({ length: G }, (_, x) => envelope(s, sinOf(x - G / 2)) / e0);
       }
+      // the window: about five first zeros, or three orders of a grating, within the grid
+      const first = kind === 'slit' ? G / num(params, 'a') : kind === 'grating' ? (3.5 * G) / Math.max(num(params, 'd'), num(params, 'ga') + 1) / 5
+        : kind === 'circle' ? (1.22 * G) / num(params, 'D') : kind === 'rectangle' ? G / Math.min(num(params, 'w'), num(params, 'h')) : G;
+      win = Math.max(16, Math.min(G / 2, Math.ceil(5 * first)));
       counts = new Uint32Array(G * G);
       peakCount = 1;
       apRaster = null;
@@ -264,13 +270,16 @@ export const farFieldDiffraction: PlateCode = {
           }
         }
         if (!hitRaster) {
-          hitRaster = new Raster(G, G);
+          hitRaster = new Raster(2 * win, 2 * win);
           hitRaster.fill(ctx.bg);
         }
         const lp = Math.log1p(peakCount);
         for (const i of fresh) {
+          const x = (i % G) - (G / 2 - win);
+          const y = Math.floor(i / G) - (G / 2 - win);
+          if (x < 0 || y < 0 || x >= 2 * win || y >= 2 * win) continue;
           const m = mix(ctx.bg, ramp(pal, 0.2 + 0.7 * (Math.log1p(counts[i]) / lp)), Math.min(1, 0.35 + Math.log1p(counts[i]) / lp));
-          hitRaster.set(i % G, Math.floor(i / G), m[0], m[1], m[2]);
+          hitRaster.set(x, y, m[0], m[1], m[2]);
         }
         apRaster.blit(p, false, xA, y0, side, side);
         hitRaster.blit(p, false, xB, y0, side, side);
@@ -279,7 +288,7 @@ export const farFieldDiffraction: PlateCode = {
         g.font = '11px monospace';
         g.fillStyle = rgba(fg, 0.75);
         g.fillText(`the aperture, ${G} µm across`, xA, y0 - 8);
-        g.fillText(`photons in the far field: ${landed}`, xB, y0 - 8);
+        g.fillText(`photons: ${landed}`, xB, y0 - 8);
         // the x cut: log₁₀ of the relative intensity, the envelope dashed
         const xC = xB + side + W * 0.03;
         const wC = W - xC - W * 0.03;
@@ -290,15 +299,18 @@ export const farFieldDiffraction: PlateCode = {
           g.strokeStyle = col;
           g.setLineDash(dash ? [4, 3] : []);
           g.beginPath();
-          for (let x = 0; x < G; x++) { const X = xC + (x / (G - 1)) * wC; if (x === 0) g.moveTo(X, Y(vals[x])); else g.lineTo(X, Y(vals[x])); }
+          for (let x = G / 2 - win; x < G / 2 + win; x++) {
+            const X = xC + ((x - G / 2 + win) / (2 * win - 1)) * wC;
+            if (x === G / 2 - win) g.moveTo(X, Y(vals[x])); else g.lineTo(X, Y(vals[x]));
+          }
           g.stroke();
           g.setLineDash([]);
         };
         line(cut, false, rgba(ramp(pal, 0.8), 1));
         if (overlay) line(overlay, true, rgba(fg, 0.55));
         g.fillStyle = rgba(fg, 0.75);
-        g.fillText('log₁₀ I along x (six decades); dashed: one slit’s envelope', xC, y0 - 8);
-        g.fillText(`sin θ from ${sinOf(-G / 2).toFixed(3)} to ${sinOf(G / 2 - 1).toFixed(3)}`, xC, y0 + side + 16);
+        g.fillText(overlay ? 'log₁₀ I along x; dashed: one slit' : 'log₁₀ I along x', xC, y0 - 8);
+        g.fillText(`sin θ within ±${sinOf(win).toFixed(4)}`, xC, y0 + side + 16);
         g.restore();
         ctx.stats([pacer.row(params), { label: 'Input', value: input },
           { label: 'photons landed', value: `${landed} of ${SAMPLES * PHOTONS_PER_SAMPLE}` }, ...fixed]);
