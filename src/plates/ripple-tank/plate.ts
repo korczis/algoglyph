@@ -116,7 +116,9 @@ export const rippleTank: PlateCode = {
           if (!Number.isFinite(mach) && m.x0 + m.v * t.step > t.w - MACH_FROM_EDGE) mach = measuredMach(t);
           return [
             { label: 'Mach cone half-angle, measured (degrees)', value: deg(mach) },
-            { label: 'Mach angle asin(c / v) (degrees)', value: deg(machAngle(Math.sqrt(t.c2), m.v)) },
+            // from the control's Mach number, never from the source's own speed: a source moving at
+            // the wrong speed then reads a cone the closed form does not predict
+            { label: 'Mach angle asin(c / v) (degrees)', value: deg(machAngle(1, num(params, 'mach'))) },
           ];
         }
         case 'drum': {

@@ -115,7 +115,11 @@ claims:
       params: { experiment: moving, mach: 2, speed: 8, runs: 5 }
   - id: mach-angle-three
     statement: >-
-      At three times the wave speed the cone narrows to asin(1/3) ≈ 19.5°, within 2°.
+      At three times the wave speed the cone narrows to asin(1/3) ≈ 19.5°, within 2°. The band is the
+      reading's own: the front is found to a whole row at ten points (D = 30 … 90 on both sides),
+      so one row of error moves the fitted slope by 1/√4500 ≈ 0.015 and μ by about 0.8°, and 2° is
+      2.5 of those. Near M = 3, dμ/dM = −1/(M² cos μ) ≈ −6.8° per unit of M, so the claim fails a
+      source more than about 10% off its speed: 10% slow reads 22.5°.
     readout: Mach cone half-angle, measured (degrees)
     expect: { against: 'Mach angle asin(c / v) (degrees)', tolerance: 2 }
     setup:
