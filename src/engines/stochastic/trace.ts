@@ -2,6 +2,7 @@
 // only through these operations, every draw and evaluation is counted, and the run is
 // recorded as frames the plate replays. Nothing here draws on a canvas; a frame is a
 // declarative picture (histograms, plots, bars) plus readouts measured at that point.
+import type { DataTable } from '../../core/data';
 import type { DataForm } from '../../core/solve';
 import { mulberry32 } from '../../core/random';
 import type { ParamDef, Params, Stat } from '../../core/plate';
@@ -109,8 +110,10 @@ export interface StochasticKernel<R = unknown> {
   /** The chart series a lab compares across kernels. */
   labSeries?: string;
   /** The run as a generator: it yields between bounded pieces of work, so the engine can spread
-   * a run over frames and never block one; its return value is the run's result. */
-  run(ops: StochasticOps, cfg: Params): Generator<void, R, void>;
+   * a run over frames and never block one; its return value is the run's result. `data` returns a
+   * reader's table by its declared id (ADR 0010) when the page holds one: an adopter reads it
+   * through readerTable (./reader.ts) when its select picks it. */
+  run(ops: StochasticOps, cfg: Params, data?: (id: string) => DataTable | null): Generator<void, R, void>;
   /** The kernel on a caller's own data (src/core/solve.ts), read by the flow's command line. */
   data?: DataForm;
 }
@@ -144,7 +147,7 @@ export class Runner<R = unknown> {
   private evals = 0;
   private readonly it: Generator<void, R, void>;
   private readonly ops: StochasticOps;
-  constructor(kernel: StochasticKernel<R>, params: Params, seed: number) {
+  constructor(kernel: StochasticKernel<R>, params: Params, seed: number, data?: (id: string) => DataTable | null) {
     const u = mulberry32(seed);
     const series = new Map<string, [number, number][]>();
     const frames = this.frames;
@@ -167,7 +170,7 @@ export class Runner<R = unknown> {
       get evals() { return self.evals; },
     };
     // a generator's body runs only from the first next(): construction stays free
-    this.it = kernel.run(this.ops, config(kernel as StochasticKernel, params));
+    this.it = kernel.run(this.ops, config(kernel as StochasticKernel, params), data);
   }
   /** Advance by pieces until the budget (ms) is spent or the run ends; at least one piece. */
   /**
