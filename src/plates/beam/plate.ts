@@ -37,12 +37,14 @@ export const beam: PlateCode = {
     },
     { kind: 'range', key: 'force', label: 'Tip force FL²/EI', min: 0.01, max: 20, step: 0.01, value: 2, log: true, rebuild: true, when: when('tip'),
       hint: 'Up to 20, where the tip points nearly straight down.' },
-    { kind: 'range', key: 'weight', label: 'Weight qL³/EI', min: 0.01, max: 40, step: 0.01, value: 4, log: true, rebuild: true, when: when('weight') },
+    { kind: 'range', key: 'weight', label: 'Weight qL³/EI', min: 0.01, max: 40, step: 0.01, value: 4, log: true, rebuild: true, when: when('weight'),
+      hint: 'Up to 40, where the tip has fallen nine tenths of the beam’s length.' },
     { kind: 'range', key: 'ratio', label: 'Axial load over Euler’s, P/P_E', min: 0.1, max: 4, step: 0.01, value: 1.5, rebuild: true, when: when('column'),
       hint: 'At 4 the tip has leaned past 150°: the elastica is nearly a loop.' },
     { kind: 'range', key: 'imperfection', label: 'Sideways nudge at the tip, over P', min: 0.000001, max: 0.01, step: 0.000001, value: 0.00001, log: true,
-      rebuild: true, when: when('column'), hint: 'A straight column under P above Euler’s load is in equilibrium but not stable; the nudge picks the side it falls to.' },
-    // 8 cells is the coarsest chain that still bends smoothly; 400 is the frame budget's corner
+      rebuild: true, when: when('column'), hint: 'A straight column under P above Euler’s load is in equilibrium but not stable; the nudge picks the side it falls to. Beyond a hundredth of P it is a sideways load, not a nudge.' },
+    // 8 cells is the coarsest chain that still bends smoothly; at 400 the chain's error, 1/(4N²) of the
+    // deflection, is 1.6e−6, a hundredth of a pixel at the widest canvas: more cells show nothing new
     { kind: 'range', key: 'cells', label: 'Cells of the chain', min: 8, max: 400, step: 1, value: 40, rebuild: true },
     paceParam(),
     paletteParam('ember'),
