@@ -1599,3 +1599,9 @@ sources:
     publisher: Cambridge University Press
     year: 1999
     kind: book
+  - id: bragg-1913
+    title: The Reflection of X-rays by Crystals (Proceedings of the Royal Society of London A 88, 428)
+    author: William Henry Bragg, William Lawrence Bragg
+    year: 1913
+    kind: paper
+    url: https://doi.org/10.1098/rspa.1913.0040
