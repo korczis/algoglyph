@@ -1,9 +1,12 @@
 // The replayed board of a string kernel: rows of cells, tables, lists of chips, marks and links,
 // rebuilt event by event from the trace, and drawn only through the plate's context.
 import type p5 from 'p5';
-import { ramp, type RGB } from '../../core/palette';
+import { ramp, rampInto, type RGB } from '../../core/palette';
 import type { PlateContext } from '../../core/plate';
 import { OP, S, type Ev, type PartKind, type Trace } from './trace';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 
 interface Part {
   kind: PartKind;
@@ -261,11 +264,13 @@ export function drawBoard(p: p5, ctx: PlateContext, b: Board, x: number, y: numb
       const hh = u * 1.4;
       const cols = Math.max(1, Math.floor(avail));
       p.noStroke();
+      // ramp in place, bound to a local: bit-equal, no array per cell
+      const into = rampInto;
       if (n <= cols) {
         const cw = avail / Math.max(1, n);
         for (let i = 0; i < n; i++) {
           const v = q.heat[i];
-          const f = Number.isFinite(v) ? ramp(pal, v) : null;
+          const f = Number.isFinite(v) ? into(colour, pal, v) : null;
           if (f) p.fill(f[0], f[1], f[2]); else p.fill(fg[0], fg[1], fg[2], 14);
           p.rect(x0 + i * cw, cy, Math.max(1, cw - (cw > 4 ? 1 : 0)), hh);
           if (q.states[i] === S.focus) { p.fill(fg[0], fg[1], fg[2]); p.rect(x0 + i * cw, cy + hh, Math.max(1, cw), 3); }
@@ -279,7 +284,7 @@ export function drawBoard(p: p5, ctx: PlateContext, b: Board, x: number, y: numb
             if (Number.isFinite(q.heat[i])) { s += q.heat[i]; m++; }
             if (q.states[i] === S.focus) focus = true;
           }
-          const f = m ? ramp(pal, s / m) : null;
+          const f = m ? into(colour, pal, s / m) : null;
           if (f) p.fill(f[0], f[1], f[2]); else p.fill(fg[0], fg[1], fg[2], 14);
           p.rect(x0 + c, cy, 1, hh);
           if (focus) { p.fill(fg[0], fg[1], fg[2]); p.rect(x0 + c - 1, cy + hh, 3, 3); }
