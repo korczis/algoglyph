@@ -2,7 +2,7 @@ import { paletteParam } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { Rk4 } from '../_shared/ode/ode';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
-import { drawTrail, Trail } from './trail';
+import { drawTrail, strideFor, Trail, VERTEX_CAP } from './trail';
 
 type V3 = [number, number, number];
 
@@ -32,7 +32,8 @@ export function rk4Lorenz(s: V3, dt: number, sigma: number, rho: number, beta: n
   return [state[0], state[1], state[2]];
 }
 
-export const lorenzAttractor: PlateCode = {
+/** The plate with its trails capped at `cap` vertices a frame; Infinity draws every point. */
+export const makeLorenz = (cap: number): PlateCode => ({
   id: 'lorenz-attractor',
   mode: 'webgl',
   aspect: 16 / 10,
@@ -59,6 +60,7 @@ export const lorenzAttractor: PlateCode = {
     let heads: V3[] = [];
     let angle = 0;
     let steps = 0;
+    let stride = 1;
     const dt = DT;
     const stop = new StreamStop(params, BLOCK);
 
@@ -69,6 +71,7 @@ export const lorenzAttractor: PlateCode = {
           1 + (ctx.rnd() - 0.5) * 1e-4, 1 + (ctx.rnd() - 0.5) * 1e-4, 20 + (ctx.rnd() - 0.5) * 1e-4,
         ]);
         trails = heads.map(() => new Trail(num(params, 'trail'), dt));
+        stride = strideFor(n, num(params, 'trail'), cap);
         steps = 0;
         stop.reset();
         angle = ctx.rnd() * Math.PI * 2;
@@ -98,7 +101,7 @@ export const lorenzAttractor: PlateCode = {
         const pal = ctx.palette();
         p.noFill();
         p.strokeWeight(1.3);
-        for (const tr of trails) drawTrail(p, tr, pal);
+        for (const tr of trails) drawTrail(p, tr, pal, stride);
         p.strokeWeight(6);
         p.stroke(...ctx.fg);
         p.beginShape(p.POINTS);
@@ -129,6 +132,8 @@ export const lorenzAttractor: PlateCode = {
       },
     };
   },
-};
+});
+
+export const lorenzAttractor: PlateCode = makeLorenz(VERTEX_CAP);
 
 export default lorenzAttractor;

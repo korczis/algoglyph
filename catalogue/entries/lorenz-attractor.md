@@ -28,6 +28,7 @@ algorithm:
   properties: { deterministic: true }
   limitations:
     - "A fixed RK4 step agrees with the exact flow only for a while: the chaos that separates the tracers also amplifies the integration error."
+    - "Above 28,800 trail points in all (tracers × trail length), each trail is drawn through every k-th point, k = ⌈tracers × trail / 28,800⌉, ending on the newest; 48 tracers of 2400 points draw every fourth. Every point is still integrated, and the default 16 × 900 draws every point."
 claims:
   - id: falls-in-at-the-linear-rate-at-rho-12
     statement: >-

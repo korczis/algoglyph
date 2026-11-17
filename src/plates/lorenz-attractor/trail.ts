@@ -77,11 +77,32 @@ type Pen = {
   vertex(x: number, y: number, z: number): void;
 };
 
-/** The trail as a line from its second point on, coloured by speed and fading towards its tail. */
-export function drawTrail(p: Pen, tr: Trail, pal: Parameters<typeof ramp>[0]): void {
+/**
+ * Vertices all trails may draw in one frame before each trail is drawn through every `stride`-th
+ * point: twice the default 16 tracers × 900 points, so the default run and every setting up to
+ * 28,800 points draw every point. At the heaviest corner (48 × 2400) the stride is 4: 28,800
+ * vertices instead of 115,200, each a stroke and a vertex call (a lane verify on 4f5c3d9 read
+ * that frame at 25.0 ms against 24.0).
+ */
+export const VERTEX_CAP = 28_800;
+
+/** The stride every trail of a frame is drawn at: 1 until tracers × trail exceeds the cap. */
+export function strideFor(tracers: number, trail: number, cap = VERTEX_CAP): number {
+  return Math.max(1, Math.ceil((tracers * trail) / cap));
+}
+
+/**
+ * The trail as a line from its second point on, coloured by speed and fading towards its tail;
+ * with a stride above 1 through every stride-th point, ending on the newest so the line still
+ * meets the tracer's head. Each point drawn keeps its own colour and fade.
+ */
+export function drawTrail(p: Pen, tr: Trail, pal: Parameters<typeof ramp>[0], stride = 1): void {
   p.beginShape();
   const n = tr.length;
-  for (let j = 1; j < n; j++) {
+  const step = Math.max(1, Math.floor(stride));
+  // the first index ≥ 1 from which the stride lands on n − 1
+  const first = n > 1 ? 1 + ((n - 2) % step) : 1;
+  for (let j = first; j < n; j += step) {
     const b = tr.at(j);
     const c = tr.colourAt(j, pal);
     const fade = j / n;
