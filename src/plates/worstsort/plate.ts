@@ -4,7 +4,7 @@
 // lexicographic comparisons and swaps against what the list itself says they must be. The
 // `runs` control stops the plate after k completed runs (../_shared/settle/settle.ts).
 import type p5 from 'p5';
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mixInto, paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { num, str, type PlateCode, type PlateContext } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { caption, drawBars, padding, type Box } from '../_shared/bars/bars';
@@ -17,6 +17,9 @@ import { factorial } from '../_shared/theory/combinatorics';
 import {
   bubbleCost, bubbleItems, kernelLevels, KERNEL_MAX_N, leaves, MAX_ITEMS, worstRun, type Val, type WorstRun,
 } from './worstsort';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 
 const HOLD = 90;
 
@@ -142,11 +145,13 @@ const worstsortPlate: PlateCode = {
       if (!raster || raster.w !== width || raster.h !== list.length) raster = new Raster(width, list.length);
       const pal = c.palette();
       const settled = list.length - run.state.pass;
+      // ramp and mix in place, bound to locals: bit-equal, no array per cell
+      const into = rampInto; const blend = mixInto; const q = colour; const bg = c.bg;
       for (let y = 0; y < list.length; y++) {
         const keys = flat.get(list[y]) ?? leaves(list[y]);
         for (let x = 0; x < width; x++) {
-          const col = ramp(pal, (keys[x] - 1) / Math.max(1, n - 1));
-          const q = !run.stepper.done && y >= settled ? mix(col, c.bg, 0.35) : col;
+          into(q, pal, (keys[x] - 1) / Math.max(1, n - 1));
+          if (!run.stepper.done && y >= settled) blend(q, q, bg, 0.35);
           raster.set(x, y, q[0], q[1], q[2]);
         }
       }

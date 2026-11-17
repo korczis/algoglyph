@@ -70,3 +70,42 @@ export function mix(a: RGB, b: RGB, t: number): RGB {
 export function scale(c: RGB, k: number): RGB {
   return [c[0] * k, c[1] * k, c[2] * k];
 }
+
+/**
+ * ramp(pal, t, cyclic) written into `out` instead of a new array: the same arithmetic in the same
+ * order, so every component is bit-equal (test/hot-loops/palette.test.ts). For loops that shade
+ * a raster cell by cell, where ramp's array per call is garbage and, under the test runner's
+ * module transform, every imported call a property read: bind it to a local before the loop
+ * (const into = rampInto). scripts/check-hot-loops.mjs refuses ramp, mix and scale there.
+ */
+export function rampInto(out: RGB, pal: Palette, t: number, cyclic = false): RGB {
+  const s = pal.stops;
+  let u = cyclic ? t - Math.floor(t) : Math.min(1, Math.max(0, t));
+  let a: RGB; let b: RGB; let f: number;
+  if (cyclic) {
+    const x = u * s.length;
+    const i = Math.floor(x) % s.length;
+    a = s[i]; b = s[(i + 1) % s.length]; f = x - Math.floor(x);
+  } else {
+    u *= s.length - 1;
+    const i = Math.min(s.length - 2, Math.floor(u));
+    a = s[i]; b = s[i + 1]; f = u - i;
+  }
+  out[0] = a[0] + (b[0] - a[0]) * f;
+  out[1] = a[1] + (b[1] - a[1]) * f;
+  out[2] = a[2] + (b[2] - a[2]) * f;
+  return out;
+}
+
+/** mix(a, b, t) written into `out` (which may be a or b): bit-equal, no array allocated. */
+export function mixInto(out: RGB, a: RGB, b: RGB, t: number): RGB {
+  const r = a[0] + (b[0] - a[0]) * t; const g = a[1] + (b[1] - a[1]) * t; const bl = a[2] + (b[2] - a[2]) * t;
+  out[0] = r; out[1] = g; out[2] = bl;
+  return out;
+}
+
+/** scale(c, k) written into `out` (which may be c): bit-equal, no array allocated. */
+export function scaleInto(out: RGB, c: RGB, k: number): RGB {
+  out[0] = c[0] * k; out[1] = c[1] * k; out[2] = c[2] * k;
+  return out;
+}
