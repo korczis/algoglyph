@@ -35,6 +35,30 @@ export function instFreq(re: Float64Array, im: Float64Array, fs: number, meter?:
   return f;
 }
 
+/**
+ * The two readouts that check the analytic signal against closed forms of the signal it was made
+ * from, never against itself. The quadrature: the Hilbert transform of e·cos φ is e·sin φ when the
+ * envelope's spectrum lies below the carrier's (Bedrosian), so Im z − e·sin φ is the transform's
+ * error alone; |z| cannot see a sign slip in it, this can. The phase step: with z = e·e^(iφ) the
+ * measured frequency is the phase advance over one sample, which for φ = 2πfc·t + (dev/fm)·sin 2πfm·t
+ * is fc + dev·cos(2πfm(t + Δ/2))·sin(πfmΔ)/(πfmΔ) exactly, Δ = 1/fs; its largest gap from the
+ * measured one, the last sample (a copy of the one before) left out.
+ */
+export function oracles(im: Float64Array, f: Float64Array, env: Float64Array, phase: Float64Array,
+  fc: number, dev: number, fm: number): { quadrature: number; step: number } {
+  const n = im.length;
+  let q = 0;
+  for (let i = 0; i < n; i++) q += (im[i] - env[i] * Math.sin(phase[i])) ** 2;
+  const half = Math.PI * fm / FS;
+  const sinc = Math.sin(half) / half;
+  let step = 0;
+  for (let i = 0; i + 1 < n; i++) {
+    const closed = fc + dev * Math.cos(2 * Math.PI * fm * ((i + 0.5) / FS)) * sinc;
+    step = Math.max(step, Math.abs(f[i] - closed));
+  }
+  return { quadrature: Math.sqrt(q / n), step };
+}
+
 // An amplitude- and frequency-modulated carrier; the analytic signal recovers both modulations,
 // and its phase portrait is the carrier's rotating phasor.
 export const kernel: SignalKernel = {
@@ -60,11 +84,13 @@ export const kernel: SignalKernel = {
     const env = new Float64Array(LEN);
     const truthF = new Float64Array(LEN);
     const x = new Float64Array(LEN);
+    const phase = new Float64Array(LEN);
     for (let i = 0; i < LEN; i++) {
       const t = i / FS;
       env[i] = 1 + m * Math.cos(2 * Math.PI * fa * t);
       truthF[i] = fc + dev * Math.cos(2 * Math.PI * fm * t);
-      x[i] = env[i] * Math.cos(2 * Math.PI * fc * t + (dev / fm) * Math.sin(2 * Math.PI * fm * t) + ph);
+      phase[i] = 2 * Math.PI * fc * t + (dev / fm) * Math.sin(2 * Math.PI * fm * t) + ph;
+      x[i] = env[i] * Math.cos(phase[i]);
     }
     yield null;
     const [re, im] = analytic(x, meter);
@@ -77,6 +103,7 @@ export const kernel: SignalKernel = {
     for (let i = lo; i < hi; i++) { envErr += (mag[i] - env[i]) ** 2; fErr.push(Math.abs(f[i] - truthF[i])); }
     envErr = Math.sqrt(envErr / (hi - lo));
     fErr.sort((a, b) => a - b);
+    const { quadrature, step } = oracles(im, f, env, phase, fc, dev, fm);
     const counts = meter.snapshot();
     const steps = 64;
     const trail = Math.round((2 * FS) / fc); // two carrier cycles
@@ -105,6 +132,8 @@ export const kernel: SignalKernel = {
           { label: 'Frequency now: measured vs true', value: `${f[c].toFixed(1)} vs ${truthF[c].toFixed(1)} Hz` },
           { label: 'Envelope RMS error', value: envErr.toExponential(2) },
           { label: 'Median frequency error', value: `${fErr[fErr.length >> 1].toFixed(2)} Hz` },
+          { label: 'Quadrature error, Im z − e·sin φ (RMS)', value: quadrature.toExponential(2) },
+          { label: 'Phase-step frequency error (largest)', value: `${step.toExponential(2)} Hz` },
         ],
         counts,
         chart: { title: 'Instantaneous frequency', x: { label: 'time (s)' }, y: { label: 'frequency (Hz)' }, series: [
