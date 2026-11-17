@@ -3,7 +3,7 @@
 // phase, the exact kinetic phase in k-space, half a potential phase. The FFT is a radix-2
 // Cooley–Tukey transform (src/plates/_shared/fft/); plane-wave transmission comes from transfer
 // matrices.
-import { flush, TINY } from '../../../core/budget';
+import { TINY } from '../../../core/budget';
 import { Fft } from '../fft/fft';
 
 // the FFT is shared with the two-slit wall: one implementation, re-exported where it was
@@ -200,9 +200,12 @@ export class Wave {
 
   /** ψ = Gaussian of position spread σ (of |ψ|²) at x0 with mean momentum k0, Σ|ψ|²dx = 1. */
   gaussian(x0: number, k0: number, sigma: number): void {
+    // flush inlined against a local TINY: bit-equal, and no imported call per cell
+    const tiny = TINY;
     for (let i = 0; i < this.spec.n; i++) {
       const d = this.x[i] - x0;
-      const a = flush(Math.exp(-(d * d) / (4 * sigma * sigma)));
+      const g = Math.exp(-(d * d) / (4 * sigma * sigma));
+      const a = g > tiny || g < -tiny ? g : 0;
       this.re[i] = a * Math.cos(k0 * this.x[i]);
       this.im[i] = a * Math.sin(k0 * this.x[i]);
     }
@@ -248,6 +251,8 @@ export class Wave {
       if (absorb > 0) {
         let left = 0;
         let right = 0;
+        // flush inlined against a local TINY: bit-equal, and no imported call per cell
+        const tiny = TINY;
         for (let j = 0; j < absorb; j++) {
           const m = this.mask[j];
           const loss = 1 - m * m;
@@ -255,10 +260,15 @@ export class Wave {
           const b = n - 1 - j;
           left += (re[a] * re[a] + im[a] * im[a]) * loss;
           right += (re[b] * re[b] + im[b] * im[b]) * loss;
-          re[a] = flush(re[a] * m);
-          im[a] = flush(im[a] * m);
-          re[b] = flush(re[b] * m);
-          im[b] = flush(im[b] * m);
+          // each read after the write before it, as with flush(), should a and b ever meet
+          let q = re[a] * m;
+          re[a] = q > tiny || q < -tiny ? q : 0;
+          q = im[a] * m;
+          im[a] = q > tiny || q < -tiny ? q : 0;
+          q = re[b] * m;
+          re[b] = q > tiny || q < -tiny ? q : 0;
+          q = im[b] * m;
+          im[b] = q > tiny || q < -tiny ? q : 0;
         }
         this.absorbedLeft += left * dx;
         this.absorbedRight += right * dx;

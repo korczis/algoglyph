@@ -1,5 +1,5 @@
 import { bounded, cellWithin, stepsWithin } from '../../core/budget';
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mix, paletteParam } from '../../core/palette';
 import { num, str, type PlateCode, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
@@ -7,6 +7,7 @@ import {
   arcOf, DRUM_H, DRUM_PICKUP, DRUM_STRIKE, DRUM_W, drumModeClosed, drumModeScheme, drumRecordSteps, farFieldLobe,
   machAngle, measuredLobe, measuredMach, peakNear, predictedLobe,
 } from './measure';
+import { shadeIntensity, shadeWave } from './shade';
 import { advance, C2, drop, tank, type Experiment, type Tank } from './wave';
 
 /** Steps in one run of the stop: a block of 100 steps. */
@@ -197,19 +198,9 @@ export const rippleTank: PlateCode = {
         if (view === 'intensity') for (let i = 0; i < intensity.length; i++) {
           if (intensity[i] > peak && (i % w) > barrierX + 4) peak = intensity[i];
         }
-        for (let i = 0; i < u.length; i++) {
-          if (wall[i]) {
-            raster.data.set([wallC[0], wallC[1], wallC[2], 255], i * 4);
-            continue;
-          }
-          const c = view === 'intensity'
-            ? mix(ctx.bg, ramp(pal, Math.min(1, intensity[i] / peak)), Math.min(1, Math.sqrt(intensity[i] / peak) * 1.4))
-            : ramp(pal, 0.5 + Math.max(-0.5, Math.min(0.5, u[i] * 0.55)));
-          raster.data[i * 4] = c[0];
-          raster.data[i * 4 + 1] = c[1];
-          raster.data[i * 4 + 2] = c[2];
-          raster.data[i * 4 + 3] = 255;
-        }
+        // allocation-free, byte for byte the per-cell ramp and mix it replaced (./shade.ts)
+        if (view === 'intensity') shadeIntensity(raster.data, intensity, wall, wallC, pal, ctx.bg, peak);
+        else shadeWave(raster.data, u, wall, wallC, pal);
         raster.blit(p, true);
 
         ctx.stats([

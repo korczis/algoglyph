@@ -2,7 +2,7 @@
 //   u' = Du ∇²u − u v² + f (1 − u)
 //   v' = Dv ∇²v + u v² − (f + k) v
 // The Laplacian is the 3×3 stencil with weights −1 (centre), 0.2 (edges), 0.05 (corners).
-import { flush } from '../../core/budget';
+import { TINY } from '../../core/budget';
 
 export const DU = 1.0;
 export const DV = 0.5;
@@ -41,6 +41,7 @@ export function seed(fl: Field, cx: number, cy: number, r: number): void {
 
 export function step(fl: Field, f: number, k: number): void {
   const { w, h, u, v, nu, nv } = fl;
+  const tiny = TINY;
   for (let y = 0; y < h; y++) {
     const ym = ((y - 1 + h) % h) * w;
     const y0 = y * w;
@@ -54,9 +55,12 @@ export function step(fl: Field, f: number, k: number): void {
       const lv = 0.2 * (v[y0 + xm] + v[y0 + xp] + v[ym + x] + v[yp + x])
         + 0.05 * (v[ym + xm] + v[ym + xp] + v[yp + xm] + v[yp + xp]) - v[i];
       const uvv = u[i] * v[i] * v[i];
-      // flushed: a dying pattern decays V into subnormal floats, slow on x86 (src/core/budget.ts)
-      nu[i] = flush(u[i] + DU * lu - uvv + f * (1 - u[i]));
-      nv[i] = flush(v[i] + DV * lv + uvv - (f + k) * v[i]);
+      // flushed: a dying pattern decays V into subnormal floats, slow on x86 (src/core/budget.ts);
+      // flush inlined against a local TINY, bit-equal, and no imported call per cell
+      const a = u[i] + DU * lu - uvv + f * (1 - u[i]);
+      const b = v[i] + DV * lv + uvv - (f + k) * v[i];
+      nu[i] = a > tiny || a < -tiny ? a : 0;
+      nv[i] = b > tiny || b < -tiny ? b : 0;
     }
   }
   fl.u = nu;
