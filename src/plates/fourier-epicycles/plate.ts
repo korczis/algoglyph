@@ -53,6 +53,14 @@ export function shape(id: string, rnd: () => number, n = SAMPLES): Shape {
   }
 }
 
+/** The second-largest circle's radius over the largest's, and its frequency: the first ratio of
+ * the series, which a known curve fixes in closed form (the heart's 6/25, the trefoil's 13/54, the
+ * sampled square's sin²(π/N)/sin²(3π/N)). */
+export function secondCircle(terms: Term[]): string {
+  if (terms.length < 2 || terms[0].amp === 0) return '– (one circle)';
+  return `${(terms[1].amp / terms[0].amp).toFixed(6)} at f = ${terms[1].freq}`;
+}
+
 export const fourierEpicycles: PlateCode = {
   id: 'fourier-epicycles',
   mode: '2d',
@@ -91,6 +99,7 @@ export const fourierEpicycles: PlateCode = {
     let lastCount = -1;
     let error = 0;
     let size = 1;
+    let second = '';
 
     return {
       setup() {
@@ -99,6 +108,7 @@ export const fourierEpicycles: PlateCode = {
         let sum = 0;
         for (let j = 0; j < xs.length; j++) sum += xs[j] ** 2 + ys[j] ** 2;
         size = Math.sqrt(sum / xs.length);
+        second = secondCircle(terms);
         t = 0;
         trail = [];
         lastCount = -1;
@@ -171,6 +181,7 @@ export const fourierEpicycles: PlateCode = {
           { label: 'RMS error / size', value: `${((100 * error) / size).toFixed(2)} %` },
           { label: 'largest circle', value: `f = ${terms[0].freq}, r = ${(terms[0].amp / size).toFixed(3)}` },
           { label: 'start point', value: `(${ex.toFixed(3)}, ${ey.toFixed(3)})` },
+          { label: 'second circle / largest', value: second },
         ]);
       },
     };
