@@ -13,7 +13,7 @@ import {
 } from '../src/plates/_shared/two-slit/ballistic';
 import {
   attenuation, gridReading, sampledKernel, CELLS_PER_PERIOD,
-} from '../src/plates/_shared/two-slit/detector';
+} from '../src/plates/_shared/optics/detector';
 import {
   besselJ0, chiSquareQuantile, erf, interpolate, ksBound, ksDistance, sinc, Z_999,
 } from '../src/plates/_shared/two-slit/math';
@@ -29,7 +29,7 @@ import { installBrowserStubs, p5Stub } from './support/p5-stub';
 import {
   envelope, fringePeriod, referenceCdf, Screen, twoSlit, visibilityMoments, VisibilityEstimate,
   type Slits,
-} from '../src/plates/_shared/two-slit/screen';
+} from '../src/plates/_shared/optics/screen';
 
 describe('two-slit math', () => {
   it('sinc, erf and J0 match published values', () => {
