@@ -189,3 +189,76 @@ describe('a reader\'s data composes with every control', () => {
     }, 120000);
   }
 });
+
+/**
+ * Every adopter uses the reader's data, not merely says so (coordinator, after U-signal found that
+ * the test above caught no data-path mutation: a plate that read the wrong samples still printed
+ * "your data" and passed). For each declaring plate, at its defaults with the data option picked:
+ * - the same table twice gives the same readouts (a run on data is a function of the data);
+ * - two different valid tables give readouts that differ somewhere beyond the Input row (the run
+ *   depends on the data);
+ * - the planted mutation, data that never arrives, so that the plate runs its seeded input as a
+ *   plate that ignored the data would, must fail the second check on every adopter.
+ */
+describe('a reader\'s data reaches every adopter\'s readouts', () => {
+  const declaring = ENTRIES.filter((e) => e.status === 'live' && e.data.length);
+
+  /** A valid table for `id`'s first input from `seed`: rising first column, spread rest, inside the bounds. */
+  function tableFrom(id: string, seed: number, spread: number): DataTable {
+    const d = entry(id).data[0];
+    const n = Math.min(d.rows.max, Math.max(d.rows.min, 40));
+    const rnd = mulberry32(seed);
+    return tableFor(id, Array.from({ length: n }, (_, k) => d.columns.map((c, j) => {
+      const v = j === 0 && d.columns.length > 1 ? k + rnd() : spread * (rnd() - 0.25);
+      const lo = c.min ?? -Infinity;
+      const hi = c.max ?? Infinity;
+      return v >= lo && v <= hi ? v : lo + (hi - lo) * rnd();
+    })));
+  }
+
+  /** The readouts at the end of the first run on `table` (or on no table at all, for the planted mutation). */
+  function readouts(id: string, plate: NonNullable<Awaited<ReturnType<typeof loadPlate>>>, table: DataTable | null): string[] {
+    const d = entry(id).data[0];
+    const pace = plate.params.find((x) => x.key === 'pace');
+    const params: Params = { ...defaults(plate), [d.replaces]: optionValue(d.id), loop: false,
+      ...(pace?.kind === 'range' ? { pace: pace.max } : {}) };
+    let rows: Stat[] = [];
+    const ground = GROUNDS.dark;
+    const ctx: PlateContext = {
+      width: 800, height: 500, params, seed: 9, rnd: mulberry32(9), theme: 'dark', bg: ground.bg, fg: ground.fg,
+      thumbnail: false, palette: () => lookupPalette('spectral'), stats(r) { rows = r; }, chart() {},
+      data: (x) => (x === d.id ? table : null),
+    };
+    const sim = plate.create(p5Stub(), ctx);
+    sim.setup();
+    let last = ''; let same = 0;
+    for (let i = 0; i < 20000; i++) {
+      sim.draw();
+      if (plate.pace?.kind === 'still') {
+        const now = JSON.stringify(rows);
+        same = now === last ? same + 1 : 0;
+        last = now;
+        if (same >= 30) break;
+      } else if (sim.pace?.().done) break;
+    }
+    return rows.filter((r) => !/pace|Pace|×/.test(r.label)).map((r) => `${r.label}=${r.value}`);
+  }
+
+  /** Rows beyond the Input row that differ between two readouts. */
+  const differing = (a: string[], b: string[]) => a.filter((r, i) => !r.startsWith('Input=') && r !== b[i]).length
+    + Math.abs(a.length - b.length);
+
+  for (const e of declaring) {
+    it(`${e.id}: the run is a function of the reader's data, and a plate ignoring it is caught`, async () => {
+      const plate = (await loadPlate(e.id))!;
+      const a = tableFrom(e.id, 31, 100); const b = tableFrom(e.id, 77, 60);
+      const ra = readouts(e.id, plate, a);
+      expect(ra.some((r) => r.startsWith('Input=your data')), `${e.id} runs on the data`).toBe(true);
+      expect(readouts(e.id, plate, a), `${e.id}: the same table twice gives the same readouts`).toEqual(ra);
+      const rb = readouts(e.id, plate, b);
+      expect(differing(ra, rb), `${e.id}: two different tables change some readout beyond Input`).toBeGreaterThan(0);
+      // the planted mutation: no data arrives, as for a plate that ignored it; both runs are the seeded one
+      expect(differing(readouts(e.id, plate, null), readouts(e.id, plate, null)), `${e.id}: data that never arrives must be caught`).toBe(0);
+    }, 120000);
+  }
+});

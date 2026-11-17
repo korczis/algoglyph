@@ -94,3 +94,5 @@ Two sinusoids on two axes: the figure reads their frequency ratio and phase.
 On an oscilloscope in X–Y mode, x = sin(a·ωt + δ) against y = sin(b·ωt) draws a closed figure when a/b is rational; the figure touches the vertical sides a times and the horizontal sides b times. With equal frequencies it is an ellipse, and where it crosses x = 0, |y| reads |sin δ|.
 
 The plate reads the ratio and the phase back from the samples: each channel's frequency is its spectrum's peak bin, and δ is the phase of x at its bin less a/b times the phase of y at its bin. A steady drift of δ makes the figure appear to turn, as two slightly mistuned oscillators do.
+
+**Data.** The plate takes no data of a reader's. Its figure is two channels drawn against each other, where a series is a single column; each view draws the figure anew at the next phase of the drift; and its readings of the ratio and the phase assume that each channel completes a whole number of cycles in the figure's samples, as the plate's own sines do by construction.

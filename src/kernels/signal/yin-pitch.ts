@@ -1,5 +1,6 @@
 import { gaussian } from '../../core/random';
-import { mulberry32 } from '../../engines/signal/input';
+import type { Params } from '../../core/plate';
+import { mulberry32, readerInput, readerSeries } from '../../engines/signal/input';
 import { chartPoints, FRAME, MUL, type Meter, type SignalKernel, type View } from '../../engines/signal/trace';
 import { parabolic } from './_fft';
 
@@ -71,6 +72,8 @@ const cents = (a: number, b: number) => 1200 * Math.log2(a / b);
 // vibrato inside the periods the detector searches (test/kernels-signal.test.ts).
 export const kernel: SignalKernel = {
   params: [
+    { kind: 'select', key: 'signal', label: 'Signal', value: 'voice',
+      options: [{ value: 'voice', label: 'Gliding harmonic tone with vibrato' }] },
     { kind: 'range', key: 'f0', label: 'Starting pitch (Hz)', min: 100, max: 600, step: 1, value: 196 },
     { kind: 'range', key: 'glide', label: 'Glide (semitones)', min: -12, max: 12, step: 1, value: 7 },
     { kind: 'range', key: 'vib', label: 'Vibrato depth (cents)', min: 0, max: 100, step: 5, value: 30 },
@@ -80,7 +83,9 @@ export const kernel: SignalKernel = {
       options: ['256', '384', '512'].map((v) => ({ value: v, label: `${v} samples` })) },
     { kind: 'range', key: 'h2', label: 'Second harmonic strength', min: 0, max: 6, step: 0.25, value: 1 },
   ],
-  *run(params, seed, meter): Generator<View | null> {
+  *run(params, seed, meter, data): Generator<View | null> {
+    const yours = readerSeries(params, 'signal', data);
+    if (yours) { yield* onYours(yours, params, meter); return; }
     const n = Math.round(1.5 * FS);
     const { x, f } = voice(n, Number(params.f0), Number(params.glide), Number(params.vib), Number(params.snr), seed,
       Number(params.h2 ?? 1));
@@ -130,3 +135,49 @@ export const kernel: SignalKernel = {
     }
   },
 };
+
+/**
+ * YIN on a reader's series (ADR 0010): its first 1.5 s at FS, zero-padded to one frame when it is
+ * shorter. The same frames, threshold and window as the seeded run; there is no true pitch to
+ * compare with, so the readouts are the detector's own.
+ */
+function* onYours(yours: Float64Array, params: Params, meter: Meter): Generator<View | null> {
+  const w = Number(params.w ?? W);
+  const thr = Number(params.thr);
+  const used = Math.min(yours.length, Math.round(1.5 * FS));
+  const n = Math.max(used, w + TAU_MAX);
+  const x = Float64Array.from({ length: n }, (_, i) => (i < used ? yours[i] : 0));
+  const input = readerInput(yours, FS, used);
+  yield null;
+  const track = new Float64Array(Math.floor((n - w - TAU_MAX) / HOP) + 1).fill(NaN);
+  for (let k = 0; k < track.length; k++) {
+    const from = k * HOP;
+    const p = yin(x, from, FS, thr, w, TAU_MAX, meter);
+    meter.add(FRAME);
+    track[k] = p.f;
+    const seen = track.subarray(0, k + 1);
+    const lo = Math.min(...seen) / 1.6; const hi = Math.max(...seen) * 1.4;
+    const known: [number, number][] = [];
+    for (let j = 0; j <= k; j++) known.push([(j * HOP + w / 2) / FS, track[j]]);
+    yield {
+      layout: [[0, 1], [2]],
+      panels: [
+        { kind: 'wave', title: `Frame at ${((from + w / 2) / FS).toFixed(3)} s`, series: [{ name: 'x', y: x.subarray(from, from + w + TAU_MAX), tone: 0.7 }],
+          marks: [{ at: 0 }, { at: p.tau, label: 'one period' }] },
+        { kind: 'wave', title: "d'(τ), the cumulative mean normalised difference", range: [0, 1.6], series: [
+          { name: "d'(τ)", y: p.dprime, tone: 0.3 }, { name: 'threshold', y: new Float64Array(p.dprime.length).fill(thr), tone: -1, alpha: 110 }],
+          marks: [{ at: p.tau, label: `τ = ${p.tau.toFixed(2)}` }] },
+        { kind: 'wave', title: 'Pitch track (Hz), detected', upto: k + 1, range: [lo, hi], series: [
+          { name: 'YIN', y: track.map((v) => (Number.isFinite(v) ? v : track[0])), tone: 0.85 }] },
+      ],
+      stats: [
+        { label: 'Detected', value: `${p.f.toFixed(2)} Hz` },
+        { label: 'True pitch', value: 'no reference: your data has no known pitch' },
+        { label: "Aperiodicity d'(τ)", value: p.aperiodicity.toFixed(3) },
+        input,
+      ],
+      counts: meter.snapshot(),
+      chart: { title: 'Pitch track', x: { label: 'time (s)' }, y: { label: 'frequency (Hz)' }, series: [{ name: 'YIN', points: known }] },
+    };
+  }
+}

@@ -1,5 +1,6 @@
 import { gaussian, mulberry32 } from '../../core/random';
 import { lineFit } from '../../engines/signal/fit';
+import { readerInput, readerSeries } from '../../engines/signal/input';
 import { FRAME, MUL, type Meter, type SignalKernel, type View } from '../../engines/signal/trace';
 import { welch, windowOf } from './_fft';
 
@@ -69,10 +70,14 @@ export function slope(psd: Float64Array, fs: number, frame: number, from = BANDS
 // average over more and more frames shows the slopes of 0, −3 and −6 dB per octave emerge.
 export const kernel: SignalKernel = {
   params: [
+    { kind: 'select', key: 'signal', label: 'Signal', value: 'noises',
+      options: [{ value: 'noises', label: 'White, pink and brown noise' }] },
     { kind: 'range', key: 'rows', label: 'Voss–McCartney rows', min: 4, max: 20, step: 1, value: 16 },
     { kind: 'range', key: 'leak', label: 'Brown noise leak a', min: 0.9, max: 0.999, step: 0.001, value: 0.998 },
   ],
-  *run(params, seed, meter): Generator<View | null> {
+  *run(params, seed, meter, data): Generator<View | null> {
+    const yours = readerSeries(params, 'signal', data);
+    if (yours) { yield* onYours(yours, meter); return; }
     const rnd = mulberry32(seed);
     const blocks = 48;
     const n = blocks * BLOCK;
@@ -120,3 +125,52 @@ export const kernel: SignalKernel = {
     }
   },
 };
+
+/** The longest series read on data: the 48 blocks the seeded run generates. */
+const DATA_MAX = 48 * BLOCK;
+
+/**
+ * Welch's average and the slope fit on a reader's series (ADR 0010): its first DATA_MAX samples
+ * at FS, zero-padded to one frame when shorter, read a block at a time as the seeded noises are.
+ * There is no colour it was made with, so the slope is measured with no ideal beside it.
+ */
+function* onYours(yours: Float64Array, meter: Meter): Generator<View | null> {
+  const used = Math.min(yours.length, DATA_MAX);
+  const n = Math.max(used, FRAME_LEN);
+  const y = Float64Array.from({ length: n }, (_, i) => (i < used ? yours[i] : 0));
+  const input = readerInput(yours, FS, used);
+  const w = windowOf('hann', FRAME_LEN);
+  const hop = FRAME_LEN / 2;
+  const sum = new Float64Array(FRAME_LEN / 2 + 1);
+  let frames = 0;
+  let from = 0;
+  const blocks = Math.ceil(n / BLOCK);
+  for (let b = 1; b <= blocks; b++) {
+    const end = Math.min(b * BLOCK, n);
+    for (; from + FRAME_LEN <= end; from += hop) {
+      const one = welch(y.subarray(from, from + FRAME_LEN), FRAME_LEN, hop, w, meter);
+      for (let k = 0; k < sum.length; k++) sum[k] += one.psd[k];
+      frames++;
+      meter.add(FRAME);
+    }
+    const psd = Float64Array.from(sum, (v) => v / Math.max(1, frames));
+    const fit = slope(psd, FS, FRAME_LEN);
+    yield {
+      layout: [[0], [1]],
+      panels: [
+        { kind: 'lanes', title: `Latest ${end - (b - 1) * BLOCK} samples of your data`, lanes: [{ name: 'yours', y: y.subarray((b - 1) * BLOCK, end), tone: 0.55 }] },
+        { kind: 'spectrum', title: `Welch average of ${frames} frames (log frequency)`, fmax: FS / 2, fmin: 10, logx: true, floor: -70, ceil: 20,
+          series: [{ name: 'yours', y: Float64Array.from(psd, (v) => 10 * Math.log10(Math.max(1e-12, v))), tone: 0.55 }],
+          marks: [{ at: BANDS_FROM, label: 'fit' }, { at: BANDS_TO }] },
+      ],
+      stats: [
+        { label: 'Frames averaged', value: String(frames) },
+        { label: 'your data slope (measured)', value: `${fit.slope.toFixed(2)} dB/octave (no reference)` },
+        input,
+      ],
+      counts: meter.snapshot(),
+      chart: { title: 'Power in third-octave bands', x: { label: 'frequency (Hz)', log: true }, y: { label: 'power (dB)' },
+        series: [{ name: 'yours', points: fit.bands }] },
+    };
+  }
+}

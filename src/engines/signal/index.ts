@@ -61,7 +61,7 @@ function plate(info: KernelInfo, kernel: SignalKernel): PlateCode {
       // its length
       const pacer = new Pacer('views', 'views', MAX_VIEWS_PER_FRAME);
       let sig = signature(ctx.params, keys);
-      const record = () => new Recording(kernel.run({ ...ctx.params }, ctx.seed + generation * 7919, new Meter()));
+      const record = () => new Recording(kernel.run({ ...ctx.params }, ctx.seed + generation * 7919, new Meter(), ctx.data));
       /** The run on screen, and a re-record for new parameters finishing in the background. */
       let live = record();
       let next: Recording | null = null;
