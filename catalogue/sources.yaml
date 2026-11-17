@@ -1617,3 +1617,8 @@ sources:
     year: 1990
     kind: paper
     url: https://doi.org/10.1016/0375-9601(90)90092-3
+  - id: foucault-1851
+    title: Démonstration physique du mouvement de rotation de la Terre au moyen du pendule (Comptes rendus de l'Académie des sciences 32, 135–138)
+    author: Léon Foucault
+    year: 1851
+    kind: paper
