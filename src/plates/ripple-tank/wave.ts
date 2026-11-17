@@ -9,7 +9,7 @@
 // far slower than normal ones (Apple silicon does not). Every stored value, the field and the
 // intensity average, goes through `flush` (src/core/budget.ts): below TINY it is an exact zero.
 
-import { flush } from '../../core/budget';
+import { TINY } from '../../core/budget';
 import { leapfrog2d } from '../_shared/wave2d/leapfrog';
 
 /** Courant number squared, (c·dt/dx)², kept under the 2D stability limit of 1/2. */
@@ -161,9 +161,13 @@ export function advance(t: Tank, lambda: number): void {
   t.u = nxt;
   t.nxt = prev;
   u = t.u;
+  // flush inlined against a local TINY: bit-equal, and no imported binding read per cell (a
+  // property access under the test runner's module transform, which the budget gate measures)
+  const tiny = TINY;
   for (let i = 0; i < u.length; i++) {
-    const e = intensity[i] * 0.992 + u[i] * u[i] * 0.008;
-    intensity[i] = f ? flush(e) : e;
+    const ui = u[i];
+    const e = intensity[i] * 0.992 + ui * ui * 0.008;
+    intensity[i] = f ? (e > tiny || e < -tiny ? e : 0) : e;
   }
   t.step++;
 }
