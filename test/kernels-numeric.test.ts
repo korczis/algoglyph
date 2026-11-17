@@ -10,6 +10,7 @@ import { logSlope, Meter, type NumericKernel, type NumericRun } from '../src/eng
 import * as adaptive from '../src/kernels/numeric/adaptive-quadrature';
 import * as additive from '../src/kernels/numeric/additive-congruential';
 import * as spline from '../src/kernels/numeric/cubic-splines';
+import * as dw from '../src/kernels/numeric/dispersive-waves';
 import * as euclid from '../src/kernels/numeric/euclid-gcd';
 import * as fd from '../src/kernels/numeric/finite-differences';
 import * as gauss from '../src/kernels/numeric/gaussian-elimination';
@@ -28,12 +29,14 @@ import * as rl from '../src/kernels/numeric/roots-and-logarithms';
 import * as simplex from '../src/kernels/numeric/simplex-method';
 import * as simpson from '../src/kernels/numeric/simpson-quadrature';
 import * as strassen from '../src/kernels/numeric/strassen';
+import * as str from '../src/kernels/numeric/string-and-sound';
 import * as takens from '../src/kernels/numeric/takens-embedding';
 import * as topsis from '../src/kernels/numeric/topsis';
 import { falseNeighbours, firstMinimum, mutualInformation } from '../src/kernels/numeric/_embed';
 import { INTEGRANDS } from '../src/kernels/numeric/_functions';
 import { lstsq, matmul, transpose, vandermonde, type Mat } from '../src/kernels/numeric/_linalg';
 import { logisticSeries, lorenzOrbit, noise } from '../src/kernels/numeric/_systems';
+import { leapfrog1d, leapfrogGroupVelocity, leapfrogOmega, leapfrogPhaseVelocity } from '../src/plates/_shared/wave2d/leapfrog';
 
 const modules = import.meta.glob<NumericKernel>('../src/kernels/numeric/[!_]*.ts', { import: 'kernel', eager: true });
 const live = ENTRIES.filter((e) => e.engine === 'numeric' && e.status === 'live');
@@ -279,6 +282,53 @@ const REFERENCES: Record<string, () => void> = {
     expect(at(ch, 21)).toBeLessThan(0.02);
   },
 
+  'dispersive-waves': () => {
+    // the dispersion functions against independent arithmetic: v_g as a central difference of ω,
+    // v_p as ω/k, and ω against the stencil itself, which must step a plane wave cos(kx − ωt) by ω
+    for (const c2 of [0.25, 0.5, 1]) {
+      for (const k of [0.3, 0.8, 1.6, 2.4, 3]) {
+        const h = 1e-5;
+        close(leapfrogGroupVelocity(k, c2), (leapfrogOmega(k + h, c2) - leapfrogOmega(k - h, c2)) / (2 * h), 1e-8);
+        close(leapfrogPhaseVelocity(k, c2) * k, leapfrogOmega(k, c2), 1e-14);
+        const n = 64; const w = leapfrogOmega(k, c2);
+        const at = (t: number) => Float64Array.from({ length: n }, (_, x) => Math.cos(k * x - w * t));
+        const nxt = new Float64Array(n);
+        leapfrog1d(at(0), at(-1), nxt, n, c2);
+        const want = at(1);
+        for (let x = 1; x < n - 1; x++) close(nxt[x], want[x], 1e-12);
+      }
+      // at C² = 1 the line has no dispersion: v_g = v_p = 1 at every wavenumber
+      if (c2 === 1) for (const k of [0.4, 1.6, 2.4]) { close(leapfrogGroupVelocity(k, 1), 1, 1e-12); close(leapfrogPhaseVelocity(k, 1), 1, 1e-12); }
+    }
+    // the packet's centre moves at v_g and its carrier's phase turns at ω, at two wavenumbers
+    const runOf = (k0: string, c2: string, stencil?: dw.Stencil) => {
+      const g = dw.simulate(dw.setupOf({ experiment: 'packet', k0, c2 }), stencil);
+      let r = g.next();
+      while (!r.done) r = g.next();
+      return r.value.m;
+    };
+    for (const [k0, c2] of [['0.8', '0.5'], ['2.4', '0.25']]) {
+      const m = runOf(k0, c2);
+      close(dw.measuredGroupVelocity(m), leapfrogGroupVelocity(Number(k0), Number(c2)), 1e-3);
+      close(dw.measuredOmega(m) / Number(k0), leapfrogPhaseVelocity(Number(k0), Number(c2)), 1e-4);
+      // the running fit the readouts use agrees with a fit over the whole run at the end
+      close(dw.runningSlopes(m.centre).at(-1)!, dw.measuredGroupVelocity(m), 1e-9);
+    }
+    // a mutation control: a Laplacian weight of 2.1 for 2 adds a mass term, and the packet's
+    // speed no longer matches the scheme's v_g
+    const heavy: dw.Stencil = (u, prev, nxt, n, c2) => {
+      for (let i = 1; i < n - 1; i++) nxt[i] = 2 * u[i] - prev[i] + c2 * (u[i - 1] + u[i + 1] - 2.1 * u[i]);
+      nxt[0] = 0; nxt[n - 1] = 0;
+    };
+    const bad = dw.measuredGroupVelocity(runOf('0.8', '0.5', heavy));
+    expect(Math.abs(bad - leapfrogGroupVelocity(0.8, 0.5)), `mutated v_g ${bad}`).toBeGreaterThan(0.01);
+    // and the beat envelope: its period at the probe is 2π/|ω₁ − ω₂| of the closed form
+    const g = dw.simulate(dw.setupOf({ experiment: 'beats', k0: '1.6', c2: '0.5' }));
+    let r = g.next();
+    while (!r.done) r = g.next();
+    close(dw.beatPeriod(dw.minima(r.value.m.probes[0])), dw.predicted(dw.setupOf({ k0: '1.6', c2: '0.5' })).beatPeriod, 0.5);
+  },
+
   'cubic-splines': () => {
     const xs = [0, 0.3, 0.45, 1, 1.6];
     const lin = spline.naturalSpline(xs, xs.map((x) => 2 * x - 1));
@@ -301,6 +351,39 @@ const REFERENCES: Record<string, () => void> = {
       return Math.max(...Array.from({ length: 401 }, (_, i) => Math.abs(sp.at(i / 400) - Math.sin((Math.PI * i) / 400))));
     };
     expect(err(11) / err(21)).toBeGreaterThan(12);
+  },
+
+  'string-and-sound': () => {
+    // the pluck: a unit triangle, zero at both ends, apex on its cell
+    const u = str.pluckShape(0.2);
+    expect(u[0]).toBe(0); expect(u[str.L]).toBe(0); expect(u[48]).toBe(1);
+    // the spectrum against a direct DFT of the same windowed record, at a few bins
+    const rec = str.pluck(1, 0.2, 960).record;
+    const mag = str.spectrum(rec, 12);
+    for (const b of [2, 5, 11]) {
+      let re = 0; let im = 0;
+      for (let t = 0; t < rec.length; t++) {
+        const w = rec[t] * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / rec.length));
+        re += w * Math.cos((2 * Math.PI * b * t) / rec.length); im -= w * Math.sin((2 * Math.PI * b * t) / rec.length);
+      }
+      close(mag[b], Math.hypot(re, im), 1e-9 * (1 + Math.hypot(re, im)));
+    }
+    // at C = 1 the line is exact: the period is 2L steps, and every harmonic is n/2L
+    close(str.period(1), 2 * str.L, 1e-9);
+    const a = str.analyse(1, 0.25);
+    a.f.forEach((f, i) => { if ((i + 1) % 4) close(f, (i + 1) / (2 * str.L), 1e-9); });
+    // a pluck at a quarter silences harmonics 4, 8 and 12; the others meet the closed form
+    for (const n of [4, 8, 12]) expect(a.amp[n - 1]).toBeLessThan(1e-10);
+    for (const n of [2, 3, 5, 7]) close(a.amp[n - 1], str.amplitudeRatio(n, 0.25), 1e-6);
+    // the discrete closed form tends to the continuous string's sin(nπp) sin(nπq) / n² as L grows
+    const big = 240_000;
+    const q = Math.round(str.PICKUP * big) / big;
+    close(str.amplitudeRatio(3, 0.25, big), Math.abs(Math.sin(0.75 * Math.PI) * Math.sin(3 * Math.PI * q)) / (9 * Math.abs(Math.sin(0.25 * Math.PI) * Math.sin(Math.PI * q))), 1e-9);
+    // a mutation control: a string stepped with a wrong Courant number sounds a wrong fundamental
+    const wrong = str.pluck(0.81, 0.25, Math.round(10 * str.period(1))).record;
+    const wm = str.spectrum(wrong, 15);
+    const [fw] = str.peakNear(wm, 10, wrong.length);
+    expect(Math.abs(fw - 1 / (2 * str.L))).toBeGreaterThan(1e-4);
   },
 
   'least-squares': () => {
