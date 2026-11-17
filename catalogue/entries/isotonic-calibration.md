@@ -23,6 +23,20 @@ pedagogy:
     - Measure calibration on held-out cases with the reliability diagram, the Brier score and the expected calibration error, so the fit does not grade itself.
 algorithm:
   paradigm: incremental
+data:
+  - id: cases
+    title: Your predictions and outcomes
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: p, unit: 'probability (1)', min: 0, max: 1 }
+      - { key: y, unit: '1 (0 or 1)', min: 0, max: 1 }
+    rows: { min: 20, max: 5000 }
+    bytes: 65536
+    replaces: distortion
+    ignores: [n, slope]
+    url_bytes: 1800
+    note: Your cases are split by the seed, half (rounded up) to fit the isotonic map and the rest held out, and the held-out Brier score and calibration error are measured before and after it. An outcome counts as 1 at 0.5 or above. Nothing says how your outcomes were drawn, so no true curve is drawn beside the fit.
 claims:
   - id: held-out-calibration-error-falls
     statement: >-

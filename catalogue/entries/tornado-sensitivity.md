@@ -24,6 +24,21 @@ bounds:
   model: model evaluations
   best: 13d + 1 + n for d inputs and n Monte Carlo runs
   worst: 13d + 1 + n for d inputs and n Monte Carlo runs
+data:
+  - id: ranges
+    title: Your ranges of the five inputs
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: low, unit: "the row's input in its own unit", min: -1.0e9, max: 1.0e9 }
+      - { key: base, unit: "the row's input in its own unit", min: -1.0e9, max: 1.0e9 }
+      - { key: high, unit: "the row's input in its own unit", min: -1.0e9, max: 1.0e9 }
+    rows: { min: 5, max: 5 }
+    bytes: 65536
+    replaces: ranges
+    ignores: []
+    url_bytes: 1800
+    note: Five rows, one for each input of the margin model in its order, volume, price, unit cost, loss rate (a fraction) and fixed cost, each with its low, base and high value; a row's three values are sorted, so they may come in any order. The plate swings each of your inputs alone and runs the joint Monte Carlo on triangular distributions over your ranges. The model stays the plate's own; only its inputs are yours.
 ---
 
 Each input swung from low to high alone, sorted into a tornado.

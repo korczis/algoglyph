@@ -19,6 +19,20 @@ pedagogy:
     - Read the area under the ROC curve as the chance that a random positive outscores a random negative, Φ(d'/√2) for two unit normals d' apart.
     - Explain why the ROC curve and its area do not depend on how rare positives are, while precision does.
     - Show why a good detector of a rare class still raises mostly false alarms.
+data:
+  - id: cases
+    title: Your scores and labels
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: score, unit: '1', min: -1.0e12, max: 1.0e12 }
+      - { key: label, unit: '1 (0 or 1)', min: 0, max: 1 }
+    rows: { min: 10, max: 5000 }
+    bytes: 65536
+    replaces: scores
+    ignores: [rate, dprime, n]
+    url_bytes: 1800
+    note: Your cases are swept as they are, every distinct score a threshold, and the AUC is measured from them. A label counts as positive at 0.5 or above, so a probability of the positive class reads as its more likely class. The alarm threshold is read as on the seeded scores, in standard deviations of your negatives' scores above their mean. Your scores have no separation d' behind them, so no binormal AUC is shown beside the measured one.
 claims:
   - id: auc-is-binormal-at-a-rare-base-rate
     statement: >-

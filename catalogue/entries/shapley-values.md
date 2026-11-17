@@ -27,6 +27,19 @@ bounds:
   model: model evaluations
   best: 2ᵈ + m(d + 1)
   worst: 2ᵈ + m(d + 1)
+data:
+  - id: game
+    title: Your coalition values v(S)
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: v, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 4, max: 64 }
+    bytes: 65536
+    replaces: game
+    ignores: [d, pairs]
+    url_bytes: 1800
+    note: Your series is a cooperative game, the value v(S) of every coalition S in bit-mask order, so row k + 1 is the coalition of the players whose bits are set in k (the first row is the empty coalition, the second player 1 alone, the fourth players 1 and 2). With 2^d values, up to 64, there are d players; of any other count the first 2^d are used, and the plate says so. The exact values walk every ordering of your players, and the sampled ones converge on them.
 claims:
   - id: error-small-at-600-orderings
     statement: >-

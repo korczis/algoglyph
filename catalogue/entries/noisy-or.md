@@ -20,6 +20,20 @@ pedagogy:
     - Check the formula against a simulation of its generative story, converging at the rate of a binomial proportion.
 algorithm:
   paradigm: incremental
+data:
+  - id: causes
+    title: Your causes
+    kind: table
+    accepts: [csv, json]
+    columns:
+      - { key: link, unit: 'probability (1)', min: 0, max: 1 }
+      - { key: present, unit: '1 (0 or 1)', min: 0, max: 1 }
+    rows: { min: 1, max: 10 }
+    bytes: 65536
+    replaces: causes
+    ignores: [k]
+    url_bytes: 1800
+    note: Each row is a cause, the probability that it alone brings the effect about and whether it is present; a presence counts at 0.5 or above. The plate combines the present causes and the leak by the noisy-OR and simulates the same story to check it; the leak and the simulated cases still apply. At most 10 causes, as many as the plate's own.
 claims:
   - id: simulation-converges-on-the-noisy-or-value
     statement: >-

@@ -1,6 +1,8 @@
-import { num } from '../../core/plate';
+import type { DataTable } from '../../core/data';
+import { num, type Stat } from '../../core/plate';
 import { mulberry32 } from '../../core/random';
 import { finite, integer, record, unknownKeys, type DataForm } from '../../core/solve';
+import { readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, pm, Sampler, SortedSample } from '../../engines/stochastic/sample';
 import { taskNetwork, type Task } from '../../engines/stochastic/scenarios';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
@@ -38,6 +40,30 @@ export interface PertResult {
 }
 
 const FRAMES = 140;
+/** Task durations drawn between yields: 1000 runs of the seeded network's 10 tasks. */
+const PIECE = 10_000;
+/** The most task durations a run on a reader's tasks draws: the seeded plate's largest, 40,000
+ * runs of its 10 tasks; a longer list gets fewer runs. */
+export const READER_WORK = 400_000;
+
+/**
+ * A reader's tasks as a chain, each after the one before: a table carries no precedence. Each
+ * row's three values are sorted, so (min, mode, max) in any order reads as a <= m <= b; a row
+ * with a = b is a task of fixed length.
+ */
+export function chainOf(t: DataTable): Task[] {
+  return Array.from({ length: t.rows }, (_, i) => {
+    const [a, m, b] = [t.values[0][i], t.values[1][i], t.values[2][i]].sort((x, y) => x - y);
+    return { name: `row ${i + 1}`, a, m, b, after: i ? [i - 1] : [], layer: i };
+  });
+}
+
+/** The PERT-Beta variance of a task: (b - a)² αβ / ((α + β)² (α + β + 1)). */
+function pertVariance(t: Task, lambda: number): number {
+  if (!(t.b > t.a)) return 0;
+  const [al, be] = pertShape(t, lambda);
+  return ((t.b - t.a) ** 2 * al * be) / ((al + be) ** 2 * (al + be + 1));
+}
 
 /** The largest network and simulation the data form takes. */
 export const LIMITS = { tasks: 500, runs: 200_000, work: 5_000_000 };
@@ -102,6 +128,11 @@ export const kernel: StochasticKernel<PertResult> = {
   data,
   palette: 'ember',
   params: [
+    // the input: the seeded task network, and a reader's tasks (ADR 0010)
+    {
+      kind: 'select', key: 'project', label: 'Project', value: 'network', rebuild: true,
+      options: [{ value: 'network', label: 'A seeded network of 10 tasks' }],
+    },
     { kind: 'range', key: 'n', label: 'Simulated projects', min: 500, max: 40000, step: 500, value: 6000, rebuild: true },
     // λ = 0 is the uniform distribution on [a, b] (below it the shapes fall under 1, and far
     // enough under 0); past 10 every task is nearly fixed at m and the merge bias the plate shows
@@ -109,10 +140,12 @@ export const kernel: StochasticKernel<PertResult> = {
     { kind: 'range', key: 'lambda', label: 'PERT weight λ', min: 0, max: 10, step: 0.5, value: 4, rebuild: true },
   ],
   chart: { title: 'Schedule quantiles as runs accumulate', x: { label: 'runs', log: true }, y: { label: 'project length' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
-    const tasks = taskNetwork(s);
-    const n = num(cfg, 'n');
+    // a reader's tasks (ADR 0010): one after another, with no seeded network around them
+    const mine = readerTable(cfg, 'project', reader);
+    const tasks = mine ? chainOf(mine) : taskNetwork(s);
+    const n = mine ? Math.min(num(cfg, 'n'), Math.max(1, Math.floor(READER_WORK / tasks.length))) : num(cfg, 'n');
     const lambda = num(cfg, 'lambda');
     const shapes = tasks.map((t) => pertShape(t, lambda));
     const means = tasks.map((t) => (t.a + lambda * t.m + t.b) / (lambda + 2));
@@ -122,8 +155,15 @@ export const kernel: StochasticKernel<PertResult> = {
     const sorted = new SortedSample();
     const bins = new Array<number>(44).fill(0);
     const critical = new Array<number>(tasks.length).fill(0);
-    const lo = det.finish * 0.6;
-    const hi = tasks.reduce((t, x) => t + x.b, 0) * 0.75;
+    let lo = det.finish * 0.6;
+    let hi = tasks.reduce((t, x) => t + x.b, 0) * 0.75;
+    if (mine) {
+      // a chain's length has the tasks' summed variance: ±5 of its sd, inside [Σa, Σb]
+      const sd = Math.sqrt(tasks.reduce((v, t) => v + pertVariance(t, lambda), 0));
+      lo = sd > 0 ? Math.max(tasks.reduce((t, x) => t + x.a, 0), det.finish - 5 * sd) : det.finish - 1;
+      hi = sd > 0 ? Math.min(tasks.reduce((t, x) => t + x.b, 0), det.finish + 5 * sd) : det.finish + 1;
+    }
+    const per = Math.max(1, Math.floor(PIECE / tasks.length));
     // the network drawn by layer, edges from each task to the tasks after it
     const layers = Math.max(...tasks.map((t) => t.layer)) + 1;
     const pos = tasks.map((t) => {
@@ -137,13 +177,14 @@ export const kernel: StochasticKernel<PertResult> = {
     for (let fr = 1; fr <= FRAMES; fr++) {
       const end = Math.max(1, Math.round(n * (fr / FRAMES) ** 2));
       for (; done < end; done++) {
-        const d = tasks.map((t, i) => t.a + (t.b - t.a) * s.beta(shapes[i][0], shapes[i][1]));
+        // a task of fixed length (a = b, a reader's only) takes no draw
+        const d = tasks.map((t, i) => (t.b > t.a ? t.a + (t.b - t.a) * s.beta(shapes[i][0], shapes[i][1]) : t.a));
         const r = ops.evaluate(longestPath, tasks, d);
         finishes.push(r.finish);
         sum += r.finish;
         sum2 += r.finish * r.finish;
         for (const i of r.path) critical[i]++;
-        if (done % 1000 === 999) yield;
+        if (done % per === per - 1) yield;
       }
       histogram(finishes, lo, hi, 44, sorted.length, done, bins);
       sorted.add(finishes.slice(sorted.length, done));
@@ -163,11 +204,18 @@ export const kernel: StochasticKernel<PertResult> = {
           marks: [{ x: det.finish, label: 'tasks at mean', tone: -1, dash: true }, { x: p80, label: 'P80', tone: -1 }],
         },
         {
-          kind: 'plot', title: 'Network; brighter tasks are critical more often', x: [0, 1], y: [0, 1],
+          kind: 'plot', title: mine ? 'Your tasks, one after another: every one is critical' : 'Network; brighter tasks are critical more often', x: [0, 1], y: [0, 1],
           lines: edges,
           dots: [{ pts: pos, tones: crit.map((c) => 0.1 + 0.85 * c), size: 9 }],
         },
-      ], [
+      ], mine ? [
+        readerInput(`${fmt(tasks.length)} tasks, one after another`),
+        { label: 'Runs', value: n < num(cfg, 'n') ? `${fmt(done)} (at most ${fmt(n)} for ${fmt(tasks.length)} tasks)` : fmt(done) },
+        { label: 'Mean length', value: pm(mean, sd / Math.sqrt(done), 2) },
+        { label: 'P50 / P80 / P90', value: `${fmt(p50, 1)} / ${fmt(p80, 1)} / ${fmt(p90, 1)}` },
+        { label: 'With every task at its mean', value: `${fmt(det.finish, 1)} (nothing merges in a chain, so no merge bias)` },
+        { label: 'Critical path', value: 'every task, in every run: your tasks run one after another' },
+      ] as Stat[] : [
         { label: 'Runs', value: fmt(done) },
         { label: 'Mean length', value: pm(mean, sd / Math.sqrt(done), 2) },
         { label: 'P50 / P80 / P90', value: `${fmt(p50, 1)} / ${fmt(p80, 1)} / ${fmt(p90, 1)}` },

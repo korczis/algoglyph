@@ -1,6 +1,7 @@
-import { num } from '../../core/plate';
-import { fmt, Sampler } from '../../engines/stochastic/sample';
-import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
+import { num, type Params } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
+import { fmt, mean, Sampler } from '../../engines/stochastic/sample';
+import { histogram, type StochasticKernel, type StochasticOps } from '../../engines/stochastic/trace';
 
 export interface DriftStep {
   shift: number;
@@ -48,6 +49,9 @@ const HI = 7;
 export const kernel: StochasticKernel<DriftResult> = {
   palette: 'riso',
   params: [
+    // the input: today's only seeded drift, beside which a reader's own series is offered (ADR 0010)
+    { kind: 'select', key: 'windows', label: 'Windows', value: 'normal', rebuild: true,
+      options: [{ value: 'normal', label: 'N(0, 1) against a normal that moves and widens' }] },
     { kind: 'range', key: 'n', label: 'Samples per window', min: 200, max: 20000, step: 100, value: 2000, rebuild: true },
     { kind: 'range', key: 'drift', label: 'Final mean shift', min: 0, max: 3, step: 0.1, value: 1.5, rebuild: true },
     { kind: 'range', key: 'widen', label: 'Final extra spread', min: 0, max: 1.5, step: 0.1, value: 0.4, rebuild: true },
@@ -56,7 +60,10 @@ export const kernel: StochasticKernel<DriftResult> = {
     { kind: 'range', key: 'bins', label: 'Bins', min: 2, max: 200, step: 1, value: 22, rebuild: true },
   ],
   chart: { title: 'Divergence as the distribution drifts', x: { label: 'mean shift' }, y: { label: 'divergence' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
+    // a reader's series (ADR 0010): its first half the reference, a window sliding into its second
+    const mine = readerTable(cfg, 'windows', reader);
+    if (mine) return yield* onSeries(ops, column(mine), cfg);
     const s = new Sampler(() => ops.rnd());
     const n = num(cfg, 'n');
     const bins = num(cfg, 'bins');
@@ -104,3 +111,64 @@ export const kernel: StochasticKernel<DriftResult> = {
     return { steps, bins, lo: LO, hi: HI };
   },
 };
+
+/**
+ * The divergences on a reader's series in time order: the reference is its first half, h = ⌊N/2⌋
+ * samples, and the current window, h samples too, slides in STEPS steps from the reference itself
+ * (every divergence zero) to the series' last h samples. The bins span the series' own range. The
+ * window is not drawn from a known distribution, so the shift on the chart is the measured
+ * difference of the window's mean from the reference's, and no generating law is named.
+ */
+function* onSeries(ops: StochasticOps, xs: number[], cfg: Params): Generator<void, DriftResult, void> {
+  const bins = num(cfg, 'bins');
+  const h = Math.floor(xs.length / 2);
+  let lo = Math.min(...xs);
+  let hi = Math.max(...xs);
+  if (hi - lo < 1e-9 * Math.max(1, Math.abs(lo))) { lo -= 0.5; hi += 0.5; }
+  const ref = xs.slice(0, h);
+  const pc = histogram(ref, lo, hi, bins);
+  const p = proportions(pc);
+  const refMean = mean(ref);
+  const input = readerInput(`${fmt(xs.length)} samples: the first ${fmt(h)} the reference`);
+  yield;
+  const steps: DriftStep[] = [];
+  const last = xs.length - h;
+  for (let k = 0; k <= STEPS; k++) {
+    const from = Math.round((last * k) / STEPS);
+    const cur = xs.slice(from, from + h);
+    const qc = histogram(cur, lo, hi, bins);
+    const q = proportions(qc);
+    ops.count(3);
+    const shift = mean(cur) - refMean;
+    const step = { shift, scale: NaN, p, q, psi: psi(p, q), kl: kl(q, p), klBack: kl(p, q), js: js(p, q) };
+    steps.push(step);
+    ops.point('PSI', shift, step.psi);
+    ops.point('KL(current ‖ reference), nats', shift, step.kl);
+    ops.point('Jensen–Shannon, bits', shift, step.js);
+    ops.frame([
+      {
+        kind: 'hist', title: 'Your reference (bars) and current window (outline), proportions', lo, hi,
+        bins: pc, tone: 0.2, overlay: { bins: qc, tone: 0.0 }, normalise: true,
+        marks: [{ x: refMean, tone: 0.2, dash: true }, { x: refMean + shift, tone: 0.0, dash: true }],
+      },
+      {
+        kind: 'bars', title: 'Divergences now', x: [0, Math.max(1, ...steps.map((q2) => Math.max(q2.psi, q2.kl)))],
+        rows: [
+          { label: 'PSI', lo: 0, hi: step.psi, tone: 0.1 },
+          { label: 'KL', lo: 0, hi: step.kl, tone: 0.45 },
+          { label: 'JS (bits)', lo: 0, hi: step.js, tone: 0.9 },
+        ],
+      },
+    ], [
+      input,
+      { label: 'PSI', value: `${fmt(step.psi, 4)}${step.psi > 0.25 ? ' (above the customary 0.25 alarm)' : step.psi > 0.1 ? ' (above 0.1: watch)' : ''}` },
+      { label: 'KL(current ‖ reference)', value: `${fmt(step.kl, 4)} nats` },
+      { label: 'KL both ways', value: `${fmt(step.kl, 4)} + ${fmt(step.klBack, 4)} = ${fmt(step.kl + step.klBack, 4)} nats` },
+      { label: 'Jensen–Shannon', value: `${fmt(step.js, 4)} bits` },
+      { label: 'Current window', value: `samples ${fmt(from + 1)}–${fmt(from + h)} of ${fmt(xs.length)}; its mean ${fmt(shift, 3)} from the reference's` },
+      { label: 'Step', value: `${fmt(k)} of ${fmt(STEPS)}` },
+    ]);
+    yield;
+  }
+  return { steps, bins, lo, hi };
+}

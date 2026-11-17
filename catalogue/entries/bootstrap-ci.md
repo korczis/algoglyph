@@ -25,6 +25,19 @@ pedagogy:
     - Explain why the percentile interval covers less often than its nominal level for small samples from a skewed population, and how the shortfall closes as the sample grows.
 algorithm:
   paradigm: randomized
+data:
+  - id: sample
+    title: Your sample
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: x, unit: '1', min: -1.0e12, max: 1.0e12 }
+    rows: { min: 5, max: 2000 }
+    bytes: 65536
+    replaces: population
+    ignores: [sigma, n, reps]
+    url_bytes: 1800
+    note: Your sample is resampled as it is, all of it; the plate shows the percentile interval of the resampled means and their standard error. A sample has no population behind it, so no coverage is counted and no population mean is marked.
 claims:
   - id: skewed-small-sample-under-covers
     statement: >-

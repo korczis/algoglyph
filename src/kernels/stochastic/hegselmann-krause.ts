@@ -1,4 +1,5 @@
 import { num } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
 import { fmt, Sampler } from '../../engines/stochastic/sample';
 import { population } from '../../engines/stochastic/scenarios';
 import type { Panel, StochasticKernel } from '../../engines/stochastic/trace';
@@ -56,15 +57,20 @@ const HOLD = 6;
 export const kernel: StochasticKernel<OpinionResult> = {
   palette: 'spectral',
   params: [
+    // the input: today's only seeded opinions, beside which a reader's own are offered (ADR 0010)
+    { kind: 'select', key: 'opinions', label: 'Initial opinions', value: 'uniform', rebuild: true,
+      options: [{ value: 'uniform', label: 'Uniform on [0, 1]' }] },
     { kind: 'range', key: 'n', label: 'Agents', min: 20, max: 400, step: 10, value: 120, rebuild: true },
     { kind: 'range', key: 'eps', label: 'Confidence bound ε', min: 0.02, max: 0.5, step: 0.01, value: 0.12, rebuild: true },
   ],
   chart: { title: 'Opinion groups over time', x: { label: 'step' }, y: { label: 'groups (gaps above 0.001)' } },
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
-    const n = num(cfg, 'n');
     const eps = num(cfg, 'eps');
-    const initial = population(s, n);
+    // a reader's opinions (ADR 0010): one agent per value, in the order given; nothing is drawn
+    const mine = readerTable(cfg, 'opinions', reader);
+    const initial = mine ? column(mine) : population(s, num(cfg, 'n'));
+    const input = mine ? [readerInput(`${fmt(initial.length)} opinions, one agent each`)] : [];
     const history: number[][] = [initial];
     let x = initial;
     let steps = 0;
@@ -80,6 +86,7 @@ export const kernel: StochasticKernel<OpinionResult> = {
         dots: [{ pts: x.map((v) => [steps, v] as [number, number]), tones, size: 2 }],
       }];
       const stats = [
+        ...input,
         { label: 'Step', value: `${fmt(steps)}${converged ? ' (frozen)' : ''}` },
         { label: 'Groups', value: `${fmt(groups.length)}; largest holds ${fmt(Math.max(...groups.map((g) => g.length)))} agents` },
         { label: 'Largest move this step', value: fmt(move, 6) },

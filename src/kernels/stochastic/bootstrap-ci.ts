@@ -1,4 +1,6 @@
-import { num, str } from '../../core/plate';
+import { num, str, type Params } from '../../core/plate';
+import { column, readerInput, readerTable } from '../../engines/stochastic/reader';
+import type { StochasticOps } from '../../engines/stochastic/trace';
 import { ascending, fmt, mean, pct, quantile, Sampler, variance } from '../../engines/stochastic/sample';
 import { histogram, type StochasticKernel } from '../../engines/stochastic/trace';
 import { COVERAGE, coverageChart, ladder, levelName, levelParam, LEVELS, publishCoverage, repetitionsParam, shownLevel } from './_coverage';
@@ -87,8 +89,11 @@ export const kernel: StochasticKernel<BootstrapResult> = {
   ],
   chart: coverageChart,
   labSeries: COVERAGE,
-  *run(ops, cfg) {
+  *run(ops, cfg, reader) {
     const s = new Sampler(() => ops.rnd());
+    // a reader's sample (ADR 0010): resampled as it is, with no population behind it to cover
+    const mine = readerTable(cfg, 'population', reader);
+    if (mine) return yield* onSample(ops, s, column(mine), cfg);
     const sigma = num(cfg, 'sigma');
     const all = populations(Number.isFinite(sigma) ? sigma : LOGNORMAL_SIGMA);
     const pop = all[str(cfg, 'population')] ?? all.lognormal;
@@ -164,3 +169,43 @@ export const kernel: StochasticKernel<BootstrapResult> = {
     return { data, boots: sorted, se, interval, truth: pop.mean, coverage: hits.map((h) => h / reps), reps, resamplesPerExperiment: bRep };
   },
 };
+
+/**
+ * The bootstrap on a reader's sample: the percentile interval of its resampled means and their
+ * standard error, frame by frame as the resamples fill. There is no population, so no mean to
+ * mark and no experiments to count coverage on: those need a truth the data does not carry.
+ */
+function* onSample(ops: StochasticOps, s: Sampler, data: number[], cfg: Params): Generator<void, BootstrapResult, void> {
+  const n = data.length;
+  const b = num(cfg, 'b');
+  const shown = shownLevel(cfg);
+  const name = levelName(shown);
+  const m = mean(data);
+  const sd = Math.sqrt(variance(data));
+  const lo = m - 4.5 * (sd / Math.sqrt(n));
+  const hi = m + 4.5 * (sd / Math.sqrt(n));
+  const boots = new Float64Array(b);
+  const input = readerInput(`${fmt(n)} values`);
+  for (let fr = 1; fr <= FILL; fr++) {
+    const from = Math.round(((fr - 1) / FILL) * b);
+    const to = Math.round((fr / FILL) * b);
+    boots.set(yield* bootstrapMeans(s, data, to - from), from);
+    ops.count(to - from);
+    const [a, z] = percentile(ascending(boots.subarray(0, to)), shown);
+    ops.frame([{
+      kind: 'hist', title: `Means of the resamples of your sample; the ${name} percentile interval shaded`, lo, hi,
+      bins: histogram(boots, lo, hi, 40, 0, to), shade: [a, z], marks: [{ x: m, label: 'sample mean', tone: -1 }],
+    }], [
+      input,
+      { label: 'Resamples', value: `${fmt(to)} of ${fmt(b)}` },
+      { label: 'Sample mean', value: fmt(m, 4) },
+      { label: 'Bootstrap standard error', value: `${fmt(Math.sqrt(variance(boots.subarray(0, to))), 4)} (s/√n ${fmt(sd / Math.sqrt(n), 4)})` },
+      { label: `${name} percentile interval`, value: `${fmt(a, 4)} – ${fmt(z, 4)}` },
+      { label: 'Population mean', value: 'none: your sample has no population behind it to compare with' },
+    ]);
+    yield;
+  }
+  const sorted = ascending(boots);
+  // no truth, so no coverage: NaN where the seeded run reports what it measured against a population
+  return { data, boots: sorted, se: Math.sqrt(variance(boots)), interval: percentile(sorted, shown), truth: NaN, coverage: [], reps: 0, resamplesPerExperiment: 0 };
+}

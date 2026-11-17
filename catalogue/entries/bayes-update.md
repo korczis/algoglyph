@@ -24,6 +24,19 @@ pedagogy:
     - See the prior's pull fade as evidence accumulates, every prior ending near the same curve, its width shrinking like 1/√n.
 algorithm:
   paradigm: incremental
+data:
+  - id: outcomes
+    title: Your outcomes
+    kind: series
+    accepts: [csv, json]
+    columns:
+      - { key: outcome, unit: '1', min: 0, max: 1 }
+    rows: { min: 1, max: 2000 }
+    bytes: 65536
+    replaces: evidence
+    ignores: [truth, n]
+    url_bytes: 1800
+    note: Your outcomes are read in their order, 1 an event and 0 none; a value between counts as that share of an event, with likelihood θ^x (1 − θ)^(1 − x), so the closed form Beta(a + Σx, b + Σ(1 − x)) still checks the grid. The prior, the grid and the credible level apply as on simulated trials. Your outcomes have no known rate behind them, so none is marked and nothing is compared with one.
 claims:
   - id: sceptical-prior-ends-near-the-truth
     statement: >-

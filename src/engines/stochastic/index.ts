@@ -54,7 +54,7 @@ export class Replay {
     this.run = this.build(0);
   }
   private build(generation: number): Runner {
-    return new Runner(this.kernel, this.ctx.params as Params, this.ctx.seed + generation * GENERATION);
+    return new Runner(this.kernel, this.ctx.params as Params, this.ctx.seed + generation * GENERATION, this.ctx.data);
   }
   get last(): number { return Math.max(0, this.run.frames.length - 1); }
   get frame(): Frame { return this.run.frames[Math.min(this.last, Math.floor(this.at))] ?? EMPTY; }
