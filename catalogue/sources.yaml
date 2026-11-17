@@ -1651,3 +1651,15 @@ sources:
     year: 1990
     kind: paper
     url: https://doi.org/10.1016/0375-9601(90)90092-3
+  - id: landau-lifshitz-elasticity
+    title: Theory of Elasticity (Course of Theoretical Physics, Volume 7, third edition)
+    author: Lev D. Landau, Evgeny M. Lifshitz, A. M. Kosevich, L. P. Pitaevskii
+    publisher: Butterworth-Heinemann
+    year: 1986
+    kind: book
+  - id: born-huang-1954
+    title: Dynamical Theory of Crystal Lattices
+    author: Max Born, Kun Huang
+    publisher: Oxford University Press
+    year: 1954
+    kind: book
