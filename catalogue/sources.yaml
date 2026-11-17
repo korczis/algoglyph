@@ -1593,3 +1593,9 @@ sources:
     year: 1947
     kind: paper
     url: https://doi.org/10.1017/S0305004100023197
+  - id: born-wolf-optics
+    title: Principles of Optics (seventh edition)
+    author: Max Born, Emil Wolf
+    publisher: Cambridge University Press
+    year: 1999
+    kind: book
