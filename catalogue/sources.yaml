@@ -1657,3 +1657,37 @@ sources:
     year: 1978
     kind: paper
     url: https://doi.org/10.1109/PROC.1978.10837
+  - id: landau-lifshitz-elasticity
+    title: Theory of Elasticity (Course of Theoretical Physics, Volume 7, third edition)
+    author: Lev D. Landau, Evgeny M. Lifshitz, A. M. Kosevich, L. P. Pitaevskii
+    publisher: Butterworth-Heinemann
+    year: 1986
+    kind: book
+  - id: born-huang-1954
+    title: Dynamical Theory of Crystal Lattices
+    author: Max Born, Kun Huang
+    publisher: Oxford University Press
+    year: 1954
+    kind: book
+  - id: euler-1744
+    title: Methodus inveniendi lineas curvas maximi minimive proprietate gaudentes (Additamentum I, De curvis elasticis)
+    author: Leonhard Euler
+    publisher: Marcum-Michaelem Bousquet, Lausanne and Geneva
+    year: 1744
+    kind: book
+  - id: timoshenko-gere-1961
+    title: Theory of Elastic Stability (second edition)
+    author: Stephen P. Timoshenko, James M. Gere
+    publisher: McGraw-Hill
+    year: 1961
+    kind: book
+  - id: hencky-1920
+    title: Über die angenäherte Lösung von Stabilitätsproblemen im Raum mittels der elastischen Gelenkkette (Der Eisenbau 11, 437–452)
+    author: Heinrich Hencky
+    year: 1920
+    kind: paper
+  - id: foucault-1851
+    title: Démonstration physique du mouvement de rotation de la Terre au moyen du pendule (Comptes rendus de l'Académie des sciences 32, 135–138)
+    author: Léon Foucault
+    year: 1851
+    kind: paper
