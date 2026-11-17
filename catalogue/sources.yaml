@@ -1691,3 +1691,22 @@ sources:
     year: 1972
     kind: paper
     url: https://doi.org/10.1086/151823
+  - id: weideman-1994
+    title: Computation of the Complex Error Function (SIAM Journal on Numerical Analysis 31(5), 1497–1518)
+    author: J. A. C. Weideman
+    year: 1994
+    kind: paper
+    url: https://doi.org/10.1137/0731077
+  - id: olivero-longbothum-1977
+    title: Empirical fits to the Voigt line width, a brief review (Journal of Quantitative Spectroscopy and Radiative Transfer 17(2), 233–236)
+    author: J. J. Olivero, R. L. Longbothum
+    year: 1977
+    kind: paper
+    url: https://doi.org/10.1016/0022-4073(77)90161-3
+  - id: nist-asd
+    title: NIST Atomic Spectra Database (version 5)
+    author: A. Kramida, Yu. Ralchenko, J. Reader, NIST ASD Team
+    publisher: National Institute of Standards and Technology
+    year: 2024
+    kind: web
+    url: https://physics.nist.gov/asd
