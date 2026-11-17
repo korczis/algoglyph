@@ -401,17 +401,41 @@ try {
         null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
         if (!ran) fail(where, 'the plate did not report running on the attached data');
         const href = p.url();
-        if (!href.includes(`d.${d.id}=`)) fail(where, 'the link does not carry the attached data');
-        const said = await p.waitForSelector('[data-data-travels]', { state: 'visible', timeout: 5000 }).then(() => true, () => false);
-        if (!said) fail(where, 'the page does not say that a copied link carries the data');
+        // ADR 0010: the link carries the table only when its base64url fits the declaration's
+        // url_bytes, otherwise its row count and digest. The CSV above is already canonical (the
+        // declared keys, numbers as their shortest text), so its length decides which the page owes.
+        const travels = Buffer.from(csv).toString('base64url').length <= d.url_bytes;
+        const visible = (sel) => p.waitForSelector(sel, { state: 'visible', timeout: 5000 }).then(() => true, () => false);
+        // the token as the page reads it back: URLSearchParams writes the digest's '~' as %7E
+        const token = new URLSearchParams(new URL(href).hash.split('?')[1] ?? '').get(`d.${d.id}`) ?? '';
+        if (travels) {
+          if (!token || token.startsWith('~')) fail(where, 'the link does not carry the attached data');
+          if (!(await visible('[data-data-travels]'))) fail(where, 'the page does not say that a copied link carries the data');
+        } else {
+          if (!new RegExp(`^~${n}\\.[0-9a-f]{16}$`).test(token)) fail(where, `a table over url_bytes ${d.url_bytes}: the link does not carry its row count and digest`);
+          if (!(await visible('text=A copied link does not carry your data'))) fail(where, 'the page does not say that a copied link leaves the data behind');
+        }
         if (i === 0) { await overflow(p, where); await axe(p, where); }
         // a new document on the same link (a query the server ignores), not about:blank: the
         // context's init script touches localStorage, which about:blank refuses
-        await p.goto(`${base}?reopen=1${new URL(href).hash}`, { waitUntil: 'load' });
+        const reopen = `${base}?reopen=1${new URL(href).hash}`;
+        await p.goto(reopen, { waitUntil: 'load' });
         await throttle(DATA_CPU_THROTTLE);
-        const back = await p.waitForFunction(() => /from the link/.test(document.querySelector('[data-data-loaded]')?.textContent ?? ''),
-          null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
-        if (!back) fail(where, 'opening the link did not restore the data');
+        if (travels) {
+          const back = await p.waitForFunction(() => /from the link/.test(document.querySelector('[data-data-loaded]')?.textContent ?? ''),
+            null, { timeout: READOUT_MS, polling: 200 }).then(() => true, () => false);
+          if (!back) fail(where, 'opening the link did not restore the data');
+        } else {
+          // a digest-only link names the file it was made with and runs the default input until
+          // the reader attaches it again
+          const told = await p.waitForSelector(`text=This link was made with a local file of ${n} rows`, { state: 'visible', timeout: READOUT_MS })
+            .then(() => true, () => false);
+          if (!told) fail(where, 'opening a digest-only link did not say which file it was made with');
+          await readout(p, where, reopen);
+          const mine = await p.evaluate(() => [...document.querySelectorAll('#main dl > div')]
+            .some((r) => r.querySelector('dt')?.textContent === 'Input' && /^your data/.test(r.querySelector('dd')?.textContent ?? '')));
+          if (mine) fail(where, 'a digest-only link ran on data it does not carry');
+        }
         p.off('request', watch);
         for (const r of sent) fail(where, `a request left the page while it held a reader's data: ${r}`);
       }
