@@ -2,11 +2,14 @@
 // instance the stage made. Panels are declarative (trace.ts); this module is the only place
 // they become pixels.
 import type p5 from 'p5';
-import { ramp, type RGB } from '../../core/palette';
+import { ramp, rampInto, type RGB } from '../../core/palette';
 import type { PlateContext } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import type { ButterflyPanel, LanesPanel, Mark, Panel, PlanePanel, Series, SpectrumPanel, TextPanel,
   WaterfallPanel, WavePanel, XYPanel } from './trace';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 
 export interface Box { x: number; y: number; w: number; h: number }
 
@@ -284,6 +287,8 @@ export class Painter {
     if (!r) { r = new Raster(cols, rh); this.rasters.set(key, r); }
     r.fill(this.ctx.bg);
     const pal = this.ctx.palette();
+    // ramp in place, bound to a local: bit-equal, no array per cell
+    const into = rampInto; const col = colour;
     for (let c = 0; c < Math.min(w.upto, cols); c++) {
       const row = w.rows[c];
       for (let y = 0; y < rh; y++) {
@@ -292,7 +297,7 @@ export class Painter {
         let m = -Infinity;
         for (let k = k0; k < k1; k++) if (row[k] > m) m = row[k];
         const t = (m - w.floor) / (w.ceil - w.floor);
-        const col = ramp(pal, Math.min(1, Math.max(0, t)));
+        into(col, pal, Math.min(1, Math.max(0, t)));
         const k = Math.min(1, Math.max(0, t * 1.4));
         const bg = this.ctx.bg;
         r.set(c, rh - 1 - y, bg[0] + (col[0] - bg[0]) * k, bg[1] + (col[1] - bg[1]) * k, bg[2] + (col[2] - bg[2]) * k);

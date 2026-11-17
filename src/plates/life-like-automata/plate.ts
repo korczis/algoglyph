@@ -1,4 +1,4 @@
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mix, mixInto, paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
@@ -91,15 +91,17 @@ export const lifeLikeAutomata: PlateCode = {
       const pal = ctx.palette();
       if (pal.id === lutKey) return;
       lutKey = pal.id;
+      // ramp and mix in place, bound to locals: bit-equal, no array per entry
+      const into = rampInto; const blend = mixInto; const c: RGB = [0, 0, 0];
       for (let a = 0; a <= AGE_CAP; a++) {
         const u = Math.log(1 + a) / LOG_CAP;
-        const c = ramp(pal, dark ? 1 - 0.78 * u : 0.08 + 0.72 * u);
-        ageLut.set([c[0], c[1], c[2]], a * 3);
+        into(c, pal, dark ? 1 - 0.78 * u : 0.08 + 0.72 * u);
+        ageLut[a * 3] = c[0]; ageLut[a * 3 + 1] = c[1]; ageLut[a * 3 + 2] = c[2];
       }
       const trace = mix(ctx.bg, ramp(pal, dark ? 0.32 : 0.55), dark ? 0.75 : 0.55);
       for (let v = 0; v < 256; v++) {
-        const c = mix(ctx.bg, trace, Math.pow(v / 255, 1.4));
-        traceLut.set([c[0], c[1], c[2]], v * 3);
+        blend(c, ctx.bg, trace, Math.pow(v / 255, 1.4));
+        traceLut[v * 3] = c[0]; traceLut[v * 3 + 1] = c[1]; traceLut[v * 3 + 2] = c[2];
       }
     };
 

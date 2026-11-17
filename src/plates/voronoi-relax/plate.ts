@@ -1,7 +1,10 @@
-import { paletteParam, ramp, scale } from '../../core/palette';
+import { paletteParam, ramp, scaleInto, type RGB } from '../../core/palette';
 import { bool, num, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { bounded, cellWithin } from '../../core/budget';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 
 /** Pixels labelled per frame at most: the pixel size is raised to fit (src/core/budget.ts). */
 export const MAX_PIXELS = 80_000;
@@ -152,6 +155,8 @@ export const voronoiRelax: PlateCode = {
         const pal = ctx.palette();
         const lead = bool(params, 'leading');
         const colours = sites.map((s) => ramp(pal, s.hue));
+        // scale in place, bound to a local: bit-equal, no array per pixel
+        const shade = scaleInto; const c = colour;
         for (let y = 0; y < h; y++) {
           for (let x = 0; x < w; x++) {
             const i = y * w + x;
@@ -163,7 +168,7 @@ export const voronoiRelax: PlateCode = {
             }
             // cushion shading: brighter at the seed, darker towards the cell's farthest pixel
             const t = far[o] > 0 ? Math.sqrt(d2[i] / far[o]) : 0;
-            const c = scale(colours[o], 1.08 - 0.5 * t * t);
+            shade(c, colours[o], 1.08 - 0.5 * t * t);
             raster.set(x, y, c[0], c[1], c[2]);
           }
         }
