@@ -1,9 +1,12 @@
-import { paletteParam, ramp } from '../../core/palette';
+import { paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { binary, neighbourhoods, next } from './rule';
 import { Pacer, paceParam } from '../../core/pace';
 import { runsParam, StreamStop } from '../_shared/settle/settle';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 
 export const ruleWeaver: PlateCode = {
   id: 'rule-weaver',
@@ -47,9 +50,11 @@ export const ruleWeaver: PlateCode = {
 
     const paint = (y: number) => {
       const pal = ctx.palette();
+      // ramp in place, bound to a local: bit-equal, no array per cell
+      const into = rampInto; const c = colour;
       for (let x = 0; x < row.length; x++) {
         if (row[x]) {
-          const c = ramp(pal, hood[x] / 7);
+          into(c, pal, hood[x] / 7);
           raster.set(x, y, c[0], c[1], c[2]);
         } else raster.set(x, y, ctx.bg[0], ctx.bg[1], ctx.bg[2]);
       }

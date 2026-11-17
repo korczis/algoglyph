@@ -1,7 +1,10 @@
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mix, paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { fnv1aWords, popcount, sha256Words } from './hash';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 
 const FUNCTIONS = {
   sha256: { label: 'SHA-256', bits: 256, run: sha256Words },
@@ -77,13 +80,15 @@ export const hashAvalanche: PlateCode = {
         const pal = ctx.palette();
         const gain = num(params, 'gain');
         let worst = 0;
+        // the neutral grey once, ramp in place and bound to a local: bit-equal, no array per cell
+        const neutral = mix(ctx.bg, ctx.fg, 0.16); const into = rampInto;
         for (let r = 0; r < 256; r++) {
           for (let b = 0; b < f.bits; b++) {
             const q = tries[r] ? flips[r * f.bits + b] / tries[r] : 0.5;
             const dev = q - 0.5;
             if (tries[r] && Math.abs(dev) > worst) worst = Math.abs(dev);
             const t = 0.5 + Math.max(-0.5, Math.min(0.5, dev * gain));
-            const c = Math.abs(dev * gain) < 0.04 ? mix(ctx.bg, ctx.fg, 0.16) : ramp(pal, t);
+            const c = Math.abs(dev * gain) < 0.04 ? neutral : into(colour, pal, t);
             raster.set(b, r, c[0], c[1], c[2]);
           }
         }
