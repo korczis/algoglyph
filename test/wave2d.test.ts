@@ -154,7 +154,7 @@ describe('wave2d: fringe geometry', () => {
 
   it('predicts the maxima of two in-phase sources at the far-field spacing when the grid is fine', async () => {
     const { predictedMaxima } = await import('../src/plates/_shared/wave2d/fringes');
-    const { fringePeriod } = await import('../src/plates/_shared/two-slit/screen');
+    const { fringePeriod } = await import('../src/plates/_shared/optics/screen');
     // a long throw and a long wavelength: exact paths and the continuum agree with λL/d
     const c = 0.5;
     const lambda = 400;

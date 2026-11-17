@@ -4,7 +4,7 @@ import { mix, paletteParam, ramp } from '../../core/palette';
 import { num, str, type PlateCode, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { rgba } from '../_shared/two-slit/draw';
-import { fringePeriod } from '../_shared/two-slit/screen';
+import { fringePeriod } from '../_shared/optics/screen';
 import { extrema, phaseCycles, predictedIntensityMaxima, type Prediction } from '../_shared/wave2d/fringes';
 import {
   CourantError, energy, MAX_COURANT, numericalWavenumber, stepField, waveField, type Source, type WaveField,
