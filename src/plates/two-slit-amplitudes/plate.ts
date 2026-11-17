@@ -4,14 +4,14 @@ import { num, str, type PlateCode, type Stat } from '../../core/plate';
 import { gaussian, mulberry32 } from '../../core/random';
 import {
   attenuation, gridReading, MAX_GRID_WIDTH, type GridReading, type KernelKind,
-} from '../_shared/two-slit/detector';
+} from '../_shared/optics/detector';
 import { bars, curve, legend, rgba, type Panel } from '../_shared/two-slit/draw';
 import { besselJ0, integrate, interpolate, ksBound, ksDistance, sinc } from '../_shared/two-slit/math';
 import { closedForm, Wall, type WallState } from '../_shared/two-slit/recoil';
 import {
   envelope, fringePeriod, oneSlit, referenceCdf, Screen, twoSlit, visibilityMoments,
   VisibilityEstimate, type Slits,
-} from '../_shared/two-slit/screen';
+} from '../_shared/optics/screen';
 import { MAX_PER_FRAME, roundRobin } from '../_shared/two-slit/pace';
 import { Pacer, paceParam } from '../../core/pace';
 import { deBroglie, electronMomentum, HBAR, length, PLANCK } from '../_shared/two-slit/units';

@@ -12,13 +12,15 @@ const SIDES: Record<number, [number, number]> = { 1: [0, 2], 2: [1, 3], 4: [3, 0
 /** The midpoint of a tile's side, in tile units from its north corner. */
 const MID: [number, number][] = [[0, 0.5], [0.5, 1], [1, 0.5], [0.5, 0]];
 /**
- * CPU milliseconds of search a frame may spend (config/budgets.yaml allows 40 per frame on the
+ * Milliseconds of search a frame may spend (config/budgets.yaml allows 40 per frame on the
  * reference machine): A* and the Dijkstra reference run a slice per frame, so the largest map
- * (tile size 8 at 1440 px, about 300 000 states for both) costs no frame more than this.
+ * (tile size 8 at 1440 px, about 300 000 states for both) costs no frame more than this. It was 6,
+ * with 512 expansions between clock reads; a slice then overshot by up to 3 ms, and the heaviest
+ * corner read 22.5 of 25.5 ms in the full budget suite.
  */
-const SLICE_MS = 6;
-/** Expansions between clock reads: about 2 ms of search, so a slice overshoots by no more. */
-const CHUNK = 512;
+const SLICE_MS = 4;
+/** Expansions between clock reads: under 1.5 ms of search, so a slice overshoots by no more. */
+const CHUNK = 256;
 /**
  * The smallest map in tiles: room for the river, the ridge and both station sites without
  * overlapping (a 16 × 10 map put the river three vertices from a site five levels up, a slope the
@@ -80,7 +82,6 @@ export const trackPlanning: PlateCode = {
       painted = null;
       shown = 0;
       hold = 0;
-      advance(ctx.thumbnail ? Infinity : SLICE_MS);
     }
 
     /** Shade every tile into the raster: height, light from the north, water, houses, trees. */
@@ -120,7 +121,9 @@ export const trackPlanning: PlateCode = {
 
     return {
       pace: () => pacer.report(!pending.length && shown >= route.pieces.length, params),
-      setup() { build(); },
+      // the first search slice runs at setup; a rebuild in draw leaves it to the next frame, so the
+      // frame that makes the new map and paints it does no search on top of them
+      setup() { build(); advance(ctx.thumbnail ? Infinity : SLICE_MS); },
       draw() {
         if (pending.length) advance(SLICE_MS);
         const done = !pending.length && shown >= route.pieces.length;

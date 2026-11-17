@@ -1599,6 +1599,34 @@ sources:
     year: 1947
     kind: paper
     url: https://doi.org/10.1017/S0305004100023197
+  - id: born-wolf-optics
+    title: Principles of Optics (seventh edition)
+    author: Max Born, Emil Wolf
+    publisher: Cambridge University Press
+    year: 1999
+    kind: book
+  - id: bragg-1913
+    title: The Reflection of X-rays by Crystals (Proceedings of the Royal Society of London A 88, 428)
+    author: William Henry Bragg, William Lawrence Bragg
+    year: 1913
+    kind: paper
+    url: https://doi.org/10.1098/rspa.1913.0040
+  - id: gillespie-1977
+    title: Exact Stochastic Simulation of Coupled Chemical Reactions (The Journal of Physical Chemistry 81, 2340)
+    author: Daniel T. Gillespie
+    year: 1977
+    kind: paper
+    url: https://doi.org/10.1021/j100540a008
+  - id: bateman-1910
+    title: The Solution of a System of Differential Equations Occurring in the Theory of Radioactive Transformations (Proceedings of the Cambridge Philosophical Society 15, 423)
+    author: Harry Bateman
+    year: 1910
+    kind: paper
+  - id: einstein-1917
+    title: Zur Quantentheorie der Strahlung (Physikalische Zeitschrift 18, 121)
+    author: Albert Einstein
+    year: 1917
+    kind: paper
   - id: brent-1976
     title: Fast Multiple-Precision Evaluation of Elementary Functions (Journal of the ACM 23, 242–251)
     author: Richard P. Brent
