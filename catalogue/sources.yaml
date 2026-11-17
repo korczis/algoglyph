@@ -285,6 +285,12 @@ sources:
     year: 2010
     kind: book
     url: https://www.feynmanlectures.caltech.edu/
+  - id: fornberg-1988
+    title: Generation of Finite Difference Formulas on Arbitrarily Spaced Grids (Mathematics of Computation 51, 699–706)
+    author: Bengt Fornberg
+    year: 1988
+    kind: paper
+    url: https://doi.org/10.1090/S0025-5718-1988-0935077-0
   - id: englert-duality
     title: Fringe Visibility and Which-Way Information, an Inequality (Physical Review Letters 77, 2154)
     author: Berthold-Georg Englert
