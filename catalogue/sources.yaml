@@ -291,6 +291,12 @@ sources:
     year: 1988
     kind: paper
     url: https://doi.org/10.1090/S0025-5718-1988-0935077-0
+  - id: trefethen-1982
+    title: Group Velocity in Finite Difference Schemes (SIAM Review 24, 113–136)
+    author: Lloyd N. Trefethen
+    year: 1982
+    kind: paper
+    url: https://doi.org/10.1137/1024038
   - id: englert-duality
     title: Fringe Visibility and Which-Way Information, an Inequality (Physical Review Letters 77, 2154)
     author: Berthold-Georg Englert
