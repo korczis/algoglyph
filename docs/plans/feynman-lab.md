@@ -8,7 +8,7 @@ Design each solver from the shared modules already in the repository:
 - _shared/ensemble (S7a)
 - _shared/quantum (S10)
 - _shared/fields (S8)
-- _shared/two-slit (S3: screen.ts, detector.ts)
+- _shared/optics (S3: screen.ts, detector.ts; hoisted from _shared/two-slit in slice 26)
 - the ode library (S0)
 
 ## 5. Ordered slices
@@ -20,7 +20,7 @@ Design each solver from the shared modules already in the repository:
 - is one plate (or one refactor), with tests, claims, a catalogue entry (live), relations and the
   browser gate, as in ADR 0006.
 
-Slices 0a–24 are done and on main (1b8e009).
+Done and on main: slices 0a–28 and 32 (see git log for each landing).
 
 | # | Slice | Solver | Claims (first ones) | Budget risk | After |
 |---|---|---|---|---|---|
