@@ -1685,3 +1685,9 @@ sources:
     author: Léon Foucault
     year: 1851
     kind: paper
+  - id: sze-ng-2007
+    title: Physics of Semiconductor Devices (third edition)
+    author: S. M. Sze, Kwok K. Ng
+    publisher: Wiley
+    year: 2007
+    kind: book
