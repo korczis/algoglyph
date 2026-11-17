@@ -1,4 +1,4 @@
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mix, mixInto, paletteParam, ramp, type RGB } from '../../core/palette';
 import { bool, num, str, type PlateCode } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import {
@@ -8,6 +8,9 @@ import { FieldSweep } from './field-sweep';
 import { RunCounter, runsParam } from '../_shared/settle/settle';
 import { bounded, cellWithin, stepsWithin } from '../../core/budget';
 import { Pacer, paceParam } from '../../core/pace';
+
+/** The one colour the shading loop writes into, cell after cell. */
+const colour: RGB = [0, 0, 0];
 
 /** Spins in the lattice at most, and spin updates (spins × sweeps) per frame (src/core/budget.ts). */
 export const MAX_SITES = 90_000;
@@ -154,12 +157,14 @@ export const isingModel: PlateCode = {
         const spark = ramp(pal, 0.5);
         const glow = bool(params, 'glow');
         const { w, s } = lat;
+        // mix in place, bound to a local: bit-equal, no array per cell
+        const blend = mixInto; const px = colour;
         for (let i = 0; i < s.length; i++) {
           shown[i] += (s[i] - shown[i]) * FOLLOW;
           heat[i] = flipped[i] ? 1 : heat[i] * FADE;
-          let c = mix(down, up, (shown[i] + 1) / 2);
-          if (glow && heat[i] > 0.02) c = mix(c, spark, heat[i] * 0.7);
-          raster.set(i % w, (i - (i % w)) / w, c[0], c[1], c[2]);
+          blend(px, down, up, (shown[i] + 1) / 2);
+          if (glow && heat[i] > 0.02) blend(px, px, spark, heat[i] * 0.7);
+          raster.set(i % w, (i - (i % w)) / w, px[0], px[1], px[2]);
         }
         p.background(...ctx.bg);
         const ox = (ctx.width - lat.w * cell) / 2;

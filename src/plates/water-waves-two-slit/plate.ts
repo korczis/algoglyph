@@ -1,6 +1,6 @@
 import { count } from '../../core/format';
 import { Pacer, paceParam } from '../../core/pace';
-import { mix, paletteParam, ramp } from '../../core/palette';
+import { mix, mixInto, paletteParam, ramp, rampInto, type RGB } from '../../core/palette';
 import { num, str, type PlateCode, type Stat } from '../../core/plate';
 import { Raster } from '../../core/raster';
 import { rgba } from '../_shared/two-slit/draw';
@@ -444,11 +444,15 @@ export const waterWavesTwoSlit: PlateCode = {
         if (intensityView) for (let i = 0; i < shown.length; i++) peak = Math.max(peak, shown[i]);
         const wallC = mix(ctx.bg, fg, 0.75);
         const data = raster.data;
+        // mix(bg, ramp(pal, t), …) and ramp(pal, t) in place, bound to locals: bit-equal, no
+        // array per cell
+        const into = rampInto; const blend = mixInto; const bg = ctx.bg;
+        const cell: RGB = [0, 0, 0];
         for (let i = 0; i < f.u.length; i++) {
-          let c;
+          let c: RGB;
           if (f.fixed[i] && i % GRID_W !== 0 && i % GRID_W !== GRID_W - 1 && i >= GRID_W && i < f.u.length - GRID_W) c = wallC;
-          else if (intensityView) c = mix(ctx.bg, ramp(pal, Math.min(1, shown[i] / peak)), Math.min(1, Math.sqrt(shown[i] / peak) * 1.4));
-          else c = ramp(pal, 0.5 + Math.max(-0.5, Math.min(0.5, f.u[i] * 0.6)));
+          else if (intensityView) c = blend(cell, bg, into(cell, pal, Math.min(1, shown[i] / peak)), Math.min(1, Math.sqrt(shown[i] / peak) * 1.4));
+          else c = into(cell, pal, 0.5 + Math.max(-0.5, Math.min(0.5, f.u[i] * 0.6)));
           data[i * 4] = c[0];
           data[i * 4 + 1] = c[1];
           data[i * 4 + 2] = c[2];
