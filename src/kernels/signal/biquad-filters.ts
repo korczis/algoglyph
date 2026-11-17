@@ -60,6 +60,55 @@ export function measuredResponse(f: Biquad, meter?: Meter, n = IR): { ir: Float6
 
 const dB = (v: number) => 20 * Math.log10(Math.max(1e-9, v));
 
+/**
+ * The −3 dB points around the passband, measured from |H| at bins 0..n/2 spaced df apart: each
+ * crossing of the reference level less 3.0103 dB, linear in dB between the bins. The reference is
+ * the low-pass's first bin, the high-pass's last, a band-pass's peak; a notch and a peaking section
+ * have none.
+ */
+export function halfPowerPoints(mag: Float64Array, kind: Kind, df: number): number[] {
+  let pk = 1;
+  for (let k = 1; k < mag.length; k++) if (mag[k] > mag[pk]) pk = k;
+  const ref = kind === 'lowpass' ? mag[1] : kind === 'highpass' ? mag[mag.length - 1] : mag[pk];
+  const cross: number[] = [];
+  if (kind !== 'peaking' && kind !== 'notch') {
+    for (let k = 1; k < mag.length; k++) {
+      const a = dB(mag[k - 1] / ref) + 3.0103; const b = dB(mag[k] / ref) + 3.0103;
+      if (a * b < 0) cross.push((k - 1 + a / (a - b)) * df);
+    }
+  }
+  return cross;
+}
+
+/** |H| at f0 itself, from the impulse response: |Σ h[n] e^(−jω₀n)|, whether or not f0 is on a bin. */
+export function gainAt(ir: Float64Array, f0: number, fs = FS): number {
+  const w = (2 * Math.PI * f0) / fs;
+  let re = 0; let im = 0;
+  for (let n = 0; n < ir.length; n++) { re += ir[n] * Math.cos(w * n); im -= ir[n] * Math.sin(w * n); }
+  return Math.hypot(re, im);
+}
+
+/**
+ * The analogue prototype, never the digital coefficients: its gain at the centre Ω = 1 (Q for the
+ * low- and high-pass, 1 for the band-pass, 0 for the notch, A² = 10^(gain/20) for the peaking EQ)
+ * and its half-power points, mapped to frequency by the bilinear warp the design prewarps at f0,
+ * f = (fs/π)·atan(Ω·tan(πf0/fs)). Low-pass: (1 − Ω²)² + Ω²/Q² = 2; high-pass: Ω → 1/Ω;
+ * band-pass: Ω₂ − Ω₁ = 1/Q and Ω₁Ω₂ = 1.
+ */
+export function prototype(kind: Kind, f0: number, q: number, gainDb: number, fs = FS): { gain: number; half: number[] } {
+  const warp = (o: number) => (fs / Math.PI) * Math.atan(o * Math.tan((Math.PI * f0) / fs));
+  const p = 2 - 1 / (q * q);
+  const lp = Math.sqrt((p + Math.sqrt(p * p + 4)) / 2);
+  const lo = (-1 / q + Math.sqrt(1 / (q * q) + 4)) / 2;
+  switch (kind) {
+    case 'lowpass': return { gain: q, half: [warp(lp)] };
+    case 'highpass': return { gain: q, half: [warp(1 / lp)] };
+    case 'bandpass': return { gain: 1, half: [warp(lo), warp(lo + 1 / q)] };
+    case 'notch': return { gain: 0, half: [] };
+    default: return { gain: 10 ** (gainDb / 20), half: [] };
+  }
+}
+
 // Five classic sections; the poles and zeros are the roots of the denominator and numerator,
 // and the response measured from the impulse response follows them across the z-plane.
 export const kernel: SignalKernel = {
@@ -98,14 +147,10 @@ export const kernel: SignalKernel = {
     let pk = 1;
     for (let k = 1; k < mag.length; k++) if (mag[k] > mag[pk]) pk = k;
     // the −3 dB points around the passband, measured from the response
-    const ref = kind === 'lowpass' ? mag[1] : kind === 'highpass' ? mag[mag.length - 1] : mag[pk];
-    const cross: number[] = [];
-    if (kind !== 'peaking' && kind !== 'notch') {
-      for (let k = 1; k < mag.length; k++) {
-        const a = dB(mag[k - 1] / ref) + 3.0103; const b = dB(mag[k] / ref) + 3.0103;
-        if (a * b < 0) cross.push((k - 1 + a / (a - b)) * df);
-      }
-    }
+    const cross = halfPowerPoints(mag, kind, df);
+    // the measured gain at f0 and the analogue prototype's, which never sees the coefficients
+    const proto = prototype(kind, f0, q, Number(params.gain));
+    const centre = gainAt(ir, f0);
     const radius = Math.max(...poles.map(([x, y]) => Math.hypot(x, y)));
     const angle = Math.abs(Math.atan2(poles[0][1], poles[0][0]));
     const magDb = Float64Array.from(mag, dB);
@@ -130,6 +175,10 @@ export const kernel: SignalKernel = {
           { label: '−3 dB points (measured)', value: cross.length ? cross.map((c) => `${c.toFixed(1)} Hz`).join(', ') : 'none' },
           { label: 'Peak gain (measured)', value: `${dB(mag[pk]).toFixed(2)} dB at ${(pk * df).toFixed(1)} Hz` },
           { label: 'Measured against evaluated, worst', value: `${worst.toExponential(2)} dB` },
+          { label: 'Gain at f0 (measured from h)', value: `${dB(centre).toFixed(6)} dB (analogue prototype ${
+            proto.gain > 0 ? `${dB(proto.gain).toFixed(6)} dB` : '−∞ dB, a zero on the circle'})` },
+          { label: '−3 dB points of the analogue prototype, warped', value: proto.half.length
+            ? proto.half.map((c) => `${c.toFixed(1)} Hz`).join(', ') : 'none' },
         ],
         counts: meter.snapshot(),
         chart: { title: 'Magnitude response', x: { label: 'frequency (Hz)', log: true }, y: { label: 'gain (dB)' }, series: [
