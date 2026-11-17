@@ -1593,3 +1593,19 @@ sources:
     year: 1947
     kind: paper
     url: https://doi.org/10.1017/S0305004100023197
+  - id: gillespie-1977
+    title: Exact Stochastic Simulation of Coupled Chemical Reactions (The Journal of Physical Chemistry 81, 2340)
+    author: Daniel T. Gillespie
+    year: 1977
+    kind: paper
+    url: https://doi.org/10.1021/j100540a008
+  - id: bateman-1910
+    title: The Solution of a System of Differential Equations Occurring in the Theory of Radioactive Transformations (Proceedings of the Cambridge Philosophical Society 15, 423)
+    author: Harry Bateman
+    year: 1910
+    kind: paper
+  - id: einstein-1917
+    title: Zur Quantentheorie der Strahlung (Physikalische Zeitschrift 18, 121)
+    author: Albert Einstein
+    year: 1917
+    kind: paper
