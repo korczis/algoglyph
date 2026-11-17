@@ -10,7 +10,7 @@
 // A damped field decays towards zero and would end in subnormal floats, which x86 runs far slower
 // than normal ones; with `flushed` every stored value goes through `flush` (src/core/budget.ts).
 // Pure: typed arrays only, no p5, no randomness.
-import { flush } from '../../../core/budget';
+import { flush, TINY } from '../../../core/budget';
 
 type Field = Float32Array | Float64Array;
 
@@ -22,16 +22,24 @@ export function leapfrog2d(
   u: Field, prev: Field, nxt: Field, w: number, h: number, c2: number,
   damp: Field, wall: Uint8Array, flushed: boolean,
 ): void {
+  // flush inlined against a local copy of TINY, and u[i] read once: the same arithmetic in the
+  // same order, so every stored value is bit-equal to the loop that called flush(v)
+  // (test/wave-stencil-hoist.test.ts). An imported binding read inside the loop is a property
+  // access per cell under the test runner's module transform (vite-node), which the budget gate
+  // measures; a local is not.
+  const tiny = TINY;
   for (let y = 1; y < h - 1; y++) {
+    const row = y * w;
     for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
+      const i = row + x;
       if (wall[i]) {
         nxt[i] = 0;
         continue;
       }
-      const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * u[i];
-      const v = (2 * u[i] - prev[i] + c2 * lap) * damp[i];
-      nxt[i] = flushed ? flush(v) : v;
+      const ui = u[i];
+      const lap = u[i - 1] + u[i + 1] + u[i - w] + u[i + w] - 4 * ui;
+      const v = (2 * ui - prev[i] + c2 * lap) * damp[i];
+      nxt[i] = flushed ? (v > tiny || v < -tiny ? v : 0) : v;
     }
   }
 }
